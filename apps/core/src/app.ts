@@ -7,6 +7,8 @@ import { resolveSession } from './accounts';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { COOKIE } from './http';
+import { createOidcProvider, OIDC_PATH } from './oidc/provider';
+import { oidcRoutes } from './routes/oidc';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { meRoutes } from './routes/me';
@@ -50,6 +52,9 @@ export async function buildApp(deps: AppDeps) {
   // Origin we don't recognise is refused, and so is a cookie-bearing one with no Origin at all.
   app.addHook('onRequest', async (req) => {
     if (!UNSAFE.has(req.method)) return;
+    // The OIDC endpoints are called by services with their own credentials (client auth, PKCE), not
+    // with a browser session cookie, and the provider protects its own forms.
+    if (req.url === OIDC_PATH || req.url.startsWith(`${OIDC_PATH}/`)) return;
     const origin = req.headers.origin;
     if (origin ? !deps.allowedOrigins.includes(origin) : Boolean(req.cookies[COOKIE])) {
       throw new ApiError(403, 'bad_origin', 'This request did not come from the site.');
@@ -67,6 +72,7 @@ export async function buildApp(deps: AppDeps) {
   app.get('/readyz', async () => { await deps.db.query('SELECT 1'); return { status: 'ready' }; });
   app.get('/api/v1/site', async () => toPublicSite(deps.config));
 
+  oidcRoutes(app, deps, await createOidcProvider(deps));
   authRoutes(app, deps);
   meRoutes(app, deps);
   adminRoutes(app, deps);

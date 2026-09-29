@@ -4,6 +4,7 @@ import { audit } from './audit';
 import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
 import { emit } from './events';
+import { revokeOidcForUser } from './oidc/adapter';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { burnPasswordCheck, hashPassword, verifyPassword } from './passwords';
@@ -37,7 +38,10 @@ export async function opsFor(q: Queryable, userId: string): Promise<string[]> {
 // Ends every live session of a user and tells the bus, so services can drop connections.
 export async function revokeAllSessions(q: Queryable, userId: string, reason: string): Promise<number> {
   const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);
-  if (r.rowCount > 0) await emit(q, 'session.revoked', { user_id: userId, reason });
+  // Signing out of the site is not this: only security revocations (suspension, password reset,
+  // 2FA reset) also end every service's OIDC grants and tokens.
+  const grants = await revokeOidcForUser(q, userId);
+  if (r.rowCount > 0 || grants > 0) await emit(q, 'session.revoked', { user_id: userId, reason });
   return r.rowCount;
 }
 

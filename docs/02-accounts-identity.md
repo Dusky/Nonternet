@@ -90,6 +90,36 @@ core is an **OIDC provider** (PROPOSED: `node-oidc-provider`). Token claims:
 ```
 Short-lived access tokens (15 min), rotating refresh tokens.
 
+### The provider (built in M1)
+core runs the provider at `{site.domain}/oidc` (`node-oidc-provider`, discovery at
+`/oidc/.well-known/openid-configuration`). Nothing consumes it until IRC (M5), but the contract is fixed now.
+- **Flow**: authorization code with **PKCE (S256) required for every client**. The implicit and
+  hybrid flows, dynamic client registration and the device flow are off.
+- **Clients** are the site's own services, listed under `oidc.clients` in the site config and
+  all first-party, so there is no consent screen. A public client (a browser app) has no
+  secret; a confidential client (a server) authenticates with `OIDC_SECRET_<CLIENT_ID>` from the
+  environment. Core refuses to start if a confidential client's secret is missing or short.
+- **Scopes**: `openid`; `profile` (`handle`, `display_name`); `site` (`role`, `role_rev`, `ops`);
+  `offline_access` for a refresh token (send `prompt=consent` with it).
+- **Tokens**: the ID token holds the claims, so a service can verify it offline against `/oidc/jwks`
+  (ES256; keys are created once, stored encrypted, and rotation is not built yet). Access tokens
+  are opaque and last 15 minutes; `/oidc/me` returns the same claims **fresh from the database**,
+  and confidential clients can introspect at `/oidc/token/introspection`. Refresh tokens last 30 days
+  and **rotate**: using an old one again ends the whole grant.
+- **Signing in** happens on the site, not at the provider. The provider sends the browser to
+  `/api/v1/oidc/interaction/:uid`; with a site session it is confirmed, without one the browser goes to
+  `/login?return_to=…` and comes back. A limited session (admin without TOTP) does not count.
+- **One person per browser**: a sign-in is re-confirmed whenever the site session is missing or is a
+  different account from the provider's own browser session. Someone who logs out and lets another
+  person log in is not silently signed in to IRC as the first person. When the account changes, the
+  provider ends the old browser session (and revokes its grant) through `/oidc/session/end`.
+- **Revocation**: suspending a user, resetting their password or resetting their TOTP also deletes
+  every OIDC grant and token they hold (and publishes `session.revoked`). Plain logout from the
+  site does **not**: leaving the website shouldn't disconnect IRC. `findAccount` refuses a
+  non-active user independently, so a suspended user can't refresh even if a grant survived.
+- **Not enforced yet**: `prompt=login` and `max_age` from a client are ignored; the site session
+  is the login and there is no re-authentication step (Q16 in `17`).
+
 ## How each service authenticates
 | Service | Web (in the shell) | Native client |
 |---|---|---|

@@ -14,6 +14,23 @@ export const siteSchema = z.object({
   homes_domain: hostname,
 });
 
+// Services that sign users in through the OIDC provider (IRC, MUD, BBS…). All are first-party, so
+// there is no consent screen. A confidential client's secret is read from the environment
+// (OIDC_SECRET_<CLIENT_ID>), never from this file.
+const redirectUri = z.string().url().refine(
+  (u) => u.startsWith('https://') || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(u),
+  'must be https (http is allowed only for localhost)',
+);
+export const oidcClientSchema = z.object({
+  client_id: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/, 'lowercase letters, digits and hyphens'),
+  redirect_uris: z.array(redirectUri).min(1),
+  post_logout_redirect_uris: z.array(redirectUri).default([]),
+  // Public clients (browser apps) use PKCE with no secret. Confidential clients (servers) also
+  // authenticate with a secret.
+  public: z.boolean().default(false),
+});
+export type OidcClient = z.infer<typeof oidcClientSchema>;
+
 export const siteConfigSchema = z
   .object({
     site: siteSchema,
@@ -33,6 +50,16 @@ export const siteConfigSchema = z
         trusted_ring_quota: z.number().int().nonnegative().default(2),
       })
       .default({}),
+    oidc: z
+      .object({ clients: z.array(oidcClientSchema).default([]) })
+      .default({})
+      .superRefine((o, ctx) => {
+        const seen = new Set<string>();
+        for (const c of o.clients) {
+          if (seen.has(c.client_id)) ctx.addIssue({ code: 'custom', path: ['clients'], message: `duplicate client_id ${c.client_id}` });
+          seen.add(c.client_id);
+        }
+      }),
     services: z
       .object({
         bbs: z.boolean().default(false),

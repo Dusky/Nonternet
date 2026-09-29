@@ -31,6 +31,7 @@ DB-backed versioned settings (`11`) override runtime keys; `site.*` only via con
 | `DATABASE_URL` | Postgres connection string (required); migrations run at startup |
 | `APP_SECRET_KEY` | 32 random bytes, base64 (required). Encrypts TOTP secrets and keys IP hashes. Back it up with the database |
 | `REDIS_URL` | the event bus. Optional: without it, events are kept in the database outbox and published once it is set |
+| `OIDC_SECRET_<CLIENT_ID>` | one per confidential OIDC client in the site config, at least 32 characters, e.g. `OIDC_SECRET_MUD_SERVER` |
 | `PUBLIC_URL` | base of emailed links; default `https://{site.domain}` |
 | `SMTP_URL`, `MAIL_FROM` | outgoing mail. Without `SMTP_URL`, mail is written to the log |
 | `TRUST_PROXY=1` | set when core is behind Caddy, so client addresses are read correctly |
@@ -64,7 +65,8 @@ Pinned versions of Ergo and the MUD engine; integration suite must pass before b
 - Rate limits: login, signup, posts, guestbook, ring joins, tickets, exports, custom domains.
 - Telnet is cleartext → separate terminal password; SSH encouraged; telnet can be disabled.
 - Internal APIs and service hooks only on the private network with shared secrets.
-- Secrets at rest (TOTP, private keys) encrypted with a key from Docker secrets.
+- Secrets at rest (TOTP secrets, the OIDC signing keys, private keys) encrypted with `APP_SECRET_KEY`
+  (from Docker secrets in production). Change it and core can no longer read them, and says so at startup.
 - Audit log append-only: database triggers refuse UPDATE, DELETE and TRUNCATE for every role. In
   production also run core as a database role with INSERT and SELECT on `audit_log` only, so the
   guarantee doesn't rest on a trigger alone (set up with the production compose file, later).

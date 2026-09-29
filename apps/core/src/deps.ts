@@ -1,6 +1,7 @@
 import type { SiteConfig } from '@app/shared';
 import type { Db } from './db';
 import type { Mailer } from './mailer';
+import type { ResolvedOidcClient } from './oidc/provider';
 
 export interface AppDeps {
   config: SiteConfig;
@@ -12,5 +13,6 @@ export interface AppDeps {
   secureCookies: boolean;
   trustProxy: boolean;      // true only when core sits behind Caddy
   rateLimit: boolean;
+  oidcClients: ResolvedOidcClient[]; // services allowed to sign users in (site config + env secrets)
   now: () => number;        // ms; injectable so tests can move the clock (TOTP steps)
 }

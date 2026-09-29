@@ -46,25 +46,29 @@ export async function createTestDb(): Promise<{ db: Db; drop: () => Promise<void
 
 export const ORIGIN = 'https://example.test';
 
+// One secret key per test file, as in a real deployment: keys stored by one app must be readable by the next.
+const TEST_SECRET_KEY = randomBytes(32);
+
 // The clock the server uses for TOTP. Tests move it forward 30 s at a time to get a fresh code.
 export function makeClock(start = Date.now()) {
   const clock = { ms: start, advance(seconds = 30) { clock.ms += seconds * 1000; } };
   return clock;
 }
 
-export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean } = {}) {
+export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean; oidcClients?: AppDeps['oidcClients']; publicUrl?: string } = {}) {
   const mailer = memoryMailer();
   const clock = makeClock();
   const deps: AppDeps = {
     config: parseSiteConfig(opts.yaml ?? SITE_YAML()),
     db, mailer,
-    secretKey: randomBytes(32),
-    publicUrl: ORIGIN,
-    allowedOrigins: [ORIGIN],
+    secretKey: TEST_SECRET_KEY,
+    publicUrl: opts.publicUrl ?? ORIGIN,
+    allowedOrigins: [opts.publicUrl ?? ORIGIN],
     secureCookies: false, // inject() is plain http; cookie flags are covered by a dedicated test
     trustProxy: false,
     rateLimit: opts.rateLimit ?? false,
     now: () => clock.ms,
+    oidcClients: opts.oidcClients ?? [],
   };
   const app = await buildApp(deps);
   return { app, deps, mailer, clock };
@@ -73,12 +77,12 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
 type App = Awaited<ReturnType<typeof makeApp>>['app'];
 
 // A tiny cookie-aware client over fastify.inject().
-export function client(app: App) {
+export function client(app: App, origin: string = ORIGIN) {
   let sid: string | undefined;
   async function call(method: 'GET' | 'POST', url: string, body?: unknown, headers: Record<string, string> = {}) {
     const res = await app.inject({
       method, url, payload: body as object | undefined,
-      headers: { origin: ORIGIN, ...(sid ? { cookie: `sid=${sid}` } : {}), ...headers },
+      headers: { origin, ...(sid ? { cookie: `sid=${sid}` } : {}), ...headers },
     });
     const set = res.cookies.find((c) => c.name === 'sid');
     if (set) sid = set.value || undefined;
@@ -143,8 +147,8 @@ export async function makeUser(ctx: Pick<Ctx, 'deps'>, opts: { role?: 'guest' | 
   return { id, handle, email };
 }
 
-export async function loginAs(ctx: Pick<Ctx, 'app'>, handle: string) {
-  const c = client(ctx.app);
+export async function loginAs(ctx: Pick<Ctx, 'app' | 'deps'>, handle: string) {
+  const c = client(ctx.app, ctx.deps.publicUrl);
   const r = await c.post('/api/v1/auth/login', { identifier: handle, password: TEST_PASSWORD });
   if (r.status !== 200) throw new Error(`login as ${handle} failed: ${JSON.stringify(r.body)}`);
   return c;

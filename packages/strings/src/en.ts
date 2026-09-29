@@ -19,6 +19,11 @@ export const en = {
   'email.passwordChanged.subject': 'Your {site.name} password was changed',
   'email.passwordChanged.body':
     'The password for {handle} on {site.name} was just changed, and you were signed out everywhere.\n\nIf this was not you, reset your password now and contact the admins.',
+  'oidc.logout.title': 'Sign out of {site.name}',
+  'oidc.logout.question': 'Sign out of {site.name} on this browser?',
+  'oidc.logout.button': 'Sign out',
+  'oidc.logout.done': 'You have signed out.',
+  'oidc.error': 'This sign-in request is not valid. Go back to the app and try again.',
   'error.generic': 'Something went wrong. The admins have been notified.',
 } as const;
 

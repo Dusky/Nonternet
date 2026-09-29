@@ -49,6 +49,13 @@ Caddy on-demand TLS check: `GET /internal/tls-allowed?domain=`
 `GET/POST /admin/announcements` · `GET /admin/services/:name` · `GET /admin/jobs`
 `POST /admin/backups` · `POST /admin/console {command}` (parses to the calls above)
 
+## OIDC provider (built)
+`/oidc/*` is served by the provider itself: `/.well-known/openid-configuration`, `/auth`, `/token`, `/me`,
+`/jwks`, `/token/introspection`, `/token/revocation`, `/session/end`. Browser sign-in is completed by
+`GET /api/v1/oidc/interaction/:uid` (redirects to the site login when there is no session). These paths
+are exempt from the browser Origin check because services call them with their own credentials.
+Details and guarantees are in `02`.
+
 ## Realtime
 `GET /events` (SSE or WebSocket): presence, notifications, new posts in watched boards,
 admin status/metric updates for admins.
@@ -69,7 +76,7 @@ Envelope: `{ id: "e_…", type, at, payload }`. Schemas are in `packages/shared/
 | `user.role_changed` | `user_id, role, previous_role, role_rev` |
 | `user.ops_changed` | `user_id, ops[], role_rev` (the full list after the change) |
 | `user.suspended` / `user.unsuspended` | `user_id` |
-| `session.revoked` | `user_id, session_id?, reason` (no `session_id` means every session) |
+| `session.revoked` | `user_id, session_id?, reason` (no `session_id` means every session; also sent when OIDC grants are revoked) |
 
 Consumers read with a **consumer group** (each group sees every event once; consumers in a group
 share the work). A new group starts from new events, or from the beginning if asked. An event

@@ -92,6 +92,9 @@ announcements (id, body, channels text[], starts_at, ends_at, created_by)
 notifications (id, user_id, kind, payload jsonb, read_at)
 exports (id, user_id, status, path, size_bytes, expires_at)
 jobs (id, kind, status, attempts, payload jsonb, result jsonb, run_at)
+oidc_payloads (id, type, payload jsonb, grant_id, user_code, uid, account_id, expires_at, consumed_at)
+                                   -- the OIDC provider's own records; pk (id, type); account_id lets a suspension revoke them
+oidc_keys (kid pk, alg, private_jwk_enc, created_at)   -- signing keys, encrypted; newest signs
 events_outbox (id bigserial pk, event_id unique, type, payload jsonb, created_at, published_at)
                                    -- written with the change, published to Redis by a relay (docs/14)
 metrics_rollup (metric, bucket timestamptz, value double precision)  -- console charts

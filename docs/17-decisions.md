@@ -37,7 +37,7 @@
 | # | Proposal |
 |---|---|
 | P1 | TypeScript monorepo, Postgres, Redis, React shell |
-| P2 | core is its own OIDC provider |
+| P2 | core is its own OIDC provider (built in M1: authorization code + PKCE, first-party clients from the site config) |
 | P3 | ~~Enigma bridge module~~ Withdrawn with D3. The BBS reads and writes through core's API (`04`) |
 | P4 | Separate terminal password for native clients |
 | P5 | Homepages on per-user subdomains of a separate registrable domain |
@@ -67,6 +67,7 @@
 | Q13 | BBS scope beyond boards: file areas, door games, QWK/offline mail, FTN echomail, terminal signup — in or out, and when? | before M8 |
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
+| Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
 
 ## Verify list
 | # | Fact | Affects |

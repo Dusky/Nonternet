@@ -3,6 +3,7 @@ import { loadSiteConfig } from './config';
 import { connect } from './db';
 import type { AppDeps } from './deps';
 import { makeMailer } from './mailer';
+import { resolveOidcClients } from './oidc/provider';
 
 // Everything core needs from its environment, in one place.
 //   SITE_CONFIG      path to the site config (required)
@@ -29,6 +30,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     secureCookies: publicUrl.startsWith('https://'),
     trustProxy: env.TRUST_PROXY === '1',
     rateLimit: true,
+    oidcClients: resolveOidcClients(config.oidc.clients, env),
     now: Date.now,
   };
 }
