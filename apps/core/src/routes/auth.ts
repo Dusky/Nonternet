@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { loginInputSchema, signupInputSchema } from '@app/shared';
+import { forgotPasswordSchema, loginInputSchema, resetPasswordSchema, signupInputSchema } from '@app/shared';
 import { z } from 'zod';
 import * as accounts from '../accounts';
 import { COOKIE, ctxOf, requireUser, setSessionCookie } from '../http';
@@ -39,6 +39,26 @@ export function authRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/auth/verify-email', { config: perIp(20, '1 hour') }, async (req, reply) => {
     const { token } = verifySchema.parse(req.body);
     await accounts.verifyEmail(deps, token, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+
+  // Always answers 204, whether or not the email has an account (no way to probe for accounts).
+  app.post('/api/v1/auth/forgot-password', {
+    config: {
+      rateLimit: {
+        max: 3, timeWindow: '1 hour', hook: 'preHandler',
+        keyGenerator: (req: { ip: string; body?: unknown }) => `${req.ip}:${String((req.body as { email?: string } | undefined)?.email ?? '').toLowerCase()}`,
+      },
+    },
+  }, async (req, reply) => {
+    const { email } = forgotPasswordSchema.parse(req.body);
+    await accounts.forgotPassword(deps, email, ctxOf(deps, req), (err) => req.log.error({ err }, 'reset email failed'));
+    return reply.code(204).send();
+  });
+
+  app.post('/api/v1/auth/reset-password', { config: perIp(10, '1 hour') }, async (req, reply) => {
+    const { token, password } = resetPasswordSchema.parse(req.body);
+    await accounts.resetPassword(deps, token, password, ctxOf(deps, req), (err) => req.log.error({ err }, 'password-changed email failed'));
     return reply.code(204).send();
   });
 

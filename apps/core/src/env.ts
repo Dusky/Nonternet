@@ -29,5 +29,6 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     secureCookies: publicUrl.startsWith('https://'),
     trustProxy: env.TRUST_PROXY === '1',
     rateLimit: true,
+    now: Date.now,
   };
 }

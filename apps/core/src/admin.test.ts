@@ -18,6 +18,9 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
   });
   afterAll(async () => drop());
 
+  // A code for a new 30 s step each time, so a test never trips the replay check by accident.
+  const freshCode = (secret: string) => { ctx.clock.advance(); return currentTotp(secret, ctx.clock.ms); };
+
   const loginAdmin = async (totp?: string) => {
     const c = client(ctx.app);
     const r = await c.post('/api/v1/auth/login', { identifier: 'boss', password: PASSWORD, ...(totp ? { totp } : {}) });
@@ -54,7 +57,9 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
     expect(wrong.status).toBe(400);
     expect((await c.post('/api/v1/admin/invites', {})).status).toBe(403);
 
-    expect((await c.post('/api/v1/me/totp/enable', { code: await currentTotp(setup.body.secret) })).status).toBe(204);
+    const enabled = await c.post('/api/v1/me/totp/enable', { code: await freshCode(setup.body.secret) });
+    expect(enabled.status).toBe(200);
+    expect(enabled.body.recovery_codes).toHaveLength(10);
     expect((await c.get('/api/v1/me')).body.user).toMatchObject({ limited: false, totp_enabled: true });
     expect((await c.post('/api/v1/admin/invites', {})).status).toBe(201);
   });
@@ -66,7 +71,7 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
     expect(missing.r.body.error.code).toBe('totp_required');
     const wrong = await loginAdmin('000000');
     expect(wrong.r.body.error.code).toBe('invalid_totp');
-    const ok = await loginAdmin(await currentTotp(secret));
+    const ok = await loginAdmin(await freshCode(secret));
     expect(ok.r.status).toBe(200);
     expect(ok.r.body.user.limited).toBe(false);
   });
@@ -78,7 +83,7 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
 
   it('creates an invite an admin can hand out, and audits it', async () => {
     const secret = decryptSecret(ctx.deps.secretKey, first(await db.query(`SELECT totp_secret_enc FROM users WHERE handle = 'boss'`)).totp_secret_enc);
-    const { c } = await loginAdmin(await currentTotp(secret));
+    const { c } = await loginAdmin(await freshCode(secret));
     const r = await c.post('/api/v1/admin/invites', { expires_in_days: 3 });
     expect(r.status).toBe(201);
     expect(r.body.code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
@@ -105,7 +110,7 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
 
   it('reset-totp turns TOTP off and signs the admin out everywhere', async () => {
     const secret = decryptSecret(ctx.deps.secretKey, first(await db.query(`SELECT totp_secret_enc FROM users WHERE handle = 'boss'`)).totp_secret_enc);
-    const { c } = await loginAdmin(await currentTotp(secret));
+    const { c } = await loginAdmin(await freshCode(secret));
     await resetTotp(ctx.deps, 'boss');
     expect((await c.get('/api/v1/me')).status).toBe(401);
     const { r } = await loginAdmin();

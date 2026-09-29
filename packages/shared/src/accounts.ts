@@ -25,10 +25,18 @@ export const signupInputSchema = z.object({
 });
 export type SignupInput = z.infer<typeof signupInputSchema>;
 
+// e.g. k3m9x-2qf7a. Lower-case letters and digits without look-alikes.
+export const RECOVERY_CODE_PATTERN = /^[a-hjkmnp-z2-9]{5}-[a-hjkmnp-z2-9]{5}$/;
+
+export const forgotPasswordSchema = z.object({ email: z.string().email().max(254) });
+export const resetPasswordSchema = z.object({ token: z.string().min(10).max(200), password: passwordSchema });
+
 export const loginInputSchema = z.object({
   identifier: z.string().trim().min(1).max(254), // handle or email
   password: z.string().min(1).max(PASSWORD_MAX),
   totp: z.string().trim().regex(/^\d{6}$/).optional(),
+  // Instead of a TOTP code: one of the single-use codes shown when two-factor was turned on.
+  recovery_code: z.string().trim().toLowerCase().regex(RECOVERY_CODE_PATTERN).optional(),
 });
 export type LoginInput = z.infer<typeof loginInputSchema>;
 
@@ -41,6 +49,7 @@ export const meSchema = z.object({
   email: z.string(),
   email_verified: z.boolean(),
   totp_enabled: z.boolean(),
+  recovery_codes_remaining: z.number().int().nonnegative(),
   // An admin who has not set up TOTP yet: only /me and the TOTP setup calls work.
   limited: z.boolean(),
 });

@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt } from 'node:crypto';
 import { ulid } from 'ulid';
 
 // Stable prefixed IDs (docs/13): u_ users, s_ sessions.
@@ -13,6 +13,14 @@ export function newInviteCode(): string {
   const bytes = randomBytes(12);
   const chars = Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]);
   return [chars.slice(0, 4), chars.slice(4, 8), chars.slice(8, 12)].map((g) => g.join('')).join('-');
+}
+
+// Recovery code, e.g. k3m9x-2qf7a: 10 characters, lower case, no i, l or o (matches RECOVERY_CODE_PATTERN
+// in @app/shared). randomInt is unbiased.
+const RECOVERY_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+export function newRecoveryCode(): string {
+  const chars = Array.from({ length: 10 }, () => RECOVERY_ALPHABET[randomInt(RECOVERY_ALPHABET.length)]);
+  return `${chars.slice(0, 5).join('')}-${chars.slice(5).join('')}`;
 }
 
 // Secrets at rest (TOTP) use AES-256-GCM with APP_SECRET_KEY: 32 bytes, base64 (docs/15).

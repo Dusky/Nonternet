@@ -13,6 +13,12 @@ export const en = {
   'email.verify.subject': 'Confirm your email for {site.name}',
   'email.verify.body':
     'Welcome to {site.name}, {handle}.\n\nConfirm your email address to finish setting up your account:\n{link}\n\nThis link works for 24 hours. If you did not sign up, you can ignore this message.',
+  'email.reset.subject': 'Reset your {site.name} password',
+  'email.reset.body':
+    'Someone asked to reset the password for {handle} on {site.name}.\n\nTo choose a new password, open this link:\n{link}\n\nThis link works for 1 hour and can be used once. If this was not you, you can ignore this message; your password has not changed.',
+  'email.passwordChanged.subject': 'Your {site.name} password was changed',
+  'email.passwordChanged.body':
+    'The password for {handle} on {site.name} was just changed, and you were signed out everywhere.\n\nIf this was not you, reset your password now and contact the admins.',
   'error.generic': 'Something went wrong. The admins have been notified.',
 } as const;
 

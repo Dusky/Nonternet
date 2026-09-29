@@ -48,8 +48,20 @@
 - **Bootstrap and recovery** are operator commands run on the server (`apps/core` `cli`):
   `create-admin --handle … --email …` (password from `ADMIN_PASSWORD`, or generated and shown
   once) and `reset-totp --handle …` (clears TOTP and signs the admin out everywhere).
-- **Not built yet**: password reset by email, TOTP recovery codes, and rejecting a TOTP code
-  that was already used in the same 30-second window. See Q15 in `17-decisions.md`.
+- **TOTP is single-use.** The 30-second time step of each accepted code is stored, and a code
+  from that step or an earlier one is refused (`totp_reused`). This holds under concurrent
+  requests: two logins with one code, only one succeeds.
+- **Recovery codes.** Turning on TOTP shows 10 single-use codes (`k3m9x-2qf7a`) once. Only
+  hashes are stored. A code can be used in place of a TOTP code at login (`recovery_code`).
+  Regenerating a set needs a current authenticator code and voids the old set. `/me` reports
+  how many are left.
+- **Password reset.** `forgot-password` always answers 204, whether or not the email has an
+  account, and the mail is sent in the background so timing doesn't give it away. The link works
+  for 1 hour and once; only the newest link works. Resetting signs the user out everywhere,
+  sends a "your password was changed" notice, and does **not** turn off two-factor: an admin
+  who resets their password still needs their code (or a recovery code) to log in.
+- **Not built yet**: changing your password while logged in (`PUT /me/password`), and
+  disabling TOTP by choice.
 
 ## Single sign-on
 core is an **OIDC provider** (PROPOSED: `node-oidc-provider`). Token claims:

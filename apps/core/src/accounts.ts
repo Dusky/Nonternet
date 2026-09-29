@@ -1,26 +1,29 @@
 import { isReservedHandle, toPublicSite, type LoginInput, type Me, type SignupInput } from '@app/shared';
 import { makeT } from '@app/strings';
 import { audit } from './audit';
-import { decryptSecret, encryptSecret, newId, newInviteCode, randomToken, sha256 } from './crypto';
+import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { burnPasswordCheck, hashPassword, verifyPassword } from './passwords';
-import { checkTotp, newTotpSecret, totpUri } from './totp';
+import { matchTotpStep, newTotpSecret, totpUri } from './totp';
 
 const SESSION_DAYS = 30;
 const VERIFY_HOURS = 24;
 const INVITE_DEFAULT_DAYS = 14;
+const RESET_MINUTES = 60;
+const RECOVERY_CODE_COUNT = 10;
 
 export interface Ctx { ipHash?: string | null; ip?: string; userAgent?: string }
 export interface SessionUser {
   sessionId: string; userId: string; handle: string; displayName: string | null; email: string;
   role: 'guest' | 'user' | 'trusted' | 'admin'; emailVerified: boolean; totpEnabled: boolean; limited: boolean;
+  recoveryRemaining: number;
 }
 
 export const toMe = (u: SessionUser): Me => ({
   id: u.userId, handle: u.handle, display_name: u.displayName, role: u.role, email: u.email,
-  email_verified: u.emailVerified, totp_enabled: u.totpEnabled, limited: u.limited,
+  email_verified: u.emailVerified, totp_enabled: u.totpEnabled, recovery_codes_remaining: u.recoveryRemaining, limited: u.limited,
 });
 
 // ---------------------------------------------------------------- signup & email verification
@@ -133,9 +136,14 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   if (u.status === 'suspended') throw new ApiError(403, 'suspended', 'This account is suspended. Contact the admins to appeal.');
 
   if (u.totp_enabled_at) {
-    if (!input.totp) throw new ApiError(401, 'totp_required', 'Enter the 6-digit code from your authenticator app.');
-    if (!(await checkTotp(decryptSecret(deps.secretKey, u.totp_secret_enc!), input.totp))) {
-      throw new ApiError(401, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
+    if (input.recovery_code) {
+      await useRecoveryCode(deps, u.id, input.recovery_code, ctx);
+    } else if (input.totp) {
+      const result = await acceptTotp(deps, deps.db, u.id, u.totp_secret_enc!, input.totp);
+      if (result === 'invalid') throw new ApiError(401, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
+      if (result === 'reused') throw new ApiError(401, 'totp_reused', 'That code was already used. Wait for the next one and try again.');
+    } else {
+      throw new ApiError(401, 'totp_required', 'Enter the 6-digit code from your authenticator app, or a recovery code.');
     }
   }
 
@@ -150,54 +158,153 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
     await q.query(`UPDATE users SET last_seen_at = now() WHERE id = $1`, [u.id]);
   });
 
+  const remaining = await countRecoveryCodes(deps.db, u.id);
   return {
     token,
     user: { id: u.id, handle: u.handle, display_name: u.display_name, role: u.role, email: u.email,
-      email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, limited },
+      email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, recovery_codes_remaining: remaining, limited },
   };
 }
 
 export async function resolveSession(deps: AppDeps, rawToken: string): Promise<SessionUser | null> {
   const r = await deps.db.query<{
     sid: string; id: string; handle: string; display_name: string | null; email: string; role: SessionUser['role'];
-    email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean;
+    email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean; recovery_remaining: number;
   }>(
-    `SELECT s.id AS sid, s.limited, u.id, u.handle, u.display_name, u.email, u.role, u.email_verified_at, u.totp_enabled_at
+    `SELECT s.id AS sid, s.limited, (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.email, u.role, u.email_verified_at, u.totp_enabled_at
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
   const row = r.rows[0];
   if (!row) return null;
   return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, email: row.email, role: row.role,
-    emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited };
+    emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining };
 }
 
 export async function logout(deps: AppDeps, sessionId: string): Promise<void> {
   await deps.db.query(`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, [sessionId]);
 }
 
-// ---------------------------------------------------------------- TOTP
+// ---------------------------------------------------------------- TOTP and recovery codes
+
+type TotpResult = 'ok' | 'invalid' | 'reused';
+
+// Checks a code and records the 30 s time step it belongs to, so the same code can't be used
+// twice. The UPDATE is the atomic part: two requests with one code can't both succeed.
+async function acceptTotp(deps: AppDeps, q: Queryable, userId: string, secretEnc: string, code: string): Promise<TotpResult> {
+  const step = await matchTotpStep(decryptSecret(deps.secretKey, secretEnc), code, deps.now());
+  if (step === null) return 'invalid';
+  const r = await q.query(
+    `UPDATE users SET totp_last_step = $2 WHERE id = $1 AND (totp_last_step IS NULL OR totp_last_step < $2)`, [userId, step]);
+  return r.rowCount === 1 ? 'ok' : 'reused';
+}
+
+const totpError = (result: Exclude<TotpResult, 'ok'>, status: number): ApiError =>
+  result === 'reused'
+    ? new ApiError(status, 'totp_reused', 'That code was already used. Wait for the next one and try again.')
+    : new ApiError(status, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
+
+async function countRecoveryCodes(q: Queryable, userId: string): Promise<number> {
+  const r = await q.query<{ n: number }>(`SELECT count(*)::int AS n FROM recovery_codes WHERE user_id = $1 AND used_at IS NULL`, [userId]);
+  return r.rows[0]?.n ?? 0;
+}
+
+// Replaces any existing codes with a fresh set. Only hashes are stored; the plain codes are
+// returned once and can't be shown again.
+async function issueRecoveryCodes(q: Queryable, userId: string): Promise<string[]> {
+  await q.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [userId]);
+  const codes = Array.from({ length: RECOVERY_CODE_COUNT }, newRecoveryCode);
+  for (const code of codes) await q.query(`INSERT INTO recovery_codes (code_hash, user_id) VALUES ($1, $2)`, [sha256(code), userId]);
+  return codes;
+}
+
+async function useRecoveryCode(deps: AppDeps, userId: string, code: string, ctx: Ctx): Promise<void> {
+  await deps.db.tx(async (q) => {
+    const r = await q.query(`UPDATE recovery_codes SET used_at = now() WHERE code_hash = $1 AND user_id = $2 AND used_at IS NULL`, [sha256(code), userId]);
+    if (r.rowCount !== 1) throw new ApiError(401, 'invalid_recovery_code', 'That recovery code is not right, or it was already used.');
+    await audit(q, { actorId: userId, actorKind: 'user', action: 'user.recovery_code_used', targetType: 'user', targetId: userId, origin: 'web', ipHash: ctx.ipHash });
+  });
+}
 
 export async function totpSetup(deps: AppDeps, user: SessionUser): Promise<{ secret: string; otpauth_url: string }> {
   if (user.totpEnabled) throw new ApiError(409, 'totp_already_enabled', 'Two-factor authentication is already on.');
   const secret = newTotpSecret();
   // Stored encrypted straight away but inactive until the user proves they can produce a code.
-  await deps.db.query(`UPDATE users SET totp_secret_enc = $2, updated_at = now() WHERE id = $1`, [user.userId, encryptSecret(deps.secretKey, secret)]);
+  await deps.db.query(`UPDATE users SET totp_secret_enc = $2, totp_last_step = NULL, updated_at = now() WHERE id = $1`, [user.userId, encryptSecret(deps.secretKey, secret)]);
   return { secret, otpauth_url: totpUri(deps.config.site.name, user.handle, secret) };
 }
 
-export async function totpEnable(deps: AppDeps, user: SessionUser, code: string, ctx: Ctx): Promise<void> {
+// Returns the recovery codes. This is the only time they are shown.
+export async function totpEnable(deps: AppDeps, user: SessionUser, code: string, ctx: Ctx): Promise<string[]> {
   if (user.totpEnabled) throw new ApiError(409, 'totp_already_enabled', 'Two-factor authentication is already on.');
   const r = await deps.db.query<{ totp_secret_enc: string | null }>(`SELECT totp_secret_enc FROM users WHERE id = $1`, [user.userId]);
   const enc = r.rows[0]?.totp_secret_enc;
   if (!enc) throw new ApiError(400, 'totp_not_started', 'Start two-factor setup first.');
-  if (!(await checkTotp(decryptSecret(deps.secretKey, enc), code))) {
-    throw new ApiError(400, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
-  }
-  await deps.db.tx(async (q) => {
+  return deps.db.tx(async (q) => {
+    const result = await acceptTotp(deps, q, user.userId, enc, code);
+    if (result !== 'ok') throw totpError(result, 400);
     await q.query(`UPDATE users SET totp_enabled_at = now(), updated_at = now() WHERE id = $1`, [user.userId]);
     await q.query(`UPDATE sessions SET limited = false WHERE user_id = $1 AND revoked_at IS NULL`, [user.userId]);
+    const codes = await issueRecoveryCodes(q, user.userId);
     await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.totp_enabled', targetType: 'user', targetId: user.userId, origin: 'web', ipHash: ctx.ipHash });
+    return codes;
   });
+}
+
+// Needs a current authenticator code, so a stolen session alone can't mint new recovery codes.
+export async function regenerateRecoveryCodes(deps: AppDeps, user: SessionUser, code: string, ctx: Ctx): Promise<string[]> {
+  if (!user.totpEnabled) throw new ApiError(400, 'totp_not_enabled', 'Turn on two-factor authentication first.');
+  const r = await deps.db.query<{ totp_secret_enc: string }>(`SELECT totp_secret_enc FROM users WHERE id = $1`, [user.userId]);
+  return deps.db.tx(async (q) => {
+    const result = await acceptTotp(deps, q, user.userId, r.rows[0]!.totp_secret_enc, code);
+    if (result !== 'ok') throw totpError(result, 400);
+    const codes = await issueRecoveryCodes(q, user.userId);
+    await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.recovery_codes_regenerated', targetType: 'user', targetId: user.userId, origin: 'web', ipHash: ctx.ipHash });
+    return codes;
+  });
+}
+
+// ---------------------------------------------------------------- password reset
+
+// Always returns quietly, whether or not the email belongs to an account, so this can't be used
+// to find out who is registered. Mail is sent in the background for the same reason: sending
+// takes time only when the account exists.
+export async function forgotPassword(deps: AppDeps, email: string, ctx: Ctx, onError: (err: unknown) => void = () => undefined): Promise<void> {
+  const found = await deps.db.query<{ id: string; handle: string; email: string }>(
+    `SELECT id, handle, email FROM users WHERE lower(email) = lower($1) AND status <> 'deleted'`, [email]);
+  const u = found.rows[0];
+  if (!u) return;
+  const token = randomToken();
+  await deps.db.tx(async (q) => {
+    // Only the newest link works.
+    await q.query(`UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL`, [u.id]);
+    await q.query(`INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, now() + $3 * interval '1 minute')`, [sha256(token), u.id, RESET_MINUTES]);
+    await audit(q, { actorKind: 'system', action: 'user.password_reset_requested', targetType: 'user', targetId: u.id, origin: 'web', ipHash: ctx.ipHash });
+  });
+  const t = makeT(toPublicSite(deps.config));
+  const link = `${deps.publicUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  void deps.mailer.send({ to: u.email, subject: t('email.reset.subject'), text: t('email.reset.body', { handle: u.handle, link }) }).catch(onError);
+}
+
+export async function resetPassword(deps: AppDeps, token: string, password: string, ctx: Ctx, onError: (err: unknown) => void = () => undefined): Promise<void> {
+  const passwordHash = await hashPassword(password);
+  const user = await deps.db.tx(async (q) => {
+    const found = await q.query<{ user_id: string; used_at: string | null; ok: boolean }>(
+      `SELECT user_id, used_at, expires_at > now() AS ok FROM password_resets WHERE token_hash = $1 FOR UPDATE`, [sha256(token)]);
+    const row = found.rows[0];
+    if (!row || row.used_at || !row.ok) throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
+    const u = await q.query<{ handle: string; email: string; status: string }>(`SELECT handle, email, status FROM users WHERE id = $1 FOR UPDATE`, [row.user_id]);
+    const account = u.rows[0];
+    if (!account || account.status === 'deleted') throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
+
+    await q.query(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, [row.user_id, passwordHash]);
+    await q.query(`UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL`, [row.user_id]);
+    // Whoever had the old password, or a stolen session, is signed out.
+    await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [row.user_id]);
+    await audit(q, { actorId: row.user_id, actorKind: 'user', action: 'user.password_reset', targetType: 'user', targetId: row.user_id, origin: 'web', ipHash: ctx.ipHash });
+    return account;
+  });
+  const t = makeT(toPublicSite(deps.config));
+  void deps.mailer.send({ to: user.email, subject: t('email.passwordChanged.subject'), text: t('email.passwordChanged.body', { handle: user.handle }) }).catch(onError);
 }
 
 // ---------------------------------------------------------------- admin
@@ -229,9 +336,10 @@ export async function createAdmin(deps: AppDeps, input: { handle: string; email:
 
 export async function resetTotp(deps: AppDeps, handle: string): Promise<void> {
   await deps.db.tx(async (q) => {
-    const r = await q.query<{ id: string }>(`UPDATE users SET totp_secret_enc = NULL, totp_enabled_at = NULL, updated_at = now() WHERE lower(handle) = lower($1) RETURNING id`, [handle]);
+    const r = await q.query<{ id: string }>(`UPDATE users SET totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = NULL, updated_at = now() WHERE lower(handle) = lower($1) RETURNING id`, [handle]);
     const id = r.rows[0]?.id;
     if (!id) throw new ApiError(404, 'not_found', `No user with handle ${handle}.`);
+    await q.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [id]);
     await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [id]);
     await audit(q, { actorKind: 'cli', action: 'user.totp_reset', targetType: 'user', targetId: id, origin: 'cli' });
   });

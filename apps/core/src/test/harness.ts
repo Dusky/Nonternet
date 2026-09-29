@@ -42,8 +42,15 @@ export async function createTestDb(): Promise<{ db: Db; drop: () => Promise<void
 
 export const ORIGIN = 'https://example.test';
 
+// The clock the server uses for TOTP. Tests move it forward 30 s at a time to get a fresh code.
+export function makeClock(start = Date.now()) {
+  const clock = { ms: start, advance(seconds = 30) { clock.ms += seconds * 1000; } };
+  return clock;
+}
+
 export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean } = {}) {
   const mailer = memoryMailer();
+  const clock = makeClock();
   const deps: AppDeps = {
     config: parseSiteConfig(opts.yaml ?? SITE_YAML()),
     db, mailer,
@@ -53,9 +60,10 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     secureCookies: false, // inject() is plain http; cookie flags are covered by a dedicated test
     trustProxy: false,
     rateLimit: opts.rateLimit ?? false,
+    now: () => clock.ms,
   };
   const app = await buildApp(deps);
-  return { app, deps, mailer };
+  return { app, deps, mailer, clock };
 }
 
 type App = Awaited<ReturnType<typeof makeApp>>['app'];
@@ -93,4 +101,13 @@ export function first<T = any>(result: { rows: T[] }): T {
   const row = result.rows[0];
   if (!row) throw new Error('expected the query to return a row');
   return row;
+}
+
+// Waits for mail that the server sends in the background (password reset).
+export async function waitForMail(mailer: { sent: unknown[] }, count: number, timeoutMs = 2000): Promise<void> {
+  const end = Date.now() + timeoutMs;
+  while (mailer.sent.length < count) {
+    if (Date.now() > end) throw new Error(`expected ${count} emails, saw ${mailer.sent.length}`);
+    await new Promise((r) => setTimeout(r, 10));
+  }
 }

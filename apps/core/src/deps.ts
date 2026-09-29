@@ -12,4 +12,5 @@ export interface AppDeps {
   secureCookies: boolean;
   trustProxy: boolean;      // true only when core sits behind Caddy
   rateLimit: boolean;
+  now: () => number;        // ms; injectable so tests can move the clock (TOTP steps)
 }

@@ -5,8 +5,9 @@ bearer token. Errors: `{ "error": { "code", "message" } }`. The admin console us
 
 ## Auth & me
 `POST /auth/signup` · `POST /auth/login` · `POST /auth/logout` · `POST /auth/verify-email` · `POST /auth/resend-verification`
+`POST /auth/forgot-password` (always 204) · `POST /auth/reset-password`
 `GET /me` (built) · `PATCH /me` · `PUT /me/password` · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
-`POST /me/totp/setup` · `POST /me/totp/enable` (built)
+`POST /me/totp/setup` · `POST /me/totp/enable` (returns the recovery codes, once) · `POST /me/totp/recovery-codes` (regenerate; needs a current code) — all built
 `POST /tickets {service}` → one-time login ticket (bbs | mud)
 `POST /me/export` · `GET /me/exports` · `DELETE /me` (after confirm)
 OIDC under `/oidc/*`.

@@ -65,7 +65,7 @@
 | Q12 | Future federation shape: hub-and-spoke, points, peers | later phase |
 | Q13 | BBS scope beyond boards: file areas, door games, QWK/offline mail, FTN echomail, terminal signup — in or out, and when? | before M8 |
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
-| Q15 | Password reset by email, TOTP recovery codes and TOTP replay protection are not in the roadmap and not built. Add them to M1 or M4, and are they needed before the first invited users? | before launch |
+| Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 
 ## Verify list
 | # | Fact | Affects |
