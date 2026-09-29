@@ -19,6 +19,7 @@ OIDC under `/oidc/*`.
 `/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
+Notifications (built): `GET /notifications?before=&limit=` (with the unread count), `GET /notifications/count`, `POST /notifications/read {ids}` or `{all: true}`.
 Built (M2): everything below except `PATCH` of ring boards, plus `PUT|DELETE /boards/:slug/watch`,
 `GET|POST /boards/:slug/members`, `DELETE /boards/:slug/members/:userId` (private boards),
 `POST /admin/board-categories`, and `read-pointer` takes `{post_id}` or `{all: true}`. Thread lists page

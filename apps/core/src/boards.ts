@@ -5,6 +5,7 @@ import { isUniqueViolation, type Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { emit } from './events';
+import { notifyForPost } from './notifications';
 import { normalizeBody, normalizeSubject, replySubject } from './text';
 import type { Ctx, SessionUser } from './accounts';
 
@@ -308,15 +309,17 @@ export async function createPost(
 
     let rootId: string | null = null;
     let replyTo: string | null = null;
+    let replyToAuthor: string | null = null;
     let subject: string;
     if (input.reply_to) {
-      const target = await q.query<{ id: string; thread_root_id: string | null; subject: string; hidden_at: Date | null; deleted_at: Date | null }>(
-        `SELECT id, thread_root_id, subject, hidden_at, deleted_at FROM posts WHERE id = $1 AND board_id = $2`, [input.reply_to, b.id]);
+      const target = await q.query<{ id: string; thread_root_id: string | null; subject: string; hidden_at: Date | null; deleted_at: Date | null; author_id: string | null }>(
+        `SELECT id, thread_root_id, subject, hidden_at, deleted_at, author_id FROM posts WHERE id = $1 AND board_id = $2`, [input.reply_to, b.id]);
       const t = target.rows[0];
       if (!t) throw new ApiError(404, 'not_found', 'The post you are replying to is not on this board.');
       if (t.deleted_at || t.hidden_at) throw new ApiError(409, 'gone', 'That post was removed. Reply to another one.');
       rootId = t.thread_root_id ?? t.id;
       replyTo = t.id;
+      replyToAuthor = t.author_id;
       const rootSubject = t.thread_root_id ? (await q.query<{ subject: string }>(`SELECT subject FROM posts WHERE id = $1`, [rootId])).rows[0]!.subject : t.subject;
       subject = input.subject?.trim() ? normalizeSubject(input.subject) : replySubject(rootSubject);
     } else {
@@ -331,6 +334,7 @@ export async function createPost(
     if (rootId) await q.query(`UPDATE posts SET reply_count = reply_count + 1, last_seq = $2 WHERE id = $1`, [rootId, seq]);
     else await q.query(`UPDATE posts SET last_seq = $2 WHERE id = $1`, [id, seq]);
     await emit(q, 'post.created', { post_id: id, board_id: b.id, thread_id: rootId ?? id, author_id: v.userId, visibility: b.visibility });
+    await notifyForPost(q, { id, boardId: b.id, visibility: b.visibility, authorId: v.userId, body, isThread: rootId === null, replyToAuthorId: replyToAuthor });
   });
   const r = await deps.db.query<PostRow>(`SELECT ${POST_COLUMNS} FROM ${POST_FROM} WHERE p.id = $1`, [id]);
   return toPostView(r.rows[0]!, false);

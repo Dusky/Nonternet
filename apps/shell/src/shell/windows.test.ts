@@ -11,6 +11,24 @@ beforeEach(() => {
   useWindows.setState({ wins: [], zTop: 1, viewport: V });
 });
 
+describe('where the app in a window is', () => {
+  it('starts at the place it was opened at, and keeps it when opened again without one', () => {
+    store().open('settings', 'password');
+    expect(win('settings').path).toBe('password');
+    store().open('settings');
+    expect(win('settings').path).toBe('password');
+    store().open('settings', 'profile');
+    expect(win('settings').path).toBe('profile');
+    expect(store().wins).toHaveLength(1);
+  });
+  it('is changed by setPath', () => {
+    store().open('admin');
+    expect(win('admin').path).toBe('');
+    store().setPath('admin', 'audit');
+    expect(win('admin').path).toBe('audit');
+  });
+});
+
 describe('opening and focusing', () => {
   it('opens one window per app, and opening again brings it forward instead of duplicating it', () => {
     store().open('settings');

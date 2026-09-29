@@ -58,7 +58,7 @@ legend { font-weight: 600; padding: 0 .4rem; }
 
 /* ---- the shell: taskbar and stage */
 .shell { display: grid; grid-template-rows: auto 1fr; height: 100dvh; }
-.taskbar { display: flex; align-items: center; gap: .5rem; min-height: 48px; padding: 0 12px; background: var(--taskbar-bg); color: var(--taskbar-text); border-bottom: 1px solid var(--border); position: relative; z-index: 5000; }
+.taskbar { display: flex; align-items: center; gap: .5rem; height: 48px; flex-wrap: nowrap; padding: 0 12px; background: var(--taskbar-bg); color: var(--taskbar-text); border-bottom: 1px solid var(--border); position: relative; z-index: 5000; }
 .taskbar .btn { color: inherit; }
 .brand { font-weight: 700; color: inherit; text-decoration: none; padding: .5rem .25rem; min-height: 44px; display: inline-flex; align-items: center; }
 .back { color: inherit; text-decoration: none; font-size: 1.4rem; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
@@ -157,3 +157,5 @@ textarea.mono { font-family: var(--font-mono); }
 mark { background: var(--focus); color: var(--bg); padding: 0 .1rem; }
 .search-form { display: flex; gap: .6rem; align-items: end; flex-wrap: wrap; }
 .search-form .field { flex: 1; min-width: 12rem; margin: 0; }
+.notif-rows li.is-unread { border-left: 4px solid var(--accent); padding-left: .6rem; }
+.bell { gap: .4rem; }

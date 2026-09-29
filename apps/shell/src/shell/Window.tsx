@@ -68,7 +68,7 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
         </div>
       </header>
       <div className="window-body">
-        <WindowNav>
+        <WindowNav id={win.id}>
           <Suspense fallback={<p className="pad">{t('common.loading')}</p>}><app.Component /></Suspense>
         </WindowNav>
       </div>

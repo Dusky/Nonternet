@@ -57,6 +57,8 @@ posts (id text pk,                             -- p_…
        body_tsv tsvector, posted_at timestamptz,
        edited_at timestamptz null, hidden_at timestamptz null, deleted_at timestamptz null)
 watches (user_id, board_id)
+notifications (id n_…, user_id, kind reply|mention|watch, post_id, board_id, actor_id, created_at, read_at)
+                                                -- unique per (user, post); migration 0007
 read_state (user_id, board_id, last_read_seq)   -- read pointers; source of unread counts
 ```
 As built (migration 0006): `posts.seq` is an identity column that gives every post a total order,

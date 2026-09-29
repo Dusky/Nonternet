@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach } from 'vitest';
 import { AppLink, AppNavLink, matchRoute, PageNav, useAppNav, WindowNav } from './nav';
+import { useWindows } from './shell/windows';
 
 afterEach(cleanup);
+const openWindows = (...ids: ('settings' | 'admin')[]) => { useWindows.setState({ wins: [], zTop: 1 }); ids.forEach((id) => useWindows.getState().open(id)); };
 
 describe('matchRoute', () => {
   const routes = ['users', 'users/:id', 'invites', 'audit'] as const;
@@ -40,7 +42,8 @@ function Where() { return <p data-testid="url">{useLocation().pathname}</p>; }
 
 describe('in a window', () => {
   it('moves between screens without touching the address bar', async () => {
-    render(<MemoryRouter initialEntries={['/']}><Where /><WindowNav><Screen /></WindowNav></MemoryRouter>);
+    openWindows('settings');
+    render(<MemoryRouter initialEntries={['/']}><Where /><WindowNav id="settings"><Screen /></WindowNav></MemoryRouter>);
     expect(screen.getByTestId('path').textContent).toBe('(start)');
     await userEvent.click(screen.getByRole('link', { name: 'One user' }));
     expect(screen.getByTestId('path').textContent).toBe('users/u_1');
@@ -49,9 +52,22 @@ describe('in a window', () => {
   });
 
   it('two windows keep their own place', async () => {
-    render(<><WindowNav><Screen /></WindowNav><WindowNav><Screen /></WindowNav></>);
+    openWindows('settings', 'admin');
+    render(<><WindowNav id="settings"><Screen /></WindowNav><WindowNav id="admin"><Screen /></WindowNav></>);
     await userEvent.click(screen.getAllByRole('link', { name: 'Users' })[0]!);
     expect(screen.getAllByTestId('path').map((n) => n.textContent)).toEqual(['users', '(start)']);
+  });
+});
+
+describe('a window opened at a place', () => {
+  it('starts there, and moves when another app opens it somewhere else', () => {
+    useWindows.setState({ wins: [], zTop: 1 });
+    useWindows.getState().open('admin', 'users/u_7');
+    const { rerender } = render(<WindowNav id="admin"><Screen /></WindowNav>);
+    expect(screen.getByTestId('path').textContent).toBe('users/u_7');
+    act(() => useWindows.getState().open('admin', 'audit'));
+    rerender(<WindowNav id="admin"><Screen /></WindowNav>);
+    expect(screen.getByTestId('path').textContent).toBe('audit');
   });
 });
 

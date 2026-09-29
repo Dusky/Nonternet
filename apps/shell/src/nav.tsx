@@ -1,5 +1,6 @@
-import { createContext, useContext, useMemo, useState, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useWindows, type AppId } from './shell/windows';
 
 // How an app moves between its own screens. An app is shown two ways: on a page of its own (its
 // screens follow the address bar) and inside a desktop window (its screens must not touch the
@@ -35,10 +36,11 @@ export function PageNav({ base, children }: { base: string; children: ReactNode 
   return <NavContext.Provider value={nav}>{children}</NavContext.Provider>;
 }
 
-// In a window: the screen is held in state, so the address bar never changes.
-export function WindowNav({ children }: { children: ReactNode }) {
-  const [path, setPath] = useState('');
-  const nav = useMemo<Nav>(() => ({ path, go: (to) => setPath(trim(to)), href: (to) => `#${trim(to)}` }), [path]);
+// In a window: the screen is held in the window's state, so the address bar never changes.
+export function WindowNav({ id, children }: { id: AppId; children: ReactNode }) {
+  const path = useWindows((s) => s.wins.find((w) => w.id === id)?.path ?? '');
+  const setPath = useWindows((s) => s.setPath);
+  const nav = useMemo<Nav>(() => ({ path: trim(path), go: (to) => setPath(id, trim(to)), href: (to) => `#${trim(to)}` }), [id, path, setPath]);
   return <NavContext.Provider value={nav}>{children}</NavContext.Provider>;
 }
 

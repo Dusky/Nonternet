@@ -62,6 +62,18 @@ for future federation (`12`).
 - Post text is shown as plain text (`white-space: pre-wrap`). Light markdown rendering is not built;
   if it is added it must render safely from the stored text without changing what is stored.
 
+## As built (M2, notifications)
+- Three kinds, one per person per post, most direct first: a **reply** to your post, an
+  **@mention**, and a **new thread on a board you watch**. Replies inside a watched board's
+  threads are not announced to its watchers, so a busy thread does not bury them (PROPOSED).
+- Nobody is told about their own post, about a board they cannot read, or if they are a guest or
+  suspended. At most 10 people are mentioned per post. `@handle` inside an address or a word
+  is not a mention.
+- Written in the same transaction as the post. A notification about a post that was deleted or
+  hidden, or a board you can no longer read, is not shown or counted.
+- The taskbar has a bell with the unread count, checked once a minute. There is no live push and no
+  email yet; both are to do (email needs per-user settings).
+
 ## Later (local extras, web-only)
 Reactions, edits with history, image attachments — labeled as web-only; terminal users see
 a text fallback ("[image: filename]").

@@ -57,6 +57,11 @@ xterm.js support). The Boards app is the accessible path to BBS content.
   Scanlines and glow are separate switches on amber. A unit test enforces contrast: 4.5:1 for
   modern, 7:1 for amber.
 - **Accessibility is tested**: axe-core scans every main screen in both themes, on desktop.
+- **A window remembers where its app is** (`Win.path`), so one app can open another at a place:
+  `OpenAppLink` opens a window at that place on the desktop and the app's page on a phone, and has a
+  real address so it opens in a new tab like any link.
+- The taskbar is a fixed 48px high (the window manager relies on it) and has a bell with the unread
+  count of notifications.
 - Logout is a full page load, so no client state survives it.
 
 ## Tech (PROPOSED)

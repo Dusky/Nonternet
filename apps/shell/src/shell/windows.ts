@@ -3,12 +3,14 @@ import { create } from 'zustand';
 // The window manager (docs/10): desktop-style windows on large screens. This file is only the
 // state and the rules; it draws nothing, so the rules can be tested on their own.
 
-export type AppId = 'boards' | 'settings' | 'admin';
+export type AppId = 'boards' | 'notifications' | 'settings' | 'admin';
 
 export interface Win {
   id: AppId;
   x: number; y: number; w: number; h: number;
   z: number;
+  // Where the app inside the window is ("general/t/p_…"). Kept here so another app can open a window at a place.
+  path: string;
   minimized: boolean;
   maximized: boolean;
   // Where the window sits when it is not maximized, so un-maximizing puts it back.
@@ -59,7 +61,8 @@ interface State {
   zTop: number;
   viewport: Viewport;
   setViewport(v: Viewport): void;
-  open(id: AppId): void;
+  open(id: AppId, path?: string): void;
+  setPath(id: AppId, path: string): void;
   close(id: AppId): void;
   focus(id: AppId): void;
   minimize(id: AppId): void;
@@ -82,16 +85,18 @@ export const useWindows = create<State>((set, get) => ({
     wins: s.wins.map((w) => (w.maximized ? w : { ...w, ...clampGeometry(w, viewport) })),
   })),
 
-  open: (id) => set((s) => {
+  open: (id, path) => set((s) => {
     const existing = s.wins.find((w) => w.id === id);
     const z = s.zTop + 1;
-    // One window per app: opening it again brings it back and to the front.
-    if (existing) return { zTop: z, wins: s.wins.map((w) => (w.id === id ? { ...w, minimized: false, z } : w)) };
+    // One window per app: opening it again brings it back and to the front. Given a place, it goes there.
+    if (existing) return { zTop: z, wins: s.wins.map((w) => (w.id === id ? { ...w, minimized: false, z, path: path ?? w.path } : w)) };
     const cascade = s.wins.length * 28;
     const saved = loadSaved()[id];
     const g = clampGeometry(saved ?? { x: 64 + cascade, y: 40 + cascade, ...DEFAULT }, s.viewport);
-    return { zTop: z, wins: [...s.wins, { id, ...g, z, minimized: false, maximized: false, restore: null }] };
+    return { zTop: z, wins: [...s.wins, { id, ...g, z, path: path ?? '', minimized: false, maximized: false, restore: null }] };
   }),
+
+  setPath: (id, path) => set((s) => ({ wins: s.wins.map((w) => (w.id === id ? { ...w, path } : w)) })),
 
   close: (id) => set((s) => ({ wins: s.wins.filter((w) => w.id !== id) })),
 

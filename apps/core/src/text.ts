@@ -63,3 +63,14 @@ export function previewPost(rawBody: string): PostPreview {
   }
   return { stored, wrapped: wrapForTerminal(stored), warnings };
 }
+
+// @handle in a post. Not inside an address or a word, and at most 10 people per post so a post cannot
+// be used to spam a crowd.
+export function extractMentions(body: string, max = 10): string[] {
+  const found = new Set<string>();
+  for (const m of body.matchAll(/(?<![A-Za-z0-9_@.\/-])@([A-Za-z][A-Za-z0-9_-]{1,19})\b/g)) {
+    found.add(m[1]!.toLowerCase());
+    if (found.size >= max) break;
+  }
+  return [...found];
+}

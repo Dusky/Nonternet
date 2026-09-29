@@ -139,6 +139,31 @@ test.describe('boards', () => {
     await expect(page.getByRole('link', { name: 'New thread' })).toHaveCount(0);
   });
 
+  test('a reply shows up on the bell, and following it opens the thread and clears the count', async ({ page, browser }) => {
+    const owner = await makeUser(page);
+    await setRole(owner.handle, 'trusted');
+    const other = await makeUser(page);
+    const slug = uniq('ping');
+    const subject = `Ping ${slug}`;
+    const op = await signedInPage(browser, owner.handle);
+    const h = { origin: BASE_URL };
+    await op.request.post('/api/v1/boards', { data: { slug, name: `Ping ${slug}`, visibility: 'public' }, headers: h });
+    const t = await (await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject, body: 'Anyone there?' }, headers: h })).json();
+
+    await signIn(page, other.handle, PASSWORD);
+    await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `Yes, hello @${owner.handle}`, reply_to: t.id }, headers: h });
+
+    await op.goto('/');
+    await expect(op.getByRole('button', { name: 'Notifications, 1 unread' })).toBeVisible();
+    await op.getByRole('button', { name: 'Notifications, 1 unread' }).click();
+    await expect(op.getByText(`${other.handle} replied to you`)).toBeVisible();
+    await op.getByRole('link', { name: `${other.handle} replied to you` }).click();
+    await expect(op.getByRole('heading', { level: 2, name: subject })).toBeVisible();
+    await expect(op.getByText(`Yes, hello @${owner.handle}`)).toBeVisible();
+    await expect(op.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible(); // no count once it is read
+    await op.context().close();
+  });
+
   for (const theme of ['modern', 'amber'] as const) {
     test(`accessibility of the boards screens (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
@@ -150,9 +175,9 @@ test.describe('boards', () => {
       const t = await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'Scan me', body: 'Some text here.' }, headers: { origin: BASE_URL } });
       const id = (await t.json()).id;
       await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: 'A reply.', reply_to: id }, headers: { origin: BASE_URL } });
-      for (const path of ['/boards', '/boards/new', '/boards/search', `/boards/${slug}`, `/boards/${slug}/new`, `/boards/${slug}/settings`, `/boards/${slug}/t/${id}`]) {
+      for (const path of ['/notifications', '/boards', '/boards/new', '/boards/search', `/boards/${slug}`, `/boards/${slug}/new`, `/boards/${slug}/settings`, `/boards/${slug}/t/${id}`]) {
         await page.goto(path);
-        await expect(page.getByRole('heading', { level: 1, name: 'Boards' })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         await expect(page.getByText('Loading')).toHaveCount(0);
         await scan(page, `${path} (${theme})`);
       }

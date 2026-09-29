@@ -72,6 +72,8 @@
 ## Implementation notes
 - 2026-09-29: the shell has no nested routers. Full pages use the URL; windows use state (`10`).
 - 2026-09-29: `RATE_LIMIT=off` added for tests and refused in production (`15`).
+- 2026-09-29: board notifications are one per person per post (reply, then mention, then watch); watchers hear about new threads only (`05`, PROPOSED). Email and live push for notifications are not built.
+- 2026-09-29: a window's place inside its app is held in the window manager, so apps can link to each other (`10`).
 - Still open from M1: Q16, no OIDC signing-key rotation command, compose stack unverified.
 
 ## Verify list

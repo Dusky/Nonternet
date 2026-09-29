@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Me } from '@app/shared';
 import { api } from '../api';
@@ -19,6 +20,8 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const top = focusedWindow(wins);
   const [menu, setMenu] = useState<'apps' | 'account' | null>(null);
   const bar = useRef<HTMLElement>(null);
+  // A number on the bell. Checked once a minute; there is no live push yet.
+  const unread = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), refetchInterval: 60_000, staleTime: 15_000 }).data?.unread ?? 0;
 
   // Escape and clicking elsewhere close a menu, as people expect.
   useEffect(() => {
@@ -76,6 +79,11 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
         )}
 
         <div className="taskbar-account">
+          <button type="button" className="btn btn-quiet bell" onClick={() => launch('notifications')}
+            aria-label={unread > 0 ? t('notifications.bellCount', { count: unread }) : t('notifications.bell')}>
+            <AppIcon id="notifications" size={22} />
+            {unread > 0 && <span className="badge badge-open" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
+          </button>
           <button type="button" className="btn btn-quiet" aria-haspopup="menu" aria-expanded={menu === 'account'} aria-label={t('nav.account', { handle: me.handle })} onClick={() => setMenu(menu === 'account' ? null : 'account')}>{me.handle}</button>
           {menu === 'account' && (
             <ul className="menu menu-right" role="menu">

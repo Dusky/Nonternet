@@ -79,3 +79,17 @@ export interface PostPreview {
   wrapped: string[];         // the same text as a 79-column terminal shows it
   warnings: string[];        // things a classic terminal cannot show
 }
+
+export const NOTIFICATION_KINDS = ['reply', 'mention', 'watch'] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+export interface NotificationView {
+  id: string; kind: NotificationKind; at: string; read: boolean;
+  board: { slug: string; name: string }; thread_id: string; post_id: string; subject: string;
+  actor: { id: string; handle: string; display_name: string | null };
+}
+
+export const notificationsReadSchema = z.union([
+  z.object({ ids: z.array(z.string().regex(/^n_[0-9A-Z]{26}$/)).min(1).max(200) }),
+  z.object({ all: z.literal(true) }),
+]);
