@@ -69,6 +69,11 @@
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
 
+## Implementation notes
+- 2026-09-29: the shell has no nested routers. Full pages use the URL; windows use state (`10`).
+- 2026-09-29: `RATE_LIMIT=off` added for tests and refused in production (`15`).
+- Still open from M1: Q16, no OIDC signing-key rotation command, compose stack unverified.
+
 ## Verify list
 | # | Fact | Affects |
 |---|---|---|

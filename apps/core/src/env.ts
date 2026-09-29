@@ -5,6 +5,15 @@ import type { AppDeps } from './deps';
 import { makeMailer } from './mailer';
 import { resolveOidcClients } from './oidc/provider';
 
+// Rate limits are on unless RATE_LIMIT=off, which exists for automated tests that sign up more people
+// than one address is allowed to. It refuses to run in production, where turning them off is never
+// what anyone means.
+function rateLimitEnabled(env: Record<string, string | undefined>, production: boolean): boolean {
+  if (env.RATE_LIMIT !== 'off') return true;
+  if (production) throw new Error('RATE_LIMIT=off is not allowed when NODE_ENV=production');
+  return false;
+}
+
 // Everything core needs from its environment, in one place.
 //   SITE_CONFIG      path to the site config (required)
 //   DATABASE_URL     Postgres connection string (required)
@@ -12,6 +21,7 @@ import { resolveOidcClients } from './oidc/provider';
 //   PUBLIC_URL       base of emailed links; default https://{site.domain}
 //   SMTP_URL / MAIL_FROM   outgoing mail; without SMTP_URL mail is logged
 //   TRUST_PROXY=1    set when core is behind Caddy
+//   RATE_LIMIT=off  turns rate limits off, for automated tests only (refused in production)
 export function depsFromEnv(env = process.env, log: (m: string) => void = console.log): AppDeps {
   const config = loadSiteConfig(env.SITE_CONFIG);
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
@@ -29,7 +39,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     allowedOrigins: [...new Set(allowedOrigins)],
     secureCookies: publicUrl.startsWith('https://'),
     trustProxy: env.TRUST_PROXY === '1',
-    rateLimit: true,
+    rateLimit: rateLimitEnabled(env, production),
     oidcClients: resolveOidcClients(config.oidc.clients, env),
     now: Date.now,
   };

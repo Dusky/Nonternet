@@ -4,6 +4,8 @@ RUN corepack enable
 WORKDIR /repo
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY packages ./packages
+# The lockfile covers every workspace package, so pnpm wants each one's manifest present.
+COPY e2e/package.json ./e2e/package.json
 COPY apps/shell ./apps/shell
 RUN pnpm install --frozen-lockfile --filter @app/shell...
 RUN pnpm --filter @app/shell build

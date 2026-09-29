@@ -17,6 +17,7 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 7. Settings app (profile, passwords, theme; terminal password and SSH keys arrive with IRC).
 8. Admin console v0: users table, dossier (basic), promote/suspend, invites, audit list.
 **Accept:** fresh setup → admin invites a user → user signs up → admin promotes → audit shows all; works on phone.
+**Status: done (2026-09-29).** Tasks 1–8 are built. `e2e/tests/acceptance.spec.ts` runs the accept line on a desktop browser and a phone. Not yet verified: the compose stack and Docker images (no Docker daemon was available); CI builds them.
 
 ## M2 — Boards
 1. Board registry, trusted-only creation with quotas, visibility rules.

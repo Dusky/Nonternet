@@ -45,6 +45,20 @@ Keyboard-operable; proper ARIA roles for windows; modern theme meets WCAG AA; re
 offer high contrast; terminal windows offer a screen-reader mode or transcript (VERIFY
 xterm.js support). The Boards app is the accessible path to BBS content.
 
+## As built (M1)
+- **Navigation has no nested routers.** The address bar belongs to the page router only. Apps use
+  `nav.tsx`: `PageNav` (a full page on a phone, tied to the URL) and `WindowNav` (a window on the
+  desktop, tied to window state, never touching the address bar). Apps link with `AppLink`.
+- **Windows** (`shell/windows.ts`): one window per app, z-order by last click, minimize, maximize
+  and restore, minimum 320×240, the title bar always reachable, 48px taskbar. Move and resize by
+  mouse or keyboard. Positions are kept in localStorage (`ui:windows:v1`) and pulled back into view
+  when the browser shrinks. Below 900px wide the shell shows the launcher and full-screen pages.
+- **Themes** (`packages/ui-themes`): modern (light and dark by system setting) and amber.
+  Scanlines and glow are separate switches on amber. A unit test enforces contrast: 4.5:1 for
+  modern, 7:1 for amber.
+- **Accessibility is tested**: axe-core scans every main screen in both themes, on desktop.
+- Logout is a full page load, so no client state survives it.
+
 ## Tech (PROPOSED)
 React + Vite + TypeScript; TanStack Query; Zustand for the window manager; xterm.js;
 in-house window manager. All strings from `packages/strings` with `site.name` interpolation.

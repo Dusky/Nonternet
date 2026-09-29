@@ -63,6 +63,15 @@ TEST_REDIS_URL=redis://localhost:6379 pnpm test
 ```
 Without those variables the database and event bus tests are skipped, and the run says so.
 
+End-to-end tests drive the built site in Chromium (a desktop and a phone size):
+```sh
+pnpm build
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/postgres \
+TEST_REDIS_URL=redis://localhost:6379 pnpm test:e2e
+```
+They start core and the shell themselves on ports 3373 and 4373 with `RATE_LIMIT=off`.
+That setting exists for tests only, and core refuses to start with it in production.
+
 Run it locally (core on :3000, shell on :5173, which proxies `/api` to core):
 ```sh
 export SITE_CONFIG=deploy/site.example.yaml

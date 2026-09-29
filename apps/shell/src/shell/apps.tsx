@@ -1,0 +1,21 @@
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
+import type { Me } from '@app/shared';
+import type { StringKey } from '@app/strings';
+import type { AppId } from './windows';
+
+export interface AppDef {
+  id: AppId;
+  title: StringKey;
+  path: string;            // the app's own full-page address (docs/10: every app has one)
+  adminOnly: boolean;
+  Component: LazyExoticComponent<ComponentType>;
+}
+
+// Apps load on demand, so a phone only downloads what it opens.
+export const APPS: AppDef[] = [
+  { id: 'settings', title: 'app.settings', path: '/settings', adminOnly: false, Component: lazy(() => import('../apps/settings/SettingsApp')) },
+  { id: 'admin', title: 'app.admin', path: '/admin', adminOnly: true, Component: lazy(() => import('../apps/admin/AdminApp')) },
+];
+
+export const appById = (id: AppId): AppDef => APPS.find((a) => a.id === id)!;
+export const visibleApps = (me: Me): AppDef[] => APPS.filter((a) => !a.adminOnly || me.role === 'admin');

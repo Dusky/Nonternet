@@ -63,6 +63,7 @@ Pinned versions of Ergo and the MUD engine; integration suite must pass before b
 - Homepages on a separate origin; shell cookies host-only, Secure, HttpOnly, SameSite=Lax.
 - Strict CSP on the shell; CSRF protection on state-changing requests.
 - Rate limits: login, signup, posts, guestbook, ring joins, tickets, exports, custom domains.
+- `RATE_LIMIT=off` turns off login and signup rate limits for the end-to-end suite. Core exits at start-up if it is set with `NODE_ENV=production`.
 - Telnet is cleartext → separate terminal password; SSH encouraged; telnet can be disabled.
 - Internal APIs and service hooks only on the private network with shared secrets.
 - Secrets at rest (TOTP secrets, the OIDC signing keys, private keys) encrypted with `APP_SECRET_KEY`

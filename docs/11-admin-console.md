@@ -13,6 +13,10 @@ from and calls into well-tested core APIs** — it never gets private back doors
 - **Two ways to do everything.** Every action is a button *and* a console command.
 - **Ops get a slice.** Board ops and ring ops get the same console UI scoped to what they manage.
 
+> **Built (M1, v0):** users list with search and filters, a dossier (role, suspend and
+> unsuspend, ops, history), invites, and the audit log. Every change asks for a reason. The rest
+> of this doc is still to build.
+
 ## Sections
 
 ### 1. Status board (home)
