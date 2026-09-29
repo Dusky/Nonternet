@@ -1,0 +1,23 @@
+# Site config: the one place the product name and domains live.
+# Copy to site.yaml, edit, and point SITE_CONFIG at it. Nothing else in the repo may hard-code
+# these values (CLAUDE.md), and tests/placeholder-name.test.ts enforces that.
+site:
+  name: Nonternet            # placeholder — change freely
+  short_name: nonternet
+  domain: example.net
+  homes_domain: example-homes.net
+
+signup:
+  mode: invite               # open | invite | application
+  require_email: true
+
+limits:
+  homepage_quota_mb: { user: 50, trusted: 100 }
+  trusted_board_quota: 3
+  trusted_ring_quota: 2
+
+# Each service turns on as its milestone ships.
+services:
+  bbs: false
+  irc: false
+  mud: false

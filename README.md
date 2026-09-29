@@ -49,3 +49,27 @@ These documents are the spec for building it with Claude Code.
 Accounts + web shell + boards + rings + homepages + export + admin console. IRC and the MUD
 follow. The terminal BBS, built in-house, comes last. Federation and self-hosting are later
 phases.
+
+## Getting started (development)
+Needs Node 22 and pnpm 10.
+
+```sh
+pnpm install
+pnpm typecheck && pnpm build && REQUIRE_BUILD=1 pnpm test    # what CI runs
+
+# run it: core on :3000, shell on :5173 (proxies /api to core)
+SITE_CONFIG=deploy/site.example.yaml pnpm dev:core
+pnpm dev:shell
+```
+
+The product name and domains live only in the site config (`deploy/site.example.yaml`). Point
+`SITE_CONFIG` at your own copy to rebrand. `tests/placeholder-name.test.ts` fails if the
+configured name appears anywhere else in source or built output.
+
+Compose stack (Postgres, Redis, core, shell, Caddy):
+```sh
+cp deploy/.env.example deploy/.env      # set POSTGRES_PASSWORD
+docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
+# then open http://localhost:8080
+```
+

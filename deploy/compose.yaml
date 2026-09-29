@@ -1,0 +1,64 @@
+# `docker compose -f deploy/compose.yaml --env-file deploy/.env up --build`
+# Local development stack. Service names are neutral (core, shell, caddy).
+name: app
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_DB: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  core:
+    build:
+      context: ..
+      dockerfile: apps/core/Dockerfile
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      PORT: "3000"
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  shell:
+    build:
+      context: ..
+      dockerfile: apps/shell/Dockerfile
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    environment:
+      CADDY_ADDRESS: ${CADDY_ADDRESS:-:80}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - core
+      - shell
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:

@@ -1,0 +1,40 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      # Unit tests, then the placeholder-name check over source AND the build output.
+      - run: pnpm test
+        env:
+          REQUIRE_BUILD: "1"
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose file
+        run: |
+          cp deploy/.env.example deploy/.env
+          docker compose -f deploy/compose.yaml --env-file deploy/.env config --quiet
+      - name: Bring the stack up and check it
+        run: |
+          cp deploy/.env.example deploy/.env
+          docker compose -f deploy/compose.yaml --env-file deploy/.env up --build -d --wait
+          curl -fsS http://localhost:8080/api/v1/site
+          curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f deploy/compose.yaml --env-file deploy/.env logs

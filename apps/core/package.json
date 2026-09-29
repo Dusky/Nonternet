@@ -1,0 +1,22 @@
+{
+  "name": "@app/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/main.cjs",
+    "start": "node dist/main.cjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@app/shared": "workspace:*",
+    "@app/strings": "workspace:*",
+    "fastify": "^5.0.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.0"
+  }
+}
