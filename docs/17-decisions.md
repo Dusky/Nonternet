@@ -74,5 +74,10 @@
 | V10 | Licences of bundled GIFs, fonts, any embedded clients | 07, 08, 10 |
 | V11 | Caddy on-demand TLS with ask endpoint | 07, 15 |
 
+## Spike log
+| Date | Item | Result |
+|---|---|---|
+| 2026-09-29 | M0 (source read only) | Bridge as an in-process `webHandlers` module looks feasible; Q2 stays open until runtime checks pass. See `docs/spikes/m0-enigma.md`. |
+
 ## Change process
 Update this file and the affected doc in the same commit when anything here changes.
