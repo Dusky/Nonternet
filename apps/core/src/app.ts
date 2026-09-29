@@ -1,13 +1,74 @@
+import cookie from '@fastify/cookie';
+import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
-import { toPublicSite, type SiteConfig } from '@app/shared';
+import { toPublicSite } from '@app/shared';
+import { ZodError } from 'zod';
+import { resolveSession } from './accounts';
+import type { AppDeps } from './deps';
+import { ApiError } from './errors';
+import { COOKIE } from './http';
+import { adminRoutes } from './routes/admin';
+import { authRoutes } from './routes/auth';
+import { meRoutes } from './routes/me';
 
-export function buildApp(config: SiteConfig) {
-  const app = Fastify({ logger: process.env.NODE_ENV !== 'test' });
+const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+export async function buildApp(deps: AppDeps) {
+  const app = Fastify({ logger: process.env.NODE_ENV !== 'test', trustProxy: deps.trustProxy });
+
+  await app.register(cookie);
+  if (deps.rateLimit) await app.register(rateLimit, { global: false });
+
+  // Clients often send Content-Type: application/json with no body (fetch does when a body is
+  // omitted). Treat that as "no input" instead of rejecting it; bad JSON is still a 400.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (body === '') return done(null, undefined);
+    try {
+      done(null, JSON.parse(body as string));
+    } catch {
+      const err = new Error('Invalid JSON') as Error & { statusCode: number };
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  });
+
+  // Errors are { error: { code, message } } (docs/14).
+  app.setErrorHandler((error, req, reply) => {
+    const err = error as Error & { statusCode?: number };
+    if (err instanceof ApiError) return reply.code(err.status).send({ error: { code: err.code, message: err.message } });
+    if (err instanceof ZodError) {
+      const first = err.issues[0];
+      return reply.code(400).send({ error: { code: 'invalid_input', message: first ? `${first.path.join('.') || 'input'}: ${first.message}` : 'Invalid input.' } });
+    }
+    if (err.statusCode === 429) return reply.code(429).send({ error: { code: 'rate_limited', message: 'Too many attempts. Wait a few minutes and try again.' } });
+    if (err.statusCode && err.statusCode < 500) return reply.code(err.statusCode).send({ error: { code: 'bad_request', message: 'The request could not be understood.' } });
+    req.log.error(err);
+    return reply.code(500).send({ error: { code: 'internal', message: 'Something went wrong. The admins have been notified.' } });
+  });
+
+  // CSRF: browsers always send Origin on cross-site POSTs. A state-changing request with an
+  // Origin we don't recognise is refused, and so is a cookie-bearing one with no Origin at all.
+  app.addHook('onRequest', async (req) => {
+    if (!UNSAFE.has(req.method)) return;
+    const origin = req.headers.origin;
+    if (origin ? !deps.allowedOrigins.includes(origin) : Boolean(req.cookies[COOKIE])) {
+      throw new ApiError(403, 'bad_origin', 'This request did not come from the site.');
+    }
+  });
+
+  // Attach the session (if any) to every request.
+  app.decorateRequest('session', null);
+  app.addHook('preHandler', async (req) => {
+    const raw = req.cookies[COOKIE];
+    req.session = raw ? await resolveSession(deps, raw) : null;
+  });
 
   app.get('/healthz', async () => ({ status: 'ok' }));
+  app.get('/readyz', async () => { await deps.db.query('SELECT 1'); return { status: 'ready' }; });
+  app.get('/api/v1/site', async () => toPublicSite(deps.config));
 
-  // Everything the shell needs to brand itself. The shell never hard-codes the name.
-  app.get('/api/v1/site', async () => toPublicSite(config));
-
+  authRoutes(app, deps);
+  meRoutes(app, deps);
+  adminRoutes(app, deps);
   return app;
 }

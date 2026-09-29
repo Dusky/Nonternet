@@ -1,0 +1,84 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createAdmin } from './accounts';
+import { client, createTestDb, dbAvailable, makeApp, ORIGIN } from './test/harness';
+
+const PASSWORD = 'correct horse battery';
+
+describe.skipIf(!dbAvailable)('request security', () => {
+  let drop: () => Promise<void>;
+  let db: Awaited<ReturnType<typeof createTestDb>>['db'];
+  beforeAll(async () => { ({ db, drop } = await createTestDb()); });
+  afterAll(async () => drop());
+
+  it('refuses state-changing requests from another origin', async () => {
+    const { app } = await makeApp(db);
+    const r = await client(app).post('/api/v1/auth/login', { identifier: 'a', password: 'b' }, { origin: 'https://evil.test' });
+    expect(r.status).toBe(403);
+    expect(r.body.error.code).toBe('bad_origin');
+  });
+
+  it('refuses a cookie-bearing state-changing request that has no Origin', async () => {
+    const { app, deps } = await makeApp(db);
+    await createAdmin(deps, { handle: 'boss', email: 'boss@example.test', password: PASSWORD });
+    const c = client(app);
+    await c.post('/api/v1/auth/login', { identifier: 'boss', password: PASSWORD });
+    const res = await app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: { cookie: `sid=${c.sid}` } });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('lets non-browser clients without a cookie or Origin through', async () => {
+    const { app } = await makeApp(db);
+    const res = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { identifier: 'nobody', password: 'x' } });
+    expect(res.statusCode).toBe(401); // reached the login handler, not blocked as CSRF
+  });
+
+  it('never blocks reads', async () => {
+    const { app } = await makeApp(db);
+    expect((await client(app).get('/api/v1/site', { origin: 'https://evil.test' })).status).toBe(200);
+  });
+
+  it('marks cookies Secure when the site is served over https', async () => {
+    const { app, deps } = await makeApp(db);
+    Object.assign(deps, { secureCookies: true });
+    await createAdmin(deps, { handle: 'boss2', email: 'boss2@example.test', password: PASSWORD });
+    const r = await client(app).post('/api/v1/auth/login', { identifier: 'boss2', password: PASSWORD });
+    expect(r.res.cookies.find((c) => c.name === 'sid')!.secure).toBe(true);
+  });
+
+  it('rate limits login attempts per address and account, with a plain message', async () => {
+    const { app } = await makeApp(db, { rateLimit: true });
+    let last;
+    for (let i = 0; i < 9; i++) last = await client(app).post('/api/v1/auth/login', { identifier: 'victim', password: 'wrong wrong wrong' });
+    expect(last!.status).toBe(429);
+    expect(last!.body.error).toEqual({ code: 'rate_limited', message: 'Too many attempts. Wait a few minutes and try again.' });
+    // a different account is not affected
+    expect((await client(app).post('/api/v1/auth/login', { identifier: 'someone-else', password: 'wrong wrong wrong' })).status).toBe(401);
+  });
+
+  it('rate limits signups per address', async () => {
+    const { app } = await makeApp(db, { rateLimit: true });
+    const statuses: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      statuses.push((await client(app).post('/api/v1/auth/signup', { handle: `spam${i}`, email: `spam${i}@example.test`, password: PASSWORD, invite: 'NOPE' })).status);
+    }
+    expect(statuses.slice(0, 5).every((s) => s === 400)).toBe(true);
+    expect(statuses.slice(5)).toEqual([429, 429]);
+  });
+
+  it('accepts a JSON content type with no body, and rejects malformed JSON with a 400', async () => {
+    const { app } = await makeApp(db);
+    const empty = await app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: { origin: ORIGIN, 'content-type': 'application/json' } });
+    expect(empty.statusCode).toBe(204);
+    const bad = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: '{nope', headers: { origin: ORIGIN, 'content-type': 'application/json' } });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error.code).toBe('bad_request');
+  });
+
+  it('returns errors in the documented shape and never leaks internals', async () => {
+    const { app } = await makeApp(db);
+    const r = await client(app).post('/api/v1/auth/login', { identifier: '' });
+    expect(r.status).toBe(400);
+    expect(Object.keys(r.body)).toEqual(['error']);
+    expect(Object.keys(r.body.error).sort()).toEqual(['code', 'message']);
+  });
+});

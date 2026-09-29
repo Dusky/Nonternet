@@ -5,17 +5,28 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/main.cjs",
+    "build": "esbuild src/main.ts src/cli.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --external:@node-rs/argon2 --log-override:empty-import-meta=silent && rm -rf dist/migrations && cp -r src/migrations dist/migrations && node scripts/write-runtime-package.mjs",
     "start": "node dist/main.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cli": "tsx src/cli.ts"
   },
   "dependencies": {
     "@app/shared": "workspace:*",
     "@app/strings": "workspace:*",
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/rate-limit": "^11.2.0",
+    "@node-rs/argon2": "^2.2.1",
     "fastify": "^5.0.0",
-    "yaml": "^2.5.0"
+    "nodemailer": "^10.0.12",
+    "otplib": "^13.5.0",
+    "pg": "^8.23.0",
+    "ulid": "^3.0.2",
+    "yaml": "^2.5.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "esbuild": "^0.24.0",
     "tsx": "^4.19.0"
   }

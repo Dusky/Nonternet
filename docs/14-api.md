@@ -4,15 +4,16 @@ JSON over HTTPS under `/api/v1`. Schemas in `packages/shared`. Session cookie (s
 bearer token. Errors: `{ "error": { "code", "message" } }`. The admin console uses only these APIs.
 
 ## Auth & me
-`POST /auth/signup` · `POST /auth/login` · `POST /auth/logout` · `POST /auth/verify-email`
-`GET/PATCH /me` · `PUT /me/password` · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
+`POST /auth/signup` · `POST /auth/login` · `POST /auth/logout` · `POST /auth/verify-email` · `POST /auth/resend-verification`
+`GET /me` (built) · `PATCH /me` · `PUT /me/password` · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
+`POST /me/totp/setup` · `POST /me/totp/enable` (built)
 `POST /tickets {service}` → one-time login ticket (bbs | mud)
 `POST /me/export` · `GET /me/exports` · `DELETE /me` (after confirm)
 OIDC under `/oidc/*`.
 
 ## Users (public + admin)
 `GET /users/:handle` (public profile) · admin: `GET /admin/users?…`, `GET /admin/users/:id`
-(dossier), `POST /admin/users/:id/role`, `/ops`, `/suspend`, `/unsuspend`, `/rename`,
+(dossier), `POST /admin/invites` (built), `POST /admin/users/:id/role`, `/ops`, `/suspend`, `/unsuspend`, `/rename`,
 `/logout-all`, `/quota`, `/notes`.
 
 ## Boards

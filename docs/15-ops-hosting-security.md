@@ -24,6 +24,17 @@ services: { bbs: false, irc: false, mud: false }   # each turns on as its milest
 ```
 DB-backed versioned settings (`11`) override runtime keys; `site.*` only via config + deploy.
 
+### Environment (core)
+| Variable | Purpose |
+|---|---|
+| `SITE_CONFIG` | path to the site config (required) |
+| `DATABASE_URL` | Postgres connection string (required); migrations run at startup |
+| `APP_SECRET_KEY` | 32 random bytes, base64 (required). Encrypts TOTP secrets and keys IP hashes. Back it up with the database |
+| `PUBLIC_URL` | base of emailed links; default `https://{site.domain}` |
+| `SMTP_URL`, `MAIL_FROM` | outgoing mail. Without `SMTP_URL`, mail is written to the log |
+| `TRUST_PROXY=1` | set when core is behind Caddy, so client addresses are read correctly |
+| `NODE_ENV` | `production` drops the localhost origins that development allows |
+
 ## Hosting costs & quotas
 - Budget drivers: homepage storage, bandwidth, backups, email sending.
 - Enforce quotas everywhere (homepages, uploads, exports, posts/min).

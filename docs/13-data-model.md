@@ -12,7 +12,8 @@ users (
   email text unique not null, email_verified_at timestamptz,
   password_hash text not null,
   terminal_password_hash text,
-  totp_secret_enc bytea,
+  totp_secret_enc text,             -- AES-256-GCM with APP_SECRET_KEY; set at setup, live once totp_enabled_at is set
+  totp_enabled_at timestamptz,
   public_key text, private_key_enc bytea,
   role text not null default 'guest',   -- guest|user|trusted|admin
   role_rev int not null default 0,
@@ -22,9 +23,11 @@ users (
 )
 handle_aliases (handle text pk, user_id fk, expires_at)
 ssh_keys (id, user_id fk, public_key, fingerprint unique, label)
-sessions (id, user_id fk, refresh_hash, user_agent, ip_hash, expires_at, revoked_at)
+sessions (id, user_id fk, token_hash unique, user_agent, ip_hash, limited bool, expires_at, revoked_at)
+                                   -- token_hash = sha256 of the cookie value; limited = admin still setting up TOTP
+email_verifications (token_hash pk, user_id fk, expires_at, used_at)   -- 24 h, single use
 login_tickets (id, user_id fk, service, expires_at, used_at)      -- 60 s, single use (bbs|mud)
-invites (code pk, created_by fk, used_by fk null, expires_at)
+invites (code pk, created_by fk, used_by fk null, used_at, expires_at)
 applications (id, email, handle, answer, status, reviewed_by, reviewed_at)
 scoped_roles (id, user_id fk, role text, scope_type text, scope_id text, granted_by fk)
                                    -- role: board_op|ring_op|channel_op|mud_builder
@@ -76,7 +79,8 @@ guestbook_entries (id, homepage_user_id fk, author_id fk null, author_name, auth
 reports (id, reporter_id, target_type, target_id, reason, status, assigned_scope,
          escalated_at, resolved_by, resolution)
 mod_actions (id, actor_id, action, target_type, target_id, reason, expires_at, undone_at)
-audit_log (id bigserial pk, actor_id null, actor_kind, action, target_type, target_id,
+audit_log (id bigserial pk, actor_id null, actor_kind,   -- user|system|cli
+           action, target_type, target_id,
            before jsonb, after jsonb, origin, ip_hash, created_at)   -- app role: INSERT only
 settings (key pk, value jsonb, version int)
 settings_history (id, key, version, value jsonb, changed_by, reason, created_at)

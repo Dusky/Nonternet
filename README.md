@@ -51,16 +51,27 @@ follow. The terminal BBS, built in-house, comes last. Federation and self-hostin
 phases.
 
 ## Getting started (development)
-Needs Node 22 and pnpm 10.
+Needs Node 22, pnpm 10 and a Postgres you can create databases on.
 
 ```sh
 pnpm install
-pnpm typecheck && pnpm build && REQUIRE_BUILD=1 pnpm test    # what CI runs
+pnpm typecheck && pnpm build
+# The integration tests create a throwaway database each. CI sets REQUIRE_DB and REQUIRE_BUILD.
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/postgres pnpm test
+```
+Without `TEST_DATABASE_URL` the database tests are skipped, and the run says so.
 
-# run it: core on :3000, shell on :5173 (proxies /api to core)
-SITE_CONFIG=deploy/site.example.yaml pnpm dev:core
+Run it locally (core on :3000, shell on :5173, which proxies `/api` to core):
+```sh
+export SITE_CONFIG=deploy/site.example.yaml
+export DATABASE_URL=postgres://user:pass@localhost:5432/app     # migrations run at startup
+export APP_SECRET_KEY=$(openssl rand -base64 32)
+pnpm --filter @app/core cli create-admin --handle you --email you@example.net
+pnpm dev:core        # verification links are printed in this log until SMTP_URL is set
 pnpm dev:shell
 ```
+The first admin login asks for two-factor setup. Environment variables are listed in
+`docs/15-ops-hosting-security.md`.
 
 The product name and domains live only in the site config (`deploy/site.example.yaml`). Point
 `SITE_CONFIG` at your own copy to rebrand. `tests/placeholder-name.test.ts` fails if the
@@ -68,8 +79,7 @@ configured name appears anywhere else in source or built output.
 
 Compose stack (Postgres, Redis, core, shell, Caddy):
 ```sh
-cp deploy/.env.example deploy/.env      # set POSTGRES_PASSWORD
+cp deploy/.env.example deploy/.env      # set POSTGRES_PASSWORD and APP_SECRET_KEY
 docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
 # then open http://localhost:8080
 ```
-

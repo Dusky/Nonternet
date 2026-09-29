@@ -25,7 +25,31 @@
 - Email required (reset, abuse contact). Minimum age: OPEN (legal — see `15`).
 - New accounts start as **guest** until email verified and (if application mode) approved,
   then become **user**.
-- Password: argon2id. Optional TOTP. Passkeys later.
+- Password: argon2id, 10–128 characters, no composition rules (length is what counts).
+  TOTP is optional for users and **required for admins** (below). Passkeys later.
+- **Invite codes**: `XXXX-XXXX-XXXX`, single use, 14 days by default, created by admins.
+  Unknown, used and expired codes all give the same error so codes can't be probed.
+- **Application mode is not built yet.** It needs the review queue in the admin console;
+  until then the API says so plainly.
+- Signup tells you when an email is already registered (`email_taken`). That lets someone probe
+  for accounts, which is acceptable while signup is invite-only; revisit before opening signup.
+
+## Sessions, CSRF and admin 2FA (built in M1)
+- **Sessions**: a random 256-bit token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` when the
+  site is served over https), valid 30 days. Only its sha256 is stored. Logout, suspension and
+  `reset-totp` revoke sessions server-side. IPs are stored only as keyed hashes.
+- **CSRF**: a state-changing request whose `Origin` isn't the site is refused, and so is a
+  cookie-bearing one with no `Origin` at all. Plain API clients with no cookie are unaffected.
+- **Rate limits**: login (per address and account), signup, verification and TOTP calls.
+  In-memory for now, so they are per instance; move to Redis before running more than one core.
+- **Admin 2FA**: an admin who has no TOTP gets a *limited* session that can only reach `/me`
+  and the TOTP setup calls. Once they confirm a code the limit is lifted. Every later login needs
+  a code. The TOTP secret is encrypted at rest with `APP_SECRET_KEY`.
+- **Bootstrap and recovery** are operator commands run on the server (`apps/core` `cli`):
+  `create-admin --handle … --email …` (password from `ADMIN_PASSWORD`, or generated and shown
+  once) and `reset-totp --handle …` (clears TOTP and signs the admin out everywhere).
+- **Not built yet**: password reset by email, TOTP recovery codes, and rejecting a TOTP code
+  that was already used in the same 30-second window. See Q15 in `17-decisions.md`.
 
 ## Single sign-on
 core is an **OIDC provider** (PROPOSED: `node-oidc-provider`). Token claims:

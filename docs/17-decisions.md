@@ -46,6 +46,7 @@
 | P8 | Per-user Ed25519 keypair; signed exports |
 | P9 | Quotas: 3 boards, 2 rings per trusted user; 50/100 MB homepages |
 | P10 | Ring boards: public read, members post |
+| P11 | Core stack: `pg` with plain SQL and forward-only migrations (no ORM), argon2id via `@node-rs/argon2`, `otplib` for TOTP, cookie sessions with hashed tokens, `Origin`-check CSRF, Fastify |
 
 ## Open questions
 | # | Question | Needed by |
@@ -64,6 +65,7 @@
 | Q12 | Future federation shape: hub-and-spoke, points, peers | later phase |
 | Q13 | BBS scope beyond boards: file areas, door games, QWK/offline mail, FTN echomail, terminal signup — in or out, and when? | before M8 |
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
+| Q15 | Password reset by email, TOTP recovery codes and TOTP replay protection are not in the roadmap and not built. Add them to M1 or M4, and are they needed before the first invited users? | before launch |
 
 ## Verify list
 | # | Fact | Affects |

@@ -34,6 +34,13 @@ services:
     environment:
       SITE_CONFIG: /config/site.yaml
       PORT: "3000"
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/app
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/.env (openssl rand -base64 32)}
+      # This is the local stack, served over plain http on localhost. Production sets
+      # NODE_ENV=production and PUBLIC_URL=https://{site.domain} (compose.prod.yaml, later).
+      NODE_ENV: development
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      TRUST_PROXY: "1"
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
     depends_on:

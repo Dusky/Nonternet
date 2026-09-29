@@ -1,0 +1,238 @@
+import { isReservedHandle, toPublicSite, type LoginInput, type Me, type SignupInput } from '@app/shared';
+import { makeT } from '@app/strings';
+import { audit } from './audit';
+import { decryptSecret, encryptSecret, newId, newInviteCode, randomToken, sha256 } from './crypto';
+import { isUniqueViolation, type Queryable } from './db';
+import type { AppDeps } from './deps';
+import { ApiError } from './errors';
+import { burnPasswordCheck, hashPassword, verifyPassword } from './passwords';
+import { checkTotp, newTotpSecret, totpUri } from './totp';
+
+const SESSION_DAYS = 30;
+const VERIFY_HOURS = 24;
+const INVITE_DEFAULT_DAYS = 14;
+
+export interface Ctx { ipHash?: string | null; ip?: string; userAgent?: string }
+export interface SessionUser {
+  sessionId: string; userId: string; handle: string; displayName: string | null; email: string;
+  role: 'guest' | 'user' | 'trusted' | 'admin'; emailVerified: boolean; totpEnabled: boolean; limited: boolean;
+}
+
+export const toMe = (u: SessionUser): Me => ({
+  id: u.userId, handle: u.handle, display_name: u.displayName, role: u.role, email: u.email,
+  email_verified: u.emailVerified, totp_enabled: u.totpEnabled, limited: u.limited,
+});
+
+// ---------------------------------------------------------------- signup & email verification
+
+async function issueVerification(q: Queryable, userId: string): Promise<string> {
+  const token = randomToken();
+  await q.query(
+    `INSERT INTO email_verifications (token_hash, user_id, expires_at) VALUES ($1, $2, now() + $3 * interval '1 hour')`,
+    [sha256(token), userId, VERIFY_HOURS],
+  );
+  return token;
+}
+
+async function sendVerification(deps: AppDeps, user: { email: string; handle: string }, token: string): Promise<void> {
+  const t = makeT(toPublicSite(deps.config));
+  const link = `${deps.publicUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  await deps.mailer.send({ to: user.email, subject: t('email.verify.subject'), text: t('email.verify.body', { handle: user.handle, link }) });
+}
+
+export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promise<{ id: string; handle: string }> {
+  const { mode } = deps.config.signup;
+  // TODO(M1 task 3, application mode): the roadmap only calls for invite mode. Application mode
+  // (docs/02) needs the review queue in the admin console first.
+  if (mode === 'application') throw new ApiError(501, 'not_available', 'Signing up by application is not available yet.');
+  if (mode === 'invite' && !input.invite) throw new ApiError(400, 'invite_required', 'This site is invite only. Enter your invite code.');
+  if (isReservedHandle(input.handle, deps.config.site.short_name)) {
+    throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
+  }
+
+  const passwordHash = await hashPassword(input.password);
+  const id = newId('u');
+
+  let token: string;
+  try {
+    token = await deps.db.tx(async (q) => {
+      if (mode === 'invite') {
+        const inv = await q.query<{ used_by: string | null; ok: boolean }>(
+          `SELECT used_by, expires_at > now() AS ok FROM invites WHERE code = $1 FOR UPDATE`, [input.invite!.toUpperCase()]);
+        const row = inv.rows[0];
+        // One error for unknown, used and expired so codes can't be probed.
+        if (!row || row.used_by || !row.ok) throw new ApiError(400, 'invite_invalid', 'That invite code is not valid. Ask for a new one.');
+      }
+      await q.query(
+        `INSERT INTO users (id, handle, display_name, email, password_hash) VALUES ($1, $2, $3, $4, $5)`,
+        [id, input.handle, input.display_name ?? null, input.email, passwordHash]);
+      if (mode === 'invite') {
+        await q.query(`UPDATE invites SET used_by = $1, used_at = now() WHERE code = $2`, [id, input.invite!.toUpperCase()]);
+      }
+      await audit(q, { actorId: id, actorKind: 'user', action: 'user.created', targetType: 'user', targetId: id,
+        after: { handle: input.handle, role: 'guest', invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined }, origin: 'web', ipHash: ctx.ipHash });
+      return issueVerification(q, id);
+    });
+  } catch (err) {
+    if (isUniqueViolation(err, 'users_handle_lower')) throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
+    if (isUniqueViolation(err, 'users_email_lower')) throw new ApiError(409, 'email_taken', 'An account with that email already exists. Try logging in.');
+    throw err;
+  }
+
+  // The account exists whether or not the email goes out; the user can ask for another.
+  await sendVerification(deps, { email: input.email, handle: input.handle }, token).catch(() => undefined);
+  return { id, handle: input.handle };
+}
+
+export async function resendVerification(deps: AppDeps, user: SessionUser): Promise<void> {
+  if (user.emailVerified) throw new ApiError(409, 'already_verified', 'Your email is already confirmed.');
+  const token = await issueVerification(deps.db, user.userId);
+  await sendVerification(deps, { email: user.email, handle: user.handle }, token);
+}
+
+export async function verifyEmail(deps: AppDeps, token: string, ctx: Ctx): Promise<void> {
+  await deps.db.tx(async (q) => {
+    const found = await q.query<{ user_id: string; used_at: string | null; ok: boolean }>(
+      `SELECT user_id, used_at, expires_at > now() AS ok FROM email_verifications WHERE token_hash = $1 FOR UPDATE`, [sha256(token)]);
+    const row = found.rows[0];
+    if (!row || row.used_at || !row.ok) throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
+    await q.query(`UPDATE email_verifications SET used_at = now() WHERE token_hash = $1`, [sha256(token)]);
+
+    const before = await q.query<{ role: string; status: string; email_verified_at: string | null }>(
+      `SELECT role, status, email_verified_at FROM users WHERE id = $1 FOR UPDATE`, [row.user_id]);
+    const u = before.rows[0];
+    if (!u || u.status !== 'active') throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
+
+    // Guests become users once the email is confirmed (docs/02). Anyone with a higher role keeps it.
+    const promote = u.role === 'guest';
+    await q.query(
+      `UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()),
+              role = CASE WHEN role = 'guest' THEN 'user' ELSE role END,
+              role_rev = role_rev + $2, updated_at = now() WHERE id = $1`, [row.user_id, promote ? 1 : 0]);
+    await audit(q, { actorId: row.user_id, actorKind: 'user', action: 'user.email_verified', targetType: 'user', targetId: row.user_id, origin: 'web', ipHash: ctx.ipHash });
+    if (promote) {
+      await audit(q, { actorKind: 'system', action: 'user.role_changed', targetType: 'user', targetId: row.user_id,
+        before: { role: 'guest' }, after: { role: 'user', reason: 'email verified' }, origin: 'system' });
+    }
+  });
+}
+
+// ---------------------------------------------------------------- login & sessions
+
+export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise<{ token: string; user: Me }> {
+  const bad = new ApiError(401, 'invalid_credentials', 'That handle, email or password is not right.');
+  const found = await deps.db.query<{
+    id: string; handle: string; display_name: string | null; email: string; email_verified_at: string | null; password_hash: string;
+    role: SessionUser['role']; status: string; totp_secret_enc: string | null; totp_enabled_at: string | null;
+  }>(`SELECT * FROM users WHERE lower(handle) = lower($1) OR lower(email) = lower($1) LIMIT 1`, [input.identifier]);
+  const u = found.rows[0];
+
+  if (!u) { await burnPasswordCheck(input.password); throw bad; }
+  if (!(await verifyPassword(u.password_hash, input.password))) throw bad;
+  if (u.status === 'deleted') throw bad;
+  if (u.status === 'suspended') throw new ApiError(403, 'suspended', 'This account is suspended. Contact the admins to appeal.');
+
+  if (u.totp_enabled_at) {
+    if (!input.totp) throw new ApiError(401, 'totp_required', 'Enter the 6-digit code from your authenticator app.');
+    if (!(await checkTotp(decryptSecret(deps.secretKey, u.totp_secret_enc!), input.totp))) {
+      throw new ApiError(401, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
+    }
+  }
+
+  // Admins must have TOTP (docs/15). Until they set it up their session is limited.
+  const limited = u.role === 'admin' && !u.totp_enabled_at;
+  const token = randomToken();
+  await deps.db.tx(async (q) => {
+    await q.query(
+      `INSERT INTO sessions (id, user_id, token_hash, user_agent, ip_hash, limited, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, now() + $7 * interval '1 day')`,
+      [newId('s'), u.id, sha256(token), ctx.userAgent?.slice(0, 300) ?? null, ctx.ipHash ?? null, limited, SESSION_DAYS]);
+    await q.query(`UPDATE users SET last_seen_at = now() WHERE id = $1`, [u.id]);
+  });
+
+  return {
+    token,
+    user: { id: u.id, handle: u.handle, display_name: u.display_name, role: u.role, email: u.email,
+      email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, limited },
+  };
+}
+
+export async function resolveSession(deps: AppDeps, rawToken: string): Promise<SessionUser | null> {
+  const r = await deps.db.query<{
+    sid: string; id: string; handle: string; display_name: string | null; email: string; role: SessionUser['role'];
+    email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean;
+  }>(
+    `SELECT s.id AS sid, s.limited, u.id, u.handle, u.display_name, u.email, u.role, u.email_verified_at, u.totp_enabled_at
+       FROM sessions s JOIN users u ON u.id = s.user_id
+      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
+  const row = r.rows[0];
+  if (!row) return null;
+  return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, email: row.email, role: row.role,
+    emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited };
+}
+
+export async function logout(deps: AppDeps, sessionId: string): Promise<void> {
+  await deps.db.query(`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, [sessionId]);
+}
+
+// ---------------------------------------------------------------- TOTP
+
+export async function totpSetup(deps: AppDeps, user: SessionUser): Promise<{ secret: string; otpauth_url: string }> {
+  if (user.totpEnabled) throw new ApiError(409, 'totp_already_enabled', 'Two-factor authentication is already on.');
+  const secret = newTotpSecret();
+  // Stored encrypted straight away but inactive until the user proves they can produce a code.
+  await deps.db.query(`UPDATE users SET totp_secret_enc = $2, updated_at = now() WHERE id = $1`, [user.userId, encryptSecret(deps.secretKey, secret)]);
+  return { secret, otpauth_url: totpUri(deps.config.site.name, user.handle, secret) };
+}
+
+export async function totpEnable(deps: AppDeps, user: SessionUser, code: string, ctx: Ctx): Promise<void> {
+  if (user.totpEnabled) throw new ApiError(409, 'totp_already_enabled', 'Two-factor authentication is already on.');
+  const r = await deps.db.query<{ totp_secret_enc: string | null }>(`SELECT totp_secret_enc FROM users WHERE id = $1`, [user.userId]);
+  const enc = r.rows[0]?.totp_secret_enc;
+  if (!enc) throw new ApiError(400, 'totp_not_started', 'Start two-factor setup first.');
+  if (!(await checkTotp(decryptSecret(deps.secretKey, enc), code))) {
+    throw new ApiError(400, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
+  }
+  await deps.db.tx(async (q) => {
+    await q.query(`UPDATE users SET totp_enabled_at = now(), updated_at = now() WHERE id = $1`, [user.userId]);
+    await q.query(`UPDATE sessions SET limited = false WHERE user_id = $1 AND revoked_at IS NULL`, [user.userId]);
+    await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.totp_enabled', targetType: 'user', targetId: user.userId, origin: 'web', ipHash: ctx.ipHash });
+  });
+}
+
+// ---------------------------------------------------------------- admin
+
+export async function createInvite(deps: AppDeps, admin: SessionUser, days: number | undefined, ctx: Ctx): Promise<{ code: string; expires_at: string }> {
+  const code = newInviteCode();
+  const r = await deps.db.tx(async (q) => {
+    const ins = await q.query<{ expires_at: string }>(
+      `INSERT INTO invites (code, created_by, expires_at) VALUES ($1, $2, now() + $3 * interval '1 day') RETURNING expires_at`,
+      [code, admin.userId, days ?? INVITE_DEFAULT_DAYS]);
+    await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'invite.created', targetType: 'invite', targetId: code, origin: 'web', ipHash: ctx.ipHash });
+    return ins.rows[0]!;
+  });
+  return { code, expires_at: new Date(r.expires_at).toISOString() };
+}
+
+// Operator commands (run on the server, see cli.ts). They audit as actor_kind 'cli'.
+export async function createAdmin(deps: AppDeps, input: { handle: string; email: string; password: string }): Promise<string> {
+  const id = newId('u');
+  const passwordHash = await hashPassword(input.password);
+  await deps.db.tx(async (q) => {
+    await q.query(
+      `INSERT INTO users (id, handle, email, email_verified_at, password_hash, role, role_rev) VALUES ($1, $2, $3, now(), $4, 'admin', 1)`,
+      [id, input.handle, input.email, passwordHash]);
+    await audit(q, { actorKind: 'cli', action: 'user.created', targetType: 'user', targetId: id, after: { handle: input.handle, role: 'admin' }, origin: 'cli' });
+  });
+  return id;
+}
+
+export async function resetTotp(deps: AppDeps, handle: string): Promise<void> {
+  await deps.db.tx(async (q) => {
+    const r = await q.query<{ id: string }>(`UPDATE users SET totp_secret_enc = NULL, totp_enabled_at = NULL, updated_at = now() WHERE lower(handle) = lower($1) RETURNING id`, [handle]);
+    const id = r.rows[0]?.id;
+    if (!id) throw new ApiError(404, 'not_found', `No user with handle ${handle}.`);
+    await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [id]);
+    await audit(q, { actorKind: 'cli', action: 'user.totp_reset', targetType: 'user', targetId: id, origin: 'cli' });
+  });
+}
