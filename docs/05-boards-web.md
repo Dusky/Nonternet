@@ -50,6 +50,18 @@ for future federation (`12`).
   admins have none.
 - Ring boards cannot be created yet (M3). Until then a `ring` board takes no posts.
 
+## As built (M2, Boards app)
+- The Boards app is public: `/boards` opens without an account, with a login link in place of the
+  account menu, and the login page sends the visitor back to where they were.
+- Screens: board list (by category, unread counts), threads, thread (flat or threaded), composer
+  with the server preview, new board, board settings (rename, visibility, archive, private members),
+  search. Keys: j and k move, r replies, n jumps to the next unread thread.
+- Reading a thread moves your read pointer to the last post you loaded. "Mark all read" moves it to
+  the newest post in the board.
+- Replies quote with the author's initials (`ZC> `), wrapped to 79 columns.
+- Post text is shown as plain text (`white-space: pre-wrap`). Light markdown rendering is not built;
+  if it is added it must render safely from the stored text without changing what is stored.
+
 ## Later (local extras, web-only)
 Reactions, edits with history, image attachments — labeled as web-only; terminal users see
 a text fallback ("[image: filename]").

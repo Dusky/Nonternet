@@ -5,7 +5,7 @@ import { api } from '../api';
 import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById, visibleApps } from './apps';
 import { AppIcon } from './icons';
-import { focusedWindow, useWindows } from './windows';
+import { focusedWindow, useWindows, type AppId } from './windows';
 
 // The frame around everything once you are signed in: the taskbar (site name, apps, open windows,
 // account menu) and the page. On a phone it is a plain top bar with a way back.
@@ -37,7 +37,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
     // user list, open windows) stays in memory for the next person at this screen.
     window.location.assign('/');
   };
-  const launch = (id: 'settings' | 'admin') => {
+  const launch = (id: AppId) => {
     setMenu(null);
     if (desktop) { open(id); navigate('/'); } else navigate(appById(id).path);
   };

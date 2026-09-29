@@ -3,7 +3,7 @@ import { create } from 'zustand';
 // The window manager (docs/10): desktop-style windows on large screens. This file is only the
 // state and the rules; it draws nothing, so the rules can be tested on their own.
 
-export type AppId = 'settings' | 'admin';
+export type AppId = 'boards' | 'settings' | 'admin';
 
 export interface Win {
   id: AppId;

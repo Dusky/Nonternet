@@ -71,6 +71,15 @@ export async function makeUser(page: Page, opts: { handle?: string } = {}) {
   return { handle, email, password: PASSWORD, id: (await signup.json()).id as string };
 }
 
+// Gives a user a role straight in the database, the way an admin's Promote would. The role revision
+// goes up too, so anything that was already signed in sees the change.
+export async function setRole(handle: string, role: 'user' | 'trusted') {
+  const stack = JSON.parse(readFileSync(join(TMP, 'stack.json'), 'utf8')) as { DATABASE_URL: string };
+  const db = new pg.Client({ connectionString: stack.DATABASE_URL });
+  await db.connect();
+  try { await db.query(`UPDATE users SET role = $2, role_rev = role_rev + 1 WHERE handle = $1`, [handle, role]); } finally { await db.end(); }
+}
+
 export async function loginViaUi(page: Page, identifier: string, password: string, second?: { recovery?: string; totp?: string }) {
   await page.goto('/login');
   await page.getByLabel('Handle or email').fill(identifier);

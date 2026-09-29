@@ -27,6 +27,7 @@ test.describe('desktop windows', () => {
   test('shows an icon per app the person may use, and only those', async ({ page }) => {
     await signedInUser(page);
     await expect(page.getByRole('button', { name: 'Open Settings' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open Boards' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open Admin console' })).toHaveCount(0);
   });
 

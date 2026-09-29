@@ -68,6 +68,45 @@ function AppPage({ app, me }: { app: AppDef; me: Me }) {
   );
 }
 
+// What a visitor who is not signed in sees around a public app such as the boards: the same page,
+// with a way in instead of the account menu.
+function PublicFrame({ app }: { app: AppDef }) {
+  const t = useT();
+  const site = useSite();
+  const location = useLocation();
+  const back = encodeURIComponent(location.pathname + location.search);
+  return (
+    <div className="shell">
+      <header className="taskbar">
+        <Link className="brand" to="/">{t('landing.title')}</Link>
+        <span className="taskbar-account">
+          <Link className="btn btn-quiet" to={`/login?return_to=${back}`}>{t('auth.login')}</Link>
+          {site.signup_mode !== 'application' && <Link className="btn btn-quiet" to="/signup">{t('auth.signup')}</Link>}
+        </span>
+      </header>
+      <main className="stage" id="main">
+        <section className="app-page" aria-labelledby="app-title">
+          <h1 id="app-title">{t(app.title)}</h1>
+          <PageNav base={app.path}>
+            <Suspense fallback={<p className="pad">{t('common.loading')}</p>}><app.Component /></Suspense>
+          </PageNav>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+// Public apps open for everyone; the rest need an account.
+function AppRoute({ app }: { app: AppDef }) {
+  const me = useMe();
+  if (app.public) {
+    if (me.isLoading) return null;
+    if (!me.data || me.data.limited) return <PublicFrame app={app} />;
+    return <AppPage app={app} me={me.data} />;
+  }
+  return <RequireUser>{(user) => <AppPage app={app} me={user} />}</RequireUser>;
+}
+
 function Setup2faRoute() {
   const navigate = useNavigate();
   return <RequireUser allowLimited>{() => <Setup2faPage onDone={() => navigate('/', { replace: true })} />}</RequireUser>;
@@ -91,7 +130,7 @@ export function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/setup-2fa" element={<Setup2faRoute />} />
-      {APPS.map((app) => <Route key={app.id} path={`${app.path}/*`} element={<RequireUser>{(user) => <AppPage app={app} me={user} />}</RequireUser>} />)}
+      {APPS.map((app) => <Route key={app.id} path={`${app.path}/*`} element={<AppRoute app={app} />} />)}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
