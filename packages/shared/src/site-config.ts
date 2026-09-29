@@ -50,6 +50,12 @@ export const siteConfigSchema = z
         trusted_ring_quota: z.number().int().nonnegative().default(2),
       })
       .default({}),
+    moderation: z
+      .object({
+        // The mod log of each board is readable by anyone who can read the board (docs/03).
+        public_modlog: z.boolean().default(true),
+      })
+      .default({}),
     oidc: z
       .object({ clients: z.array(oidcClientSchema).default([]) })
       .default({})

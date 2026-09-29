@@ -159,3 +159,6 @@ mark { background: var(--focus); color: var(--bg); padding: 0 .1rem; }
 .search-form .field { flex: 1; min-width: 12rem; margin: 0; }
 .notif-rows li.is-unread { border-left: 4px solid var(--accent); padding-left: .6rem; }
 .bell { gap: .4rem; }
+.mod-tools { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-top: .25rem; }
+.mod-form { flex-basis: 100%; }
+.excerpt { margin: .5rem 0; padding: .4rem .8rem; border-left: 4px solid var(--border); background: var(--surface2); overflow-wrap: anywhere; }

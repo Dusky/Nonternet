@@ -7,8 +7,9 @@ import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { AppLink, useAppNav } from '../../nav';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
+import { PostModTools, ReportPost } from './ModTools';
 
-interface ThreadPage { board: BoardSummary; posts: PostView[]; next: number | null }
+interface ThreadPage { board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }
 
 // Puts replies under what they answer. Anything whose parent is not loaded stands at the top level.
 export function threadOrder(posts: PostView[]): { post: PostView; depth: number }[] {
@@ -45,6 +46,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   });
   const posts = useMemo(() => q.data?.pages.flatMap((p) => p.posts) ?? [], [q.data]);
   const board = q.data?.pages[0]?.board;
+  const locked = q.data?.pages[0]?.locked ?? false;
 
   // Reading a thread moves your read pointer up to the last post you have loaded.
   const sent = useRef<string | null>(null);
@@ -75,7 +77,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const ordered = useMemo(() => (view === 'flat' ? posts.map((post) => ({ post, depth: 0 })) : threadOrder(posts)), [posts, view]);
   const last = posts[posts.length - 1];
   const target = replyTo ?? last;
-  const canReply = Boolean(board?.can_post);
+  const canReply = Boolean(board?.can_post) && (!locked || Boolean(board?.can_moderate));
   const openReply = (p?: PostView) => { setReplyTo(p ?? target ?? null); setTimeout(() => document.getElementById('compose-body')?.focus(), 0); };
   useListKeys(root, { r: () => canReply && openReply(), n: goNextUnread });
 
@@ -86,7 +88,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   return (
     <div ref={root}>
       <p><AppLink to={slug}>&#8592; {t('boards.back', { name: board.name })}</AppLink></p>
-      <h2>{subject}</h2>
+      <h2>{subject} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
       <div className="toolbar" role="group" aria-label={t('boards.view.label')}>
         <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
         <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>
@@ -106,14 +108,17 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
                   {view === 'flat' && parent?.author && <span className="muted"> · {t('boards.inReplyTo', { name: parent.author.display_name || parent.author.handle })}</span>}
                 </header>
                 {post.state === 'deleted' && <p className="muted">{t('boards.deleted')}</p>}
+                {post.state === 'removed' && <p className="muted">{t('boards.removed')}</p>}
                 {post.state === 'hidden' && <p className="muted">{t('boards.hidden')}</p>}
                 {post.body !== null && <pre className="post-body">{post.body}</pre>}
                 <footer className="post-actions">
                   {canReply && post.state === 'ok' && <button type="button" className="link" onClick={() => openReply(post)}>{t('boards.reply')}</button>}
+                  {me && post.author && post.author.id !== me.id && post.state === 'ok' && <ReportPost post={post} />}
                   {me && post.author?.id === me.id && post.state === 'ok' && (
                     <button type="button" className="link" onClick={() => { if (window.confirm(t('boards.deleteConfirm'))) del.mutate(post.id); }}>{t('boards.delete')}</button>
                   )}
                 </footer>
+                {board.can_moderate && <PostModTools board={board} post={post} isThreadStart={post.id === id} locked={locked} />}
               </article>
             </li>
           );
@@ -124,7 +129,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
       {canReply && target ? (
         <Composer slug={slug} replyTo={target} onPosted={() => setReplyTo(null)} key={target.id} />
       ) : (
-        <p className="muted">{postNote(t, board, Boolean(me))}</p>
+        <p className="muted">{locked && board.can_post ? t('boards.locked') : postNote(t, board, Boolean(me))}</p>
       )}
       <p className="hint">{t('boards.keys')}</p>
     </div>

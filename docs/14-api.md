@@ -19,6 +19,7 @@ OIDC under `/oidc/*`.
 `/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
+Moderation (built): `POST /mod-actions {action, post_id, reason, to_board?}` (hide, unhide, remove, lock, unlock, move), `POST /mod-actions/:id/undo`, `GET /modlog?board=&before=`, `POST /reports`, `GET /reports?status=&before=`, `POST /reports/:id/resolve`, `GET|POST /boards/:slug/ops`, `DELETE /boards/:slug/ops/:opId`. Event: `mod.action`.
 Notifications (built): `GET /notifications?before=&limit=` (with the unread count), `GET /notifications/count`, `POST /notifications/read {ids}` or `{all: true}`.
 Built (M2): everything below except `PATCH` of ring boards, plus `PUT|DELETE /boards/:slug/watch`,
 `GET|POST /boards/:slug/members`, `DELETE /boards/:slug/members/:userId` (private boards),

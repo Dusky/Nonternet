@@ -13,6 +13,7 @@ import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { meRoutes } from './routes/me';
 import { boardRoutes } from './routes/boards';
+import { moderationRoutes } from './routes/moderation';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -78,5 +79,6 @@ export async function buildApp(deps: AppDeps) {
   meRoutes(app, deps);
   adminRoutes(app, deps);
   boardRoutes(app, deps);
+  moderationRoutes(app, deps);
   return app;
 }

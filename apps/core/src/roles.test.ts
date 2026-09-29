@@ -14,6 +14,10 @@ describe.skipIf(!dbAvailable)('roles, suspension, ops and the audit log', () => 
     ({ db, drop } = await createTestDb());
     ctx = await makeApp(db);
     boss = await makeAdmin(ctx, 'boss');
+    // Ops are granted for boards that exist, so make the ones these tests use.
+    for (let i = 1; i <= 50; i++) {
+      await db.query(`INSERT INTO boards (id, slug, name, owner_id, visibility) VALUES ($1, $2, $2, $3, 'public')`, [`b_${String(i).padStart(26, '0')}`, `test-board-${i}`, boss.id]);
+    }
   });
   afterAll(async () => drop());
 
@@ -202,6 +206,7 @@ describe.skipIf(!dbAvailable)('roles, suspension, ops and the audit log', () => 
       const u = await makeUser(ctx);
       await post(`/admin/users/${u.id}/ops`, { scope: 'board', scope_id: boardId(7) });
       expect((await post(`/admin/users/${u.id}/ops`, { scope: 'board', scope_id: boardId(7) })).body.error.code).toBe('already_op');
+      expect((await post(`/admin/users/${u.id}/ops`, { scope: 'board', scope_id: boardId(99) })).body.error.code).toBe('not_found'); // no such board
       await post(`/admin/users/${u.id}/suspend`, { reason: 'suspended for test' });
       expect((await post(`/admin/users/${u.id}/ops`, { scope: 'board', scope_id: boardId(8) })).body.error.code).toBe('user_not_active');
     });

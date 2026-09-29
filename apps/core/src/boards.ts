@@ -15,7 +15,7 @@ export type Viewer = SessionUser | null;
 export const viewerOf = (s: SessionUser | null): Viewer => (s && !s.limited ? s : null);
 
 const notFound = () => new ApiError(404, 'not_found', 'No such board.');
-const isMember = (v: Viewer) => Boolean(v && v.role !== 'guest'); // a guest has not confirmed their email
+export const isMember = (v: Viewer) => Boolean(v && v.role !== 'guest'); // a guest has not confirmed their email
 
 // SQL that says which boards a viewer may read. `n` is the first of three parameters it uses.
 // Private boards are for listed members only, admins included (docs/05).
@@ -29,10 +29,10 @@ function readable(v: Viewer, n: number, alias = 'b'): { sql: string; params: unk
   };
 }
 
-const canModerate = (v: Viewer, b: { id: string; owner_id: string }) =>
+export const canModerate = (v: Viewer, b: { id: string; owner_id: string }) =>
   Boolean(v && (v.role === 'admin' || v.userId === b.owner_id || v.ops.includes(`board:${b.id}`)));
 
-interface BoardRow {
+export interface BoardRow {
   id: string; slug: string; name: string; description: string; visibility: BoardVisibility; owner_id: string; owner_handle: string;
   category_id: string | null; category_name: string | null; archived_at: Date | null; hidden_at: Date | null;
   thread_count: string; post_count: string; last_post_at: Date | null; unread: string | null; watching: boolean; member: boolean;
@@ -51,7 +51,7 @@ const SUMMARY_SQL = `
     EXISTS (SELECT 1 FROM board_members m WHERE m.user_id = $1 AND m.board_id = b.id) AS member
   FROM boards b JOIN users u ON u.id = b.owner_id LEFT JOIN board_categories c ON c.id = b.category_id`;
 
-function canPost(v: Viewer, r: BoardRow): boolean {
+export function canPost(v: Viewer, r: BoardRow): boolean {
   if (!v || !isMember(v) || r.archived_at) return false;
   if (r.visibility === 'public' || r.visibility === 'members') return true;
   if (r.visibility === 'private') return r.member;
@@ -70,7 +70,7 @@ function toSummary(v: Viewer, r: BoardRow): BoardSummary {
 }
 
 // One board the viewer may read, or a 404 that does not say whether it exists.
-async function loadBoard(q: Queryable, slug: string, v: Viewer): Promise<BoardRow> {
+export async function loadBoard(q: Queryable, slug: string, v: Viewer): Promise<BoardRow> {
   const acc = readable(v, 2);
   const r = await q.query<BoardRow>(`${SUMMARY_SQL} WHERE b.slug = $${acc.params.length + 2} AND ${acc.sql}`, [v?.userId ?? null, ...acc.params, slug]);
   const row = r.rows[0];
@@ -237,21 +237,21 @@ export async function setReadPointer(deps: AppDeps, v: SessionUser, slug: string
 
 interface PostRow {
   id: string; seq: string; board_id: string; thread_id: string; reply_to_id: string | null; subject: string; body: string;
-  posted_at: Date; edited_at: Date | null; hidden_at: Date | null; deleted_at: Date | null;
+  posted_at: Date; edited_at: Date | null; hidden_at: Date | null; deleted_at: Date | null; deleted_by: string | null; locked_at: Date | null;
   author_id: string | null; handle: string | null; display_name: string | null;
 }
 const POST_COLUMNS = `p.id, p.seq, p.board_id, COALESCE(p.thread_root_id, p.id) AS thread_id, p.reply_to_id, p.subject, p.body,
-  p.posted_at, p.edited_at, p.hidden_at, p.deleted_at, u.id AS author_id, u.handle, u.display_name`;
+  p.posted_at, p.edited_at, p.hidden_at, p.deleted_at, p.deleted_by, p.locked_at, u.id AS author_id, u.handle, u.display_name`;
 const POST_FROM = `posts p LEFT JOIN users u ON u.id = p.author_id`;
 
 // A deleted post shows no text. A hidden one shows none either, except to the people who moderate it.
 function toPostView(r: PostRow, mod: boolean): PostView {
-  const state = r.deleted_at ? 'deleted' : r.hidden_at ? 'hidden' : 'ok';
+  const state = r.deleted_at ? (r.deleted_by === 'moderator' ? 'removed' : 'deleted') : r.hidden_at ? 'hidden' : 'ok';
   const show = state === 'ok' || (state === 'hidden' && mod);
   return {
     id: r.id, seq: Number(r.seq), board_id: r.board_id, thread_id: r.thread_id, reply_to_id: r.reply_to_id,
     subject: show ? r.subject : '', body: show ? r.body : null, state,
-    author: r.author_id && state !== 'deleted' ? { id: r.author_id, handle: r.handle!, display_name: r.display_name } : null,
+    author: r.author_id && state !== 'deleted' && state !== 'removed' ? { id: r.author_id, handle: r.handle!, display_name: r.display_name } : null,
     posted_at: r.posted_at.toISOString(), edited_at: r.edited_at ? r.edited_at.toISOString() : null,
   };
 }
@@ -275,15 +275,15 @@ export async function listThreads(deps: AppDeps, v: Viewer, slug: string, opts: 
   const threads = page.map((row): ThreadSummary => {
     const post = toPostView(row, mod);
     return { id: row.id, subject: post.subject, author: post.author, posted_at: post.posted_at, reply_count: row.reply_count,
-      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, state: post.state };
+      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, locked: row.locked_at !== null, state: post.state };
   });
   return { threads, next: r.rows.length > limit ? Number(page[page.length - 1]!.last_seq) : null };
 }
 
-export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; posts: PostView[]; next: number | null }> {
+export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }> {
   const b = await loadBoard(deps.db, slug, v);
   const mod = canModerate(v, b);
-  const root = await deps.db.query<{ hidden_at: Date | null }>(`SELECT hidden_at FROM posts WHERE id = $1 AND board_id = $2 AND thread_root_id IS NULL`, [threadId, b.id]);
+  const root = await deps.db.query<{ hidden_at: Date | null; locked_at: Date | null }>(`SELECT hidden_at, locked_at FROM posts WHERE id = $1 AND board_id = $2 AND thread_root_id IS NULL`, [threadId, b.id]);
   if (!root.rows[0] || (root.rows[0].hidden_at && !mod)) throw new ApiError(404, 'not_found', 'No such thread.');
   const limit = Math.min(opts.limit ?? 200, 500);
   const r = await deps.db.query<PostRow>(
@@ -291,7 +291,7 @@ export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId
      WHERE (p.id = $1 OR p.thread_root_id = $1) AND ($2::bigint IS NULL OR p.seq > $2) ORDER BY p.seq LIMIT $3`,
     [threadId, opts.after ?? null, limit + 1]);
   const page = r.rows.slice(0, limit);
-  return { board: toSummary(v, b), posts: page.map((row) => toPostView(row, mod)), next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
+  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, posts: page.map((row) => toPostView(row, mod)), next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
 }
 
 export async function createPost(
@@ -312,11 +312,13 @@ export async function createPost(
     let replyToAuthor: string | null = null;
     let subject: string;
     if (input.reply_to) {
-      const target = await q.query<{ id: string; thread_root_id: string | null; subject: string; hidden_at: Date | null; deleted_at: Date | null; author_id: string | null }>(
-        `SELECT id, thread_root_id, subject, hidden_at, deleted_at, author_id FROM posts WHERE id = $1 AND board_id = $2`, [input.reply_to, b.id]);
+      const target = await q.query<{ id: string; thread_root_id: string | null; subject: string; hidden_at: Date | null; deleted_at: Date | null; author_id: string | null; root_locked: Date | null }>(
+        `SELECT p.id, p.thread_root_id, p.subject, p.hidden_at, p.deleted_at, p.author_id, r.locked_at AS root_locked
+         FROM posts p LEFT JOIN posts r ON r.id = COALESCE(p.thread_root_id, p.id) WHERE p.id = $1 AND p.board_id = $2`, [input.reply_to, b.id]);
       const t = target.rows[0];
       if (!t) throw new ApiError(404, 'not_found', 'The post you are replying to is not on this board.');
       if (t.deleted_at || t.hidden_at) throw new ApiError(409, 'gone', 'That post was removed. Reply to another one.');
+      if (t.root_locked && !canModerate(v, b)) throw new ApiError(409, 'locked', 'This thread is locked. Nobody can reply to it.');
       rootId = t.thread_root_id ?? t.id;
       replyTo = t.id;
       replyToAuthor = t.author_id;
@@ -350,7 +352,7 @@ export async function deletePost(deps: AppDeps, v: SessionUser, postId: string, 
     await loadBoard(q, post.slug, v); // a post on a board you cannot read does not exist for you
     if (post.author_id !== v.userId) throw new ApiError(403, 'forbidden', 'You can only delete your own posts.');
     if (post.deleted_at) throw new ApiError(409, 'no_change', 'That post is already deleted.');
-    await q.query(`UPDATE posts SET deleted_at = now(), subject = '', body = '' WHERE id = $1`, [postId]);
+    await q.query(`UPDATE posts SET deleted_at = now(), deleted_by = 'author', subject = '', body = '' WHERE id = $1`, [postId]);
     if (post.thread_root_id && !post.hidden_at) await q.query(`UPDATE posts SET reply_count = GREATEST(reply_count - 1, 0) WHERE id = $1`, [post.thread_root_id]);
     await audit(q, { actorId: v.userId, actorKind: 'user', action: 'post.deleted', targetType: 'post', targetId: postId, after: { by: 'author' }, origin: 'web', ipHash: ctx.ipHash });
     await emit(q, 'post.deleted', { post_id: postId, board_id: post.board_id });

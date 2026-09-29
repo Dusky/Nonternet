@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CREATABLE_VISIBILITIES, type BoardSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, TextField } from '../../components/ui';
-import { errorText, useT } from '../../hooks';
+import { errorText, useMe, useT } from '../../hooks';
 import { AppLink, useAppNav } from '../../nav';
 
 function VisibilityField({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
@@ -85,6 +85,7 @@ export function BoardSettings({ board }: { board: BoardSummary }) {
         </label>
         <p className="hint">{t('boards.settings.archiveHint')}</p>
       </div>
+      <Ops board={board} />
       {board.visibility === 'private' && <Members slug={board.slug} />}
     </>
   );
@@ -118,6 +119,44 @@ function Members({ slug }: { slug: string }) {
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn" type="submit" disabled={add.isPending}>{t('boards.settings.add')}</button>
       </form>
+    </section>
+  );
+}
+
+function Ops({ board }: { board: BoardSummary }) {
+  const t = useT();
+  const me = useMe().data;
+  const qc = useQueryClient();
+  const [handle, setHandle] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const boss = me?.role === 'admin' || me?.id === board.owner.id; // only they choose the ops
+  const list = useQuery({ queryKey: ['board', board.slug, 'ops'], queryFn: () => api.get<{ ops: { id: string; user: { id: string; handle: string } }[] }>(`/boards/${board.slug}/ops`) });
+  const refresh = () => qc.invalidateQueries({ queryKey: ['board', board.slug, 'ops'] });
+  const add = useMutation({
+    mutationFn: () => api.post(`/boards/${board.slug}/ops`, { handle }),
+    onSuccess: () => { setHandle(''); setError(null); void refresh(); },
+    onError: (e) => setError(errorText(e)),
+  });
+  const remove = useMutation({ mutationFn: (id: string) => api.del(`/boards/${board.slug}/ops/${id}`), onSuccess: () => void refresh(), onError: (e) => setError(errorText(e)) });
+  return (
+    <section className="panel" aria-labelledby="ops-h">
+      <h3 id="ops-h">{t('boards.settings.ops')}</h3>
+      <p className="hint">{t('boards.settings.opsHint')}</p>
+      {list.data && list.data.ops.length === 0 && <p>{t('boards.settings.noOps')}</p>}
+      <ul className="rows">
+        {list.data?.ops.map((o) => (
+          <li key={o.id}>{o.user.handle}{' '}
+            {(boss || o.user.id === me?.id) && <button type="button" className="link" onClick={() => remove.mutate(o.id)}>{t('boards.settings.removeOp', { name: o.user.handle })}</button>}
+          </li>
+        ))}
+      </ul>
+      {boss && (
+        <form onSubmit={(e) => { e.preventDefault(); setError(null); add.mutate(); }}>
+          <TextField label={t('boards.settings.addOp')} value={handle} onChange={setHandle} autoCapitalize="none" spellCheck={false} required />
+          <button className="btn" type="submit" disabled={add.isPending}>{t('boards.settings.add')}</button>
+        </form>
+      )}
+      {error && <Alert kind="error">{error}</Alert>}
     </section>
   );
 }

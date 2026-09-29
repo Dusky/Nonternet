@@ -5,6 +5,9 @@ import { api } from '../../api';
 import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
+import type { BoardSummary } from '@app/shared';
+import { ReportQueue } from '../boards/ReportQueue';
+import { OpenAppLink } from '../../shell/OpenAppLink';
 
 interface UserRow { id: string; handle: string; display_name: string | null; email: string; role: Role; status: string; created_at: string; last_seen_at: string | null }
 interface OpRow { id: string; scope: string; scope_id: string }
@@ -21,7 +24,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['users', 'users/:id', 'invites', 'audit'] as const;
+const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -35,12 +38,16 @@ export default function AdminApp() {
       <nav className="tabs" aria-label={t('app.admin')}>
         <AppNavLink to="users">{t('admin.tab.users')}</AppNavLink>
         <AppNavLink to="invites">{t('admin.tab.invites')}</AppNavLink>
+        <AppNavLink to="reports">{t('admin.tab.moderation')}</AppNavLink>
+        <AppNavLink to="boards">{t('admin.tab.boards')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
       </nav>
       <div className="app-content">
         {route?.pattern === 'users' && <Users />}
         {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}
         {route?.pattern === 'invites' && <Invites />}
+        {route?.pattern === 'reports' && <ReportQueue />}
+        {route?.pattern === 'boards' && <BoardsTable />}
         {route?.pattern === 'audit' && <Audit />}
       </div>
     </div>
@@ -323,6 +330,43 @@ function Audit() {
       {query.isSuccess && entries.length === 0 && <p>{t('admin.audit.none')}</p>}
       {entries.length > 0 && <ol className="timeline">{entries.map((e) => <AuditItem key={e.id} entry={e} />)}</ol>}
       {query.hasNextPage && <button className="btn" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>{t('admin.audit.more')}</button>}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- boards
+
+function BoardsTable() {
+  const t = useT();
+  const q = useQuery({ queryKey: ['boards', 'admin'], queryFn: () => api.get<{ boards: BoardSummary[] }>('/boards') });
+  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  const boards = q.data.boards;
+  return (
+    <>
+      <p className="hint">{t('admin.boards.hint')}</p>
+      {boards.length === 0 && <p>{t('admin.boards.none')}</p>}
+      {boards.length > 0 && (
+        <table className="table">
+          <thead><tr>
+            <th scope="col">{t('admin.boards.col.name')}</th><th scope="col">{t('admin.boards.col.owner')}</th><th scope="col">{t('admin.boards.col.visibility')}</th>
+            <th scope="col">{t('admin.boards.col.threads')}</th><th scope="col">{t('admin.boards.col.last')}</th>
+          </tr></thead>
+          <tbody>
+            {boards.map((b) => (
+              <tr key={b.id}>
+                <th scope="row" data-label={t('admin.boards.col.name')}>
+                  <OpenAppLink app="boards" to={b.slug}>{b.name}</OpenAppLink>{b.archived && <> <span className="badge">{t('boards.badge.archived')}</span></>}
+                </th>
+                <td data-label={t('admin.boards.col.owner')}>{b.owner.handle}</td>
+                <td data-label={t('admin.boards.col.visibility')}>{t(`boards.vis.short.${b.visibility === 'ring' ? 'public' : b.visibility}`)}</td>
+                <td data-label={t('admin.boards.col.threads')}>{b.thread_count}</td>
+                <td data-label={t('admin.boards.col.last')}>{formatWhen(b.last_post_at) ?? t('admin.never')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </>
   );
 }

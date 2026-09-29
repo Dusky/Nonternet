@@ -57,6 +57,10 @@ posts (id text pk,                             -- p_…
        body_tsv tsvector, posted_at timestamptz,
        edited_at timestamptz null, hidden_at timestamptz null, deleted_at timestamptz null)
 watches (user_id, board_id)
+mod_actions (id m_…, board_id, actor_id, action hide|unhide|lock|unlock|remove|move, post_id, reason, detail, created_at, undone_at, undone_by)
+reports (id rp_…, target_type post, target_id, scope_type board, scope_id, reporter_id, category, note, status open|actioned|dismissed, resolved_by, resolved_at, resolution_note)
+                                                -- one open report per (reporter, target); migration 0008
+posts also has locked_at (thread starts only) and deleted_by (author|moderator).
 notifications (id n_…, user_id, kind reply|mention|watch, post_id, board_id, actor_id, created_at, read_at)
                                                 -- unique per (user, post); migration 0007
 read_state (user_id, board_id, last_read_seq)   -- read pointers; source of unread counts

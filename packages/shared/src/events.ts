@@ -20,6 +20,8 @@ export const eventPayloads = {
   // Boards (docs/05). `visibility` lets a consumer such as IRC skip anything not public.
   'board.created': z.object({ board_id: boardId, slug: z.string(), owner_id: userId, visibility: z.string() }),
   'post.created': z.object({ post_id: postId, board_id: boardId, thread_id: postId, author_id: userId, visibility: z.string() }),
+  // A moderator acted on a post or thread (docs/03).
+  'mod.action': z.object({ action: z.string(), board_id: boardId, post_id: postId, actor_id: userId }),
   'post.deleted': z.object({ post_id: postId, board_id: boardId }),
 } as const;
 

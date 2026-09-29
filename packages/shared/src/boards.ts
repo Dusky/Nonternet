@@ -64,14 +64,14 @@ export interface BoardSummary {
 
 export interface PostView {
   id: string; seq: number; board_id: string; thread_id: string; reply_to_id: string | null;
-  subject: string; body: string | null; state: 'ok' | 'deleted' | 'hidden';
+  subject: string; body: string | null; state: 'ok' | 'deleted' | 'removed' | 'hidden';
   author: { id: string; handle: string; display_name: string | null } | null;
   posted_at: string; edited_at: string | null;
 }
 
 export interface ThreadSummary {
   id: string; subject: string; author: PostView['author']; posted_at: string;
-  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; state: PostView['state'];
+  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; locked: boolean; state: PostView['state'];
 }
 
 export interface PostPreview {
@@ -93,3 +93,45 @@ export const notificationsReadSchema = z.union([
   z.object({ ids: z.array(z.string().regex(/^n_[0-9A-Z]{26}$/)).min(1).max(200) }),
   z.object({ all: z.literal(true) }),
 ]);
+
+// ---------------------------------------------------------------- moderation (docs/03)
+export const MOD_ACTIONS = ['hide', 'unhide', 'lock', 'unlock', 'remove', 'move'] as const;
+export type ModAction = (typeof MOD_ACTIONS)[number];
+export const UNDOABLE_MOD_ACTIONS: readonly ModAction[] = ['hide', 'lock', 'move'];
+
+const reasonText = z.string().trim().min(3, 'give a reason (at least 3 characters)').max(500);
+export const modActionSchema = z.object({
+  action: z.enum(MOD_ACTIONS),
+  post_id: z.string().regex(/^p_[0-9A-Z]{26}$/),
+  reason: reasonText,
+  to_board: slugSchema.optional(),
+}).refine((v) => v.action !== 'move' || v.to_board, { path: ['to_board'], message: 'choose the board to move it to' });
+export const modUndoSchema = z.object({ reason: reasonText.optional() });
+
+export const REPORT_CATEGORIES = ['spam', 'abuse', 'illegal', 'other'] as const;
+export type ReportCategory = (typeof REPORT_CATEGORIES)[number];
+export const reportCreateSchema = z.object({
+  post_id: z.string().regex(/^p_[0-9A-Z]{26}$/),
+  category: z.enum(REPORT_CATEGORIES),
+  note: z.string().trim().max(500).default(''),
+});
+export const reportResolveSchema = z.object({
+  resolution: z.enum(['actioned', 'dismissed']),
+  note: z.string().trim().max(500).optional(),
+});
+export const boardOpAddSchema = z.object({ handle: z.string().trim().min(1).max(40), reason: z.string().trim().max(500).optional() });
+
+export interface ModLogEntry {
+  id: string; at: string; action: ModAction; reason: string; undone: boolean; undoable: boolean;
+  actor: { handle: string }; board: { slug: string; name: string };
+  post_id: string; post_author: string | null; detail: Record<string, unknown> | null;
+}
+
+export interface ReportView {
+  id: string; status: 'open' | 'actioned' | 'dismissed'; category: ReportCategory; note: string; at: string;
+  escalated: boolean; other_open: number;
+  reporter: { handle: string };
+  board: { slug: string; name: string };
+  post: { id: string; thread_id: string; subject: string; excerpt: string; state: PostView['state']; author: string | null };
+  resolved_by: string | null; resolved_at: string | null; resolution_note: string | null;
+}

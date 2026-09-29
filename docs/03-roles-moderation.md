@@ -43,6 +43,25 @@ can be an op if appointed. Stored in `scoped_roles`; carried in the token's `ops
 - **Mod log**: public per-board/ring log of actions (admin toggle; PROPOSED on).
 - **Appeals**: suspended users get a one-message appeal form to admins.
 
+## As built (M2, moderation)
+- Actions: **hide** and **unhide** (reversible; moderators still see the text), **remove** (erases
+  the text for good, cannot be undone), **lock** and **unlock** a thread (moderators can still reply),
+  **move** a thread with its replies (you must run both boards; not onto or off a ring board). Each
+  needs a reason. Hide, lock and move can be undone from the mod log. Warn, mute, suspend and ban
+  from the list above are not built for boards yet; suspension and bans stay admin calls.
+- Who acts: the board's owner, its ops, and admins. Owners and admins choose the ops
+  (`/boards/:slug/ops`); an op cannot appoint more, and can step down. Ops take effect at once
+  (`role_rev` goes up and the session reads them fresh).
+- Reports: one open report per person per post, category (spam, abuse, illegal, other) and a note.
+  They go to the ops and owner of the board and to admins; after 24 hours an open one is marked as
+  waiting too long. Hiding or removing a post closes its open reports. Reporter identity is visible
+  to moderators only. A post on a board you cannot read cannot be reported.
+- Mod log: per board, readable by anyone who can read the board, switchable with
+  `moderation.public_modlog` in the site config (default true). It shows who, what, when and the
+  reason, never the removed text. Every action is also in the audit log (`mod.*`, `report.*`).
+- The reports queue is in the Boards app for people who moderate something, and in the admin
+  console for admins.
+
 ## Audit log
 Append-only, and enforced by the database, not just by convention: triggers refuse UPDATE, DELETE
 and TRUNCATE (`15`). Actor, action, target, before/after JSON, origin (web, terminal, IRC, MUD,

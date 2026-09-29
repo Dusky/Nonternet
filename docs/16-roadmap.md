@@ -27,7 +27,7 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 5. Moderation: reports, hide/lock/move, board ops, mod log.
 6. Admin console: moderation queue, boards list.
 **Accept:** tests in `05`.
-**Progress:** tasks 1–3 built (backend with `boards.test.ts`; the Boards app with `e2e/tests/boards.spec.ts`, including accessibility scans in both themes). Notifications (4) built: reply, mention and watched-board notifications, a Notifications app and a bell in the taskbar. Next: moderation (5), console (6). Posts must join the export in M4 (`12`).
+**Progress:** tasks 1–3 built (backend with `boards.test.ts`; the Boards app with `e2e/tests/boards.spec.ts`, including accessibility scans in both themes). Notifications (4) built: reply, mention and watched-board notifications, a Notifications app and a bell in the taskbar. Moderation (5) and the console's reports queue and boards list (6) built: hide, unhide, remove, lock, move, undo, reports with routing and escalation marks, the mod log, and board ops. **M2 is complete except the terminal side, which is M8.** Warn/mute are not built (`03`). Posts must join the export in M4 (`12`).
 
 ## M3 — Homepages & rings
 1. Homes origin, per-user subdomains, quotas.

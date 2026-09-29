@@ -9,9 +9,11 @@ import { BoardSettings, NewBoard } from './BoardForms';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
 import { Search } from './Search';
+import { ModLog } from './ModLog';
+import { ReportQueue } from './ReportQueue';
 import { postNote, ThreadView } from './ThreadView';
 
-const ROUTES = ['', 'new', 'search', ':slug', ':slug/new', ':slug/settings', ':slug/t/:id'] as const;
+const ROUTES = ['', 'new', 'search', 'reports', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
 
 export default function BoardsApp() {
   const nav = useAppNav();
@@ -24,9 +26,11 @@ export default function BoardsApp() {
       {route.pattern === '' && <BoardList />}
       {route.pattern === 'new' && <NewBoard />}
       {route.pattern === 'search' && <Search />}
+      {route.pattern === 'reports' && <ReportsPage />}
       {route.pattern === ':slug' && <BoardPage slug={slug!} />}
       {route.pattern === ':slug/new' && <NewThread slug={slug!} />}
       {route.pattern === ':slug/settings' && <SettingsPage slug={slug!} />}
+      {route.pattern === ':slug/modlog' && <ModLogPage slug={slug!} />}
       {route.pattern === ':slug/t/:id' && <ThreadView slug={slug!} id={route.params.id!} />}
     </div>
   );
@@ -71,6 +75,7 @@ function BoardList() {
       <div className="toolbar">
         <AppLink className="btn" to="search">{t('boards.search')}</AppLink>
         {(me?.role === 'trusted' || me?.role === 'admin') && <AppLink className="btn btn-primary" to="new">{t('boards.new')}</AppLink>}
+        {(me?.role === 'admin' || me?.ops.some((o) => o.startsWith('board:')) || boards.some((b) => b.can_moderate)) && <AppLink className="btn" to="reports">{t('boards.reports')}</AppLink>}
       </div>
       {boards.length === 0 && <p>{t('boards.list.none')}</p>}
       {groups.map((g) => (
@@ -139,6 +144,7 @@ function BoardPage({ slug }: { slug: string }) {
         {me && <button className="btn" onClick={() => watch.mutate(!b.watching)} aria-pressed={b.watching} disabled={watch.isPending}>{b.watching ? t('boards.unwatch') : t('boards.watch')}</button>}
         {me && <button className="btn" onClick={() => markRead.mutate()} disabled={markRead.isPending || !b.unread}>{t('boards.markRead')}</button>}
         {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
+        <AppLink className="btn" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
         {b.can_moderate && <AppLink className="btn" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
       </div>
       {!b.can_post && <p className="muted">{postNote(t, b, Boolean(me))}</p>}
@@ -176,6 +182,22 @@ function NewThread({ slug }: { slug: string }) {
         : <p className="muted">{postNote(t, board.data, Boolean(useMe().data))}</p>}
     </>
   );
+}
+
+function ReportsPage() {
+  const t = useT();
+  return (
+    <>
+      <p><AppLink to="">&#8592; {t('boards.backToBoards')}</AppLink></p>
+      <h2>{t('boards.reports')}</h2>
+      <ReportQueue />
+    </>
+  );
+}
+
+function ModLogPage({ slug }: { slug: string }) {
+  const board = useBoard(slug);
+  return <ModLog slug={slug} canUndo={Boolean(board.data?.can_moderate)} />;
 }
 
 function SettingsPage({ slug }: { slug: string }) {

@@ -83,10 +83,11 @@ export async function listOps(deps: AppDeps, targetId: string): Promise<{ ops: O
 
 // Any user can be an op, not only trusted ones (docs/03). Only admins grant ops for now; ring
 // founders and board owners get their own paths when rings and boards exist.
-// TODO(M2, M3): check that the board or ring exists. Until they do, only the ID's shape is checked.
+// Rings arrive in M3: until then a ring's ID is only checked for its shape.
 export async function grantOp(deps: AppDeps, admin: SessionUser, targetId: string, scope: OpScope, scopeId: string, reason: string | undefined, ctx: Ctx): Promise<{ id: string; ops: string[]; role_rev: number }> {
   return deps.db.tx(async (q) => {
     const t = await lockTarget(q, targetId);
+    if (scope === 'board' && (await q.query(`SELECT 1 FROM boards WHERE id = $1`, [scopeId])).rowCount === 0) throw new ApiError(404, 'not_found', 'No such board.');
     if (t.status !== 'active') throw new ApiError(409, 'user_not_active', `${t.handle} is suspended.`);
     const id = newId('o');
     try {

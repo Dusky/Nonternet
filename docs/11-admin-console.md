@@ -13,6 +13,9 @@ from and calls into well-tested core APIs** — it never gets private back doors
 - **Two ways to do everything.** Every action is a button *and* a console command.
 - **Ops get a slice.** Board ops and ring ops get the same console UI scoped to what they manage.
 
+> **Built (M2):** a Reports tab (the moderation queue across all boards) and a Boards tab (every
+> board you can read, with owner, who can read it, thread count and last post).
+>
 > **Built (M1, v0):** users list with search and filters, a dossier (role, suspend and
 > unsuspend, ops, history), invites, and the audit log. Every change asks for a reason. The rest
 > of this doc is still to build.

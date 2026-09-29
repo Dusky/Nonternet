@@ -29,3 +29,6 @@ services:
   bbs: false
   irc: false
   mud: false
+
+moderation:
+  public_modlog: true   # each board's mod log can be read by anyone who can read the board
