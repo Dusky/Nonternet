@@ -23,7 +23,7 @@ users (
 handle_aliases (handle text pk, user_id fk, expires_at)
 ssh_keys (id, user_id fk, public_key, fingerprint unique, label)
 sessions (id, user_id fk, refresh_hash, user_agent, ip_hash, expires_at, revoked_at)
-login_tickets (id, user_id fk, service, expires_at, used_at)      -- 60 s, single use
+login_tickets (id, user_id fk, service, expires_at, used_at)      -- 60 s, single use (bbs|mud)
 invites (code pk, created_by fk, used_by fk null, expires_at)
 applications (id, email, handle, answer, status, reviewed_by, reviewed_at)
 scoped_roles (id, user_id fk, role text, scope_type text, scope_id text, granted_by fk)
@@ -38,15 +38,18 @@ boards (
   id text pk, slug text unique, name, description,
   category_id fk null, ring_id fk null,
   owner_id fk users,
-  enigma_area_tag text unique not null,       -- derived from id
   visibility text not null,                   -- public|members|ring|private
   archived_at, hidden_at
 )
 board_members (board_id, user_id)             -- private boards
-message_index (enigma_message_id pk, board_id fk, author_id fk null, subject,
-               body_tsv tsvector, posted_at, thread_root, hidden bool)
+posts (id text pk,                             -- p_…
+       board_id fk, author_id fk null,          -- null = deleted user
+       thread_root_id fk null, reply_to_id fk null,
+       subject text, body text not null,        -- plain UTF-8 (see 05)
+       body_tsv tsvector, posted_at timestamptz,
+       edited_at timestamptz null, hidden_at timestamptz null, deleted_at timestamptz null)
 watches (user_id, board_id)
-read_state_cache (user_id, board_id, last_read_id)  -- mirror of Enigma pointers for unread counts
+read_state (user_id, board_id, last_read_post_id)   -- read pointers; source of unread counts
 ```
 
 ## Rings

@@ -16,9 +16,9 @@ from and calls into well-tested core APIs** — it never gets private back doors
 ## Sections
 
 ### 1. Status board (home)
-Live tiles with sparklines: users online per service (web, BBS nodes, IRC, MUD), posts/hour,
+Live tiles with sparklines: users online per service (web, IRC, MUD, and BBS nodes once shipped), posts/hour,
 signups today, open reports, queue depths (export jobs, reconcile issues), disk use (Postgres,
-Enigma, homes, backups), service health (up/down/latency per container), last backup age,
+homes, backups), service health (up/down/latency per container), last backup age,
 TLS certificate expiries.
 
 ### 2. Users
@@ -45,8 +45,8 @@ escalations from ops, bulk actions, canned reasons, mod log preview.
 
 ### 6. Services
 One detail page per service:
-- **BBS**: live nodes (who, where in the menus, connected via), message rates per area,
-  bridge health, reconcile report, art pack in use.
+- **BBS** (last milestone): live nodes (who, where in the menus, connected via), post rates
+  per board, art pack in use.
 - **IRC**: channels, users, opers, bans/K-lines, message rates.
 - **MUD**: connected players, room occupancy heatmap, builder activity, object counts.
 - **Homepages**: storage by user, top pages by hits, recently updated, custom domains and
@@ -60,8 +60,8 @@ Every setting (signup mode, quotas, limits, themes, MOTD, feature flags) in form
 (changed via deploy config).
 
 ### 8. Announcements & MOTD
-Compose once, publish to: shell banner, BBS login screen/MOTD, IRC `#lobby` notice, MUD
-broadcast. Schedule, expire, preview per channel.
+Compose once, publish to: shell banner, BBS login screen/MOTD (once shipped), IRC `#lobby`
+notice, MUD broadcast. Schedule, expire, preview per channel.
 
 ### 9. Stats
 Historical charts: users (signups, active daily/weekly/monthly), content (posts, homepages

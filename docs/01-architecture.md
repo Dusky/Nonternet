@@ -13,11 +13,12 @@ One deployment, run by the admin team, on one server (or a small cluster later).
       └──────┬───────────────────────────────────────────────────────────┘
              │
    ┌─────────▼────────┐   ┌──────────────┐   ┌────────────┐   ┌────────────┐
-   │ core             │◄─►│ Enigma½ BBS  │   │ IRC (Ergo) │   │ MUD engine │
-   │ accounts, OIDC,  │   │ + bridge     │   │ + auth hook│   │ + auth hook│
-   │ roles, rings,    │   └──────────────┘   └────────────┘   └────────────┘
-   │ homepages, export│
-   │ audit, events    │──► Postgres     Redis (sessions, presence, events)
+   │ core             │◄─►│ BBS (last)   │   │ IRC (Ergo) │   │ MUD engine │
+   │ accounts, OIDC,  │   │ core client  │   │ + auth hook│   │ + auth hook│
+   │ roles, boards,   │   └──────────────┘   └────────────┘   └────────────┘
+   │ rings, homepages,│
+   │ export, audit,   │──► Postgres     Redis (sessions, presence, events)
+   │ events           │
    └──────────────────┘
 ```
 
@@ -25,10 +26,9 @@ One deployment, run by the admin team, on one server (or a small cluster later).
 | Component | Role | Built / borrowed |
 |---|---|---|
 | **Caddy** | TLS, reverse proxy, static homepages, on-demand TLS for custom domains | Borrowed |
-| **core** | Accounts, OIDC, roles, rings, board registry, homepages, export, notifications, audit, event bus, admin APIs | **Built** (TypeScript) |
+| **core** | Accounts, OIDC, roles, boards and posts, rings, homepages, export, notifications, audit, event bus, admin APIs | **Built** (TypeScript) |
 | **shell** | Web UI: launcher, windows, boards, homepage studio, rings, chat, admin console | **Built** (React) |
-| **Enigma½** | BBS: terminal UI, message areas, file areas, doors | Borrowed (DECIDED) |
-| **Enigma bridge** | Module inside Enigma exposing a private API | **Built** |
+| **BBS** | Telnet/SSH/WebSocket terminal front door; a client of core's API (`04`) | **Built** (TypeScript), last milestone |
 | **Ergo** | IRC server | Borrowed (PROPOSED) |
 | **MUD engine** | Shared world | Borrowed (PROPOSED: Evennia) |
 | **Postgres / Redis** | Data, sessions, presence, event streams | Borrowed |
@@ -36,9 +36,10 @@ One deployment, run by the admin team, on one server (or a small cluster later).
 
 ## Rules
 - **core is the source of truth** for users, roles, rings, board metadata, homepages, audit.
-- **Services keep their own stores** (Enigma's SQLite, MUD DB). core never writes to them
-  directly — only via bridges/hooks.
-- **Message content lives in Enigma**; core keeps board metadata and a search/read index.
+- **Services keep their own stores** where they must (the MUD DB, Ergo's history). core never
+  writes to them directly — only via hooks.
+- **Boards and posts live in core's Postgres.** The web shell and, later, the BBS read and
+  write them through the core API.
 - **One event bus** (Redis streams): services and workers subscribe; consumers are idempotent.
 - **Everything is configurable by name**: `site.*` config drives all branding (see `CLAUDE.md`).
 
@@ -52,10 +53,10 @@ repo/
 ├── packages/
 │   ├── shared/          # zod schemas, enums (roles, states), vocabulary strings
 │   ├── strings/         # all UI copy; name/domain interpolated from config
-│   ├── ftn/             # FTN text helpers (kept for Enigma + future federation)
+│   ├── ftn/             # FTN text helpers (later, for federation)
 │   └── ui-themes/       # theme tokens
 ├── services/
-│   ├── enigma/{config-templates,art-pack,bridge}/
+│   ├── bbs/             # terminal BBS service + art pack (last milestone)
 │   ├── irc/             # Ergo config template + auth script
 │   └── mud/             # game dir + auth backend
 ├── deploy/
@@ -69,10 +70,10 @@ repo/
 | Port | Service | Exposure |
 |---|---|---|
 | 80/443 | Caddy | public |
-| 23, 22 (or 2222) | Enigma telnet/SSH | public (telnet can be disabled) |
+| 23, 22 (or 2222) | BBS telnet/SSH (once shipped) | public (telnet can be disabled) |
 | 6697 | IRC TLS | public |
 | 4000 | MUD telnet | public, optional |
-| internal | core, bridge, Postgres, Redis | private network only |
+| internal | core, Postgres, Redis | private network only |
 
 ## Domains
 - `site.domain` — shell, API, OIDC.

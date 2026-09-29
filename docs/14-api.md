@@ -52,5 +52,5 @@ admin status/metric updates for admins.
 ## Internal event bus (Redis streams)
 `user.created|role_changed|ops_changed|suspended|renamed|deleted`, `session.revoked`,
 `board.created|updated|archived`, `ring.created|updated|member_joined|member_left`,
-`bbs.message.created`, `bbs.user.login|logout`, `irc.*`, `mud.*`, `presence.changed`,
+`board.post.created|hidden|deleted`, `bbs.user.login|logout` (BBS milestone), `irc.*`, `mud.*`, `presence.changed`,
 `export.requested|ready`, `settings.changed`. At-least-once; consumers idempotent.

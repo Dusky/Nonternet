@@ -17,7 +17,7 @@ VERIFY: Evennia custom auth backend, embeddable/replaceable web client, current 
 - Role mapping: guest → none (or a read-only "observer", OPEN), user → Player,
   admin → Admin/Developer. **Builders** are appointed separately by admins (building is a
   world-level privilege, not tied to trusted) (PROPOSED).
-- Shell window: xterm.js over WebSocket to match the BBS window (PROPOSED), with the engine's
+- Shell window: xterm.js over WebSocket, the same terminal window the BBS will use (PROPOSED), with the engine's
   web client as fallback.
 
 ## World design (OPEN — its own design doc later)

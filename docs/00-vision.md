@@ -11,15 +11,16 @@ anyone can take part without knowing what telnet is.
 - **The MUD is one shared world** for everyone.
 - **Users own their stuff**: full export in open formats, stable identity, custom domains
   for homepages. Participation must never require running a server.
+- **The BBS is built in-house and ships last.** Boards work on the web from v1.
 - **Federation and self-hosting are later phases**, designed for but not built in v1.
 
 ## Principles
 1. **Two front doors.** Authentic access (telnet/SSH BBS, IRC clients, MUD clients) and a
-   comfortable web way, showing the same data.
+   comfortable web way, showing the same data. The web door opens first; the BBS is last.
 2. **One identity** across every service.
 3. **Ownership by default.** If a user made it, they can take it with them.
-4. **Borrow the hard parts.** Enigma½, an IRC daemon, a MUD engine, Caddy. Our code is glue,
-   the shell, rings, homepages, export and the admin console.
+4. **Borrow the hard parts.** An IRC daemon, a MUD engine, Caddy. Our code is the shell,
+   boards, rings, homepages, export, the admin console and, last, the BBS.
 5. **Earned standing.** Trusted users create boards and found rings.
 6. **Honest UI.** Say plainly what's public, what's permanent, what's local.
 7. **Boring core, fancy console.** Keep the foundations simple. Put the ambition in the
@@ -50,7 +51,7 @@ Use these words in all UI, docs and code comments. No invented metaphor or setti
 | The web UI | **the shell** | internal term; UI can just say the site name |
 | Control panel | **admin console** | |
 
-Retired terms from earlier planning: town, neighborhood, sysop (except where Enigma uses it
+Retired terms from earlier planning: town, neighborhood, sysop (except where an external tool uses it
 internally), peer, handle@town.
 
 ## Voice (DECIDED: plain)

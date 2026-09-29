@@ -24,8 +24,8 @@ These documents are the spec for building it with Claude Code.
 | 01 | [Architecture](docs/01-architecture.md) | Components, stack, repo layout, networking |
 | 02 | [Accounts & Identity](docs/02-accounts-identity.md) | Signup, login, SSO across services, stable IDs, keys |
 | 03 | [Roles & Moderation](docs/03-roles-moderation.md) | guest/user/trusted/admin, ops, reports, audit log |
-| 04 | [BBS: Enigma½ Integration](docs/04-bbs-enigma.md) | Embedding Enigma, the bridge, terminal access |
-| 05 | [Boards Web View](docs/05-boards-web.md) | Modern web reader/composer over the same message base |
+| 04 | [BBS](docs/04-bbs.md) | The in-house terminal BBS (last milestone) |
+| 05 | [Boards](docs/05-boards-web.md) | Boards stored in core, with the web reader and composer |
 | 06 | [Rings](docs/06-rings.md) | User-formed groups: board + channel + homepage nav |
 | 07 | [Homepages](docs/07-homepages.md) | Personal static sites, widgets, directory, custom domains |
 | 08 | [IRC](docs/08-irc.md) | IRC server and web chat client |
@@ -46,5 +46,6 @@ These documents are the spec for building it with Claude Code.
 - **VERIFY** — depends on a third-party fact that must be checked against current docs/source.
 
 ## v1 at a glance
-Accounts + web shell + Enigma BBS (terminal and web view) + rings + homepages + export +
-admin console. IRC and the MUD follow. Federation and self-hosting are later phases.
+Accounts + web shell + boards + rings + homepages + export + admin console. IRC and the MUD
+follow. The terminal BBS, built in-house, comes last. Federation and self-hosting are later
+phases.

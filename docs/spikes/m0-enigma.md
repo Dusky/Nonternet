@@ -1,5 +1,10 @@
 # M0 spike — Enigma½ integration
 
+> **Superseded (2026-09-29, D17).** We are building our own BBS instead, so this integration
+> will not be built. This document is kept as a record. The stub bridge and test scripts were
+> removed from the repo; they are in git history (commit `0363755`). References below to
+> Q2, Q13, Q14 and V1–V6 are withdrawn.
+
 **Tested against:** ENiGMA½ `0.5.1-beta` (`NuSkooler/enigma-bbs`, default branch, 2026-09-29),
 Node 22, Linux. Stub bridge and scripts: `services/enigma/bridge/`.
 

@@ -44,7 +44,7 @@ banner, reorder the nav sequence, pin posts, ban a user from the ring (with reas
 ## Discovery
 - Ring directory: by tag, newest, most active (posts + new members this week), random ring.
 - A user's profile shows their rings.
-- The terminal BBS has a Rings menu listing rings and linking to their boards.
+- The terminal BBS (last milestone) will have a Rings menu listing rings and their boards.
 
 ## Relationship to standalone boards
 Trusted users can still create **standalone boards** (site-wide topics). A ring board is a

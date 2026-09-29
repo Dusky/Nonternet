@@ -5,7 +5,7 @@ The site is hosted by its admins (DECIDED). This doc covers running it well.
 ## Deployment
 - `docker compose` on one server to start (PROPOSED: 4 vCPU / 8 GB RAM / 160 GB+ disk as a
   starting point; measure).
-- `site.yaml` + `.env` secrets → `sitectl render-config` produces Enigma, Caddy, Ergo, MUD configs.
+- `site.yaml` + `.env` secrets → `sitectl render-config` produces Caddy, Ergo, MUD (and later BBS) configs.
 - `sitectl doctor` checks DNS, TLS, ports, health; `sitectl backup|restore|upgrade`.
 
 ```yaml
@@ -19,7 +19,8 @@ limits:
   homepage_quota_mb: { user: 50, trusted: 100 }
   trusted_board_quota: 3
   trusted_ring_quota: 2
-services: { bbs: { telnet: true, ssh: true }, irc: true, mud: false }
+services: { bbs: false, irc: false, mud: false }   # each turns on as its milestone ships;
+                                                    # bbs later takes { telnet: true, ssh: true }
 ```
 DB-backed versioned settings (`11`) override runtime keys; `site.*` only via config + deploy.
 
@@ -38,12 +39,11 @@ Not legal advice — get proper advice for your jurisdiction. Plan for:
 - Data protection: export and deletion (`12`), hashed IPs, retention periods documented.
 
 ## Backups
-Nightly: pg_dump, Enigma data (SQLite backup API or brief pause), homes, MUD data, config,
-keys. Encrypted, off-site copy, 30 days retention (PROPOSED). Monthly automated
+Nightly: pg_dump, homes, MUD data (once it exists), config, keys. Encrypted, off-site copy, 30 days retention (PROPOSED). Monthly automated
 **restore test** to a scratch environment, result shown in the admin console.
 
 ## Upgrades
-Pinned versions of Enigma, Ergo, MUD engine; integration suite must pass before bumping.
+Pinned versions of Ergo and the MUD engine; integration suite must pass before bumping.
 `sitectl upgrade`: backup → pull → migrate → health check → rollback instructions on failure.
 
 ## Security checklist
@@ -51,7 +51,7 @@ Pinned versions of Enigma, Ergo, MUD engine; integration suite must pass before 
 - Strict CSP on the shell; CSRF protection on state-changing requests.
 - Rate limits: login, signup, posts, guestbook, ring joins, tickets, exports, custom domains.
 - Telnet is cleartext → separate terminal password; SSH encouraged; telnet can be disabled.
-- Bridges and internal APIs only on the private network with shared secrets.
+- Internal APIs and service hooks only on the private network with shared secrets.
 - Secrets at rest (TOTP, private keys) encrypted with a key from Docker secrets.
 - Audit log insert-only at the DB permission level.
 - Admin accounts require 2FA.
