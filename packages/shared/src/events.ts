@@ -5,6 +5,8 @@ import { roleSchema } from './roles';
 // use `id` to skip an event already handled, and `role_rev` to ignore a stale role or ops change
 // that arrives after a newer one.
 const userId = z.string().regex(/^u_[0-9A-Z]{26}$/);
+const boardId = z.string().regex(/^b_[0-9A-Z]{26}$/);
+const postId = z.string().regex(/^p_[0-9A-Z]{26}$/);
 
 export const eventPayloads = {
   'user.created': z.object({ user_id: userId, handle: z.string(), role: roleSchema }),
@@ -15,6 +17,10 @@ export const eventPayloads = {
   // Every session of the user was ended (suspension, password reset, 2FA reset), or one session
   // was (logout). Services drop matching live connections.
   'session.revoked': z.object({ user_id: userId, session_id: z.string().optional(), reason: z.string() }),
+  // Boards (docs/05). `visibility` lets a consumer such as IRC skip anything not public.
+  'board.created': z.object({ board_id: boardId, slug: z.string(), owner_id: userId, visibility: z.string() }),
+  'post.created': z.object({ post_id: postId, board_id: boardId, thread_id: postId, author_id: userId, visibility: z.string() }),
+  'post.deleted': z.object({ post_id: postId, board_id: boardId }),
 } as const;
 
 export type EventType = keyof typeof eventPayloads;

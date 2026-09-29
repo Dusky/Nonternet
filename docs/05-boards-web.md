@@ -33,6 +33,23 @@ for future federation (`12`).
 - Subject ≤ 71 chars, wrapped body, initials-style quoting (`ZC> text`) on reply.
 - Characters a classic (CP437) terminal can't show are flagged in the preview.
 
+## As built (M2, backend)
+- Boards, categories, private-board members, watches, read pointers, threads, replies, deletes by
+  the author (a tombstone, text erased) and full-text search work through `/api/v1` (see `14`).
+- Not found and not allowed look the same for boards you cannot read: a 404 with the same body.
+- Private boards are for listed members only. Admins are not members by default (PROPOSED; the
+  console will get an audited way to look, later).
+- Search is Postgres `websearch_to_tsquery` (English stemming), limited to boards the viewer can
+  read. Match markers in the snippet are the control characters U+0002 and U+0003, which post text
+  can never contain, so a client never has to treat a snippet as HTML.
+- Post text is cleaned on the way in (control and direction characters removed, tabs become 4
+  spaces, line endings become `\n`). The preview is computed by the server from the same code, so
+  it is exactly what is stored, plus how a 79-column terminal wraps it and which characters CP437
+  cannot show. Libraries: `wrap-ansi` (wrapping), `iconv-lite` (CP437).
+- Quotas: `limits.trusted_board_quota` (default 3) counts a user's boards that are not archived;
+  admins have none.
+- Ring boards cannot be created yet (M3). Until then a `ring` board takes no posts.
+
 ## Later (local extras, web-only)
 Reactions, edits with history, image attachments — labeled as web-only; terminal users see
 a text fallback ("[image: filename]").

@@ -79,7 +79,7 @@ type App = Awaited<ReturnType<typeof makeApp>>['app'];
 // A tiny cookie-aware client over fastify.inject().
 export function client(app: App, origin: string = ORIGIN) {
   let sid: string | undefined;
-  async function call(method: 'GET' | 'POST', url: string, body?: unknown, headers: Record<string, string> = {}) {
+  async function call(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', url: string, body?: unknown, headers: Record<string, string> = {}) {
     const res = await app.inject({
       method, url, payload: body as object | undefined,
       headers: { origin, ...(sid ? { cookie: `sid=${sid}` } : {}), ...headers },
@@ -91,6 +91,9 @@ export function client(app: App, origin: string = ORIGIN) {
   return {
     get: (url: string, headers?: Record<string, string>) => call('GET', url, undefined, headers),
     post: (url: string, body?: unknown, headers?: Record<string, string>) => call('POST', url, body, headers),
+    put: (url: string, body?: unknown, headers?: Record<string, string>) => call('PUT', url, body, headers),
+    patch: (url: string, body?: unknown, headers?: Record<string, string>) => call('PATCH', url, body, headers),
+    delete: (url: string, headers?: Record<string, string>) => call('DELETE', url, undefined, headers),
     get sid() { return sid; },
     set sid(v: string | undefined) { sid = v; },
   };

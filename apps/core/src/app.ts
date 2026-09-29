@@ -12,6 +12,7 @@ import { oidcRoutes } from './routes/oidc';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { meRoutes } from './routes/me';
+import { boardRoutes } from './routes/boards';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -76,5 +77,6 @@ export async function buildApp(deps: AppDeps) {
   authRoutes(app, deps);
   meRoutes(app, deps);
   adminRoutes(app, deps);
+  boardRoutes(app, deps);
   return app;
 }

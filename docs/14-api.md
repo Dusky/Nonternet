@@ -19,6 +19,11 @@ OIDC under `/oidc/*`.
 `/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
+Built (M2): everything below except `PATCH` of ring boards, plus `PUT|DELETE /boards/:slug/watch`,
+`GET|POST /boards/:slug/members`, `DELETE /boards/:slug/members/:userId` (private boards),
+`POST /admin/board-categories`, and `read-pointer` takes `{post_id}` or `{all: true}`. Thread lists page
+with `before=<last_seq>`, threads with `after=<seq>`, search with `offset`. Events: `board.created`,
+`post.created`, `post.deleted`.
 `GET /boards` · `POST /boards` (trusted+) · `GET/PATCH /boards/:slug`
 `GET /boards/:slug/threads?cursor=` · `GET /boards/:slug/threads/:id`
 `POST /boards/:slug/posts {subject, body, reply_to?}` · `POST /boards/:slug/posts/preview`

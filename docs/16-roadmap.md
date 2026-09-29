@@ -27,6 +27,7 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 5. Moderation: reports, hide/lock/move, board ops, mod log.
 6. Admin console: moderation queue, boards list.
 **Accept:** tests in `05`.
+**Progress:** tasks 1–2 built (backend, `boards.test.ts`). Next: the Boards app (3), notifications (4), moderation (5), console (6). Posts must join the export in M4 (`12`).
 
 ## M3 — Homepages & rings
 1. Homes origin, per-user subdomains, quotas.

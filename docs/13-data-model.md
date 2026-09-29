@@ -57,7 +57,14 @@ posts (id text pk,                             -- p_…
        body_tsv tsvector, posted_at timestamptz,
        edited_at timestamptz null, hidden_at timestamptz null, deleted_at timestamptz null)
 watches (user_id, board_id)
-read_state (user_id, board_id, last_read_post_id)   -- read pointers; source of unread counts
+read_state (user_id, board_id, last_read_seq)   -- read pointers; source of unread counts
+```
+As built (migration 0006): `posts.seq` is an identity column that gives every post a total order,
+so read pointers and thread order use `seq`, not the ULID (two ULIDs from the same millisecond can
+sort either way). The root post of a thread also carries `reply_count` and `last_seq`, kept in the
+same transaction as each reply, so the thread list is one indexed read. A deleted post keeps its
+row as a tombstone (`deleted_at` set, subject and body erased) so replies keep their place.
+```sql
 ```
 
 ## Rings
