@@ -2,6 +2,11 @@
 
 Enigma½ is the BBS (DECIDED). We integrate it; we don't write a BBS.
 
+> **M0 spike done (2026-09-29).** Items 1–4 below were checked against Enigma 0.5.1-beta; results and
+> caveats are in `docs/spikes/m0-enigma.md`. Two changes to this design: ticket login is done
+> at WebSocket connect (not a `/tickets/redeem` call), and areas must be re-registered on every
+> Enigma start.
+
 ## What Enigma provides (VERIFY each)
 ANSI/art-driven menus, message areas, file areas, door games, telnet/SSH/WebSocket access,
 FTN echomail support, SQLite storage, Node.js with custom modules.
