@@ -25,11 +25,34 @@ const auditQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
+const userListQuery = z.object({
+  q: z.string().trim().max(100).optional(),
+  role: roleSchema.optional(),
+  status: z.enum(['active', 'suspended', 'deleted']).optional(),
+  before: z.string().regex(/^u_[0-9A-Z]{26}$/).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
 export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/admin/invites', async (req, reply) => {
     const who = requireAdmin(req);
     const { expires_in_days } = inviteSchema.parse(req.body ?? {});
     return reply.code(201).send(await accounts.createInvite(deps, who, expires_in_days, ctxOf(deps, req)));
+  });
+
+  app.get('/api/v1/admin/users', async (req) => {
+    requireAdmin(req);
+    return admin.listUsers(deps, userListQuery.parse(req.query));
+  });
+
+  app.get('/api/v1/admin/users/:id', async (req) => {
+    requireAdmin(req);
+    return admin.getDossier(deps, userIdParam.parse(req.params).id);
+  });
+
+  app.get('/api/v1/admin/invites', async (req) => {
+    requireAdmin(req);
+    return admin.listInvites(deps);
   });
 
   app.post('/api/v1/admin/users/:id/role', async (req) => {

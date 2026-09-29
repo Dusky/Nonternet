@@ -162,3 +162,82 @@ export async function listAudit(deps: AppDeps, f: AuditFilter) {
     next_before: r.rows.length > limit ? Number(page[page.length - 1]!.id) : null,
   };
 }
+
+// ---------------------------------------------------------------- users and invites (read side)
+
+export interface UserFilter { q?: string; role?: Role; status?: 'active' | 'suspended' | 'deleted'; before?: string; limit?: number }
+
+// Escape LIKE wildcards so "_" and "%" in a search are searched for, not treated as patterns.
+const likeEscape = (s: string): string => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+// Newest first. IDs are ULIDs, so id order is signup order and `before` pages without gaps.
+export async function listUsers(deps: AppDeps, f: UserFilter) {
+  const where: string[] = [`status <> 'deleted' OR $1::boolean`];
+  const params: unknown[] = [f.status === 'deleted'];
+  const add = (sql: string, value: unknown) => { params.push(value); where.push(sql.replace('?', `$${params.length}`)); };
+  if (f.q) { const like = `%${likeEscape(f.q.toLowerCase())}%`; params.push(like); where.push(`(lower(handle) LIKE $${params.length} OR lower(email) LIKE $${params.length} OR lower(coalesce(display_name, '')) LIKE $${params.length})`); }
+  if (f.role) add('role = ?', f.role);
+  if (f.status) add('status = ?', f.status);
+  if (f.before) add('id < ?', f.before);
+  const limit = Math.min(f.limit ?? 50, 200);
+  params.push(limit + 1);
+  const r = await deps.db.query<{
+    id: string; handle: string; display_name: string | null; email: string; role: Role; role_rev: number; status: string;
+    email_verified_at: Date | null; totp_enabled_at: Date | null; created_at: Date; last_seen_at: Date | null;
+  }>(
+    `SELECT id, handle, display_name, email, role, role_rev, status, email_verified_at, totp_enabled_at, created_at, last_seen_at
+       FROM users WHERE ${where.map((w) => `(${w})`).join(' AND ')} ORDER BY id DESC LIMIT $${params.length}`, params);
+  const page = r.rows.slice(0, limit);
+  const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
+  return {
+    users: page.map((u) => ({
+      id: u.id, handle: u.handle, display_name: u.display_name, email: u.email, role: u.role, role_rev: u.role_rev, status: u.status,
+      email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, created_at: iso(u.created_at), last_seen_at: iso(u.last_seen_at),
+    })),
+    next_before: r.rows.length > limit ? page[page.length - 1]!.id : null,
+  };
+}
+
+// The basic dossier (docs/11): who they are, how they got in, what they can do, and what happened to them.
+export async function getDossier(deps: AppDeps, id: string) {
+  const u = await deps.db.query<{
+    id: string; handle: string; display_name: string | null; bio: string | null; email: string; role: Role; role_rev: number; status: string;
+    email_verified_at: Date | null; totp_enabled_at: Date | null; theme: string | null; created_at: Date; last_seen_at: Date | null;
+  }>(`SELECT id, handle, display_name, bio, email, role, role_rev, status, email_verified_at, totp_enabled_at, theme, created_at, last_seen_at FROM users WHERE id = $1`, [id]);
+  const user = u.rows[0];
+  if (!user) throw notFound();
+  const [ops, invite, sessions, recovery, history] = await Promise.all([
+    listOps(deps, id).catch(() => ({ ops: [], claims: [] })),
+    deps.db.query<{ code: string; created_by_handle: string | null }>(`SELECT i.code, c.handle AS created_by_handle FROM invites i LEFT JOIN users c ON c.id = i.created_by WHERE i.used_by = $1`, [id]),
+    deps.db.query<{ n: number }>(`SELECT count(*)::int AS n FROM sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()`, [id]),
+    deps.db.query<{ n: number }>(`SELECT count(*)::int AS n FROM recovery_codes WHERE user_id = $1 AND used_at IS NULL`, [id]),
+    listAudit(deps, { targetType: 'user', targetId: id, limit: 20 }),
+  ]);
+  const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
+  return {
+    user: {
+      id: user.id, handle: user.handle, display_name: user.display_name, bio: user.bio, email: user.email, role: user.role, role_rev: user.role_rev,
+      status: user.status, email_verified: !!user.email_verified_at, totp_enabled: !!user.totp_enabled_at, theme: user.theme,
+      created_at: iso(user.created_at), last_seen_at: iso(user.last_seen_at),
+    },
+    ops: ops.ops,
+    invite: invite.rows[0] ? { code: invite.rows[0].code, created_by: invite.rows[0].created_by_handle } : null,
+    active_sessions: sessions.rows[0]!.n,
+    recovery_codes_remaining: recovery.rows[0]!.n,
+    history: history.entries,
+  };
+}
+
+export async function listInvites(deps: AppDeps, limit = 100) {
+  const r = await deps.db.query<{ code: string; created_by_handle: string | null; used_by_handle: string | null; used_by: string | null; created_at: Date; expires_at: Date; used_at: Date | null; expired: boolean }>(
+    `SELECT i.code, c.handle AS created_by_handle, u.handle AS used_by_handle, i.used_by, i.created_at, i.expires_at, i.used_at, i.expires_at <= now() AS expired
+       FROM invites i LEFT JOIN users c ON c.id = i.created_by LEFT JOIN users u ON u.id = i.used_by ORDER BY i.created_at DESC, i.code LIMIT $1`, [Math.min(limit, 200)]);
+  return {
+    invites: r.rows.map((i) => ({
+      code: i.code, created_by: i.created_by_handle, used_by: i.used_by_handle, used_by_id: i.used_by,
+      created_at: new Date(i.created_at).toISOString(), expires_at: new Date(i.expires_at).toISOString(),
+      used_at: i.used_at ? new Date(i.used_at).toISOString() : null,
+      status: i.used_by ? 'used' : i.expired ? 'expired' : 'open',
+    })),
+  };
+}

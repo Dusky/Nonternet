@@ -60,8 +60,9 @@
   for 1 hour and once; only the newest link works. Resetting signs the user out everywhere,
   sends a "your password was changed" notice, and does **not** turn off two-factor: an admin
   who resets their password still needs their code (or a recovery code) to log in.
-- **Not built yet**: changing your password while logged in (`PUT /me/password`), and
-  disabling TOTP by choice.
+- **Changing your password** (`PUT /me/password`) needs the current one, signs out every *other*
+  session, ends the grants services hold, audits it and sends a notice. This session stays signed in.
+- **Not built yet**: turning TOTP off by choice, and changing your email address or handle.
 
 ## Roles, ops and `role_rev` (built in M1)
 - An admin changes a role with a reason (`POST /admin/users/:id/role`). Role, ops and suspension

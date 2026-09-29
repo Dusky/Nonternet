@@ -20,7 +20,8 @@ users (
   role_rev int not null default 0,
   status text not null default 'active',-- active|suspended|deleted
   quota_bytes bigint,               -- null = role default
-  theme text, last_seen_at timestamptz
+  theme text,                       -- modern|amber, null = site default
+  last_seen_at timestamptz
 )
 handle_aliases (handle text pk, user_id fk, expires_at)
 ssh_keys (id, user_id fk, public_key, fingerprint unique, label)

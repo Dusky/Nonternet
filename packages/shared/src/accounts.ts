@@ -31,6 +31,8 @@ export const RECOVERY_CODE_PATTERN = /^[a-hjkmnp-z2-9]{5}-[a-hjkmnp-z2-9]{5}$/;
 export const forgotPasswordSchema = z.object({ email: z.string().email().max(254) });
 export const resetPasswordSchema = z.object({ token: z.string().min(10).max(200), password: passwordSchema });
 
+export const changePasswordSchema = z.object({ current_password: z.string().min(1).max(PASSWORD_MAX), new_password: passwordSchema });
+
 export const loginInputSchema = z.object({
   identifier: z.string().trim().min(1).max(254), // handle or email
   password: z.string().min(1).max(PASSWORD_MAX),
@@ -45,6 +47,8 @@ export const meSchema = z.object({
   id: z.string(),
   handle: z.string(),
   display_name: z.string().nullable(),
+  bio: z.string().nullable(),
+  theme: z.enum(['modern', 'amber']).nullable(),
   role: z.enum(['guest', 'user', 'trusted', 'admin']),
   email: z.string(),
   email_verified: z.boolean(),

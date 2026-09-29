@@ -6,7 +6,7 @@ bearer token. Errors: `{ "error": { "code", "message" } }`. The admin console us
 ## Auth & me
 `POST /auth/signup` · `POST /auth/login` · `POST /auth/logout` · `POST /auth/verify-email` · `POST /auth/resend-verification`
 `POST /auth/forgot-password` (always 204) · `POST /auth/reset-password`
-`GET /me` (built) · `PATCH /me` · `PUT /me/password` · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
+`GET /me` · `PATCH /me` (display name, bio, theme) · `PUT /me/password` (needs the current password) — all built · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
 `POST /me/totp/setup` · `POST /me/totp/enable` (returns the recovery codes, once) · `POST /me/totp/recovery-codes` (regenerate; needs a current code) — all built
 `POST /tickets {service}` → one-time login ticket (bbs | mud)
 `POST /me/export` · `GET /me/exports` · `DELETE /me` (after confirm)
@@ -14,7 +14,7 @@ OIDC under `/oidc/*`.
 
 ## Users (public + admin)
 `GET /users/:handle` (public profile) · admin: `GET /admin/users?…`, `GET /admin/users/:id`
-(dossier), `POST /admin/invites`, and, all built: `POST /admin/users/:id/role`, `/suspend`, `/unsuspend`,
+(dossier), all built: `GET /admin/users?q=&role=&status=&before=&limit=`, `GET /admin/users/:id` (basic dossier), `GET /admin/invites`, `POST /admin/invites`, `POST /admin/users/:id/role`, `/suspend`, `/unsuspend`,
 `GET|POST /admin/users/:id/ops`, `DELETE /admin/users/:id/ops/:opId`. Still to build: `/rename`, `/logout-all`,
 `/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 

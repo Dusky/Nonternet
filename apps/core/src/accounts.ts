@@ -1,4 +1,4 @@
-import { isReservedHandle, toPublicSite, type LoginInput, type Me, type SignupInput } from '@app/shared';
+import { isReservedHandle, toPublicSite, type LoginInput, type Me, type ProfileUpdate, type SignupInput } from '@app/shared';
 import { makeT } from '@app/strings';
 import { audit } from './audit';
 import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
@@ -18,13 +18,13 @@ const RECOVERY_CODE_COUNT = 10;
 
 export interface Ctx { ipHash?: string | null; ip?: string; userAgent?: string }
 export interface SessionUser {
-  sessionId: string; userId: string; handle: string; displayName: string | null; email: string;
+  sessionId: string; userId: string; handle: string; displayName: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string;
   role: 'guest' | 'user' | 'trusted' | 'admin'; emailVerified: boolean; totpEnabled: boolean; limited: boolean;
   recoveryRemaining: number; roleRev: number; ops: string[];
 }
 
 export const toMe = (u: SessionUser): Me => ({
-  id: u.userId, handle: u.handle, display_name: u.displayName, role: u.role, email: u.email,
+  id: u.userId, handle: u.handle, display_name: u.displayName, bio: u.bio, theme: u.theme, role: u.role, email: u.email,
   email_verified: u.emailVerified, totp_enabled: u.totpEnabled, recovery_codes_remaining: u.recoveryRemaining, role_rev: u.roleRev, ops: u.ops, limited: u.limited,
 });
 
@@ -36,8 +36,8 @@ export async function opsFor(q: Queryable, userId: string): Promise<string[]> {
 }
 
 // Ends every live session of a user and tells the bus, so services can drop connections.
-export async function revokeAllSessions(q: Queryable, userId: string, reason: string): Promise<number> {
-  const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);
+export async function revokeAllSessions(q: Queryable, userId: string, reason: string, keepSessionId?: string): Promise<number> {
+  const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL AND id IS DISTINCT FROM $2`, [userId, keepSessionId ?? null]);
   // Signing out of the site is not this: only security revocations (suspension, password reset,
   // 2FA reset) also end every service's OIDC grants and tokens.
   const grants = await revokeOidcForUser(q, userId);
@@ -146,7 +146,7 @@ export async function verifyEmail(deps: AppDeps, token: string, ctx: Ctx): Promi
 export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise<{ token: string; user: Me }> {
   const bad = new ApiError(401, 'invalid_credentials', 'That handle, email or password is not right.');
   const found = await deps.db.query<{
-    id: string; handle: string; display_name: string | null; email: string; email_verified_at: string | null; password_hash: string;
+    id: string; handle: string; display_name: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string; email_verified_at: string | null; password_hash: string;
     role: SessionUser['role']; role_rev: number; status: string; totp_secret_enc: string | null; totp_enabled_at: string | null;
   }>(`SELECT * FROM users WHERE lower(handle) = lower($1) OR lower(email) = lower($1) LIMIT 1`, [input.identifier]);
   const u = found.rows[0];
@@ -183,26 +183,26 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   const ops = await opsFor(deps.db, u.id);
   return {
     token,
-    user: { id: u.id, handle: u.handle, display_name: u.display_name, role: u.role, email: u.email,
+    user: { id: u.id, handle: u.handle, display_name: u.display_name, bio: u.bio, theme: u.theme, role: u.role, email: u.email,
       email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, recovery_codes_remaining: remaining, role_rev: u.role_rev, ops, limited },
   };
 }
 
 export async function resolveSession(deps: AppDeps, rawToken: string): Promise<SessionUser | null> {
   const r = await deps.db.query<{
-    sid: string; id: string; handle: string; display_name: string | null; email: string; role: SessionUser['role'];
+    sid: string; id: string; handle: string; display_name: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string; role: SessionUser['role'];
     email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean; recovery_remaining: number; role_rev: number; ops: string[];
   }>(
     // `limited` is worked out from the user's CURRENT role, not just the session's flag: someone
     // promoted to admin mid-session must set up TOTP before they can use any admin power.
     `SELECT s.id AS sid, (s.limited OR (u.role = 'admin' AND u.totp_enabled_at IS NULL)) AS limited, u.role_rev,
             COALESCE((SELECT array_agg(o.scope_type || ':' || o.scope_id ORDER BY o.scope_type, o.scope_id) FROM scoped_roles o WHERE o.user_id = u.id), '{}') AS ops,
-            (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.email, u.role, u.email_verified_at, u.totp_enabled_at
+            (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.bio, u.theme, u.email, u.role, u.email_verified_at, u.totp_enabled_at
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
   const row = r.rows[0];
   if (!row) return null;
-  return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, email: row.email, role: row.role,
+  return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, email: row.email, role: row.role,
     emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
 }
 
@@ -211,6 +211,35 @@ export async function logout(deps: AppDeps, user: SessionUser): Promise<void> {
     const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL`, [user.sessionId, user.userId]);
     if (r.rowCount > 0) await emit(q, 'session.revoked', { user_id: user.userId, session_id: user.sessionId, reason: 'logout' });
   });
+}
+
+// ---------------------------------------------------------------- profile and password
+
+// Only the fields sent are changed. An empty display name or bio clears it.
+export async function updateProfile(deps: AppDeps, user: SessionUser, changes: ProfileUpdate): Promise<void> {
+  const sets: string[] = [];
+  const params: unknown[] = [user.userId];
+  const add = (column: string, value: unknown) => { params.push(value); sets.push(`${column} = $${params.length}`); };
+  if (changes.display_name !== undefined) add('display_name', changes.display_name || null);
+  if (changes.bio !== undefined) add('bio', changes.bio || null);
+  if (changes.theme !== undefined) add('theme', changes.theme);
+  await deps.db.query(`UPDATE users SET ${sets.join(', ')}, updated_at = now() WHERE id = $1`, params);
+}
+
+// Changing your own password signs out every OTHER session and ends the grants services hold, since
+// the reason to change it may be that someone else has access. This session stays signed in.
+export async function changePassword(deps: AppDeps, user: SessionUser, current: string, next: string, ctx: Ctx, onError: (err: unknown) => void = () => undefined): Promise<void> {
+  const r = await deps.db.query<{ password_hash: string }>(`SELECT password_hash FROM users WHERE id = $1`, [user.userId]);
+  if (!(await verifyPassword(r.rows[0]!.password_hash, current))) throw new ApiError(400, 'wrong_password', 'That is not your current password.');
+  if (next === current) throw new ApiError(400, 'same_password', 'Choose a password you have not used just now.');
+  const hash = await hashPassword(next);
+  await deps.db.tx(async (q) => {
+    await q.query(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, [user.userId, hash]);
+    await revokeAllSessions(q, user.userId, 'password_changed', user.sessionId);
+    await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.password_changed', targetType: 'user', targetId: user.userId, origin: 'web', ipHash: ctx.ipHash });
+  });
+  const t = makeT(toPublicSite(deps.config));
+  void deps.mailer.send({ to: user.email, subject: t('email.passwordChanged.subject'), text: t('email.passwordChanged.body', { handle: user.handle }) }).catch(onError);
 }
 
 // ---------------------------------------------------------------- TOTP and recovery codes
