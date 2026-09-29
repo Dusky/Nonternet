@@ -1,0 +1,30 @@
+import { z } from 'zod';
+import { roleSchema } from './roles';
+
+// Domain events on the bus (docs/14). Delivery is at-least-once, so consumers must be idempotent:
+// use `id` to skip an event already handled, and `role_rev` to ignore a stale role or ops change
+// that arrives after a newer one.
+const userId = z.string().regex(/^u_[0-9A-Z]{26}$/);
+
+export const eventPayloads = {
+  'user.created': z.object({ user_id: userId, handle: z.string(), role: roleSchema }),
+  'user.role_changed': z.object({ user_id: userId, role: roleSchema, previous_role: roleSchema, role_rev: z.number().int() }),
+  'user.ops_changed': z.object({ user_id: userId, ops: z.array(z.string()), role_rev: z.number().int() }),
+  'user.suspended': z.object({ user_id: userId }),
+  'user.unsuspended': z.object({ user_id: userId }),
+  // Every session of the user was ended (suspension, password reset, 2FA reset), or one session
+  // was (logout). Services drop matching live connections.
+  'session.revoked': z.object({ user_id: userId, session_id: z.string().optional(), reason: z.string() }),
+} as const;
+
+export type EventType = keyof typeof eventPayloads;
+export const EVENT_TYPES = Object.keys(eventPayloads) as EventType[];
+export type EventPayload<T extends EventType> = z.infer<(typeof eventPayloads)[T]>;
+
+export const eventEnvelopeSchema = z.object({
+  id: z.string().regex(/^e_[0-9A-Z]{26}$/),
+  type: z.enum(EVENT_TYPES as [EventType, ...EventType[]]),
+  at: z.string(), // ISO time the change was committed
+  payload: z.record(z.unknown()),
+});
+export type DomainEvent = z.infer<typeof eventEnvelopeSchema>;

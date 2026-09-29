@@ -11,7 +11,8 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 2. Config system: `site.*` from config, strings package, placeholder-name grep test.
 3. Accounts: signup (invite mode), email verify, login, sessions, argon2id, TOTP for admins, with recovery codes, single-use codes and password reset.
 4. OIDC provider with `role`, `role_rev`, `ops` claims.
-5. Roles, scoped ops, audit log, event bus.
+5. Roles, scoped ops, audit log, event bus. (Done before the OIDC provider: its `ops` and `role_rev` claims
+   depend on them.)
 6. Shell: window manager, launcher, routing, mobile layout, modern + amber CRT themes.
 7. Settings app (profile, passwords, theme; terminal password and SSH keys arrive with IRC).
 8. Admin console v0: users table, dossier (basic), promote/suspend, invites, audit list.

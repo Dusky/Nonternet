@@ -3,6 +3,7 @@ import { makeT } from '@app/strings';
 import { audit } from './audit';
 import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
+import { emit } from './events';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { burnPasswordCheck, hashPassword, verifyPassword } from './passwords';
@@ -18,13 +19,27 @@ export interface Ctx { ipHash?: string | null; ip?: string; userAgent?: string }
 export interface SessionUser {
   sessionId: string; userId: string; handle: string; displayName: string | null; email: string;
   role: 'guest' | 'user' | 'trusted' | 'admin'; emailVerified: boolean; totpEnabled: boolean; limited: boolean;
-  recoveryRemaining: number;
+  recoveryRemaining: number; roleRev: number; ops: string[];
 }
 
 export const toMe = (u: SessionUser): Me => ({
   id: u.userId, handle: u.handle, display_name: u.displayName, role: u.role, email: u.email,
-  email_verified: u.emailVerified, totp_enabled: u.totpEnabled, recovery_codes_remaining: u.recoveryRemaining, limited: u.limited,
+  email_verified: u.emailVerified, totp_enabled: u.totpEnabled, recovery_codes_remaining: u.recoveryRemaining, role_rev: u.roleRev, ops: u.ops, limited: u.limited,
 });
+
+// The ops claims for a user, e.g. ["board:b_…", "channel:#synths"] (docs/02).
+export async function opsFor(q: Queryable, userId: string): Promise<string[]> {
+  const r = await q.query<{ claim: string }>(
+    `SELECT scope_type || ':' || scope_id AS claim FROM scoped_roles WHERE user_id = $1 ORDER BY scope_type, scope_id`, [userId]);
+  return r.rows.map((x) => x.claim);
+}
+
+// Ends every live session of a user and tells the bus, so services can drop connections.
+export async function revokeAllSessions(q: Queryable, userId: string, reason: string): Promise<number> {
+  const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);
+  if (r.rowCount > 0) await emit(q, 'session.revoked', { user_id: userId, reason });
+  return r.rowCount;
+}
 
 // ---------------------------------------------------------------- signup & email verification
 
@@ -74,6 +89,7 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
       }
       await audit(q, { actorId: id, actorKind: 'user', action: 'user.created', targetType: 'user', targetId: id,
         after: { handle: input.handle, role: 'guest', invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined }, origin: 'web', ipHash: ctx.ipHash });
+      await emit(q, 'user.created', { user_id: id, handle: input.handle, role: 'guest' });
       return issueVerification(q, id);
     });
   } catch (err) {
@@ -108,14 +124,15 @@ export async function verifyEmail(deps: AppDeps, token: string, ctx: Ctx): Promi
 
     // Guests become users once the email is confirmed (docs/02). Anyone with a higher role keeps it.
     const promote = u.role === 'guest';
-    await q.query(
+    const updated = await q.query<{ role_rev: number }>(
       `UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()),
               role = CASE WHEN role = 'guest' THEN 'user' ELSE role END,
-              role_rev = role_rev + $2, updated_at = now() WHERE id = $1`, [row.user_id, promote ? 1 : 0]);
+              role_rev = role_rev + $2, updated_at = now() WHERE id = $1 RETURNING role_rev`, [row.user_id, promote ? 1 : 0]);
     await audit(q, { actorId: row.user_id, actorKind: 'user', action: 'user.email_verified', targetType: 'user', targetId: row.user_id, origin: 'web', ipHash: ctx.ipHash });
     if (promote) {
       await audit(q, { actorKind: 'system', action: 'user.role_changed', targetType: 'user', targetId: row.user_id,
         before: { role: 'guest' }, after: { role: 'user', reason: 'email verified' }, origin: 'system' });
+      await emit(q, 'user.role_changed', { user_id: row.user_id, role: 'user', previous_role: 'guest', role_rev: updated.rows[0]!.role_rev });
     }
   });
 }
@@ -126,7 +143,7 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   const bad = new ApiError(401, 'invalid_credentials', 'That handle, email or password is not right.');
   const found = await deps.db.query<{
     id: string; handle: string; display_name: string | null; email: string; email_verified_at: string | null; password_hash: string;
-    role: SessionUser['role']; status: string; totp_secret_enc: string | null; totp_enabled_at: string | null;
+    role: SessionUser['role']; role_rev: number; status: string; totp_secret_enc: string | null; totp_enabled_at: string | null;
   }>(`SELECT * FROM users WHERE lower(handle) = lower($1) OR lower(email) = lower($1) LIMIT 1`, [input.identifier]);
   const u = found.rows[0];
 
@@ -159,29 +176,37 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   });
 
   const remaining = await countRecoveryCodes(deps.db, u.id);
+  const ops = await opsFor(deps.db, u.id);
   return {
     token,
     user: { id: u.id, handle: u.handle, display_name: u.display_name, role: u.role, email: u.email,
-      email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, recovery_codes_remaining: remaining, limited },
+      email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, recovery_codes_remaining: remaining, role_rev: u.role_rev, ops, limited },
   };
 }
 
 export async function resolveSession(deps: AppDeps, rawToken: string): Promise<SessionUser | null> {
   const r = await deps.db.query<{
     sid: string; id: string; handle: string; display_name: string | null; email: string; role: SessionUser['role'];
-    email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean; recovery_remaining: number;
+    email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean; recovery_remaining: number; role_rev: number; ops: string[];
   }>(
-    `SELECT s.id AS sid, s.limited, (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.email, u.role, u.email_verified_at, u.totp_enabled_at
+    // `limited` is worked out from the user's CURRENT role, not just the session's flag: someone
+    // promoted to admin mid-session must set up TOTP before they can use any admin power.
+    `SELECT s.id AS sid, (s.limited OR (u.role = 'admin' AND u.totp_enabled_at IS NULL)) AS limited, u.role_rev,
+            COALESCE((SELECT array_agg(o.scope_type || ':' || o.scope_id ORDER BY o.scope_type, o.scope_id) FROM scoped_roles o WHERE o.user_id = u.id), '{}') AS ops,
+            (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.email, u.role, u.email_verified_at, u.totp_enabled_at
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
   const row = r.rows[0];
   if (!row) return null;
   return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, email: row.email, role: row.role,
-    emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining };
+    emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
 }
 
-export async function logout(deps: AppDeps, sessionId: string): Promise<void> {
-  await deps.db.query(`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, [sessionId]);
+export async function logout(deps: AppDeps, user: SessionUser): Promise<void> {
+  await deps.db.tx(async (q) => {
+    const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL`, [user.sessionId, user.userId]);
+    if (r.rowCount > 0) await emit(q, 'session.revoked', { user_id: user.userId, session_id: user.sessionId, reason: 'logout' });
+  });
 }
 
 // ---------------------------------------------------------------- TOTP and recovery codes
@@ -299,7 +324,7 @@ export async function resetPassword(deps: AppDeps, token: string, password: stri
     await q.query(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, [row.user_id, passwordHash]);
     await q.query(`UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL`, [row.user_id]);
     // Whoever had the old password, or a stolen session, is signed out.
-    await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [row.user_id]);
+    await revokeAllSessions(q, row.user_id, 'password_reset');
     await audit(q, { actorId: row.user_id, actorKind: 'user', action: 'user.password_reset', targetType: 'user', targetId: row.user_id, origin: 'web', ipHash: ctx.ipHash });
     return account;
   });
@@ -330,6 +355,7 @@ export async function createAdmin(deps: AppDeps, input: { handle: string; email:
       `INSERT INTO users (id, handle, email, email_verified_at, password_hash, role, role_rev) VALUES ($1, $2, $3, now(), $4, 'admin', 1)`,
       [id, input.handle, input.email, passwordHash]);
     await audit(q, { actorKind: 'cli', action: 'user.created', targetType: 'user', targetId: id, after: { handle: input.handle, role: 'admin' }, origin: 'cli' });
+    await emit(q, 'user.created', { user_id: id, handle: input.handle, role: 'admin' });
   });
   return id;
 }
@@ -340,7 +366,7 @@ export async function resetTotp(deps: AppDeps, handle: string): Promise<void> {
     const id = r.rows[0]?.id;
     if (!id) throw new ApiError(404, 'not_found', `No user with handle ${handle}.`);
     await q.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [id]);
-    await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [id]);
+    await revokeAllSessions(q, id, 'totp_reset');
     await audit(q, { actorKind: 'cli', action: 'user.totp_reset', targetType: 'user', targetId: id, origin: 'cli' });
   });
 }

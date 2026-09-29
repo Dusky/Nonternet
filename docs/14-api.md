@@ -14,8 +14,9 @@ OIDC under `/oidc/*`.
 
 ## Users (public + admin)
 `GET /users/:handle` (public profile) · admin: `GET /admin/users?…`, `GET /admin/users/:id`
-(dossier), `POST /admin/invites` (built), `POST /admin/users/:id/role`, `/ops`, `/suspend`, `/unsuspend`, `/rename`,
-`/logout-all`, `/quota`, `/notes`.
+(dossier), `POST /admin/invites`, and, all built: `POST /admin/users/:id/role`, `/suspend`, `/unsuspend`,
+`GET|POST /admin/users/:id/ops`, `DELETE /admin/users/:id/ops/:opId`. Still to build: `/rename`, `/logout-all`,
+`/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
 `GET /boards` · `POST /boards` (trusted+) · `GET/PATCH /boards/:slug`
@@ -42,7 +43,8 @@ Caddy on-demand TLS check: `GET /internal/tls-allowed?domain=`
 
 ## Admin
 `GET /admin/status` (tiles) · `GET /admin/metrics?metric=&from=&to=&step=`
-`GET /admin/audit?actor=&target=&action=&from=&to=` · `GET /admin/audit/object/:type/:id`
+`GET /admin/audit?actor=&target_type=&target_id=&action=&origin=&from=&to=&before=&limit=` · `GET /admin/audit/object/:type/:id`
+(built: newest first, `?before=` paging with `next_before`, `action=user.*` matches a family)
 `GET/PATCH /admin/settings` · `GET /admin/settings/:key/history` · `POST /admin/settings/:key/rollback`
 `GET/POST /admin/announcements` · `GET /admin/services/:name` · `GET /admin/jobs`
 `POST /admin/backups` · `POST /admin/console {command}` (parses to the calls above)
@@ -52,7 +54,27 @@ Caddy on-demand TLS check: `GET /internal/tls-allowed?domain=`
 admin status/metric updates for admins.
 
 ## Internal event bus (Redis streams)
-`user.created|role_changed|ops_changed|suspended|renamed|deleted`, `session.revoked`,
-`board.created|updated|archived`, `ring.created|updated|member_joined|member_left`,
-`board.post.created|hidden|deleted`, `bbs.user.login|logout` (BBS milestone), `irc.*`, `mud.*`, `presence.changed`,
-`export.requested|ready`, `settings.changed`. At-least-once; consumers idempotent.
+Built. A change and its event are written in **one database transaction** (the `events_outbox`
+table), so a crash can't commit one without the other. A relay in core publishes outbox rows to
+the Redis stream `events`, oldest first, and several cores can run a relay at once. Delivery is
+**at-least-once**, so consumers must be idempotent: skip an event `id` already handled, and use
+`role_rev` to ignore a role or ops change older than one already applied. Published rows are kept
+a week, then pruned. With no `REDIS_URL`, events wait in the outbox and nothing is lost.
+
+Envelope: `{ id: "e_…", type, at, payload }`. Schemas are in `packages/shared/src/events.ts`.
+
+| Type | Payload |
+|---|---|
+| `user.created` | `user_id, handle, role` |
+| `user.role_changed` | `user_id, role, previous_role, role_rev` |
+| `user.ops_changed` | `user_id, ops[], role_rev` (the full list after the change) |
+| `user.suspended` / `user.unsuspended` | `user_id` |
+| `session.revoked` | `user_id, session_id?, reason` (no `session_id` means every session) |
+
+Consumers read with a **consumer group** (each group sees every event once; consumers in a group
+share the work). A new group starts from new events, or from the beginning if asked. An event
+whose handler fails is retried after a minute, and after 5 failed tries it moves to the stream
+`events:dead` so one bad event can't block or spin forever.
+
+Planned, not built yet: `user.renamed`, `user.deleted`, `board.*`, `ring.*`, `bbs.*`, `irc.*`, `mud.*`,
+`presence.changed`, `export.*`, `settings.changed`.

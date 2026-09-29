@@ -1,15 +1,89 @@
 import type { FastifyInstance } from 'fastify';
+import { grantOpSchema, roleSchema } from '@app/shared';
 import { z } from 'zod';
 import * as accounts from '../accounts';
+import * as admin from '../admin';
 import { ctxOf, requireAdmin } from '../http';
 import type { AppDeps } from '../deps';
 
 const inviteSchema = z.object({ expires_in_days: z.number().int().min(1).max(90).optional() }).default({});
+const userIdParam = z.object({ id: z.string().regex(/^u_[0-9A-Z]{26}$/, 'not a user ID') });
+// Every moderation-style action needs a reason. It goes in the audit log (docs/03).
+const reason = z.string().trim().min(3, 'give a reason (at least 3 characters)').max(500);
+const roleBody = z.object({ role: roleSchema, reason });
+const reasonBody = z.object({ reason });
+const revokeParams = userIdParam.extend({ opId: z.string().regex(/^o_[0-9A-Z]{26}$/) });
+const auditQuery = z.object({
+  actor: z.string().max(40).optional(),
+  target_type: z.string().max(40).optional(),
+  target_id: z.string().max(100).optional(),
+  action: z.string().max(80).optional(),
+  origin: z.string().max(20).optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  before: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
 
 export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/admin/invites', async (req, reply) => {
-    const admin = requireAdmin(req);
+    const who = requireAdmin(req);
     const { expires_in_days } = inviteSchema.parse(req.body ?? {});
-    return reply.code(201).send(await accounts.createInvite(deps, admin, expires_in_days, ctxOf(deps, req)));
+    return reply.code(201).send(await accounts.createInvite(deps, who, expires_in_days, ctxOf(deps, req)));
+  });
+
+  app.post('/api/v1/admin/users/:id/role', async (req) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    const body = roleBody.parse(req.body);
+    return admin.setRole(deps, who, id, body.role, body.reason, ctxOf(deps, req));
+  });
+
+  app.post('/api/v1/admin/users/:id/suspend', async (req, reply) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    await admin.suspend(deps, who, id, reasonBody.parse(req.body).reason, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+
+  app.post('/api/v1/admin/users/:id/unsuspend', async (req, reply) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    await admin.unsuspend(deps, who, id, reasonBody.parse(req.body).reason, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+
+  app.get('/api/v1/admin/users/:id/ops', async (req) => {
+    requireAdmin(req);
+    return admin.listOps(deps, userIdParam.parse(req.params).id);
+  });
+
+  app.post('/api/v1/admin/users/:id/ops', async (req, reply) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    const body = grantOpSchema.parse(req.body);
+    return reply.code(201).send(await admin.grantOp(deps, who, id, body.scope, body.scope_id, body.reason, ctxOf(deps, req)));
+  });
+
+  app.delete('/api/v1/admin/users/:id/ops/:opId', async (req) => {
+    const who = requireAdmin(req);
+    const { id, opId } = revokeParams.parse(req.params);
+    const body = z.object({ reason: reason.optional() }).default({}).parse(req.body ?? {});
+    return admin.revokeOp(deps, who, id, opId, body.reason, ctxOf(deps, req));
+  });
+
+  // The audit log, newest first, with filters and ?before= paging (docs/14).
+  app.get('/api/v1/admin/audit', async (req) => {
+    requireAdmin(req);
+    const q = auditQuery.parse(req.query);
+    return admin.listAudit(deps, { actor: q.actor, targetType: q.target_type, targetId: q.target_id, action: q.action, origin: q.origin, from: q.from, to: q.to, before: q.before, limit: q.limit });
+  });
+
+  // Everything that happened to one object (a user now; boards and rings later), newest first.
+  app.get('/api/v1/admin/audit/object/:type/:id', async (req) => {
+    requireAdmin(req);
+    const p = z.object({ type: z.string().max(40), id: z.string().max(100) }).parse(req.params);
+    const q = auditQuery.pick({ before: true, limit: true }).parse(req.query);
+    return admin.listAudit(deps, { targetType: p.type, targetId: p.id, before: q.before, limit: q.limit });
   });
 }

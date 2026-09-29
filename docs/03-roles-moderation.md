@@ -44,7 +44,8 @@ can be an op if appointed. Stored in `scoped_roles`; carried in the token's `ops
 - **Appeals**: suspended users get a one-message appeal form to admins.
 
 ## Audit log
-Append-only. Actor, action, target, before/after JSON, origin (web, terminal, IRC, MUD,
+Append-only, and enforced by the database, not just by convention: triggers refuse UPDATE, DELETE
+and TRUNCATE (`15`). Actor, action, target, before/after JSON, origin (web, terminal, IRC, MUD,
 system), IP, time. Viewable and scrubbable in the admin console (`11`). Never purged for
 role changes, suspensions, deletions.
 

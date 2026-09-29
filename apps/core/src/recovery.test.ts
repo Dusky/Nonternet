@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAdmin, resetTotp } from './accounts';
-import { sha256 } from './crypto';
+import { newId, sha256 } from './crypto';
 import { hashPassword } from './passwords';
 import { currentTotp } from './totp';
 import { client, createTestDb, dbAvailable, first, makeApp, tokenFromMail, waitForMail } from './test/harness';
@@ -147,7 +147,7 @@ describe.skipIf(!dbAvailable)('TOTP replay, recovery codes and password reset', 
       const handle = `user${++n}`;
       const email = `${handle}@example.test`;
       await db.query(`INSERT INTO users (id, handle, email, email_verified_at, password_hash, role) VALUES ($1, $2, $3, now(), $4, 'user')`,
-        [`u_TEST${n}`, handle, email, await hashPassword(PASSWORD)]);
+        [newId('u'), handle, email, await hashPassword(PASSWORD)]);
       return { handle, email };
     };
     const forgot = (email: string) => client(ctx.app).post('/api/v1/auth/forgot-password', { email });

@@ -47,6 +47,7 @@
 | P9 | Quotas: 3 boards, 2 rings per trusted user; 50/100 MB homepages |
 | P10 | Ring boards: public read, members post |
 | P11 | Core stack: `pg` with plain SQL and forward-only migrations (no ORM), argon2id via `@node-rs/argon2`, `otplib` for TOTP, cookie sessions with hashed tokens, `Origin`-check CSRF, Fastify |
+| P12 | Events use a transactional outbox in Postgres, relayed to Redis streams (at-least-once, idempotent consumers), rather than publishing straight from request handlers |
 
 ## Open questions
 | # | Question | Needed by |

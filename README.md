@@ -51,21 +51,24 @@ follow. The terminal BBS, built in-house, comes last. Federation and self-hostin
 phases.
 
 ## Getting started (development)
-Needs Node 22, pnpm 10 and a Postgres you can create databases on.
+Needs Node 22, pnpm 10, a Postgres you can create databases on, and a Redis.
 
 ```sh
 pnpm install
 pnpm typecheck && pnpm build
-# The integration tests create a throwaway database each. CI sets REQUIRE_DB and REQUIRE_BUILD.
-TEST_DATABASE_URL=postgres://user:pass@localhost:5432/postgres pnpm test
+# The integration tests create a throwaway database each and use their own Redis stream
+# names. CI sets REQUIRE_DB, REQUIRE_REDIS and REQUIRE_BUILD so nothing is skipped silently.
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/postgres \
+TEST_REDIS_URL=redis://localhost:6379 pnpm test
 ```
-Without `TEST_DATABASE_URL` the database tests are skipped, and the run says so.
+Without those variables the database and event bus tests are skipped, and the run says so.
 
 Run it locally (core on :3000, shell on :5173, which proxies `/api` to core):
 ```sh
 export SITE_CONFIG=deploy/site.example.yaml
 export DATABASE_URL=postgres://user:pass@localhost:5432/app     # migrations run at startup
 export APP_SECRET_KEY=$(openssl rand -base64 32)
+export REDIS_URL=redis://localhost:6379                         # optional; without it events wait in the outbox
 pnpm --filter @app/core cli create-admin --handle you --email you@example.net
 pnpm dev:core        # verification links are printed in this log until SMTP_URL is set
 pnpm dev:shell

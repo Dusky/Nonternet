@@ -3,6 +3,10 @@ import pg from 'pg';
 import { parseSiteConfig } from '../config';
 import { connect, type Db } from '../db';
 import { buildApp } from '../app';
+import { createAdmin } from '../accounts';
+import { newId } from '../crypto';
+import { hashPassword } from '../passwords';
+import { currentTotp } from '../totp';
 import type { AppDeps } from '../deps';
 import { memoryMailer } from '../mailer';
 import { migrate } from '../migrate';
@@ -110,4 +114,50 @@ export async function waitForMail(mailer: { sent: unknown[] }, count: number, ti
     if (Date.now() > end) throw new Error(`expected ${count} emails, saw ${mailer.sent.length}`);
     await new Promise((r) => setTimeout(r, 10));
   }
+}
+
+// ---------------------------------------------------------------- Redis (event bus tests)
+
+// Point TEST_REDIS_URL at a Redis you don't mind tests writing to, e.g. redis://localhost:6380.
+// Each test uses its own stream prefix. CI sets REQUIRE_REDIS.
+export const TEST_REDIS_URL = process.env.TEST_REDIS_URL;
+export const redisAvailable = Boolean(TEST_REDIS_URL);
+if (!redisAvailable && process.env.REQUIRE_REDIS) throw new Error('REQUIRE_REDIS is set but TEST_REDIS_URL is not');
+if (!redisAvailable) console.warn('TEST_REDIS_URL is not set: skipping the event bus tests');
+
+// ---------------------------------------------------------------- people
+
+export const TEST_PASSWORD = 'correct horse battery';
+type Ctx = Awaited<ReturnType<typeof makeApp>>;
+let personCounter = 0;
+
+// A user straight in the database (no signup flow), with a known password.
+export async function makeUser(ctx: Pick<Ctx, 'deps'>, opts: { role?: 'guest' | 'user' | 'trusted' | 'admin'; verified?: boolean; handle?: string } = {}) {
+  const n = ++personCounter;
+  const handle = opts.handle ?? `person${n}`;
+  const email = `${handle.toLowerCase()}@example.test`;
+  const id = newId('u');
+  await ctx.deps.db.query(
+    `INSERT INTO users (id, handle, email, email_verified_at, password_hash, role) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, handle, email, opts.verified === false ? null : new Date(), await hashPassword(TEST_PASSWORD), opts.role ?? 'user']);
+  return { id, handle, email };
+}
+
+export async function loginAs(ctx: Pick<Ctx, 'app'>, handle: string) {
+  const c = client(ctx.app);
+  const r = await c.post('/api/v1/auth/login', { identifier: handle, password: TEST_PASSWORD });
+  if (r.status !== 200) throw new Error(`login as ${handle} failed: ${JSON.stringify(r.body)}`);
+  return c;
+}
+
+// An admin with two-factor fully set up, logged in. Moves the test clock forward as it needs to.
+export async function makeAdmin(ctx: Ctx, handle?: string) {
+  const name = handle ?? `admin${++personCounter}`;
+  const id = await createAdmin(ctx.deps, { handle: name, email: `${name}@example.test`, password: TEST_PASSWORD });
+  const c = await loginAs(ctx, name);
+  const setup = (await c.post('/api/v1/me/totp/setup')).body;
+  ctx.clock.advance();
+  const enabled = await c.post('/api/v1/me/totp/enable', { code: await currentTotp(setup.secret, ctx.clock.ms) });
+  if (enabled.status !== 200) throw new Error(`totp enable failed: ${JSON.stringify(enabled.body)}`);
+  return { id, handle: name, client: c, secret: setup.secret as string };
 }

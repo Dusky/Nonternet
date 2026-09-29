@@ -63,6 +63,19 @@
 - **Not built yet**: changing your password while logged in (`PUT /me/password`), and
   disabling TOTP by choice.
 
+## Roles, ops and `role_rev` (built in M1)
+- An admin changes a role with a reason (`POST /admin/users/:id/role`). Role, ops and suspension
+  changes are audited with before and after, and they publish an event (`14`).
+- `role_rev` goes up on **any** role or ops change, so a service holding an old claim can tell it
+  is stale. Events carry it too, and consumers should ignore one that is older than what they have.
+- Guardrails: an admin cannot change their own role or suspend themselves (so the site can't be
+  left without an admin), and `trusted` or `admin` needs a confirmed email address.
+- Roles are read from the database on every request, so a change applies to sessions that are
+  already logged in. Someone promoted to admin mid-session is *limited* until they set up TOTP.
+- Ops (`scoped_roles`) are granted by admins for now, to any user, not only trusted ones. They
+  show up as `ops` claims like `board:b_…`, `ring:r_…`, `channel:#synths`. Existence checks for
+  boards and rings arrive with M2 and M3; until then only the ID's shape is checked.
+
 ## Single sign-on
 core is an **OIDC provider** (PROPOSED: `node-oidc-provider`). Token claims:
 ```json

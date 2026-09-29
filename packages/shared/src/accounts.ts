@@ -50,6 +50,8 @@ export const meSchema = z.object({
   email_verified: z.boolean(),
   totp_enabled: z.boolean(),
   recovery_codes_remaining: z.number().int().nonnegative(),
+  role_rev: z.number().int().nonnegative(),
+  ops: z.array(z.string()),
   // An admin who has not set up TOTP yet: only /me and the TOTP setup calls work.
   limited: z.boolean(),
 });

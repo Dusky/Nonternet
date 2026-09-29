@@ -33,7 +33,8 @@ login_tickets (id, user_id fk, service, expires_at, used_at)      -- 60 s, singl
 invites (code pk, created_by fk, used_by fk null, used_at, expires_at)
 applications (id, email, handle, answer, status, reviewed_by, reviewed_at)
 scoped_roles (id, user_id fk, role text, scope_type text, scope_id text, granted_by fk)
-                                   -- role: board_op|ring_op|channel_op|mud_builder
+                                   -- role: board_op|ring_op|channel_op|mud_builder; unique per user and scope
+                                   -- scope_id has no FK until boards and rings exist (M2, M3)
 admin_notes (id, user_id fk, author_id fk, body)                   -- append-only
 ```
 
@@ -91,6 +92,8 @@ announcements (id, body, channels text[], starts_at, ends_at, created_by)
 notifications (id, user_id, kind, payload jsonb, read_at)
 exports (id, user_id, status, path, size_bytes, expires_at)
 jobs (id, kind, status, attempts, payload jsonb, result jsonb, run_at)
+events_outbox (id bigserial pk, event_id unique, type, payload jsonb, created_at, published_at)
+                                   -- written with the change, published to Redis by a relay (docs/14)
 metrics_rollup (metric, bucket timestamptz, value double precision)  -- console charts
 ```
 Presence lives in Redis: `presence:{user_id}` → services + since.
@@ -98,5 +101,6 @@ Presence lives in Redis: `presence:{user_id}` → services + since.
 ## Invariants (enforce and test)
 - Board/ring ownership requires `trusted` or `admin` at creation; quotas checked at creation.
 - Every ring has exactly one board (`rings.board_id` not null after creation).
-- `audit_log` and `admin_notes` have no UPDATE/DELETE grants for the app role.
+- `audit_log` is append-only: triggers refuse UPDATE, DELETE and TRUNCATE (see `15` for the
+  matching database grants). `admin_notes` will follow the same rule when it exists.
 - Every content table is registered with an exporter (`12`).

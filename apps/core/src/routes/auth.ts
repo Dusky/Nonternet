@@ -31,7 +31,7 @@ export function authRoutes(app: FastifyInstance, deps: AppDeps): void {
   });
 
   app.post('/api/v1/auth/logout', async (req, reply) => {
-    if (req.session) await accounts.logout(deps, req.session.sessionId);
+    if (req.session) await accounts.logout(deps, req.session);
     reply.clearCookie(COOKIE, { path: '/' });
     return reply.code(204).send();
   });
