@@ -1,0 +1,2 @@
+
+Thanks for calling {{site.name}}, {{handle}}. See you on the web at {{site.url}}

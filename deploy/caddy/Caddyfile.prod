@@ -36,6 +36,10 @@
 	handle /ws/mud {
 		reverse_proxy mud:4002
 	}
+	# The Terminal window's connection to the BBS (docs/04).
+	handle /ws/bbs {
+		reverse_proxy bbs:2380
+	}
 	# Never reachable from outside: only Caddy's own `ask` uses it.
 	respond /internal/* 404
 	handle {

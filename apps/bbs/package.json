@@ -1,0 +1,28 @@
+{
+  "name": "@app/bbs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --external:ssh2 --log-override:empty-import-meta=silent && rm -rf dist/art && cp -r art dist/art && node scripts/write-runtime-package.mjs",
+    "start": "node dist/main.cjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@app/shared": "workspace:*",
+    "@app/strings": "workspace:*",
+    "iconv-lite": "^0.7.3",
+    "ssh2": "^1.17.0",
+    "ws": "^8.22.0",
+    "yaml": "^2.9.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/ssh2": "^1.15.6",
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.24.2",
+    "tsx": "^4.23.15"
+  }
+}

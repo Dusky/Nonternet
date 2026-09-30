@@ -1,0 +1,16 @@
+# The BBS menus (docs/04). Keys are single letters; actions are built into the BBS. Change the labels,
+# the order and the keys freely; an unknown action is refused when the BBS starts.
+main:
+  title: Main menu
+  items:
+    - { key: B, label: Boards, action: boards }
+    - { key: N, label: New messages (scan all boards), action: newscan }
+    - { key: M, label: Mail, action: mail }
+    - { key: R, label: Rings, action: rings }
+    - { key: H, label: Homepages, action: homepages }
+    - { key: W, label: "Who's online", action: who }
+    - { key: L, label: Last callers, action: lastcallers }
+    - { key: D, label: Door games, action: doors }
+    - { key: Q, label: QWK offline mail, action: qwk }
+    - { key: S, label: Settings, action: settings }
+    - { key: G, label: Goodbye, action: goodbye }

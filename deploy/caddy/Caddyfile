@@ -28,6 +28,10 @@
 	handle /ws/mud {
 		reverse_proxy mud:4002
 	}
+	# The Terminal window's connection to the BBS (docs/04).
+	handle /ws/bbs {
+		reverse_proxy bbs:2380
+	}
 	handle {
 		reverse_proxy shell:80
 	}

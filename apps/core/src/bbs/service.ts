@@ -12,12 +12,14 @@ import { setBbsNodes, type BbsNodeState } from '../presence';
 // roles, ops, bans, quotas and the audit log apply exactly as on the web.
 const SESSION_HOURS = 12;
 export type BbsVia = 'telnet' | 'ssh' | 'web';
-export interface BbsLogin { token: string; call_id: string; user: { id: string; handle: string; role: string } }
+export interface BbsLogin { token: string; call_id: string; user: { id: string; handle: string; role: string }; last_call_at: string | null }
 
 async function openSession(deps: AppDeps, user: { id: string; handle: string; role: string }, via: BbsVia, node: number, ipHash: string | null): Promise<BbsLogin> {
   const token = randomToken();
   const callId = newId('bc');
+  let last: Date | null = null;
   await deps.db.tx(async (q) => {
+    last = (await q.query<{ at: Date | null }>(`SELECT max(connected_at) AS at FROM bbs_calls WHERE user_id = $1`, [user.id])).rows[0]?.at ?? null;
     const t = await q.query<{ totp_enabled_at: Date | null }>(`SELECT totp_enabled_at FROM users WHERE id = $1`, [user.id]);
     const limited = user.role === 'admin' && !t.rows[0]?.totp_enabled_at;
     await q.query(
@@ -28,7 +30,7 @@ async function openSession(deps: AppDeps, user: { id: string; handle: string; ro
     await q.query(`INSERT INTO bbs_calls (id, user_id, node, via) VALUES ($1, $2, $3, $4)`, [callId, user.id, node, via]);
   });
   noteActive(deps, user.id, 'bbs');
-  return { token, call_id: callId, user: { id: user.id, handle: user.handle, role: user.role } };
+  return { token, call_id: callId, user: { id: user.id, handle: user.handle, role: user.role }, last_call_at: (last as Date | null)?.toISOString() ?? null };
 }
 
 const refused = () => new ApiError(401, 'login_failed', 'That handle and password do not match, or this account cannot use the BBS.');

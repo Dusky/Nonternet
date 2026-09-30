@@ -28,10 +28,16 @@ limits:
 
 # Each service turns on as its milestone ships.
 services:
-  bbs: false
+  bbs: true                  # telnet, SSH and the web Terminal window (docs/04)
   irc: true
   mud: true
   gopher: true               # read-only mirror of public boards, homepages and file areas
+
+# How callers reach the BBS. The local stack publishes telnet on 2323 and SSH on 2222; production uses 23 and 22.
+bbs:
+  host: localhost
+  telnet_port: 2323
+  ssh_port: 2222
 
 # Where Gopher clients reach it. The local stack publishes it on port 7070; production uses 70.
 gopher:

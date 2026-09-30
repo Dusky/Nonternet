@@ -4,7 +4,7 @@ import { bbsNodes, webOnline } from './presence';
 
 // Who's online (docs/10, 04): one row per person, with where they are. IRC accounts are handles.
 export async function online(deps: AppDeps) {
-  const now = deps.now();
+  const now = Date.now(); // presence is always real time, whatever clock the rest of core is given
   const nodes = bbsNodes(now);
   const webIds = webOnline(now);
   const irc = new Set(ircOnline().accounts);

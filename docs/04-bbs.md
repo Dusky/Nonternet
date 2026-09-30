@@ -10,7 +10,7 @@ front door onto the same data ("two front doors", `00`), not a source of data. B
 core (`05`, `13`), so the BBS adds no storage, no user table and no sync.
 
 ## What it is
-A TypeScript service, `services/bbs`, with telnet, SSH and WebSocket listeners (WebSocket is
+A TypeScript service, `apps/bbs` (our own code lives under `apps/`; `services/` holds borrowed software), with telnet, SSH and WebSocket listeners (WebSocket is
 for the shell's xterm.js window). It is a **client of the core API**:
 - No message store and no user table of its own. A post from the terminal is a post in core,
   so the web view sees it immediately, and export (`12`) already covers it.
@@ -75,3 +75,26 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
 - Suspending a user drops their terminal sessions within 5 s.
 - The web terminal logs in with no prompt; a replayed or expired ticket is refused.
 - UTF-8 and CP437 clients both round-trip a post correctly.
+
+## As built (M8)
+- **Sign-in** (`apps/core/src/bbs/`, `routes/bbs.ts`): the BBS presents a token derived from `BBS_SECRET` on
+  core's private `/internal/bbs/*` endpoints. Core checks the terminal password, a one-use `bbs` ticket
+  (`POST /api/v1/bbs/ticket`, 60 s) or an SSH key (the BBS verifies the signature with `ssh2`, core checks the
+  fingerprint belongs to that handle), and answers with an ordinary session (`sessions.kind = 'bbs'`, 12 h)
+  that the BBS sends as the `sid` cookie on the public API. Logging out revokes it. Admins without
+  two-factor get a limited session, as on the web.
+- **Nodes and drops:** every 3 s the BBS reports its nodes (session, where, how connected). Core answers per
+  node whether the session is still valid and the caller's role; an invalid one (suspended, deleted, signed
+  out) is dropped at once. Core keeps the report for who's online (`GET /api/v1/online`: web, chat, BBS).
+- **Calls** are logged in `bbs_calls` for the last callers list and "last on"; deleted with the account.
+- **SSH keys** (`ssh_keys`) are added in Settings → Terminal: ed25519, ECDSA or RSA ≥ 2048, one owner per
+  key, up to 10 each, audited, exported as `keys/ssh_authorized_keys`.
+- **Service** (`apps/bbs`): telnet (own negotiation code: ECHO, SGA, BINARY, TTYPE, NAWS; waits up to 1.5 s
+  for type and size before the first screen), SSH (`ssh2`: password, keyboard-interactive, public key; the host
+  key is made on first start and kept in `/data`), WebSocket for the Terminal window (JSON messages; ticket in
+  the first one). Limits from `bbs.max_nodes`, `bbs.per_ip`, `bbs.idle_minutes`. CP437 for classic terminal
+  types (ANSI, SyncTERM, …), UTF-8 otherwise, switchable under Settings.
+- **Art pack** (`apps/bbs/art/default`): `login`, `motd`, `main`, `goodbye` screens with `{{site.name}}`-style
+  placeholders and colours, and `menus.yaml` (keys, labels, built-in actions; checked at start).
+- Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
+  (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.

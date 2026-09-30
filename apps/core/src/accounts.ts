@@ -220,7 +220,7 @@ export async function resolveSession(deps: AppDeps, rawToken: string): Promise<S
   const row = r.rows[0];
   if (!row) return null;
   // BBS sessions count as the BBS when it signs in (bbs/service.ts), not as web visits.
-  if (!row.limited && row.kind === 'web') { noteActive(deps, row.id, 'web'); noteWebSeen(row.id, deps.now()); }
+  if (!row.limited && row.kind === 'web') { noteActive(deps, row.id, 'web'); noteWebSeen(row.id); }
   return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, email: row.email, role: row.role,
     emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
 }

@@ -8,7 +8,9 @@ const core = process.env.CORE_URL ?? 'http://localhost:3000';
 const irc = process.env.IRC_WS_URL ?? 'ws://localhost:8097';
 // The MUD window's WebSocket goes to Evennia (MUD_WS_URL, default ws://localhost:4002).
 const mud = process.env.MUD_WS_URL ?? 'ws://localhost:4002';
-const proxy = { '/api': core, '/oidc': core, '/widgets': core, '^/ring/': core, '/ws/irc': { target: irc, ws: true, rewrite: () => '/' }, '/ws/mud': { target: mud, ws: true, rewrite: () => '/' } };
+// The Terminal window's WebSocket goes to the BBS (BBS_WS_URL, default ws://localhost:2380).
+const bbs = process.env.BBS_WS_URL ?? 'ws://localhost:2380';
+const proxy = { '/api': core, '/oidc': core, '/widgets': core, '^/ring/': core, '/ws/irc': { target: irc, ws: true, rewrite: () => '/' }, '/ws/mud': { target: mud, ws: true, rewrite: () => '/' }, '/ws/bbs': { target: bbs, ws: true, rewrite: () => '/' } };
 
 export default defineConfig({
   plugins: [react()],

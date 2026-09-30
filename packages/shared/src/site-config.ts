@@ -111,6 +111,16 @@ export const siteConfigSchema = z
         gopher: z.boolean().default(false),
       })
       .default({}),
+    // The BBS (docs/04): how many callers at once, from one address, and how long before an idle caller is
+    // let go. Host and ports are what the login screen and the web tell people to connect to.
+    bbs: z.object({
+      max_nodes: z.number().int().min(1).max(1000).default(32),
+      per_ip: z.number().int().min(1).max(100).default(3),
+      idle_minutes: z.number().int().min(1).max(240).default(15),
+      host: z.string().min(1).optional(),
+      telnet_port: z.number().int().min(1).max(65535).default(23),
+      ssh_port: z.number().int().min(1).max(65535).default(22),
+    }).default({}),
     // Where Gopher clients reach the mirror: the host and port written into every menu line.
     gopher: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(70) }).default({}),
   })

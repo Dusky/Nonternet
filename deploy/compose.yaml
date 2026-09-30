@@ -52,6 +52,8 @@ services:
       # Shared with the MUD. MUD_DATABASE_URL is here only so `cli backup` can dump the world too.
       MUD_SECRET: ${MUD_SECRET:?set MUD_SECRET in deploy/.env (openssl rand -base64 32)}
       MUD_URL: http://mud:4001
+      # Shared with the BBS, which signs callers in through core (docs/04).
+      BBS_SECRET: ${BBS_SECRET:?set BBS_SECRET in deploy/.env (openssl rand -base64 32)}
       MUD_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/mud
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
@@ -60,6 +62,26 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+
+  # The BBS (docs/04): telnet, SSH and the web Terminal window, all signing in through core.
+  bbs:
+    build:
+      context: ..
+      dockerfile: apps/bbs/Dockerfile
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      CORE_URL: http://core:3000
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      BBS_SECRET: ${BBS_SECRET:?set BBS_SECRET in deploy/.env (openssl rand -base64 32)}
+      BBS_TRUSTED_PROXY: 172.30.0.10
+    ports:
+      - "${BBS_TELNET_PORT:-2323}:2323"
+      - "${BBS_SSH_PORT:-2222}:2222"
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+      - bbs-data:/data
+    depends_on:
+      core: { condition: service_started }
 
   # The read-only Gopher mirror (docs/05): same image as core, its own process. It only reads.
   gopher:
@@ -202,6 +224,7 @@ volumes:
   ircd-data:
   homes-data:
   files-data:
+  bbs-data:
   postgres-data:
   redis-data:
   caddy-data:

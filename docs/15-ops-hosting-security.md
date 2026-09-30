@@ -54,6 +54,9 @@ Not legal advice — get proper advice for your jurisdiction. Plan for:
 - Data protection: export and deletion (`12`), hashed IPs, retention periods documented.
 
 ## IRC (as built, M5)
+Set `BBS_SECRET` (32+ characters) in `deploy/.env` for the BBS (docs/04); compose passes it to core and the `bbs` service,
+which publishes telnet on 2323 and SSH on 2222 locally (23 and 22 in production). Back up the `bbs-data` volume: it holds the SSH host key.
+
 Set `IRC_SECRET` (32+ characters, `openssl rand -base64 32`) in `deploy/.env`; compose passes it to core
 and to the one-shot `irc-config` service, which writes Ergo's config into the `ircd-data` volume before
 Ergo starts. Caddy sends `/ws/irc` to Ergo's WebSocket listener; core reaches Ergo's plain listener and
