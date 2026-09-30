@@ -6,6 +6,7 @@ import type { AppDeps } from './deps';
 import { emit } from './events';
 import { ApiError } from './errors';
 import { opsFor, revokeAllSessions, type Ctx, type SessionUser } from './accounts';
+import { flagSponsors, vouchDossier } from './vouches';
 
 interface Target { id: string; handle: string; role: Role; role_rev: number; status: string; email_verified_at: string | null }
 
@@ -22,22 +23,27 @@ async function lockTarget(q: Queryable, id: string): Promise<Target> {
 // ---------------------------------------------------------------- roles
 
 export async function setRole(deps: AppDeps, admin: SessionUser, targetId: string, role: Role, reason: string, ctx: Ctx): Promise<{ role: Role; role_rev: number }> {
+  return deps.db.tx((q) => changeRole(q, admin, targetId, role, reason, ctx));
+}
+
+// The role change itself, inside the caller's transaction (vouching confirms through this too).
+export async function changeRole(q: Queryable, admin: SessionUser, targetId: string, role: Role, reason: string, ctx: Ctx): Promise<{ role: Role; role_rev: number }> {
   // An admin can't change their own role, so the site can never be left with no admin by accident.
   if (targetId === admin.userId) throw new ApiError(409, 'cannot_change_own_role', 'You cannot change your own role. Ask another admin.');
-  return deps.db.tx(async (q) => {
-    const t = await lockTarget(q, targetId);
-    if (t.role === role) throw new ApiError(409, 'no_change', `${t.handle} already has that role.`);
-    // Trusted and admin are earned standing; they need a confirmed email address first.
-    if ((role === 'trusted' || role === 'admin') && !t.email_verified_at) {
-      throw new ApiError(409, 'email_not_verified', 'This user has not confirmed their email address yet.');
-    }
-    const u = await q.query<{ role_rev: number }>(`UPDATE users SET role = $2, role_rev = role_rev + 1, updated_at = now() WHERE id = $1 RETURNING role_rev`, [targetId, role]);
-    const roleRev = u.rows[0]!.role_rev;
-    await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.role_changed', targetType: 'user', targetId,
-      before: { role: t.role }, after: { role, reason }, origin: 'web', ipHash: ctx.ipHash });
-    await emit(q, 'user.role_changed', { user_id: targetId, role, previous_role: t.role, role_rev: roleRev });
-    return { role, role_rev: roleRev };
-  });
+  const t = await lockTarget(q, targetId);
+  if (t.role === role) throw new ApiError(409, 'no_change', `${t.handle} already has that role.`);
+  // Trusted and admin are earned standing; they need a confirmed email address first.
+  if ((role === 'trusted' || role === 'admin') && !t.email_verified_at) {
+    throw new ApiError(409, 'email_not_verified', 'This user has not confirmed their email address yet.');
+  }
+  const u = await q.query<{ role_rev: number }>(`UPDATE users SET role = $2, role_rev = role_rev + 1, updated_at = now() WHERE id = $1 RETURNING role_rev`, [targetId, role]);
+  const roleRev = u.rows[0]!.role_rev;
+  await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.role_changed', targetType: 'user', targetId,
+    before: { role: t.role }, after: { role, reason }, origin: 'web', ipHash: ctx.ipHash });
+  await emit(q, 'user.role_changed', { user_id: targetId, role, previous_role: t.role, role_rev: roleRev });
+  // Losing trusted standing soon after a vouched promotion flags the people who vouched (docs/03).
+  if (t.role === 'trusted' && (role === 'user' || role === 'guest')) await flagSponsors(q, targetId, 'demoted');
+  return { role, role_rev: roleRev };
 }
 
 // ---------------------------------------------------------------- handle
@@ -80,6 +86,7 @@ export async function suspend(deps: AppDeps, admin: SessionUser, targetId: strin
     if (t.status !== 'active') throw new ApiError(409, 'no_change', `${t.handle} is already suspended.`);
     await q.query(`UPDATE users SET status = 'suspended', updated_at = now() WHERE id = $1`, [targetId]);
     await revokeAllSessions(q, targetId, 'suspended');
+    await flagSponsors(q, targetId, 'suspended');
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.suspended', targetType: 'user', targetId,
       before: { status: 'active' }, after: { status: 'suspended', reason }, origin: 'web', ipHash: ctx.ipHash });
     await emit(q, 'user.suspended', { user_id: targetId });
@@ -239,12 +246,13 @@ export async function getDossier(deps: AppDeps, id: string) {
   }>(`SELECT id, handle, display_name, bio, email, role, role_rev, status, email_verified_at, totp_enabled_at, theme, created_at, last_seen_at FROM users WHERE id = $1`, [id]);
   const user = u.rows[0];
   if (!user) throw notFound();
-  const [ops, invite, sessions, recovery, history] = await Promise.all([
+  const [ops, invite, sessions, recovery, history, vouching] = await Promise.all([
     listOps(deps, id).catch(() => ({ ops: [], claims: [] })),
     deps.db.query<{ code: string; created_by_handle: string | null }>(`SELECT i.code, c.handle AS created_by_handle FROM invites i LEFT JOIN users c ON c.id = i.created_by WHERE i.used_by = $1`, [id]),
     deps.db.query<{ n: number }>(`SELECT count(*)::int AS n FROM sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()`, [id]),
     deps.db.query<{ n: number }>(`SELECT count(*)::int AS n FROM recovery_codes WHERE user_id = $1 AND used_at IS NULL`, [id]),
     listAudit(deps, { targetType: 'user', targetId: id, limit: 20 }),
+    vouchDossier(deps, id),
   ]);
   const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
   return {
@@ -258,6 +266,7 @@ export async function getDossier(deps: AppDeps, id: string) {
     active_sessions: sessions.rows[0]!.n,
     recovery_codes_remaining: recovery.rows[0]!.n,
     history: history.entries,
+    vouching,
   };
 }
 

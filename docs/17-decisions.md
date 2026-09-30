@@ -9,7 +9,7 @@
 | D4 | Terminal access and the modern web view share one message base, which lives in core; terminal access ships with the BBS (D17) | DECIDED |
 | D5 | Roles: guest, user, trusted, admin; scoped **ops** on top | DECIDED |
 | D6 | Only trusted users create boards (and found rings — PROPOSED extension) | DECIDED |
-| D7 | Trusted granted by admins in v1; eligibility hints; vouching later | DECIDED |
+| D7 | Trusted granted by admins in v1; eligibility hints; vouching with admin confirmation (M7, Q10) | DECIDED |
 | D8 | One `role` in the SSO token, read by all services | DECIDED |
 | D9 | MUD is one shared world; no ring rooms or zones | DECIDED |
 | D10 | Plain, period-accurate vocabulary; no invented metaphor | DECIDED |

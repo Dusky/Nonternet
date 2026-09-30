@@ -5,6 +5,7 @@ import { api } from '../../api';
 import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, formatWhen, useMe, useSite, useT } from '../../hooks';
 import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
+import { VouchesPanel } from './VouchesPanel';
 import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
 import { ReasonForm } from '../boards/ModTools';
@@ -20,6 +21,7 @@ interface HistoryRow { id: number; at: string; actor_handle: string | null; acto
 interface Dossier {
   user: UserRow & { role_rev: number; bio: string | null; email_verified: boolean; totp_enabled: boolean };
   ops: OpRow[]; invite: { code: string; created_by: string | null } | null; active_sessions: number; history: HistoryRow[];
+  vouching: { vouched_by: { voucher: string; note: string; at: string; state: string }[]; sponsor_flags: { candidate: string; reason: string; at: string }[] };
 }
 interface InviteRow { code: string; created_by: string | null; used_by: string | null; expires_at: string; status: 'open' | 'used' | 'expired' }
 
@@ -29,7 +31,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -45,6 +47,7 @@ export default function AdminApp() {
         <AppNavLink to="status">{t('admin.tab.status')}</AppNavLink>
         <AppNavLink to="users">{t('admin.tab.users')}</AppNavLink>
         <AppNavLink to="invites">{t('admin.tab.invites')}</AppNavLink>
+        <AppNavLink to="vouches">{t('admin.tab.vouches')}</AppNavLink>
         <AppNavLink to="reports">{t('admin.tab.moderation')}</AppNavLink>
         <AppNavLink to="boards">{t('admin.tab.boards')}</AppNavLink>
         <AppNavLink to="rings">{t('admin.tab.rings')}</AppNavLink>
@@ -66,6 +69,7 @@ export default function AdminApp() {
         {route?.pattern === 'users' && <Users />}
         {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}
         {route?.pattern === 'invites' && <Invites />}
+        {route?.pattern === 'vouches' && <VouchesPanel />}
         {route?.pattern === 'reports' && <ReportQueue />}
         {route?.pattern === 'boards' && <BoardsTable />}
         {route?.pattern === 'rings' && <RingsTable />}
@@ -153,7 +157,7 @@ function UserPage({ myId, id }: { myId: string; id: string }) {
 
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
   if (!q.data) return <p className="pad">{t('common.loading')}</p>;
-  const { user, ops, invite, history } = q.data;
+  const { user, ops, invite, history, vouching } = q.data;
   const own = user.id === myId;
 
   return (
@@ -179,6 +183,15 @@ function UserPage({ myId, id }: { myId: string; id: string }) {
       <SuspendForm userId={id} suspended={user.status === 'suspended'} disabled={own} onDone={refresh} />
       <OpsSection userId={id} ops={ops} onDone={refresh} />
 
+      {(vouching.vouched_by.length > 0 || vouching.sponsor_flags.length > 0) && (
+        <section aria-labelledby="vouching">
+          <h3 id="vouching">{t('admin.user.vouching')}</h3>
+          <ul>
+            {vouching.vouched_by.map((v, i) => <li key={`v${i}`}>{t('admin.user.vouchedBy', { name: v.voucher, state: v.state })}{v.note && <> <q>{v.note}</q></>}</li>)}
+            {vouching.sponsor_flags.map((f, i) => <li key={`f${i}`}><span className="badge badge-warn">{t('admin.user.sponsorFlag', { name: f.candidate, reason: f.reason })}</span></li>)}
+          </ul>
+        </section>
+      )}
       <section aria-labelledby="history">
         <h3 id="history">{t('admin.user.history')}</h3>
         {history.length === 0 ? <p>{t('admin.user.noHistory')}</p> : <ol className="timeline">{history.map((h) => <AuditItem key={h.id} entry={h} />)}</ol>}

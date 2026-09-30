@@ -9,3 +9,4 @@ export * from './homes';
 export * from './rings';
 export * from './characters';
 export * from './mail';
+export * from './vouches';

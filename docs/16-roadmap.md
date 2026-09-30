@@ -80,6 +80,8 @@ areas; Gopher/Gemini mirror; more themes; vouching.
 confirms); web file areas; a read-only Gopher mirror. Not in M7: Gemini, new themes.
 - [x] Private mail: conversations of 2–10 people, add/leave, blocks, delete own, report one message, export and
   deletion (`mail.test.ts`, `mail.spec.ts`; design in `10`).
+- [x] Vouching: two trusted vouches, admin confirms from the Vouches tab with eligibility hints, sponsor flags
+  within 90 days (`vouches.test.ts`, `vouches.spec.ts`; design in `03`).
 
 ## M8 — BBS (in-house, last)
 Design in `04`. Depends only on core's API, so it can start once M4 is done; it is scheduled

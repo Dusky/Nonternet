@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ABILITIES, type CharacterView, type PublicProfile } from '@app/shared';
+import { ABILITIES, type CharacterView, type MyVouch, type PublicProfile } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, TextField } from '../../components/ui';
@@ -106,6 +106,40 @@ function PersonActions({ p }: { p: PublicProfile }) {
       )}
       {blocked && <span className="muted">{t('blocks.blocked')}</span>}
       {toggle.isError && <Alert kind="error">{errorText(toggle.error)}</Alert>}
+      {(me!.role === 'trusted' || me!.role === 'admin') && p.role === 'user' && <Vouch handle={p.handle} />}
     </div>
+  );
+}
+
+// Trusted people can vouch for a user; two vouches put them in front of the admins (docs/03).
+function Vouch({ handle }: { handle: string }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  const mine = useQuery({ queryKey: ['me', 'vouches'], queryFn: () => api.get<{ vouches: MyVouch[] }>('/me/vouches') });
+  const done = Boolean(mine.data?.vouches.some((v) => v.handle.toLowerCase() === handle.toLowerCase()));
+  const refresh = () => { setOpen(false); void qc.invalidateQueries({ queryKey: ['me', 'vouches'] }); };
+  const send = useMutation({ mutationFn: () => api.post('/vouches', { handle, note }), onSuccess: refresh });
+  const withdraw = useMutation({ mutationFn: () => api.post('/vouches/withdraw', { handle }), onSuccess: refresh });
+  if (!mine.data) return null;
+  if (done) return (
+    <p className="vouch">
+      <span role="status">{t('vouch.done')}</span>{' '}
+      <button type="button" className="link" onClick={() => withdraw.mutate()} disabled={withdraw.isPending}>{t('vouch.withdraw')}</button>
+      {withdraw.isError && <Alert kind="error">{errorText(withdraw.error)}</Alert>}
+    </p>
+  );
+  return (
+    <>
+      <button type="button" className="btn btn-quiet" aria-expanded={open} onClick={() => setOpen(!open)}>{t('vouch.button', { handle })}</button>
+      {open && (
+        <form className="panel" onSubmit={(e) => { e.preventDefault(); send.mutate(); }}>
+          <TextField label={t('vouch.note')} value={note} onChange={setNote} maxLength={500} multiline />
+          {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
+          <button type="submit" className="btn btn-primary" disabled={send.isPending}>{t('vouch.send')}</button>
+        </form>
+      )}
+    </>
   );
 }

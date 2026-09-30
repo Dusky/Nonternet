@@ -178,7 +178,18 @@ const mail: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail];
+// Vouching (docs/03): the vouches the person gave. Vouches others gave for them are those people's words.
+const vouching: Exporter = {
+  id: 'vouches',
+  tables: ['vouches'],
+  async run({ deps, user, add }) {
+    const r = await deps.db.query<{ handle: string; note: string; created_at: Date; withdrawn_at: Date | null; outcome: string | null }>(
+      `SELECT u.handle, v.note, v.created_at, v.withdrawn_at, v.outcome FROM vouches v JOIN users u ON u.id = v.candidate_id WHERE v.voucher_id = $1 ORDER BY v.created_at`, [user.id]);
+    if (r.rowCount) add('vouches.json', json(r.rows.map((v) => ({ for: v.handle, note: v.note, at: v.created_at.toISOString(), state: v.withdrawn_at ? 'withdrawn' : v.outcome ?? 'open' }))));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.
@@ -202,6 +213,7 @@ export const EXEMPT: Record<string, string> = {
   notifications: 'derived from other people’s activity',
   reports: 'moderation records kept by moderators',
   mod_actions: 'moderation records, public in each board’s mod log',
+  sponsor_flags: 'moderation records kept by admins',
   ring_bans: 'moderation records kept by ring ops',
   home_hits: 'a visitor count, not a person’s content',
   home_hit_seen: 'anonymous, short-lived counter records',

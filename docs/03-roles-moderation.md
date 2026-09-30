@@ -23,8 +23,15 @@ can be an op if appointed. Stored in `scoped_roles`; carried in the token's `ops
 - **Admin grant** (DECIDED for v1).
 - **Eligibility hints** in the admin console (PROPOSED defaults: account ≥ 30 days, ≥ 25
   posts, no moderation actions in 60 days). Never auto-promotes.
-- **Vouching** later (OPEN): two trusted users sponsor; sponsors flagged if the vouchee is
-  demoted for abuse soon after.
+- **Vouching** (DECIDED Q10, built M7): a trusted user (or admin) vouches for a confirmed user from their
+  profile, with an optional note only admins see. With **two** vouches from people who are still trusted
+  and active, the person shows as *ready* in the admin console (Vouches tab) beside the eligibility
+  hints; an admin confirms (role becomes trusted, audited `user.role_changed` and `vouch.confirmed`) or
+  declines with a reason (`vouch.declined`). Nothing is automatic. Vouches can be withdrawn; after a
+  decision people may vouch again. **Sponsor flags:** if someone confirmed this way is demoted from
+  trusted or suspended within **90 days**, each voucher gets a flag, shown on their dossier and beside
+  their name the next time they vouch. The admin decides what the demotion was for; any demotion or
+  suspension in the window flags. Vouchers' own vouches are in their export (`vouches.json`).
 
 ## Guardrails
 - **Quotas** (PROPOSED): trusted users may own 3 boards and found 2 rings; admin-configurable.

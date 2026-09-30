@@ -51,6 +51,9 @@ TLS certificate expiries.
   exports requested, admin notes (private, append-only).
 - Actions: promote/demote, appoint/remove ops, suspend/unsuspend, rename, force logout,
   reset terminal password, adjust quota, delete.
+- **Vouches** tab (M7, `03`): people trusted users vouched for, ready ones first, with each
+  voucher's note and any sponsor flags, and the eligibility hints (age, posts, recent moderation).
+  Confirm or decline. The dossier shows who vouched for someone and the flags on their own vouching.
 
 ### 3. Timeline (audit replay)
 Scrubbable timeline of the audit log, filterable by actor, target, action, service.

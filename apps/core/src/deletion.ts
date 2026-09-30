@@ -49,6 +49,9 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`UPDATE mail_messages SET author_id = NULL WHERE author_id = $1`, [userId]);
     await q.query(`UPDATE mail_participants SET left_at = COALESCE(left_at, now()) WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM user_blocks WHERE user_id = $1 OR blocked_id = $1`, [userId]);
+    // Open vouches by or for them are withdrawn; decided ones stay (sponsor flags point at them), without the note.
+    await q.query(`UPDATE vouches SET withdrawn_at = now() WHERE (voucher_id = $1 OR candidate_id = $1) AND withdrawn_at IS NULL AND outcome IS NULL`, [userId]);
+    await q.query(`UPDATE vouches SET note = '' WHERE voucher_id = $1`, [userId]);
 
     // Whatever they had on their own page goes with it.
     await q.query(`DELETE FROM guestbook_entries WHERE home_user_id = $1`, [userId]);

@@ -101,6 +101,9 @@ Mail (`10`, M7): `GET|POST /mail` · `GET /mail/unread` · `GET /mail/:id` · `P
 `POST /mail/:id/leave` · `DELETE /mail/:id/messages/:mid` · `POST /mail/:id/messages/:mid/report` · blocks: `GET|POST /me/blocks` · `POST /me/blocks/remove`.
 Reports gain the target type `mail_message`.
 
+Vouching (`03`, M7): `GET /me/vouches` · `POST /vouches` · `POST /vouches/withdraw` · admin: `GET /admin/vouches` ·
+`POST /admin/vouches/:userId/confirm` · `POST /admin/vouches/:userId/decline`. The dossier gains `vouching`.
+
 MUD (`09`): `GET /users/:handle` (public profile with characters) · `GET /me/characters` · `PUT /me/featured-character` ·
 private, MUD → core: `POST /internal/mud/characters-changed` · `POST /mud/ticket` · `GET /admin/mud` · `GET|POST /admin/mud/builders` · `POST /admin/mud/builders/remove` ·
 private, core → MUD (control token): `GET /internal/status`, `POST /internal/accounts/sync`, `POST /internal/broadcast`,
