@@ -22,6 +22,8 @@ export const eventPayloads = {
   'post.created': z.object({ post_id: postId, board_id: boardId, thread_id: postId, author_id: userId, visibility: z.string() }),
   // A moderator acted on a post or thread (docs/03).
   'mod.action': z.object({ action: z.string(), board_id: boardId, post_id: postId, actor_id: userId }),
+  'ring.created': z.object({ ring_id: z.string().regex(/^r_[0-9A-Z]{26}$/), slug: z.string(), founder_id: userId }),
+  'ring.member_changed': z.object({ ring_id: z.string().regex(/^r_[0-9A-Z]{26}$/), user_id: userId, status: z.enum(['pending', 'invited', 'member', 'banned', 'removed']) }),
   'post.deleted': z.object({ post_id: postId, board_id: boardId }),
 } as const;
 

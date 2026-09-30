@@ -1,6 +1,7 @@
 import type { AppId } from './windows';
 
 const paths: Record<AppId, string> = {
+  rings: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 3a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 2.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z',
   homepages: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1 3v9h14V8H5Zm2 2h4v2H7v-2Zm0 3h10v1.5H7V13Z',
   studio: 'M3 11.5 12 4l9 7.5V21h-6v-6H9v6H3V11.5Z',
   notifications: 'M12 22a2.2 2.2 0 0 0 2.2-2.2H9.8A2.2 2.2 0 0 0 12 22Zm7-6.2V11a7 7 0 0 0-5.5-6.8V3.5a1.5 1.5 0 0 0-3 0v.7A7 7 0 0 0 5 11v4.8l-2 2v1h18v-1l-2-2Z',

@@ -66,9 +66,11 @@ function BoardList() {
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
   if (!q.data) return <p className="pad">{t('common.loading')}</p>;
   const { categories, boards } = q.data;
+  const ringNames = [...new Set(boards.filter((b) => b.ring).map((b) => b.ring!.name))].sort();
   const groups = [
-    ...categories.map((c) => ({ key: c.id, title: c.name, boards: boards.filter((b) => b.category?.id === c.id) })),
-    { key: 'other', title: categories.length ? t('boards.list.other') : '', boards: boards.filter((b) => !b.category) },
+    ...categories.map((c) => ({ key: c.id, title: c.name, boards: boards.filter((b) => !b.ring && b.category?.id === c.id) })),
+    { key: 'other', title: categories.length || ringNames.length ? t('boards.list.other') : '', boards: boards.filter((b) => !b.ring && !b.category) },
+    ...ringNames.map((n) => ({ key: `ring-${n}`, title: t('boards.list.ring', { name: n }), boards: boards.filter((b) => b.ring?.name === n) })),
   ].filter((g) => g.boards.length > 0);
   return (
     <div ref={root}>

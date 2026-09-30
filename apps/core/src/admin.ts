@@ -83,11 +83,12 @@ export async function listOps(deps: AppDeps, targetId: string): Promise<{ ops: O
 
 // Any user can be an op, not only trusted ones (docs/03). Only admins grant ops for now; ring
 // founders and board owners get their own paths when rings and boards exist.
-// Rings arrive in M3: until then a ring's ID is only checked for its shape.
+// Boards and rings must exist. Channels arrive with IRC (M5) and are only checked for shape until then.
 export async function grantOp(deps: AppDeps, admin: SessionUser, targetId: string, scope: OpScope, scopeId: string, reason: string | undefined, ctx: Ctx): Promise<{ id: string; ops: string[]; role_rev: number }> {
   return deps.db.tx(async (q) => {
     const t = await lockTarget(q, targetId);
     if (scope === 'board' && (await q.query(`SELECT 1 FROM boards WHERE id = $1`, [scopeId])).rowCount === 0) throw new ApiError(404, 'not_found', 'No such board.');
+    if (scope === 'ring' && (await q.query(`SELECT 1 FROM rings WHERE id = $1`, [scopeId])).rowCount === 0) throw new ApiError(404, 'not_found', 'No such ring.');
     if (t.status !== 'active') throw new ApiError(409, 'user_not_active', `${t.handle} is suspended.`);
     const id = newId('o');
     try {
@@ -113,7 +114,7 @@ export async function revokeOp(deps: AppDeps, admin: SessionUser, targetId: stri
 }
 
 // role_rev goes up on any role or ops change (docs/02), so services can tell a stale claim from a fresh one.
-async function finishOpsChange(q: Queryable, admin: SessionUser, targetId: string, change: 'granted' | 'revoked', claim: string, reason: string | undefined, ctx: Ctx, id = ''): Promise<{ id: string; ops: string[]; role_rev: number }> {
+export async function finishOpsChange(q: Queryable, admin: SessionUser, targetId: string, change: 'granted' | 'revoked', claim: string, reason: string | undefined, ctx: Ctx, id = ''): Promise<{ id: string; ops: string[]; role_rev: number }> {
   const u = await q.query<{ role_rev: number }>(`UPDATE users SET role_rev = role_rev + 1, updated_at = now() WHERE id = $1 RETURNING role_rev`, [targetId]);
   const roleRev = u.rows[0]!.role_rev;
   const ops = await opsFor(q, targetId);

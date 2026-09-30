@@ -16,6 +16,7 @@ import { boardRoutes } from './routes/boards';
 import { moderationRoutes } from './routes/moderation';
 import { homeRoutes } from './routes/homes';
 import { widgetRoutes, WIDGET_API } from './routes/widgets';
+import { ringRoutes } from './routes/rings';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -87,5 +88,6 @@ export async function buildApp(deps: AppDeps) {
   moderationRoutes(app, deps);
   homeRoutes(app, deps);
   widgetRoutes(app, deps);
+  ringRoutes(app, deps);
   return app;
 }

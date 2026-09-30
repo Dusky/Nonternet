@@ -80,6 +80,7 @@ export async function modAction(deps: AppDeps, v: SessionUser, input: ModInput, 
         if (post.thread_root_id) throw new ApiError(409, 'not_a_thread', 'Only a whole thread can be moved.');
         const dest = await loadBoard(q, input.to_board!, viewerOf(v));
         if (dest.id === board.id) throw same('That thread is already on that board.');
+        if (board.visibility === 'ring') throw new ApiError(409, 'ring_board', 'Threads cannot be moved off a ring board.');
         // Moving puts a thread in front of a different audience, so the mover must be in charge of both boards.
         if (!canModerate(v, dest)) throw new ApiError(403, 'forbidden', 'You can only move a thread to a board you moderate.');
         if (dest.archived_at) throw new ApiError(409, 'archived', 'That board is archived.');
@@ -189,6 +190,8 @@ async function boardsIModerate(q: Queryable, v: SessionUser): Promise<string[] |
   const ids = new Set(v.ops.filter((o) => o.startsWith('board:')).map((o) => o.slice('board:'.length)));
   const owned = await q.query<{ id: string }>(`SELECT id FROM boards WHERE owner_id = $1`, [v.userId]);
   for (const b of owned.rows) ids.add(b.id);
+  const rings = v.ops.filter((o) => o.startsWith('ring:')).map((o) => o.slice('ring:'.length));
+  if (rings.length) for (const b of (await q.query<{ id: string }>(`SELECT id FROM boards WHERE ring_id = ANY($1)`, [rings])).rows) ids.add(b.id);
   return [...ids];
 }
 

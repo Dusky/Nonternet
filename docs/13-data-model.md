@@ -74,6 +74,9 @@ row as a tombstone (`deleted_at` set, subject and body erased) so replies keep t
 ```
 
 ## Rings
+Built (migration 0011): `ring_members.status` also has `invited`; `ring_members.nav_detected_at` records when the nav
+bar was last seen on the member's page; `rings.board_id` is set as the ring is founded; `banner_path` is not built yet;
+`flagged_dead` is computed from `nav_detected_at` and the homepage, not stored.
 ```sql
 rings (id pk, slug unique, name, description, about, banner_path, tags text[],
        founder_id fk, join_policy text, -- open|approval|invite

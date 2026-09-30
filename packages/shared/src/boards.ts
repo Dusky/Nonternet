@@ -55,6 +55,7 @@ export const categoryCreateSchema = z.object({ name: z.string().trim().min(2).ma
 export interface BoardSummary {
   id: string; slug: string; name: string; description: string; visibility: BoardVisibility;
   category: { id: string; name: string } | null;
+  ring: { slug: string; name: string } | null;   // set on a ring's board
   owner: { id: string; handle: string };
   archived: boolean; hidden: boolean;
   thread_count: number; post_count: number; last_post_at: string | null;

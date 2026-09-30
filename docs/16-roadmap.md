@@ -37,7 +37,7 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 5. Custom domains with verification + on-demand TLS.
 6. Admin console: rings, homepages service page.
 **Accept:** tests in `06` and `07`.
-**Progress:** tasks 1 to 3 built (files, quotas, serving, redirects, templates, studio with editor and preview, asset library, widgets, guestbook, directory, reporting; `homes.test.ts`, `widgets.test.ts`, `studio.spec.ts`, `homepages.spec.ts`). Task 6's homepages page is built; rings and custom domains are next. Q3 decided (JS allowed, report footer injected).
+**Progress:** tasks 1 to 3 built (files, quotas, serving, redirects, templates, studio with editor and preview, asset library, widgets, guestbook, directory, reporting; `homes.test.ts`, `widgets.test.ts`, `studio.spec.ts`, `homepages.spec.ts`). Task 4 (rings) built (`rings.test.ts`, `rings.spec.ts`), and task 6's rings and homepages pages are in the console. Custom domains (5) are next. Q3 decided (JS allowed, report footer injected).
 
 ## M4 — Ownership & console polish (completes v1)
 1. Export worker + archive format + signature; "exporter registered" CI check.

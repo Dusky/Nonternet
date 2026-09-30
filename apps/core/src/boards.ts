@@ -29,17 +29,21 @@ function readable(v: Viewer, n: number, alias = 'b'): { sql: string; params: unk
   };
 }
 
-export const canModerate = (v: Viewer, b: { id: string; owner_id: string }) =>
-  Boolean(v && (v.role === 'admin' || v.userId === b.owner_id || v.ops.includes(`board:${b.id}`)));
+// The people in charge of a board: its owner, its ops, admins, and for a ring board the ring's ops.
+export const canModerate = (v: Viewer, b: { id: string; owner_id: string; ring_id?: string | null }) =>
+  Boolean(v && (v.role === 'admin' || v.userId === b.owner_id || v.ops.includes(`board:${b.id}`) || (b.ring_id && v.ops.includes(`ring:${b.ring_id}`))));
 
 export interface BoardRow {
   id: string; slug: string; name: string; description: string; visibility: BoardVisibility; owner_id: string; owner_handle: string;
+  ring_id: string | null; ring_slug: string | null; ring_name: string | null; ring_member: boolean;
   category_id: string | null; category_name: string | null; archived_at: Date | null; hidden_at: Date | null;
   thread_count: string; post_count: string; last_post_at: Date | null; unread: string | null; watching: boolean; member: boolean;
 }
 
 const SUMMARY_SQL = `
   SELECT b.id, b.slug, b.name, b.description, b.visibility, b.owner_id, u.handle AS owner_handle,
+    b.ring_id, rg.slug AS ring_slug, rg.name AS ring_name,
+    EXISTS (SELECT 1 FROM ring_members rm WHERE rm.ring_id = b.ring_id AND rm.user_id = $1 AND rm.status = 'member') AS ring_member,
     b.category_id, c.name AS category_name, b.archived_at, b.hidden_at,
     (SELECT count(*) FROM posts p WHERE p.board_id = b.id AND p.thread_root_id IS NULL AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS thread_count,
     (SELECT count(*) FROM posts p WHERE p.board_id = b.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS post_count,
@@ -49,19 +53,20 @@ const SUMMARY_SQL = `
         AND p.seq > COALESCE((SELECT r.last_read_seq FROM read_state r WHERE r.user_id = $1 AND r.board_id = b.id), 0)) END AS unread,
     EXISTS (SELECT 1 FROM watches w WHERE w.user_id = $1 AND w.board_id = b.id) AS watching,
     EXISTS (SELECT 1 FROM board_members m WHERE m.user_id = $1 AND m.board_id = b.id) AS member
-  FROM boards b JOIN users u ON u.id = b.owner_id LEFT JOIN board_categories c ON c.id = b.category_id`;
+  FROM boards b JOIN users u ON u.id = b.owner_id LEFT JOIN board_categories c ON c.id = b.category_id LEFT JOIN rings rg ON rg.id = b.ring_id`;
 
 export function canPost(v: Viewer, r: BoardRow): boolean {
   if (!v || !isMember(v) || r.archived_at) return false;
   if (r.visibility === 'public' || r.visibility === 'members') return true;
   if (r.visibility === 'private') return r.member;
-  return false; // ring boards take ring members only, and rings arrive in M3
+  return r.ring_member; // a ring board takes the ring's members (docs/06)
 }
 
 function toSummary(v: Viewer, r: BoardRow): BoardSummary {
   return {
     id: r.id, slug: r.slug, name: r.name, description: r.description, visibility: r.visibility,
     category: r.category_id ? { id: r.category_id, name: r.category_name! } : null,
+    ring: r.ring_id ? { slug: r.ring_slug!, name: r.ring_name! } : null,
     owner: { id: r.owner_id, handle: r.owner_handle },
     archived: r.archived_at !== null, hidden: r.hidden_at !== null,
     thread_count: Number(r.thread_count), post_count: Number(r.post_count), last_post_at: r.last_post_at ? r.last_post_at.toISOString() : null,
@@ -83,7 +88,7 @@ export async function loadBoard(q: Queryable, slug: string, v: Viewer): Promise<
 export async function listBoards(deps: AppDeps, v: Viewer): Promise<{ categories: { id: string; name: string }[]; boards: BoardSummary[] }> {
   const acc = readable(v, 2);
   const [boards, cats] = await Promise.all([
-    deps.db.query<BoardRow>(`${SUMMARY_SQL} WHERE ${acc.sql} AND b.ring_id IS NULL ORDER BY c.sort NULLS LAST, c.name NULLS LAST, b.name`, [v?.userId ?? null, ...acc.params]),
+    deps.db.query<BoardRow>(`${SUMMARY_SQL} WHERE ${acc.sql} ORDER BY c.sort NULLS LAST, c.name NULLS LAST, b.name`, [v?.userId ?? null, ...acc.params]),
     deps.db.query<{ id: string; name: string }>(`SELECT id, name FROM board_categories ORDER BY sort, name`),
   ]);
   return { categories: cats.rows, boards: boards.rows.map((r) => toSummary(v, r)) };
@@ -103,7 +108,7 @@ export async function createBoard(
       // Lock the user's row so two requests made at once cannot both pass the quota check.
       await q.query(`SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, [v.userId]);
       if (v.role !== 'admin') {
-        const owned = await q.query<{ n: string }>(`SELECT count(*) AS n FROM boards WHERE owner_id = $1 AND archived_at IS NULL`, [v.userId]);
+        const owned = await q.query<{ n: string }>(`SELECT count(*) AS n FROM boards WHERE owner_id = $1 AND archived_at IS NULL AND ring_id IS NULL`, [v.userId]);
         const quota = deps.config.limits.trusted_board_quota;
         if (Number(owned.rows[0]!.n) >= quota) {
           throw new ApiError(409, 'quota_reached', `You can own ${quota} boards. Archive one or ask an admin.`);

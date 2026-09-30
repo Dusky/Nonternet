@@ -14,7 +14,10 @@ describe.skipIf(!dbAvailable)('roles, suspension, ops and the audit log', () => 
     ({ db, drop } = await createTestDb());
     ctx = await makeApp(db);
     boss = await makeAdmin(ctx, 'boss');
-    // Ops are granted for boards that exist, so make the ones these tests use.
+    // Ops are granted for boards and rings that exist, so make the ones these tests use.
+    for (let i = 1; i <= 50; i++) {
+      await db.query(`INSERT INTO rings (id, slug, name, founder_id, join_policy) VALUES ($1, $2, $2, $3, 'open')`, [`r_${String(i).padStart(26, '0')}`, `test-ring-${i}`, boss.id]);
+    }
     for (let i = 1; i <= 50; i++) {
       await db.query(`INSERT INTO boards (id, slug, name, owner_id, visibility) VALUES ($1, $2, $2, $3, 'public')`, [`b_${String(i).padStart(26, '0')}`, `test-board-${i}`, boss.id]);
     }

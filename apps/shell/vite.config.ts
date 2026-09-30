@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 // In dev and preview, /api and /oidc go to core (CORE_URL, default http://localhost:3000). In
 // compose and production, Caddy does the routing.
 const core = process.env.CORE_URL ?? 'http://localhost:3000';
-const proxy = { '/api': core, '/oidc': core, '/widgets': core };
+const proxy = { '/api': core, '/oidc': core, '/widgets': core, '^/ring/': core };
 
 export default defineConfig({
   plugins: [react()],

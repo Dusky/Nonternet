@@ -25,7 +25,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'homepages'] as const;
+const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -41,6 +41,7 @@ export default function AdminApp() {
         <AppNavLink to="invites">{t('admin.tab.invites')}</AppNavLink>
         <AppNavLink to="reports">{t('admin.tab.moderation')}</AppNavLink>
         <AppNavLink to="boards">{t('admin.tab.boards')}</AppNavLink>
+        <AppNavLink to="rings">{t('admin.tab.rings')}</AppNavLink>
         <AppNavLink to="homepages">{t('admin.tab.homepages')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
       </nav>
@@ -50,6 +51,7 @@ export default function AdminApp() {
         {route?.pattern === 'invites' && <Invites />}
         {route?.pattern === 'reports' && <ReportQueue />}
         {route?.pattern === 'boards' && <BoardsTable />}
+        {route?.pattern === 'rings' && <RingsTable />}
         {route?.pattern === 'homepages' && <HomepagesTable />}
         {route?.pattern === 'audit' && <Audit />}
       </div>
@@ -429,6 +431,55 @@ function HomepagesTable() {
         <ReasonForm label={t('admin.homepages.hideThis', { name: acting.handle })} submitLabel={t('boards.mod.confirm')} pending={run.isPending} error={error}
           onSubmit={(reason) => run.mutate(reason)} onCancel={() => setActing(null)} />
       )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- rings
+
+interface RingRow { id: string; slug: string; name: string; founder: string; members: number; archived: boolean; hidden: boolean; board: string | null }
+
+function RingsTable() {
+  const t = useT();
+  const qc = useQueryClient();
+  const [q, setQ] = useState('');
+  const dq = useDebounced(q);
+  const [acting, setActing] = useState<RingRow | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const list = useQuery({ queryKey: ['admin', 'rings', dq], queryFn: () => api.get<{ rings: RingRow[] }>(`/admin/rings${dq ? `?q=${encodeURIComponent(dq)}` : ''}`) });
+  const run = useMutation({
+    mutationFn: (reason: string) => api.post(`/admin/rings/${acting!.id}/${acting!.hidden ? 'restore' : 'hide'}`, { reason }),
+    onSuccess: () => { setActing(null); setError(null); void qc.invalidateQueries({ queryKey: ['admin'] }); }, onError: (e) => setError(errorText(e)),
+  });
+  if (list.isError) return <Alert kind="error">{errorText(list.error)}</Alert>;
+  const rings = list.data?.rings ?? [];
+  return (
+    <>
+      <TextField label={t('admin.rings.search')} value={q} onChange={setQ} type="search" autoCapitalize="none" spellCheck={false} />
+      {list.data && rings.length === 0 && <p>{t('admin.rings.none')}</p>}
+      {rings.length > 0 && (
+        <table className="table">
+          <thead><tr>
+            <th scope="col">{t('admin.rings.col.name')}</th><th scope="col">{t('admin.rings.col.founder')}</th><th scope="col">{t('admin.rings.col.members')}</th><th scope="col">{t('admin.rings.col.state')}</th>
+          </tr></thead>
+          <tbody>
+            {rings.map((r) => (
+              <tr key={r.id}>
+                <th scope="row" data-label={t('admin.rings.col.name')}><OpenAppLink app="rings" to={r.slug}>{r.name}</OpenAppLink></th>
+                <td data-label={t('admin.rings.col.founder')}>{r.founder}</td>
+                <td data-label={t('admin.rings.col.members')}>{r.members}</td>
+                <td data-label={t('admin.rings.col.state')}>
+                  {r.archived && <span className="badge">{t('boards.badge.archived')}</span>} {r.hidden && <span className="badge badge-warn">{t('admin.homepages.hidden')}</span>}{' '}
+                  <button type="button" className="link" onClick={() => { setError(null); setActing(r); }} aria-label={t(r.hidden ? 'admin.rings.restoreThis' : 'admin.rings.hideThis', { name: r.name })}>
+                    {t(r.hidden ? 'admin.rings.restore' : 'admin.rings.hide')}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {acting && <ReasonForm label={t(acting.hidden ? 'admin.rings.restoreThis' : 'admin.rings.hideThis', { name: acting.name })} submitLabel={t('boards.mod.confirm')} pending={run.isPending} error={error} onSubmit={(reason) => run.mutate(reason)} onCancel={() => setActing(null)} />}
     </>
   );
 }

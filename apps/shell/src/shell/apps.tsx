@@ -15,6 +15,7 @@ export interface AppDef {
 // Apps load on demand, so a phone only downloads what it opens.
 export const APPS: AppDef[] = [
   { id: 'boards', title: 'app.boards', path: '/boards', adminOnly: false, public: true, Component: lazy(() => import('../apps/boards/BoardsApp')) },
+  { id: 'rings', title: 'app.rings', path: '/rings', adminOnly: false, public: true, Component: lazy(() => import('../apps/rings/RingsApp')) },
   { id: 'homepages', title: 'app.homepages', path: '/homepages', adminOnly: false, public: true, Component: lazy(() => import('../apps/homepages/HomepagesApp')) },
   { id: 'studio', title: 'app.studio', path: '/studio', adminOnly: false, Component: lazy(() => import('../apps/studio/StudioApp')) },
   { id: 'notifications', title: 'app.notifications', path: '/notifications', adminOnly: false, Component: lazy(() => import('../apps/notifications/NotificationsApp')) },
