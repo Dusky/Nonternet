@@ -40,17 +40,17 @@ describe.skipIf(!dbAvailable || !haveTools)('backup and restore test', { timeout
   });
   afterAll(async () => drop());
 
-  it('writes three encrypted files and a manifest, and none of it is readable without the key', async () => {
+  it('writes four encrypted files and a manifest, and none of it is readable without the key', async () => {
     const r = await runBackup(ctx.deps, opts());
     const files = readdirSync(dir).sort();
-    expect(files.filter((f) => f.endsWith('.enc'))).toHaveLength(3);
+    expect(files.filter((f) => f.endsWith('.enc'))).toHaveLength(4);
     for (const f of files.filter((n) => n.endsWith('.enc'))) {
       const bytes = readFileSync(join(dir, f)).toString('latin1');
       for (const secret of ['zorbaxplume', 'quokkaquokka', 'platypus-page', 'Secret Name Here', 'PGDMP']) expect(bytes, `${f} leaks ${secret}`).not.toContain(secret);
     }
     const m = JSON.parse(readFileSync(join(dir, r.manifest), 'utf8'));
     expect(m).toMatchObject({ format: 'backup-v1', counts: { users: 1, posts: 1, boards: 1, homepages: 1 }, homepage_files: 1 });
-    expect(Object.keys(m.files).sort()).toEqual(['config', 'db', 'homes']);
+    expect(Object.keys(m.files).sort()).toEqual(['config', 'db', 'files', 'homes']);
     expect(first(await db.query(`SELECT status, location FROM backup_runs WHERE kind = 'backup'`))).toMatchObject({ status: 'ok', location: r.manifest });
   });
 
@@ -62,7 +62,7 @@ describe.skipIf(!dbAvailable || !haveTools)('backup and restore test', { timeout
       await mud.db.query(`INSERT INTO accounts_accountdb VALUES (1), (2); INSERT INTO objects_objectdb VALUES (1), (2), (3); INSERT INTO typeclasses_attribute VALUES (1)`);
       const r = await runBackup(ctx.deps, { ...opts(), mudDatabaseUrl: mud.url });
       const m = JSON.parse(readFileSync(join(dir, r.manifest), 'utf8'));
-      expect(Object.keys(m.files).sort()).toEqual(['config', 'db', 'homes', 'mud']);
+      expect(Object.keys(m.files).sort()).toEqual(['config', 'db', 'files', 'homes', 'mud']);
       expect(m.mud_counts).toEqual({ accounts_accountdb: 2, objects_objectdb: 3, typeclasses_attribute: 1 });
       const t = await restoreTest(ctx.deps, opts());
       expect(t.ok, JSON.stringify(t.checks.filter((c) => !c.ok))).toBe(true);
@@ -74,7 +74,7 @@ describe.skipIf(!dbAvailable || !haveTools)('backup and restore test', { timeout
   it('restores the newest backup into a scratch database, checks it and cleans up', async () => {
     const r = await restoreTest(ctx.deps, opts());
     expect(r.ok, JSON.stringify(r.checks.filter((c) => !c.ok))).toBe(true);
-    expect(r.checks.map((c) => c.name)).toEqual(expect.arrayContaining(['db file is intact', 'users restored', 'posts restored', 'homepage files restored']));
+    expect(r.checks.map((c) => c.name)).toEqual(expect.arrayContaining(['db file is intact', 'users restored', 'posts restored', 'homepage files restored', 'files file is intact', 'file-area uploads restored', 'files restored']));
     const run = first(await db.query(`SELECT status, detail FROM backup_runs WHERE kind = 'restore_test' ORDER BY started_at DESC LIMIT 1`));
     expect(run.status).toBe('ok');
     const left = await db.query(`SELECT datname FROM pg_database WHERE datname LIKE 'restore_test_%'`);

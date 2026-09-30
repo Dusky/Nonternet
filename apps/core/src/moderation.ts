@@ -197,9 +197,9 @@ async function boardsIModerate(q: Queryable, v: SessionUser): Promise<string[] |
 
 interface ReportRow {
   id: string; status: ReportView['status']; category: ReportCategory; note: string; created_at: Date; reporter: string;
-  resolved_by: string | null; resolved_at: Date | null; resolution_note: string | null; target_type: 'post' | 'homepage' | 'guestbook' | 'mail_message'; target_id: string;
+  resolved_by: string | null; resolved_at: Date | null; resolution_note: string | null; target_type: ReportView['target']['type']; target_id: string;
   slug: string | null; board_name: string | null; thread_id: string | null; subject: string | null; body: string | null; deleted_at: Date | null;
-  deleted_by: string | null; hidden_at: Date | null; post_author: string | null; handle: string | null; page_title: string | null; entry_message: string | null; mail_body: string | null; mail_author: string | null; other_open: string;
+  deleted_by: string | null; hidden_at: Date | null; post_author: string | null; handle: string | null; page_title: string | null; entry_message: string | null; mail_body: string | null; mail_author: string | null; file_name: string | null; file_title: string | null; other_open: string;
 }
 
 export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?: 'open' | 'actioned' | 'dismissed' | 'all'; board?: string; before?: string; limit?: number }): Promise<{ reports: ReportView[]; next: string | null }> {
@@ -212,8 +212,8 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
             b.slug, b.name AS board_name, COALESCE(p.thread_root_id, p.id) AS thread_id,
             (SELECT subject FROM posts t WHERE t.id = COALESCE(p.thread_root_id, p.id)) AS subject, p.body,
             p.deleted_at, p.deleted_by, p.hidden_at, pa.handle AS post_author,
-            COALESCE(hu.handle, gu.handle, mu.handle) AS handle, hp.title AS page_title, ge.message AS entry_message,
-            mm.body AS mail_body, mu.handle AS mail_author,
+            COALESCE(hu.handle, gu.handle, mu.handle, fu.handle) AS handle, hp.title AS page_title, ge.message AS entry_message,
+            mm.body AS mail_body, mu.handle AS mail_author, fi.name AS file_name, fi.title AS file_title,
             (SELECT count(*) FROM reports o WHERE o.target_type = r.target_type AND o.target_id = r.target_id AND o.status = 'open' AND o.id <> r.id) AS other_open
      FROM reports r JOIN users ru ON ru.id = r.reporter_id
        LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
@@ -225,6 +225,8 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
        LEFT JOIN users gu ON gu.id = ge.home_user_id
        LEFT JOIN mail_messages mm ON r.target_type = 'mail_message' AND mm.id = r.target_id
        LEFT JOIN users mu ON mu.id = mm.author_id
+       LEFT JOIN files fi ON r.target_type = 'file' AND fi.id = r.target_id
+       LEFT JOIN users fu ON fu.id = fi.uploader_id
      WHERE ($1::text = 'all' OR r.status = $1)
        AND ($2::text[] IS NULL OR (r.scope_type = 'board' AND r.scope_id = ANY($2)))
        AND ($3::text IS NULL OR b.slug = $3)
@@ -244,7 +246,8 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
         target: { type: x.target_type, id: x.target_id, handle: x.handle },
         post: isPost ? { id: x.target_id, thread_id: x.thread_id ?? '', subject: x.deleted_at ? '' : x.subject ?? '', excerpt: '', state, author: x.post_author } : null,
         excerpt: isPost ? (x.deleted_at ? '' : [...(x.body ?? '')].slice(0, 300).join('')) : x.target_type === 'guestbook' ? [...(x.entry_message ?? '')].slice(0, 300).join('')
-          : x.target_type === 'mail_message' ? [...(x.mail_body ?? '')].slice(0, 600).join('') : x.page_title ?? '',
+          : x.target_type === 'mail_message' ? [...(x.mail_body ?? '')].slice(0, 600).join('')
+          : x.target_type === 'file' ? [x.file_name, x.file_title].filter(Boolean).join(' — ') : x.page_title ?? '',
         resolved_by: x.resolved_by, resolved_at: x.resolved_at ? x.resolved_at.toISOString() : null, resolution_note: x.resolution_note,
       };
     }),

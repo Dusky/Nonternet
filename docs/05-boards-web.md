@@ -99,3 +99,22 @@ a text fallback ("[image: filename]").
   versa; reading in the terminal updates web unread counts.
 - Logged-out visitors see only public boards (and ring boards set to public read).
 - Preview text equals stored body byte-for-byte.
+
+## File areas (M7, Q13)
+Built on the web first; the BBS will show the same areas later (`04`). Gopher lists public areas read-only.
+- **Areas** are made by admins: address, name, description, who can see them (everyone, or signed-in
+  members) and who can upload (any member, trusted people — the default — or admins only). An area can be
+  archived: still readable, nothing new goes in. Audited (`file_area.created`, `file_area.updated`).
+- **Uploads** send the file itself as the request body, with its name, title and description in the query
+  string. Names are one plain segment (letters, digits, `_ . ( ) + ~ -`), unique per area. Limits:
+  `limits.file_max_mb` per file (default 25) and `limits.file_quota_mb` per uploader (default 250; admins
+  have none), both admin settings.
+- **Downloads** are always `application/octet-stream` with `Content-Disposition: attachment`, `nosniff` and
+  a sandbox CSP, so nothing uploaded can run as a page on the site (`15`). Each file shows its size,
+  uploader, date, download count and SHA-256.
+- **Moderation:** anyone signed in can report a file (to admins); admins hide (the uploader still sees it)
+  or delete with a reason; hiding or deleting closes open reports. Audited (`file.hidden`, `file.unhidden`,
+  `file.deleted` when an admin deletes). The uploader can edit the title and description and delete.
+- **Storage:** one file per ID under `FILES_DIR` (compose volume `files-data`), in backups.
+- **Ownership:** exported as `files/{area}/{name}` with `files.json`; deleted with the account.
+- Code: `apps/core/src/files.ts`, the Files app; tests `files.test.ts`, `e2e/tests/files.spec.ts`.

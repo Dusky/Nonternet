@@ -118,6 +118,19 @@ metrics_rollup (metric, bucket timestamptz, value double precision)  -- console 
 ```
 Presence lives in Redis: `presence:{user_id}` → services + since.
 
+M7 tables (migrations 0021–0023):
+```
+mail_threads (id mt_, subject, created_by, created_at, last_message_at)
+mail_participants (thread_id, user_id, joined_at, left_at, last_read_at)   -- newcomers read from joined_at
+mail_messages (id mm_, thread_id, author_id?, kind message|joined|left, body, created_at, deleted_at)
+user_blocks (user_id, blocked_id, created_at)
+vouches (id vo_, candidate_id, voucher_id, note, created_at, withdrawn_at, outcome confirmed|declined, decided_at, decided_by)
+sponsor_flags (id sf_, vouch_id unique, voucher_id, candidate_id, reason demoted|suspended, created_at)
+file_areas (id fa_, slug, name, description, visibility public|members, upload_role user|trusted|admin, archived_at)
+files (id f_, area_id, uploader_id?, name, title, description, size_bytes, sha256, downloads, hidden_at, deleted_at)
+                                   -- the bytes are FILES_DIR/{id}
+```
+
 ## Invariants (enforce and test)
 - Board/ring ownership requires `trusted` or `admin` at creation; quotas checked at creation.
 - Every ring has exactly one board (`rings.board_id` not null after creation).

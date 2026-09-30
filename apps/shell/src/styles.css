@@ -294,3 +294,7 @@ ul.plain { list-style: none; margin: 0; padding: 0; }
 .mail-excerpt { margin: 0.15rem 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-event { list-style: none; padding: 0.25rem 0; font-size: 0.9em; }
 .mail-rows li.is-unread { border-left: 4px solid var(--accent); padding-left: .6rem; }
+
+/* File areas (docs/05) */
+.file-description { white-space: pre-wrap; }
+.checksum { word-break: break-all; font-size: .85em; }

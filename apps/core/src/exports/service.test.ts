@@ -50,6 +50,8 @@ describe.skipIf(!dbAvailable)('export', () => {
     await bob.c.post(`/api/v1/mail/${mt.id}/messages`, { body: 'Bob’s private reply' });
     const dave = await person('dave');
     await alice.c.post('/api/v1/me/blocks', { handle: dave.handle });
+    await db.query(`INSERT INTO file_areas (id, slug, name) VALUES ('fa_01HZZZZZZZZZZZZZZZZZZZZZZZ', 'tools', 'Tools')`);
+    await ctx.app.inject({ method: 'POST', url: '/api/v1/files/areas/tools/files?name=readme.txt&title=Read%20me', payload: 'my own file', headers: { origin: 'https://example.test', cookie: `sid=${alice.c.sid}`, 'content-type': 'application/octet-stream' } });
   });
   afterAll(async () => drop());
 
@@ -98,7 +100,7 @@ describe.skipIf(!dbAvailable)('export', () => {
 
     it('holds what she made, and nothing that is not hers', () => {
       expect(Object.keys(files).sort()).toEqual([
-        'README.txt', 'boards/club.json', 'boards/general.json', 'boards/mine.json', 'guestbook.json', 'homepage.json', 'homepage/img/pixel.gif', 'homepage/index.html',
+        'README.txt', 'boards/club.json', 'boards/general.json', 'boards/mine.json', 'files.json', 'files/tools/readme.txt', 'guestbook.json', 'homepage.json', 'homepage/img/pixel.gif', 'homepage/index.html',
         'keys/public.key', 'mail/blocked.json', 'mail/conversations.json', 'manifest.json', 'manifest.sig', 'posts/posts.json', 'posts/posts.mbox', 'profile.json', 'rings/synths/members.json', 'rings/synths/ring.json',
       ].sort());
       const posts = JSON.parse(text(files, 'posts/posts.json')) as { subject: string; body: string; board: string; state: string; reply_to: string | null }[];
@@ -117,6 +119,11 @@ describe.skipIf(!dbAvailable)('export', () => {
       expect(conv).toEqual([expect.objectContaining({ subject: 'Lunch', people: ['alice', 'bob'], my_messages: [expect.objectContaining({ body: 'Noon at the café?' })] })]);
       expect(JSON.stringify(conv)).not.toContain('Bob’s private reply');
       expect(JSON.parse(text(files, 'mail/blocked.json'))).toEqual(['dave']);
+    });
+
+    it('has the files she uploaded, as uploaded', () => {
+      expect(text(files, 'files/tools/readme.txt')).toBe('my own file');
+      expect(JSON.parse(text(files, 'files.json'))).toEqual([expect.objectContaining({ area: 'tools', name: 'readme.txt', title: 'Read me', size_bytes: 11 })]);
     });
 
     it('has her homepage exactly as uploaded, its settings and both guestbook directions', () => {

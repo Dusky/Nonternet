@@ -17,6 +17,7 @@ export interface AppDeps {
   trustProxy: boolean;      // true only when core sits behind Caddy
   rateLimit: boolean;
   exportsDir: string;       // where finished export archives wait to be downloaded
+  filesDir: string;         // where file-area uploads live, one file per ID
   homes: HomeStore;         // where homepage files live
   homesUrl: (handle: string) => string; // a person's homepage address
   oidcClients: ResolvedOidcClient[]; // services allowed to sign users in (site config + env secrets)

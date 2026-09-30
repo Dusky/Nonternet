@@ -7,9 +7,10 @@ import { ApiError } from './errors';
 import { emit } from './events';
 import { revokeAllSessions, requireSecondFactor, type Ctx, type SessionUser } from './accounts';
 import { verifyPassword } from './passwords';
+import { removeAllFor as removeAllFiles } from './files';
 
 // Deleting an account (docs/12). What happens to what the person made:
-//   - their homepage, files, custom domains, exports and keys are deleted;
+//   - their homepage, file-area uploads, custom domains, exports and keys are deleted;
 //   - their rings and boards: a ring must be handed over or archived first; boards they own are archived;
 //   - their posts and guestbook entries stay without their name ("posts: keep", the default, so
 //     conversations still make sense) or are erased ("posts: erase", each becomes a tombstone) — their choice;
@@ -19,6 +20,7 @@ export type PostsChoice = 'keep' | 'erase';
 
 export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts: PostsChoice; actor: SessionUser | null; reason?: string }, ctx: Ctx): Promise<void> {
   let exportIds: string[] = [];
+  let fileIds: string[] = [];
   await deps.db.tx(async (q) => {
     const r = await q.query<{ handle: string; role: string; status: string }>(`SELECT handle, role, status FROM users WHERE id = $1 FOR UPDATE`, [userId]);
     const u = r.rows[0];
@@ -52,6 +54,9 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     // Open vouches by or for them are withdrawn; decided ones stay (sponsor flags point at them), without the note.
     await q.query(`UPDATE vouches SET withdrawn_at = now() WHERE (voucher_id = $1 OR candidate_id = $1) AND withdrawn_at IS NULL AND outcome IS NULL`, [userId]);
     await q.query(`UPDATE vouches SET note = '' WHERE voucher_id = $1`, [userId]);
+
+    // Their file-area uploads go, like their homepage.
+    fileIds = await removeAllFiles(q, userId);
 
     // Whatever they had on their own page goes with it.
     await q.query(`DELETE FROM guestbook_entries WHERE home_user_id = $1`, [userId]);
@@ -90,6 +95,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
   // Files last, outside the transaction: if this fails, the account is already gone and a leftover folder can be cleaned up.
   await deps.homes.removeAll(userId).catch(() => undefined);
   for (const id of exportIds) await fs.rm(join(deps.exportsDir, `${id}.zip`), { force: true });
+  for (const id of fileIds) await fs.rm(join(deps.filesDir, id), { force: true });
 }
 
 // The person deleting their own account proves it is them, as strictly as logging in.

@@ -79,6 +79,7 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     now: () => clock.ms,
     homesUrl: (handle) => `https://${handle.toLowerCase()}.example-homes.test/`,
     exportsDir: mkdtempSync(join(tmpdir(), 'exports-test-')),
+    filesDir: mkdtempSync(join(tmpdir(), 'files-test-')),
     homes: new HomeStore(mkdtempSync(join(tmpdir(), 'homes-test-'))),
     oidcClients: opts.oidcClients ?? [],
     irc: opts.irc,

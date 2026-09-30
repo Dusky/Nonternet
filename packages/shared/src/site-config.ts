@@ -56,6 +56,9 @@ export const siteConfigSchema = z
         trusted_ring_quota: z.number().int().nonnegative().default(2),
         // IRC channels a trusted user may register besides ring channels (docs/08, decided 2026-09-30).
         trusted_channel_quota: z.number().int().nonnegative().default(3),
+        // File areas (docs/05, M7): the largest single file, and the space each uploader gets. Admins have no quota.
+        file_max_mb: z.number().positive().default(25),
+        file_quota_mb: z.number().positive().default(250),
       })
       .default({}),
     homes: z

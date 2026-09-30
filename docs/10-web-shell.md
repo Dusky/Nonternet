@@ -20,6 +20,7 @@ Every app also has a normal full-page URL (links, bookmarks, sharing).
 | **Chat** — IRC (`08`) | yes (M5), shown when `services.irc` is on |
 | **People** — public profiles: bio, homepage, rings, MUD characters (`09`) | yes (M6), public |
 | **MUD** — a text log and command line into the world (`09`) | yes (M6), shown when `services.mud` is on |
+| **Files** — file areas: browse, download, upload (trusted), report (`05`) | yes (M7), public |
 | **Mail** — private conversations between two people or a group of up to 10 (Q11) | yes (M7), confirmed users |
 
 ## Desktop layout

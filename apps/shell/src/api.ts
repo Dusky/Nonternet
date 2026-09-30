@@ -26,15 +26,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
-// Sends a file as the whole request body (used by the homepage studio).
-async function upload(path: string, file: Blob | string): Promise<void> {
+// Sends a file as the whole request body (the homepage studio, file areas).
+async function upload<T = void>(path: string, file: Blob | string, method: 'PUT' | 'POST' = 'PUT'): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api/v1${path}`, { method: 'PUT', credentials: 'same-origin', headers: { 'content-type': 'application/octet-stream' }, body: file });
+    res = await fetch(`/api/v1${path}`, { method, credentials: 'same-origin', headers: { 'content-type': 'application/octet-stream' }, body: file });
   } catch {
     throw new ApiError(0, 'network', en['error.network']);
   }
-  if (res.ok) return;
+  if (res.status === 204) return undefined as T;
+  if (res.ok) return (await res.json().catch(() => undefined)) as T;
   const data = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
   throw new ApiError(res.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic']);
 }

@@ -10,14 +10,14 @@ import { newId } from './crypto';
 import type { AppDeps } from './deps';
 
 // Backups and restore tests (docs/15), run by the operator with `cli backup` and `cli restore-test`.
-// A backup is three files in a directory: the database (pg_dump, custom format), the homepage
-// files (tar) and the site config, each encrypted with BACKUP_KEY, and a manifest that records the
+// A backup is a few files in a directory: the database (pg_dump, custom format), the homepage
+// files and the file-area uploads (tar), and the site config, each encrypted with BACKUP_KEY, and a manifest that records the
 // hash of each file and what was counted. A restore test proves the newest backup can be brought
 // back: it checks the hashes, restores into a scratch database, compares the counts, and
 // records the result for the console. Copying the directory off the machine (and keeping
 // APP_SECRET_KEY somewhere safe, apart from it) is the operator's job.
 const MAGIC = Buffer.from('BK1');
-const COUNTED = ['users', 'posts', 'boards', 'rings', 'homepages', 'guestbook_entries', 'exports', 'audit_log'] as const;
+const COUNTED = ['users', 'posts', 'boards', 'rings', 'homepages', 'guestbook_entries', 'exports', 'audit_log', 'files'] as const;
 
 export function parseBackupKey(value: string | undefined): Buffer {
   if (!value) throw new Error('BACKUP_KEY is required: 32 random bytes, base64 (openssl rand -base64 32). Keep it apart from the backups.');
@@ -100,7 +100,7 @@ export async function runBackup(deps: AppDeps, o: BackupOptions): Promise<{ mani
   try {
     await fs.mkdir(o.dir, { recursive: true });
     const stamp = new Date(deps.now()).toISOString().replace(/[-:]/g, '').replace(/\..*/, 'Z');
-    const files: Record<string, string> = { db: `${stamp}-db.dump.enc`, homes: `${stamp}-homes.tar.enc`, config: `${stamp}-config.yaml.enc` };
+    const files: Record<string, string> = { db: `${stamp}-db.dump.enc`, homes: `${stamp}-homes.tar.enc`, files: `${stamp}-files.tar.enc`, config: `${stamp}-config.yaml.enc` };
     o.log?.('dumping the database');
     await encryptedFrom('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', '--dbname', o.databaseUrl], join(o.dir, files.db!), o.key);
     if (o.mudDatabaseUrl) {
@@ -111,11 +111,14 @@ export async function runBackup(deps: AppDeps, o: BackupOptions): Promise<{ mani
     o.log?.('packing homepage files');
     await fs.mkdir(deps.homes.root, { recursive: true });
     await encryptedFrom('tar', ['-C', deps.homes.root, '-cf', '-', '.'], join(o.dir, files.homes!), o.key);
+    o.log?.('packing file-area uploads');
+    await fs.mkdir(deps.filesDir, { recursive: true });
+    await encryptedFrom('tar', ['-C', deps.filesDir, '-cf', '-', '.'], join(o.dir, files.files!), o.key);
     if (o.configFile) await pipeline(createReadStream(o.configFile), encryptor(o.key), createWriteStream(join(o.dir, files.config!)));
     const manifest = {
       format: 'backup-v1', made_at: new Date(deps.now()).toISOString(), run: id,
       files: Object.fromEntries(await Promise.all(Object.entries(files).filter(([k]) => k !== 'config' || o.configFile).map(async ([k, name]) => [k, { name, sha256: await hashFile(join(o.dir, name)), size: (await fs.stat(join(o.dir, name))).size }]))),
-      counts: await counts(deps.db), homepage_files: await countHomeFiles(deps.homes.root),
+      counts: await counts(deps.db), homepage_files: await countHomeFiles(deps.homes.root), area_files: await countHomeFiles(deps.filesDir),
       ...(o.mudDatabaseUrl ? { mud_counts: await mudCounts(o.mudDatabaseUrl) } : {}),
     };
     const name = `${stamp}-manifest.json`;
@@ -147,7 +150,7 @@ export async function restoreTest(deps: AppDeps, o: BackupOptions): Promise<{ ok
     const newest = names.at(-1);
     if (!newest) throw new Error(`No backup found in ${o.dir}.`);
     location = newest;
-    const manifest = JSON.parse(await fs.readFile(join(o.dir, newest), 'utf8')) as { files: Record<string, { name: string; sha256: string; size: number }>; counts: Record<string, number>; homepage_files: number; mud_counts?: Record<string, number> };
+    const manifest = JSON.parse(await fs.readFile(join(o.dir, newest), 'utf8')) as { files: Record<string, { name: string; sha256: string; size: number }>; counts: Record<string, number>; homepage_files: number; area_files?: number; mud_counts?: Record<string, number> };
     for (const [kind, f] of Object.entries(manifest.files)) add(`${kind} file is intact`, f.sha256, await hashFile(join(o.dir, f.name)));
 
     if (checks.every((c) => c.ok)) {
@@ -169,14 +172,18 @@ export async function restoreTest(deps: AppDeps, o: BackupOptions): Promise<{ ok
         for (const [k, v] of Object.entries(manifest.counts)) add(`${k} restored`, v, got[k]);
       } finally { await restored.end(); }
 
-      const tarFile = join(work, 'homes.tar');
-      await decryptTo(join(o.dir, manifest.files.homes!.name), o.key, tarFile);
-      const listing = await new Promise<string>((resolve, reject) => {
-        const p = spawn('tar', ['-tf', tarFile], { stdio: ['ignore', 'pipe', 'pipe'] });
-        let out = ''; p.stdout.on('data', (d) => { out += d; });
-        p.on('close', (c) => (c === 0 ? resolve(out) : reject(new Error('the homepage archive cannot be read'))));
-      });
-      add('homepage files restored', manifest.homepage_files, listing.split('\n').filter((l) => l && !l.endsWith('/')).length);
+      const filesIn = async (kind: string, what: string): Promise<number> => {
+        const tarFile = join(work, `${kind}.tar`);
+        await decryptTo(join(o.dir, manifest.files[kind]!.name), o.key, tarFile);
+        const listing = await new Promise<string>((resolve, reject) => {
+          const p = spawn('tar', ['-tf', tarFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+          let out = ''; p.stdout.on('data', (d) => { out += d; });
+          p.on('close', (c) => (c === 0 ? resolve(out) : reject(new Error(`the ${what} archive cannot be read`))));
+        });
+        return listing.split('\n').filter((l) => l && !l.endsWith('/')).length;
+      };
+      add('homepage files restored', manifest.homepage_files, await filesIn('homes', 'homepage'));
+      if (manifest.files.files && manifest.area_files !== undefined) add('file-area uploads restored', manifest.area_files, await filesIn('files', 'file-area'));
 
       if (manifest.files.mud && manifest.mud_counts) {
         const mudDump = join(work, 'mud.dump');

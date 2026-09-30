@@ -43,6 +43,7 @@ services:
       TRUST_PROXY: "1"
       REDIS_URL: redis://redis:6379
       HOMES_DIR: /data/homes
+      FILES_DIR: /data/files
       HOMES_PUBLIC_PORT: ${HOMES_HTTP_PORT:-8081}
       # Shared with Ergo; core derives the auth-script token, API token and bot password from it.
       IRC_SECRET: ${IRC_SECRET:?set IRC_SECRET in deploy/.env (openssl rand -base64 32)}
@@ -55,6 +56,7 @@ services:
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - homes-data:/data/homes
+      - files-data:/data/files
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -176,6 +178,7 @@ networks:
 volumes:
   ircd-data:
   homes-data:
+  files-data:
   postgres-data:
   redis-data:
   caddy-data:

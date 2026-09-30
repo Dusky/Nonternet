@@ -101,6 +101,10 @@ Mail (`10`, M7): `GET|POST /mail` · `GET /mail/unread` · `GET /mail/:id` · `P
 `POST /mail/:id/leave` · `DELETE /mail/:id/messages/:mid` · `POST /mail/:id/messages/:mid/report` · blocks: `GET|POST /me/blocks` · `POST /me/blocks/remove`.
 Reports gain the target type `mail_message`.
 
+File areas (`05`, M7): `GET /files` · `GET /files/areas/:slug` · `POST /files/areas/:slug/files?name=&title=&description=` (raw body) ·
+`GET /files/:id` · `GET /files/:id/download` · `PATCH|DELETE /files/:id` · `POST /files/:id/report` · `GET /me/files` · admin: `POST /admin/files/areas` ·
+`PATCH /admin/files/areas/:slug` · `POST /admin/files/:id/hide|unhide`. Reports gain the target type `file`.
+
 Vouching (`03`, M7): `GET /me/vouches` · `POST /vouches` · `POST /vouches/withdraw` · admin: `GET /admin/vouches` ·
 `POST /admin/vouches/:userId/confirm` · `POST /admin/vouches/:userId/decline`. The dossier gains `vouching`.
 

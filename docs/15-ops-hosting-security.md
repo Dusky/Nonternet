@@ -77,7 +77,7 @@ Nightly: pg_dump, homes, MUD data (once it exists), config, keys. Encrypted, off
 
 **As built:** the operator runs `node cli.cjs backup --dir /backups` nightly and `node cli.cjs restore-test --dir /backups`
 monthly (cron or a systemd timer on the host, `docker compose exec core ...`). A backup is a `pg_dump` custom-format dump
-plus a tar of the homes directory and the config, streamed through AES-256-GCM with `BACKUP_KEY` (`cli backup-key` makes one),
+plus a tar of the homes directory, a tar of the file-area uploads (`FILES_DIR`, M7) and the config, streamed through AES-256-GCM with `BACKUP_KEY` (`cli backup-key` makes one),
 with a manifest of hashes and row counts. The restore test decrypts the newest backup into a scratch database and compares
 counts, then records the result in `backup_runs`. The console warns when there is no good backup for 26 hours or no passing
 restore test for 35 days. Copying `/backups` off-site is the operator's job (rsync/rclone). `APP_SECRET_KEY` and `BACKUP_KEY`

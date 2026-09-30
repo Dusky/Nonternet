@@ -64,7 +64,7 @@
 | Q10 | ~~Vouching: auto-promote or admin confirm?~~ Resolved 2026-09-30: two trusted users vouch, an admin confirms; sponsors flagged if the person is demoted for abuse soon after (`03`) | — |
 | Q11 | ~~Private mail: local DMs, later netmail?~~ Resolved 2026-09-30: local private messages and small group threads on this site; netmail maybe later with the BBS | — |
 | Q12 | Future federation shape: hub-and-spoke, points, peers | later phase |
-| Q13 | BBS scope beyond boards: file areas, door games, QWK/offline mail, FTN echomail, terminal signup — in or out, and when? File areas: in, built on the web in M7 (2026-09-30); the rest still open | before M8 |
+| Q13 | BBS scope beyond boards: file areas, door games, QWK/offline mail, FTN echomail, terminal signup — in or out, and when? File areas: in, built on the web in M7 (2026-09-30; see `05`); the rest still open | before M8 |
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |

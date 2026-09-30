@@ -40,13 +40,14 @@ export function ReportQueue() {
 function Report({ r }: { r: ReportView }) {
   const t = useT();
   const qc = useQueryClient();
-  const [tool, setTool] = useState<null | 'hide' | 'remove' | 'dismiss' | 'hide-page' | 'hide-entry'>(null);
+  const [tool, setTool] = useState<null | 'hide' | 'remove' | 'dismiss' | 'hide-page' | 'hide-entry' | 'hide-file'>(null);
   const [error, setError] = useState<string | null>(null);
   const done = () => { setTool(null); setError(null); for (const k of ['reports', 'thread', 'threads', 'modlog', 'admin']) void qc.invalidateQueries({ queryKey: [k] }); };
   const act = useMutation({
     mutationFn: (reason: string) => {
       if (tool === 'dismiss') return api.post(`/reports/${r.id}/resolve`, { resolution: 'dismissed', note: reason });
       if (tool === 'hide-page') return api.post(`/admin/homepages/${r.target.id}/hide`, { reason });
+      if (tool === 'hide-file') return api.post(`/admin/files/${r.target.id}/hide`, { reason });
       if (tool === 'hide-entry') return api.post(`/admin/guestbook/${r.target.id}/hide`, { reason });
       return api.post('/mod-actions', { action: tool, post_id: r.target.id, reason });
     },
@@ -61,8 +62,9 @@ function Report({ r }: { r: ReportView }) {
     : t('boards.reports.byPlain', { name: r.reporter.handle });
   const about = r.target.type === 'homepage' ? t('boards.reports.aboutPage', { name: r.target.handle ?? '' })
     : r.target.type === 'guestbook' ? t('boards.reports.aboutEntry', { name: r.target.handle ?? '' })
-    : r.target.type === 'mail_message' ? t('boards.reports.aboutMail', { name: r.target.handle ?? t('mail.deletedPerson') }) : null;
-  const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : t(`boards.mod.${k}`);
+    : r.target.type === 'mail_message' ? t('boards.reports.aboutMail', { name: r.target.handle ?? t('mail.deletedPerson') })
+    : r.target.type === 'file' ? t('boards.reports.aboutFile', { name: r.target.handle ?? t('mail.deletedPerson') }) : null;
+  const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : k === 'hide-file' ? t('boards.reports.hideFile') : t(`boards.mod.${k}`);
   return (
     <li>
       <p>
@@ -91,6 +93,8 @@ function Report({ r }: { r: ReportView }) {
         {open && post && live && <button type="button" className="link" onClick={() => setTool('remove')}>{t('boards.mod.remove')}</button>}
         {open && r.target.type === 'homepage' && <button type="button" className="link" onClick={() => setTool('hide-page')}>{t('boards.reports.hidePage')}</button>}
         {open && r.target.type === 'guestbook' && <button type="button" className="link" onClick={() => setTool('hide-entry')}>{t('boards.reports.hideEntry')}</button>}
+        {r.target.type === 'file' && <OpenAppLink app="files" to="">{t('app.files')}</OpenAppLink>}
+        {open && r.target.type === 'file' && <button type="button" className="link" onClick={() => setTool('hide-file')}>{t('boards.reports.hideFile')}</button>}
         {open && <button type="button" className="link" onClick={() => setTool('dismiss')}>{t('boards.reports.dismiss')}</button>}
       </div>
       {tool && (

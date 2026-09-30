@@ -28,6 +28,7 @@ function rateLimitEnabled(env: Record<string, string | undefined>, production: b
 //   HOMES_DIR        where homepage files live; default ./data/homes
 //   HOMES_PUBLIC_PORT  port in homepage addresses, for local runs only
 //   TLS_ASK_SECRET   shared with Caddy's `ask` URL (?secret=…), optional
+//   FILES_DIR        where file-area uploads live; default ./data/files
 //   EXPORTS_DIR      where export archives are kept until they expire; default ./data/exports
 //   TRUST_PROXY=1    set when core is behind Caddy
 //   RATE_LIMIT=off  turns rate limits off, for automated tests only (refused in production)
@@ -55,6 +56,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     rateLimit: rateLimitEnabled(env, production),
     homesUrl: (handle) => `${publicUrl.startsWith('https://') ? 'https' : 'http'}://${handle.toLowerCase()}.${config.site.homes_domain}${env.HOMES_PUBLIC_PORT ? `:${env.HOMES_PUBLIC_PORT}` : ''}/`,
     exportsDir: resolve(env.EXPORTS_DIR ?? './data/exports'),
+    filesDir: resolve(env.FILES_DIR ?? './data/files'),
     homes: new HomeStore(resolve(env.HOMES_DIR ?? './data/homes')),
     oidcClients: resolveOidcClients(config.oidc.clients, env),
     tlsAskSecret: env.TLS_ASK_SECRET || undefined,

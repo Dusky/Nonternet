@@ -16,6 +16,8 @@ limits:
   trusted_board_quota: 3
   trusted_ring_quota: 2
   trusted_channel_quota: 3   # IRC channels a trusted user may register besides ring channels
+  file_max_mb: 25            # largest single file in the file areas
+  file_quota_mb: 250         # file area space for each uploader (admins have none)
 
 # Services that sign users in through the OIDC provider at /oidc. IRC and the MUD do not use it: they
 # ask core directly (docs/08, 09). A confidential client (a server) needs its secret in core's

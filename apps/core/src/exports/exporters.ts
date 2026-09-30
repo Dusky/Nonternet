@@ -1,3 +1,5 @@
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { AppDeps } from '../deps';
 import { formatMbox } from './mbox';
@@ -189,7 +191,23 @@ const vouching: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching];
+// File areas (docs/05): every file they uploaded, as uploaded, with its details. Areas are made by admins.
+const fileAreas: Exporter = {
+  id: 'files',
+  tables: ['files', 'file_areas'],
+  async run({ deps, user, add }) {
+    const r = await deps.db.query<{ id: string; area: string; name: string; title: string; description: string; size_bytes: string; sha256: string; downloads: number; created_at: Date; hidden_at: Date | null }>(
+      `SELECT f.id, a.slug AS area, f.name, f.title, f.description, f.size_bytes, f.sha256, f.downloads, f.created_at, f.hidden_at
+       FROM files f JOIN file_areas a ON a.id = f.area_id WHERE f.uploader_id = $1 AND f.deleted_at IS NULL ORDER BY f.created_at`, [user.id]);
+    for (const f of r.rows) {
+      const bytes = await fs.readFile(join(deps.filesDir, f.id)).catch(() => null);
+      if (bytes) add(`files/${f.area}/${f.name}`, bytes);
+    }
+    if (r.rowCount) add('files.json', json(r.rows.map((f) => ({ area: f.area, name: f.name, title: f.title, description: f.description, size_bytes: Number(f.size_bytes), sha256: f.sha256, downloads: f.downloads, uploaded_at: f.created_at.toISOString(), hidden: !!f.hidden_at }))));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.
