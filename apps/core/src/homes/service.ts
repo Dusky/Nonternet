@@ -4,6 +4,7 @@ import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import type { Ctx, SessionUser } from '../accounts';
 import { isEditable } from './files';
+import { assetById } from './assets';
 import { templateById } from './templates';
 
 const MB = 1048576;
@@ -101,4 +102,15 @@ export async function setHidden(deps: AppDeps, admin: SessionUser, userId: strin
     await q.query(`UPDATE homepages SET hidden_at = ${hidden ? 'now()' : 'NULL'} WHERE user_id = $1`, [userId]);
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: hidden ? 'homepage.hidden' : 'homepage.restored', targetType: 'homepage', targetId: userId, after: { reason }, origin: 'web', ipHash: ctx.ipHash });
   });
+}
+
+// Copies a library asset into the person's own files, so it is theirs, works offline, and is in their export.
+export async function addAsset(deps: AppDeps, v: SessionUser, id: string): Promise<{ path: string }> {
+  assertCanHost(v);
+  const a = assetById(id);
+  if (!a) throw new ApiError(404, 'not_found', 'No such asset.');
+  const path = `assets/${a.id}.svg`;
+  await deps.homes.write(v.userId, path, Buffer.from(a.svg, 'utf8'), { maxFile: fileMaxBytes(deps), quota: quotaBytes(deps, v.role) });
+  await refresh(deps, v.userId);
+  return { path };
 }

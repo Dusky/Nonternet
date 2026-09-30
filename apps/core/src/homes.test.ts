@@ -135,6 +135,21 @@ describe.skipIf(!dbAvailable)('homepages', () => {
       expect((await d.c.delete('/api/v1/homes/me/file?path=pics')).status).toBe(404);
     });
 
+    it('lists the asset library, serves a picture safely, and copies one into your own files', async () => {
+      const list = (await alice.c.get('/api/v1/homes/assets')).body.assets as { id: string }[];
+      expect(list.map((a) => a.id)).toContain('divider-rainbow');
+      const pic = await ctx.app.inject({ method: 'GET', url: '/api/v1/homes/assets/divider-rainbow' });
+      expect(pic.headers['content-type']).toBe('image/svg+xml');
+      expect(pic.headers['content-security-policy']).toContain("default-src 'none'");
+      expect(pic.headers['x-content-type-options']).toBe('nosniff');
+      expect((await alice.c.get('/api/v1/homes/assets/nope')).status).toBe(404);
+      expect((await alice.c.post('/api/v1/homes/me/assets', { id: 'divider-rainbow' })).body).toEqual({ path: 'assets/divider-rainbow.svg' });
+      expect((await alice.c.post('/api/v1/homes/me/assets', { id: 'divider-rainbow' })).status).toBe(200); // again is fine
+      expect((await alice.c.get('/api/v1/homes/me')).body.files.map((f: { path: string }) => f.path)).toContain('assets/divider-rainbow.svg');
+      expect((await alice.c.post('/api/v1/homes/me/assets', { id: 'nope' })).status).toBe(404);
+      await alice.c.delete('/api/v1/homes/me/file?path=assets');
+    });
+
     it('needs the site’s own origin for changes, and gives each person their own space', async () => {
       const r = await ctx.app.inject({ method: 'PUT', url: '/api/v1/homes/me/file?path=evil.txt', payload: 'x', headers: { origin: 'https://evil.example', cookie: `sid=${alice.c.sid}`, 'content-type': 'text/plain' } });
       expect(r.statusCode).toBe(403);

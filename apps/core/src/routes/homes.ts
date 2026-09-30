@@ -5,6 +5,7 @@ import { requireUser } from '../http';
 import type { AppDeps } from '../deps';
 import { cleanPath, isEditable } from '../homes/files';
 import * as homes from '../homes/service';
+import { ASSETS, assetById } from '../homes/assets';
 import { TEMPLATES } from '../homes/templates';
 import { ApiError } from '../errors';
 
@@ -12,6 +13,15 @@ const pathQuery = z.object({ path: z.string().max(200) });
 
 export function homeRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/homes/templates', async () => ({ templates: TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description })) }));
+
+  app.get('/api/v1/homes/assets', async () => ({ assets: ASSETS.map((a) => ({ id: a.id, title: a.title, category: a.category, width: a.width, height: a.height })) }));
+  // The picture itself, for the studio to show. Locked down so a browser only ever draws it.
+  app.get('/api/v1/homes/assets/:id', async (req, reply) => {
+    const a = assetById(z.object({ id: z.string().max(60) }).parse(req.params).id.replace(/\.svg$/, ''));
+    if (!a) throw new ApiError(404, 'not_found', 'No such asset.');
+    return reply.type('image/svg+xml').header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'").header('x-content-type-options', 'nosniff').header('cache-control', 'public, max-age=86400').send(a.svg);
+  });
+  app.post('/api/v1/homes/me/assets', async (req) => homes.addAsset(deps, requireUser(req), z.object({ id: z.string().max(60) }).parse(req.body).id));
 
   app.get('/api/v1/homes/me', async (req) => homes.getMine(deps, requireUser(req)));
 

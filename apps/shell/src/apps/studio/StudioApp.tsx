@@ -1,0 +1,302 @@
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { HomeFileEntry, HomepageSummary, HomeTemplateInfo } from '@app/shared';
+import { api } from '../../api';
+import { Alert, TextField } from '../../components/ui';
+import { errorText, formatWhen, useT } from '../../hooks';
+import { AppNavLink, matchRoute, useAppNav } from '../../nav';
+
+const CodeEditor = lazy(() => import('./CodeEditor'));
+interface Mine { homepage: HomepageSummary; files: HomeFileEntry[] }
+interface AssetInfo { id: string; title: string; category: string; width: number; height: number }
+
+const ROUTES = ['files', 'assets', 'settings'] as const;
+const fmt = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
+
+export default function StudioApp() {
+  const t = useT();
+  const nav = useAppNav();
+  const route = matchRoute(nav.path, ROUTES);
+  useEffect(() => { if (!route) nav.go('files', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
+  const q = useQuery({ queryKey: ['studio'], queryFn: () => api.get<Mine>('/homes/me') });
+  if (q.isError) return <div className="app-content"><Alert kind="error">{errorText(q.error)}</Alert></div>;
+  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  const { homepage } = q.data;
+  return (
+    <div className="app">
+      <nav className="tabs" aria-label={t('app.studio')}>
+        <AppNavLink to="files">{t('studio.tab.files')}</AppNavLink>
+        <AppNavLink to="assets">{t('studio.tab.assets')}</AppNavLink>
+        <AppNavLink to="settings">{t('studio.tab.settings')}</AppNavLink>
+      </nav>
+      <div className="app-content">
+        <Usage h={homepage} />
+        {route?.pattern === 'files' && <Files mine={q.data} />}
+        {route?.pattern === 'assets' && <Assets />}
+        {route?.pattern === 'settings' && <Settings h={homepage} />}
+      </div>
+    </div>
+  );
+}
+
+function Usage({ h }: { h: HomepageSummary }) {
+  const t = useT();
+  return (
+    <div className="usage">
+      <p>
+        <a href={h.url} target="_blank" rel="noopener noreferrer">{t('studio.view')}</a>
+        {' · '}<span className="muted">{h.last_updated_at ? t('studio.updated', { when: formatWhen(h.last_updated_at) ?? '' }) : t('studio.never')}</span>
+      </p>
+      <progress value={h.size_bytes} max={h.quota_bytes} aria-label={t('studio.usageLabel')} />
+      <p className="hint">{t('studio.usage', { used: fmt(h.size_bytes), quota: fmt(h.quota_bytes) })}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- files
+
+function Files({ mine }: { mine: Mine }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [folder, setFolder] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [adding, setAdding] = useState<null | 'file' | 'folder'>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['studio'] }), [qc]);
+
+  const uploadAll = async (files: File[]) => {
+    setError(null); setNote(null);
+    try {
+      for (const f of files) await api.upload(`/homes/me/file?path=${encodeURIComponent(folder ? `${folder}/${f.name}` : f.name)}`, f);
+      setNote(t('studio.files.uploaded', { count: files.length }));
+    } catch (e) { setError(errorText(e)); }
+    void refresh();
+  };
+  const onDrop = (e: DragEvent) => { e.preventDefault(); setDragging(false); void uploadAll([...e.dataTransfer.files]); };
+  const del = useMutation({
+    mutationFn: (path: string) => api.del(`/homes/me/file?path=${encodeURIComponent(path)}`),
+    onSuccess: () => { setError(null); void refresh(); }, onError: (e) => setError(errorText(e)),
+  });
+  const move = useMutation({
+    mutationFn: (v: { from: string; to: string }) => api.post('/homes/me/move', v),
+    onSuccess: () => { setRenaming(null); setError(null); void refresh(); }, onError: (e) => setError(errorText(e)),
+  });
+
+  if (editing) return <Editor path={editing} url={mine.homepage.url} onClose={() => { setEditing(null); void refresh(); }} />;
+  if (!mine.homepage.has_index) return <Templates onDone={() => void refresh()} />;
+
+  const inFolder = mine.files.filter((f) => (f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '') === folder);
+  const parts = folder ? folder.split('/') : [];
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop}
+      className={dragging ? 'dropzone is-over' : 'dropzone'}
+    >
+      <nav aria-label="Folder" className="crumbs">
+        <button type="button" className="link" onClick={() => setFolder('')} aria-current={folder === '' ? 'true' : undefined}>{t('studio.files.root')}</button>
+        {parts.map((p, i) => (
+          <span key={i}> / <button type="button" className="link" onClick={() => setFolder(parts.slice(0, i + 1).join('/'))}>{p}</button></span>
+        ))}
+      </nav>
+      <div className="toolbar">
+        <button type="button" className="btn" onClick={() => setAdding('file')}>{t('studio.files.new')}</button>
+        <button type="button" className="btn" onClick={() => setAdding('folder')}>{t('studio.files.newFolder')}</button>
+        <label className="btn">
+          {t('studio.files.upload')}
+          <input type="file" multiple className="visually-hidden" onChange={(e) => { void uploadAll([...(e.target.files ?? [])]); e.target.value = ''; }} />
+        </label>
+      </div>
+      <p className="hint">{t('studio.files.drop', { folder: folder || t('studio.files.root') })}</p>
+      {adding && (
+        <NameForm label={t('studio.files.name')} hint={t('studio.files.nameHint')} submit={t('studio.files.create')} initial=""
+          onCancel={() => setAdding(null)}
+          onSubmit={async (name) => {
+            const path = folder ? `${folder}/${name}` : name;
+            try {
+              if (adding === 'folder') await api.post('/homes/me/folders', { path });
+              else await api.upload(`/homes/me/file?path=${encodeURIComponent(path)}`, '');
+              setAdding(null); setError(null); void refresh();
+              if (adding === 'file') setEditing(path);
+            } catch (e) { setError(errorText(e)); }
+          }} />
+      )}
+      {error && <Alert kind="error">{error}</Alert>}
+      {note && <Alert kind="success">{note}</Alert>}
+      {inFolder.length === 0 && <p>{t('studio.files.none')}</p>}
+      <ul className="rows files">
+        {inFolder.map((f) => {
+          const name = f.path.split('/').pop()!;
+          return (
+            <li key={f.path}>
+              {f.type === 'dir'
+                ? <button type="button" className="link" onClick={() => setFolder(f.path)}><span aria-hidden="true">📁 </span>{name}/</button>
+                : <strong>{name}</strong>}
+              {f.type === 'file' && <span className="muted"> {fmt(f.size)}</span>}
+              <span className="file-actions">
+                {f.editable && <button type="button" className="link" onClick={() => setEditing(f.path)} aria-label={`${t('studio.files.edit')} ${f.path}`}>{t('studio.files.edit')}</button>}
+                {f.type === 'file' && <a href={`${mine.homepage.url}${f.path}`} target="_blank" rel="noopener noreferrer" aria-label={`${t('studio.files.open')} ${f.path}`}>{t('studio.files.open')}</a>}
+                <button type="button" className="link" onClick={() => setRenaming(f.path)} aria-label={`${t('studio.files.rename')} ${f.path}`}>{t('studio.files.rename')}</button>
+                <button type="button" className="link" aria-label={`${t('studio.files.delete')} ${f.path}`} onClick={() => {
+                  if (window.confirm(f.type === 'dir' ? t('studio.files.folderDeleteConfirm', { name: f.path }) : t('studio.files.deleteConfirm', { name: f.path }))) del.mutate(f.path);
+                }}>{t('studio.files.delete')}</button>
+              </span>
+              {renaming === f.path && (
+                <NameForm label={t('studio.files.renameTo')} hint={t('studio.files.nameHint')} submit={t('studio.files.rename')} initial={f.path}
+                  onCancel={() => setRenaming(null)} onSubmit={(to) => move.mutate({ from: f.path, to })} />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function NameForm({ label, hint, submit, initial, onSubmit, onCancel }: { label: string; hint: string; submit: string; initial: string; onSubmit: (v: string) => void; onCancel: () => void }) {
+  const t = useT();
+  const [v, setV] = useState(initial);
+  return (
+    <form className="panel" onSubmit={(e: FormEvent) => { e.preventDefault(); onSubmit(v.trim()); }}>
+      <TextField label={label} hint={hint} value={v} onChange={setV} autoCapitalize="none" spellCheck={false} required />
+      <div className="actions">
+        <button type="submit" className="btn btn-primary">{submit}</button>
+        <button type="button" className="btn btn-quiet" onClick={onCancel}>{t('common.cancel')}</button>
+      </div>
+    </form>
+  );
+}
+
+function Templates({ onDone }: { onDone: () => void }) {
+  const t = useT();
+  const [error, setError] = useState<string | null>(null);
+  const list = useQuery({ queryKey: ['studio', 'templates'], queryFn: () => api.get<{ templates: HomeTemplateInfo[] }>('/homes/templates') });
+  const use = useMutation({
+    mutationFn: (id: string) => api.post('/homes/me/template', { template: id }),
+    onSuccess: onDone, onError: (e) => setError(errorText(e)),
+  });
+  return (
+    <section aria-labelledby="start-h">
+      <h2 id="start-h">{t('studio.start.title')}</h2>
+      <p>{t('studio.start.hint')}</p>
+      {error && <Alert kind="error">{error}</Alert>}
+      <ul className="cards">
+        {list.data?.templates.map((tpl) => (
+          <li key={tpl.id} className="panel">
+            <h3>{tpl.title}</h3>
+            <p>{tpl.description}</p>
+            <button type="button" className="btn btn-primary" disabled={use.isPending} onClick={() => use.mutate(tpl.id)}>{t('studio.start.use', { name: tpl.title })}</button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- editor with preview
+
+function Editor({ path, url, onClose }: { path: string; url: string; onClose: () => void }) {
+  const t = useT();
+  const [text, setText] = useState<string | null>(null);
+  const saved = useRef('');
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [stamp, setStamp] = useState(() => Date.now());
+  const latest = useRef('');
+
+  useEffect(() => {
+    let live = true;
+    api.get<{ content: string }>(`/homes/me/file?path=${encodeURIComponent(path)}`)
+      .then((r) => { if (live) { setText(r.content); saved.current = r.content; latest.current = r.content; } })
+      .catch((e) => live && setError(errorText(e)));
+    return () => { live = false; };
+  }, [path]);
+
+  const save = useCallback(async () => {
+    setError(null);
+    try {
+      await api.upload(`/homes/me/file?path=${encodeURIComponent(path)}`, latest.current);
+      saved.current = latest.current; setDirty(false); setStatus(t('studio.edit.saved')); setStamp(Date.now());
+    } catch (e) { setError(errorText(e)); }
+  }, [path, t]);
+
+  const close = () => { if (!dirty || window.confirm(t('studio.edit.leave'))) onClose(); };
+  const previewable = /\.(html?|svg|txt|css)$/i.test(path);
+  return (
+    <section aria-labelledby="edit-h">
+      <h2 id="edit-h">{t('studio.edit.title', { name: path })}</h2>
+      <div className="toolbar">
+        <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={!dirty}>{t('studio.edit.save')}</button>
+        <button type="button" className="btn" onClick={close}>{t('studio.edit.close')}</button>
+        {dirty && <span className="muted" role="status">{t('studio.edit.unsaved')}</span>}
+      </div>
+      {error && <Alert kind="error">{error}</Alert>}
+      {status && !dirty && <p role="status" className="muted">{status}</p>}
+      <div className="editor-split">
+        {text !== null && (
+          <Suspense fallback={<p>{t('common.loading')}</p>}>
+            <CodeEditor path={path} value={text} label={t('studio.edit.editor', { name: path })}
+              onChange={(v) => { latest.current = v; setDirty(v !== saved.current); }} onSave={() => void save()} />
+          </Suspense>
+        )}
+        {previewable && <iframe className="preview-frame" title={t('studio.edit.preview', { name: path })} src={`${url}${path}?v=${stamp}`} />}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- assets and settings
+
+function Assets() {
+  const t = useT();
+  const qc = useQueryClient();
+  const [added, setAdded] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const list = useQuery({ queryKey: ['studio', 'assets'], queryFn: () => api.get<{ assets: AssetInfo[] }>('/homes/assets') });
+  const add = useMutation({
+    mutationFn: (id: string) => api.post<{ path: string }>('/homes/me/assets', { id }),
+    onSuccess: (r) => { setAdded(r.path); setError(null); void qc.invalidateQueries({ queryKey: ['studio'] }); }, onError: (e) => setError(errorText(e)),
+  });
+  return (
+    <>
+      <p>{t('studio.assets.hint')}</p>
+      {error && <Alert kind="error">{error}</Alert>}
+      {added && <Alert kind="success">{t('studio.assets.added', { snippet: `<img src="${added}" alt="">` })}</Alert>}
+      <ul className="cards asset-grid">
+        {list.data?.assets.map((a) => (
+          <li key={a.id} className="panel">
+            <img src={`/api/v1/homes/assets/${a.id}`} alt="" width={a.width} height={a.height} className="asset-preview" />
+            <p>{a.title}</p>
+            <button type="button" className="btn" disabled={add.isPending} onClick={() => add.mutate(a.id)} aria-label={t('studio.assets.add', { name: a.title })}>{t('studio.assets.add', { name: a.title })}</button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function Settings({ h }: { h: HomepageSummary }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [title, setTitle] = useState(h.title);
+  const [description, setDescription] = useState(h.description);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: () => api.patch('/homes/me', { title, description }),
+    onSuccess: () => { setSaved(true); setError(null); void qc.invalidateQueries({ queryKey: ['studio'] }); }, onError: (e) => { setSaved(false); setError(errorText(e)); },
+  });
+  return (
+    <form className="panel" onSubmit={(e) => { e.preventDefault(); setSaved(false); save.mutate(); }}>
+      <TextField label={t('studio.settings.title')} value={title} onChange={setTitle} maxLength={100} />
+      <TextField label={t('studio.settings.description')} hint={t('studio.settings.descriptionHint')} value={description} onChange={setDescription} maxLength={300} multiline />
+      {error && <Alert kind="error">{error}</Alert>}
+      {saved && <Alert kind="success">{t('studio.settings.saved')}</Alert>}
+      <button className="btn btn-primary" type="submit" disabled={save.isPending}>{t('common.save')}</button>
+    </form>
+  );
+}

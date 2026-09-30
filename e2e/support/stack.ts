@@ -12,6 +12,9 @@ export const ROOT = resolve(here, '..', '..');
 export const TMP = resolve(here, '..', '.tmp');
 export const SHELL_PORT = Number(process.env.E2E_SHELL_PORT ?? 4373);
 export const CORE_PORT = Number(process.env.E2E_CORE_PORT ?? 3373);
+export const HOMES_PORT = Number(process.env.E2E_HOMES_PORT ?? 4374);
+// Homepages live on subdomains of this. The browser is told to send them all to this machine.
+export const HOMES_DOMAIN = 'e2e-homes.test';
 export const BASE_URL = `http://127.0.0.1:${SHELL_PORT}`;
 export const OIDC_CALLBACK = `${BASE_URL}/e2e-callback`;
 export const SITE_NAME = 'E2E Test Site';
@@ -44,7 +47,7 @@ export async function startStack(): Promise<() => Promise<void>> {
   dbUrl.pathname = `/${dbName}`;
 
   writeFileSync(join(TMP, 'site.yaml'), `
-site: { name: ${SITE_NAME}, short_name: e2etest, domain: 127.0.0.1, homes_domain: e2e-homes.test }
+site: { name: ${SITE_NAME}, short_name: e2etest, domain: 127.0.0.1, homes_domain: ${HOMES_DOMAIN} }
 signup: { mode: invite }
 oidc:
   clients:
@@ -58,6 +61,9 @@ oidc:
     PUBLIC_URL: BASE_URL,
     NODE_ENV: 'development',
     PORT: String(CORE_PORT),
+    HOMES_DIR: join(TMP, 'homes'),
+    HOMES_PUBLIC_PORT: String(HOMES_PORT),
+    HOMES_PORT: String(HOMES_PORT),
     RATE_LIMIT: 'off', // the tests sign up far more people than one address may in an hour
     ...(process.env.TEST_REDIS_URL ? { REDIS_URL: process.env.TEST_REDIS_URL } : {}),
   };
@@ -75,6 +81,8 @@ oidc:
 
   start('core', process.execPath, [coreBundle], join(ROOT, 'apps/core'));
   await waitFor(`http://127.0.0.1:${CORE_PORT}/healthz`, 'core', join(TMP, 'core.log'));
+  start('homes', process.execPath, [join(ROOT, 'apps/core/dist/homes-main.cjs')], join(ROOT, 'apps/core'));
+  await waitFor(`http://127.0.0.1:${HOMES_PORT}/healthz`, 'homes', join(TMP, 'homes.log'));
   start('shell', join(ROOT, 'apps/shell/node_modules/.bin/vite'), ['preview', '--host', '127.0.0.1', '--port', String(SHELL_PORT), '--strictPort'], join(ROOT, 'apps/shell'), { CORE_URL: `http://127.0.0.1:${CORE_PORT}` });
   await waitFor(`${BASE_URL}/`, 'shell', join(TMP, 'shell.log'));
 

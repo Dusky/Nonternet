@@ -52,6 +52,15 @@ or SFTP with terminal password; git push deploys.
   every HTML page gets the report link. Hidden pages give 410, suspended or deleted people 404.
   `{homes_domain}/u/{user_id}/` redirects to the current handle. Old handles redirect for 90 days
   (`handle_history`, filled by the future rename call).
+- **Studio** (`Homepage studio` app, `/studio`): pick a template (three, written for this project), then
+  files (create, upload by button or drag and drop, rename or move, delete, folders), the CodeMirror
+  editor with a preview of the saved page, the asset library, and title and description. The preview
+  frames the real homepage address, so it is exactly what visitors get.
+- **Asset library:** 13 SVGs drawn for this project (dividers, five 88x31 buttons, three backgrounds, a sign) so there
+  is nothing to license (V10 does not apply to them). Adding one copies it into the person's own
+  `assets/` folder, so it is theirs and will be in their export. Classic animated GIFs are not included.
+- **Isolation is tested in a real browser:** a script on a homepage sees no cookies, cannot read the
+  shell API, and a forged cross-site logout does not sign the visitor out (`studio.spec.ts`).
 - Per-user quota overrides (docs say admin-configurable) are not built; the role quotas are.
 
 ## Acceptance tests
