@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# sitectl: running the site in production (docs/19). Run it from deploy/, on the server.
+#   ./sitectl doctor          check the configuration, DNS, TLS, ports and health
+#   ./sitectl up              build and start (or update) everything
+#   ./sitectl backup          encrypted backup into ./backups (run nightly from cron)
+#   ./sitectl restore-test    prove the newest backup restores (run monthly)
+#   ./sitectl upgrade         back up, pull the new version, rebuild, restart, check health
+#   ./sitectl irc-reload      make Ergo reload its TLS certificate (weekly, from cron)
+#   ./sitectl create-admin <handle> <email>     the first admin (asks for a password)
+#   ./sitectl logs [service]  ./sitectl ps
+set -euo pipefail
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+cd "$(dirname "$SELF")"
+COMPOSE=(docker compose -f compose.yaml -f compose.prod.yaml --env-file .env)
+say() { printf '%s\n' "$*"; }
+ok() { printf '  \033[32mok\033[0m    %s\n' "$*"; }
+bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; FAILED=1; }
+warn() { printf '  \033[33mwarn\033[0m  %s\n' "$*"; }
+envval() { grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2-; }
+
+doctor() {
+  FAILED=0
+  say "Configuration (.env)"
+  [ -f .env ] || { bad ".env is missing: cp .env.example .env and fill it in"; return 1; }
+  for k in POSTGRES_PASSWORD APP_SECRET_KEY IRC_SECRET MUD_SECRET BBS_SECRET SITE_DOMAIN HOMES_DOMAIN DB_RUNTIME_PASSWORD TLS_ASK_SECRET BACKUP_KEY SMTP_URL MAIL_FROM SITE_CONFIG_FILE; do
+    v=$(envval "$k"); if [ -z "$v" ]; then bad "$k is not set"; else ok "$k is set"; fi
+  done
+  for k in APP_SECRET_KEY IRC_SECRET MUD_SECRET BBS_SECRET TLS_ASK_SECRET; do
+    v=$(envval "$k"); [ -n "$v" ] && [ "${#v}" -lt 32 ] && bad "$k is shorter than 32 characters"
+  done
+  [ "$(envval POSTGRES_PASSWORD)" = "change-me" ] && bad "POSTGRES_PASSWORD is still change-me"
+  cfg=$(envval SITE_CONFIG_FILE); [ -f "${cfg:-x}" ] && ok "site config $cfg exists" || bad "site config ${cfg:-?} is missing"
+  domain=$(envval SITE_DOMAIN); homes=$(envval HOMES_DOMAIN)
+
+  say "DNS"
+  me=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)
+  for name in "$domain" "irc.$domain" "check-dns.$homes"; do
+    ip=$(getent ahostsv4 "$name" 2>/dev/null | awk 'NR==1{print $1}')
+    if [ -z "$ip" ]; then bad "$name does not resolve (the homes domain needs a wildcard: *.$homes)"
+    elif [ -n "$me" ] && [ "$ip" != "$me" ]; then warn "$name points at $ip, this server looks like $me"
+    else ok "$name → $ip"; fi
+  done
+
+  say "Services"
+  if "${COMPOSE[@]}" ps --format '{{.Service}} {{.State}} {{.Health}}' >/tmp/sitectl.ps 2>/dev/null; then
+    while read -r svc state health; do
+      case "$state/$health" in running/healthy|running/) ok "$svc is $state${health:+ ($health)}" ;; *) bad "$svc is $state${health:+ ($health)}" ;; esac
+    done </tmp/sitectl.ps
+  else warn "the stack is not running (./sitectl up)"; fi
+
+  say "The site"
+  if curl -fsS --max-time 10 "https://$domain/readyz" >/dev/null 2>&1; then ok "https://$domain answers"; else bad "https://$domain/readyz does not answer"; fi
+  end=$(echo | openssl s_client -connect "$domain:443" -servername "$domain" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+  if [ -n "$end" ]; then days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 )); [ "$days" -lt 14 ] && bad "the certificate ends in $days days" || ok "the certificate is good for $days days"
+  else bad "no TLS certificate on $domain:443"; fi
+  for p in 6697 23 4000 70; do
+    if timeout 5 bash -c "</dev/tcp/$domain/$p" 2>/dev/null; then ok "port $p is open"; else warn "port $p does not answer (only matters if that service is on)"; fi
+  done
+  [ "$FAILED" = 0 ] && say "All good." || { say "Fix the FAIL lines above."; return 1; }
+}
+
+case "${1:-help}" in
+  doctor) doctor ;;
+  up) "${COMPOSE[@]}" up -d --build --wait ;;
+  backup) mkdir -p backups && "${COMPOSE[@]}" exec -T core node cli.cjs backup --dir /backups ;;
+  restore-test) "${COMPOSE[@]}" exec -T core node cli.cjs restore-test --dir /backups ;;
+  upgrade)
+    say "Backing up first…"; "$SELF" backup
+    git -C .. pull --ff-only
+    "${COMPOSE[@]}" up -d --build --wait
+    curl -fsS --max-time 20 "https://$(envval SITE_DOMAIN)/readyz" >/dev/null && say "Upgraded, and the site answers." || { say "The site does not answer after the upgrade: ./sitectl logs core"; exit 1; } ;;
+  irc-reload) "${COMPOSE[@]}" kill -s HUP ergo ;;
+  create-admin) [ $# -eq 3 ] || { say "Usage: ./sitectl create-admin <handle> <email>"; exit 2; }; "${COMPOSE[@]}" exec core node cli.cjs create-admin --handle "$2" --email "$3" ;;
+  logs) shift; "${COMPOSE[@]}" logs --tail 200 -f "$@" ;;
+  ps) "${COMPOSE[@]}" ps ;;
+  *) sed -n '2,11p' "$SELF" | sed 's/^# \{0,1\}//' ;;
+esac

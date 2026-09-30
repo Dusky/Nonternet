@@ -5,8 +5,10 @@ The site is hosted by its admins (DECIDED). This doc covers running it well.
 ## Deployment
 - `docker compose` on one server to start (PROPOSED: 4 vCPU / 8 GB RAM / 160 GB+ disk as a
   starting point; measure).
-- `site.yaml` + `.env` secrets → `sitectl render-config` produces Caddy, Ergo, MUD (and later BBS) configs.
-- `sitectl doctor` checks DNS, TLS, ports, health; `sitectl backup|restore|upgrade`.
+- **As built:** `deploy/compose.yaml` (local) with `deploy/compose.prod.yaml` laid over it for production, driven by
+  `deploy/sitectl` (`doctor`, `up`, `backup`, `restore-test`, `upgrade`, `irc-reload`, `create-admin`, `logs`,
+  `ps`). Configs are rendered at start-up from the site config (Ergo by `cli irc-config`; the BBS and MUD read
+  it directly), so there is no separate render step. Step-by-step: `19-operating.md`.
 
 ```yaml
 site:
@@ -36,6 +38,10 @@ DB-backed versioned settings (`11`) override runtime keys; `site.*` only via con
 | `SMTP_URL`, `MAIL_FROM` | outgoing mail. Without `SMTP_URL`, mail is written to the log |
 | `TRUST_PROXY=1` | set when core is behind Caddy, so client addresses are read correctly |
 | `NODE_ENV` | `production` drops the localhost origins that development allows |
+| `MIGRATION_DATABASE_URL` | the database owner, for migrations (and backups); with it, `DATABASE_URL` can be a lesser role |
+| `DB_RUNTIME_ROLE`, `DB_RUNTIME_PASSWORD` | the role core runs as: made if missing, granted everything except changing the audit log |
+| `IRC_HISTORY_DATABASE_URL` | Ergo's chat history database, read for exports and dumped by backups (Q9) |
+| `BBS_SECRET` | shared with the BBS (32+ characters); turns it on |
 
 ## Hosting costs & quotas
 - Budget drivers: homepage storage, bandwidth, backups, email sending.

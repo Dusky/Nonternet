@@ -1,0 +1,102 @@
+# Production (docs/15, docs/19). Laid over compose.yaml:
+#   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d --build
+# or simply `./sitectl up`. What changes from the local stack:
+#   - Caddy serves the real domains with TLS (Caddyfile.prod) on 80 and 443;
+#   - core runs in production mode as a database role that cannot change the audit log;
+#   - the public ports are the real ones (IRC over TLS, MUD, BBS, Gopher), nothing else is published;
+#   - every service restarts on failure and keeps its logs small.
+# Required in .env on top of the local ones: SITE_DOMAIN, HOMES_DOMAIN, DB_RUNTIME_PASSWORD, TLS_ASK_SECRET,
+# BACKUP_KEY, SMTP_URL, MAIL_FROM. `./sitectl doctor` checks them.
+
+x-prod: &prod
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  postgres:
+    <<: *prod
+
+  redis:
+    <<: *prod
+
+  core:
+    <<: *prod
+    environment:
+      NODE_ENV: production
+      PUBLIC_URL: https://${SITE_DOMAIN:?set SITE_DOMAIN in deploy/.env}
+      # Core connects as core_rt, which cannot UPDATE, DELETE or TRUNCATE the audit log; migrations run as the owner.
+      DATABASE_URL: postgres://core_rt:${DB_RUNTIME_PASSWORD:?set DB_RUNTIME_PASSWORD in deploy/.env}@postgres:5432/app
+      MIGRATION_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/app
+      DB_RUNTIME_ROLE: core_rt
+      DB_RUNTIME_PASSWORD: ${DB_RUNTIME_PASSWORD}
+      TLS_ASK_SECRET: ${TLS_ASK_SECRET:?set TLS_ASK_SECRET in deploy/.env}
+      BACKUP_KEY: ${BACKUP_KEY:?set BACKUP_KEY in deploy/.env (docker compose run --rm core node cli.cjs backup-key)}
+      SMTP_URL: "${SMTP_URL:?set SMTP_URL in deploy/.env, production must send email}"
+      MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM in deploy/.env}
+      HOMES_PUBLIC_PORT: ""
+    volumes:
+      - ./backups:/backups
+
+  homes:
+    <<: *prod
+    environment:
+      NODE_ENV: production
+      PUBLIC_URL: https://${SITE_DOMAIN}
+      HOMES_PUBLIC_PORT: ""
+      DATABASE_URL: postgres://core_rt:${DB_RUNTIME_PASSWORD}@postgres:5432/app
+
+  gopher:
+    <<: *prod
+    environment:
+      NODE_ENV: production
+      PUBLIC_URL: https://${SITE_DOMAIN}
+      DATABASE_URL: postgres://core_rt:${DB_RUNTIME_PASSWORD}@postgres:5432/app
+    ports: !override
+      - "70:7070"
+
+  bbs:
+    <<: *prod
+    environment:
+      PUBLIC_URL: https://${SITE_DOMAIN}
+    # 22 is usually the host's own SSH; the BBS takes 2222 unless you move the host's sshd.
+    ports: !override
+      - "23:2323"
+      - "${BBS_SSH_PUBLIC_PORT:-2222}:2222"
+
+  mud:
+    <<: *prod
+    ports: !override
+      - "4000:4000"
+
+  irc-config:
+    environment:
+      PUBLIC_URL: https://${SITE_DOMAIN}
+      # Ergo serves native clients over TLS with the certificate Caddy obtains for irc.<domain> (see Caddyfile.prod).
+      IRC_TLS_CERT: /caddy/certificates/acme-v02.api.letsencrypt.org-directory/irc.${SITE_DOMAIN}/irc.${SITE_DOMAIN}.crt
+      IRC_TLS_KEY: /caddy/certificates/acme-v02.api.letsencrypt.org-directory/irc.${SITE_DOMAIN}/irc.${SITE_DOMAIN}.key
+
+  ergo:
+    <<: *prod
+    volumes:
+      - caddy-data:/caddy:ro
+    ports: !override
+      - "6697:6697"
+
+  shell:
+    <<: *prod
+
+  caddy:
+    <<: *prod
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      HOMES_DOMAIN: ${HOMES_DOMAIN:?set HOMES_DOMAIN in deploy/.env}
+      TLS_ASK_SECRET: ${TLS_ASK_SECRET}
+    volumes: !override
+      - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    ports: !override
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
