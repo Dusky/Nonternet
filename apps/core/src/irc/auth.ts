@@ -1,4 +1,5 @@
 import { audit } from '../audit';
+import { noteActive } from '../activity';
 import { randomToken, sha256 } from '../crypto';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
@@ -30,13 +31,16 @@ export async function checkTerminalLogin(deps: AppDeps, service: TerminalService
     const used = await deps.db.query(
       `UPDATE terminal_tickets SET used_at = now() WHERE token_hash = $1 AND user_id = $2 AND service = $4 AND used_at IS NULL AND expires_at > to_timestamp($3 / 1000.0)`,
       [sha256(passphrase), u.id, deps.now(), service]);
+    if (used.rowCount) noteActive(deps, u.id, service);
     return used.rowCount ? { ok: true, user: u } : { ok: false, error: 'ticket not valid' };
   }
   if (!u.terminal_password_hash) {
     await burnPasswordCheck(passphrase);
     return { ok: false, error: 'no terminal password set' };
   }
-  return (await verifyPassword(u.terminal_password_hash, passphrase)) ? { ok: true, user: u } : { ok: false, error: 'wrong password' };
+  if (!(await verifyPassword(u.terminal_password_hash, passphrase))) return { ok: false, error: 'wrong password' };
+  noteActive(deps, u.id, service);
+  return { ok: true, user: u };
 }
 
 // Ergo's auth-script answer (docs/08).

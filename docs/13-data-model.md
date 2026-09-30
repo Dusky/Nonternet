@@ -118,7 +118,7 @@ metrics_rollup (metric, bucket timestamptz, value double precision)  -- console 
 ```
 Presence lives in Redis: `presence:{user_id}` → services + since.
 
-M7 tables (migrations 0021–0023):
+M7 tables (migrations 0021–0024):
 ```
 mail_threads (id mt_, subject, created_by, created_at, last_message_at)
 mail_participants (thread_id, user_id, joined_at, left_at, last_read_at)   -- newcomers read from joined_at
@@ -129,6 +129,7 @@ sponsor_flags (id sf_, vouch_id unique, voucher_id, candidate_id, reason demoted
 file_areas (id fa_, slug, name, description, visibility public|members, upload_role user|trusted|admin, archived_at)
 files (id f_, area_id, uploader_id?, name, title, description, size_bytes, sha256, downloads, hidden_at, deleted_at)
                                    -- the bytes are FILES_DIR/{id}
+activity_days (user_id, day, services[])   -- stats only; one row per person per day (0024)
 ```
 
 ## Invariants (enforce and test)

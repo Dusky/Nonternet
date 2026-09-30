@@ -237,6 +237,7 @@ export const EXEMPT: Record<string, string> = {
   home_hit_seen: 'anonymous, short-lived counter records',
   exports: 'the export records themselves',
   metrics_rollup: 'site-wide numbers, not a person’s content',
+  activity_days: 'which days an account was used, for site statistics; not content',
   backup_runs: 'the operator’s backup and restore-test record',
   settings_current: 'site-wide settings set by admins',
   settings_history: 'site-wide settings history kept by admins',

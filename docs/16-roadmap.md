@@ -84,6 +84,8 @@ confirms); web file areas; a read-only Gopher mirror. Not in M7: Gemini, new the
   within 90 days (`vouches.test.ts`, `vouches.spec.ts`; design in `03`).
 - [x] Web file areas: admin-made areas, trusted uploads with quotas, download-only serving, reports and hiding,
   backups, export and deletion (`files.test.ts`, `files.spec.ts`; design in `05`).
+- [x] Console depth: audit replay with diffs, stats (DAU/WAU/MAU, retention cohorts, posting heatmap, CSV), command
+  console mapped to core functions and audited (`console.test.ts`, `diff.test.ts`, `console.spec.ts`; design in `11`).
 - [x] Read-only Gopher mirror of public boards, homepages and file areas (`gopher.test.ts`; design in `05`).
 
 ## M8 — BBS (in-house, last)

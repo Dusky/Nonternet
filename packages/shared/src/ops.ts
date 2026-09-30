@@ -30,3 +30,17 @@ export const grantOpSchema = z
   });
 
 export const opClaim = (scope: OpScope, scopeId: string): string => `${scope}:${scopeId}`;
+
+// Console stats (docs/11 §9). Days and hours are UTC.
+export interface AdminStats {
+  days: { day: string; dau: number; wau: number; mau: number; signups: number; posts: number }[];
+  // active[i] = people from that signup week who were active i weeks later (0 = the signup week).
+  cohorts: { week: string; size: number; active: number[] }[];
+  heatmap: number[][];   // 7 weekdays (Monday first) × 24 hours: posts
+  totals: { users: number; posts: number; homepages: number; rings: number; files: number; mail_messages: number };
+  range: { days: number; weeks: number; until: string };
+}
+
+// The command console (docs/11 §11).
+export interface ConsoleCommandSpec { name: string; usage: string; summary: string; args: string[] }
+export interface ConsoleResult { lines: string[]; table?: { columns: string[]; rows: string[][] } }

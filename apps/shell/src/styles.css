@@ -298,3 +298,32 @@ ul.plain { list-style: none; margin: 0; padding: 0; }
 /* File areas (docs/05) */
 .file-description { white-space: pre-wrap; }
 .checksum { word-break: break-all; font-size: .85em; }
+
+/* Console depth (docs/11): replay, stats, command console */
+.replay-scrub { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.replay-scrub input[type=range] { flex: 1; min-width: 8rem; }
+.diff-table del { text-decoration: line-through; color: var(--danger); }
+.diff-table ins { text-decoration: none; font-weight: 700; }
+.replay-state { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; }
+.replay-state div { display: contents; }
+.replay-state dt { font-weight: 700; }
+.replay-state dd { margin: 0; word-break: break-all; }
+.timeline li.is-current { font-weight: 700; }
+.chart { margin: 0 0 1rem; }
+.chart svg { width: 100%; height: 160px; }
+.chart-axis { stroke: currentColor; opacity: .4; }
+.chart-line { stroke-width: 2; vector-effect: non-scaling-stroke; }
+.chart-line.s1, .chart-key.s1 { stroke: var(--accent); color: var(--accent); }
+.chart-line.s2, .chart-key.s2 { stroke: currentColor; }
+.chart-line.s3 { stroke: currentColor; stroke-dasharray: 4 3; opacity: .7; }
+.chart-label { font-size: 12px; fill: currentColor; }
+.chart-key { margin-right: 1rem; font-weight: 700; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+/* Intensity is a bar along the bottom of the cell, never behind the number, so the text keeps its contrast in every theme. */
+.heat { text-align: center; padding-bottom: .5em; box-shadow: inset 0 calc(-.4em * var(--heat, 0)) 0 var(--accent); }
+.heatmap td, .heatmap th { padding: .2rem .3rem; font-size: .8em; }
+.command-console .console-log { font-family: var(--font-mono); border: 1px solid currentColor; padding: .5rem; max-height: 50vh; overflow-y: auto; }
+.console-cmd { font-weight: 700; margin-top: .5rem; }
+.console-error { color: var(--danger); }
+.console-input input { font-family: var(--font-mono); width: 100%; }
+.console-hints { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }

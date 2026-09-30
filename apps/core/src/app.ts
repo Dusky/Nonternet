@@ -24,6 +24,7 @@ import { mudRoutes } from './routes/mud';
 import { mailRoutes } from './routes/mail';
 import { vouchRoutes } from './routes/vouches';
 import { fileRoutes } from './routes/files';
+import { consoleRoutes } from './routes/console';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -103,5 +104,6 @@ export async function buildApp(deps: AppDeps) {
   mailRoutes(app, deps);
   vouchRoutes(app, deps);
   fileRoutes(app, deps);
+  consoleRoutes(app, deps);
   return app;
 }

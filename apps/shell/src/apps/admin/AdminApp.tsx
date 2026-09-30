@@ -6,6 +6,7 @@ import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, formatWhen, useMe, useSite, useT } from '../../hooks';
 import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
 import { VouchesPanel } from './VouchesPanel';
+import { AuditReplay, CommandConsole, StatsPanel } from './ConsoleDepth';
 import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
 import { ReasonForm } from '../boards/ModTools';
@@ -31,7 +32,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -59,6 +60,8 @@ export default function AdminApp() {
         <AppNavLink to="legal">{t('admin.tab.legal')}</AppNavLink>
         <AppNavLink to="backups">{t('admin.tab.backups')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
+        <AppNavLink to="stats">{t('admin.tab.stats')}</AppNavLink>
+        <AppNavLink to="console">{t('admin.tab.console')}</AppNavLink>
       </nav>
       <div className="app-content">
         {route?.pattern === 'status' && <StatusPanel />}
@@ -77,6 +80,9 @@ export default function AdminApp() {
         {route?.pattern === 'settings' && <SettingsPanel />}
         {route?.pattern === 'announcements' && <AnnouncementsPanel />}
         {route?.pattern === 'audit' && <Audit />}
+        {route?.pattern === 'audit/replay/:type/:id' && <AuditReplay type={route.params.type!} id={route.params.id!} />}
+        {route?.pattern === 'stats' && <StatsPanel />}
+        {route?.pattern === 'console' && <CommandConsole />}
       </div>
     </div>
   );
@@ -383,6 +389,7 @@ function AuditItem({ entry }: { entry: HistoryRow }) {
       <time dateTime={entry.at}>{formatWhen(entry.at)}</time>{' '}
       <strong>{entry.action}</strong> <span className="muted">{t('admin.audit.by', { actor: who })}</span>
       {entry.target_type === 'user' && entry.target_id && <> <AppLink to={`users/${entry.target_id}`}>{entry.target_id.slice(0, 10)}</AppLink></>}
+      {entry.target_type && entry.target_id && <> <AppLink to={`audit/replay/${encodeURIComponent(entry.target_type)}/${encodeURIComponent(entry.target_id)}`} aria-label={t('admin.replay.linkLabel', { id: entry.target_id })}>{t('admin.replay.link')}</AppLink></>}
       {change && <> <code>{change}</code></>}
       {reason && <> <q>{reason}</q></>}
     </li>

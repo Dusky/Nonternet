@@ -13,6 +13,20 @@ from and calls into well-tested core APIs** — it never gets private back doors
 - **Two ways to do everything.** Every action is a button *and* a console command.
 - **Ops get a slice.** Board ops and ring ops get the same console UI scoped to what they manage.
 
+> **Built (M7, console depth):** *Replay* (`audit/replay/{type}/{id}`, linked from every audit entry that has a
+> target): the object's history oldest first, stepped with Earlier/Later or a slider, each step's field-by-field diff
+> (before struck through, after in bold; reasons shown apart), and what is known about the object after that step.
+> *Stats* (`/admin/stats`, CSV at `/admin/stats.csv?kind=days|cohorts|heatmap`): active people per day, 7 and 30 days
+> (from `activity_days`: one row per person per day, written at most once a day per service when a web session, IRC or
+> MUD login is used, kept 400 days, deleted with the account, not exported as it is not content), posts and signups
+> per day, retention by signup week (share active in each later week), and a weekday × hour heatmap of posts; all UTC.
+> *Command console* (`/admin/console`): commands run server-side through the same core functions as the buttons, so the
+> checks and audit entries are identical, and every command (read-only ones too) adds `console.command` with the text
+> and outcome (origin `console`). Commands: `help`, `stats`, `user show|role|suspend|unsuspend|rename`, `announce`,
+> `board archive|unarchive`, `reports`, `vouches`, `vouch confirm|decline`, `file hide|unhide`, `audit`. Tab completes
+> commands and handles; Up/Down walk the history. Not built: live SSE tiles, ring and board replays beyond what the
+> audit log records, per-service usage in stats.
+>
 > **Built (M4, settings and announcements):** the Settings tab lists the settings an admin may change without a deploy
 > (sign-up mode, minimum age, trusted board and ring quotas, homepage space, custom domains per person, the public mod
 > log). The site name and addresses are shown read-only. Each change needs a reason, is saved as a new version (who, when,
@@ -32,7 +46,7 @@ from and calls into well-tested core APIs** — it never gets private back doors
 >
 > **Built (M1, v0):** users list with search and filters, a dossier (role, suspend and
 > unsuspend, ops, history), invites, and the audit log. Every change asks for a reason. The rest
-> of this doc is still to build.
+> of this doc was still to build then; later milestones added more (see the notes above).
 
 ## Sections
 

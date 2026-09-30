@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import type { AppDeps } from './deps';
+import { pruneActivity } from './activity';
 import { summary as backupSummary } from './backups';
 
 // Hourly numbers for the status board (docs/11). Counters are worked out from the real tables for each
@@ -37,6 +38,7 @@ export async function collectMetrics(deps: AppDeps, hours = 48): Promise<void> {
     await deps.db.query(`INSERT INTO metrics_rollup (metric, bucket, value) VALUES ($1, $2, $3) ON CONFLICT (metric, bucket) DO UPDATE SET value = EXCLUDED.value`, [metric, current, v]);
   }
   await deps.db.query(`DELETE FROM metrics_rollup WHERE bucket < $1`, [new Date(now - 90 * 24 * HOUR)]);
+  await pruneActivity(deps);
 }
 
 // One number per hour for the last N hours, oldest first. Hours with nothing recorded count as 0 for counters.

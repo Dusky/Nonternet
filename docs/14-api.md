@@ -105,6 +105,9 @@ File areas (`05`, M7): `GET /files` · `GET /files/areas/:slug` · `POST /files/
 `GET /files/:id` · `GET /files/:id/download` · `PATCH|DELETE /files/:id` · `POST /files/:id/report` · `GET /me/files` · admin: `POST /admin/files/areas` ·
 `PATCH /admin/files/areas/:slug` · `POST /admin/files/:id/hide|unhide`. Reports gain the target type `file`.
 
+Console (`11`, M7): `GET /admin/stats?days=&weeks=` · `GET /admin/stats.csv?kind=days|cohorts|heatmap` · `GET /admin/console/commands` ·
+`POST /admin/console {command}`.
+
 Vouching (`03`, M7): `GET /me/vouches` · `POST /vouches` · `POST /vouches/withdraw` · admin: `GET /admin/vouches` ·
 `POST /admin/vouches/:userId/confirm` · `POST /admin/vouches/:userId/decline`. The dossier gains `vouching`.
 

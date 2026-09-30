@@ -1,4 +1,5 @@
 import { isReservedHandle, toPublicSite, type LoginInput, type Me, type ProfileUpdate, type SignupInput } from '@app/shared';
+import { noteActive } from './activity';
 import { makeT } from '@app/strings';
 import { audit } from './audit';
 import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
@@ -217,6 +218,7 @@ export async function resolveSession(deps: AppDeps, rawToken: string): Promise<S
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
   const row = r.rows[0];
   if (!row) return null;
+  if (!row.limited) noteActive(deps, row.id, 'web');
   return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, email: row.email, role: row.role,
     emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
 }
