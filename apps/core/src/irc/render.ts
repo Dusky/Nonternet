@@ -42,8 +42,9 @@ export function renderErgoConfig(cfg: SiteConfig, o: RenderOptions): string {
       'compatibility': { 'force-trailing': true, 'send-unprefixed-sasl': true, 'allow-truncation': false },
       'ip-cloaking': { enabled: true, 'enabled-for-always-on': true, netname: cfg.site.short_name, 'cidr-len-ipv4': 32, 'cidr-len-ipv6': 64, 'num-bits': 64 },
       'secure-nets': ['127.0.0.0/8', '::1/128', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
-      // The WebSocket and bot connections arrive from Caddy and core on the private network.
-      'proxy-allowed-from': ['localhost'],
+      // The Chat app's WebSocket arrives through Caddy on the private network; Ergo takes the person's
+      // address from X-Forwarded-For only from there.
+      'proxy-allowed-from': ['localhost', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
       'connection-limits': { enabled: false },
       'connection-throttling': { enabled: true, 'cidr-len-ipv4': 32, 'cidr-len-ipv6': 64, duration: '10m', 'max-connections': 64, 'ban-duration': '10m', 'ban-message': 'Too many connections from your address. Try again in a few minutes.', exempted: ['localhost'] },
       relaymsg: { enabled: false },

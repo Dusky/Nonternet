@@ -41,7 +41,7 @@
 | P3 | ~~Enigma bridge module~~ Withdrawn with D3. The BBS reads and writes through core's API (`04`) |
 | P4 | Separate terminal password for native clients |
 | P5 | Homepages on per-user subdomains of a separate registrable domain |
-| P6 | Ergo for IRC; minimal built-in web client |
+| P6 | Ergo for IRC; minimal built-in web client. Built in M5: Ergo 2.19.1 with core's auth-script, and a Chat app on irc-framework (MIT) |
 | P7 | Evennia for the MUD |
 | P8 | Per-user Ed25519 keypair; signed exports |
 | P9 | Quotas: 3 boards, 2 rings per trusted user; 50/100 MB homepages |
@@ -55,8 +55,8 @@
 | Q1 | Final name and domain(s) | before public launch |
 | Q2 | ~~Bridge vs fallback~~ Withdrawn: no Enigma | — |
 | Q3 | ~~Allow JavaScript on homepages? Inject footer/report link?~~ Resolved 2026-09-30: JS is allowed, isolated by origin; the homes server injects a small report footer into every HTML page (see `07`) | — |
-| Q4 | Can guests use IRC `#lobby`? Observer mode in MUD? | M5/M6 |
-| Q5 | Can trusted users register non-ring IRC channels? | M5 |
+| Q4 | ~~Can guests use IRC `#lobby`?~~ Resolved 2026-09-30: IRC is for confirmed users only (`08`). Observer mode in MUD still open | M6 |
+| Q5 | ~~Can trusted users register non-ring IRC channels?~~ Resolved 2026-09-30: yes, within `limits.trusted_channel_quota` (default 3) | — |
 | Q6 | MUD engine and world design | M6 |
 | Q7 | Minimum age: DECIDED — configurable tick-box, default 16 (`02`). Legal jurisdiction details still need counsel; pages ship as placeholders | M4 |
 | Q8 | Funding model (free, supporter tier, donations) | before launch |
@@ -75,16 +75,17 @@
 - 2026-09-29: board notifications are one per person per post (reply, then mention, then watch); watchers hear about new threads only (`05`, PROPOSED). Email and live push for notifications are not built.
 - 2026-09-29: board moderation is hide/unhide, remove, lock/unlock and move, each with a reason and each audited; a removal erases the text and cannot be undone; warn and mute are deferred (`03`). Private boards are readable by listed members only, admins included (`05`, PROPOSED). The mod log is public per board unless `moderation.public_modlog` is false.
 - 2026-09-29: a window's place inside its app is held in the window manager, so apps can link to each other (`10`).
+- 2026-09-30: IRC (M5). Accounts come only from core via Ergo's auth-script; the Chat app uses one-use tickets; native clients use the terminal password. A bot owned by core registers every channel and applies modes and suspensions by reconciling desired against applied state (`08`). Admins are channel ops, not IRC opers. Account bans stay site suspensions; the console bans addresses only. IRC history is in Ergo's memory for 7 days and is not exported or backed up.
 - Still open from M1: Q16, no OIDC signing-key rotation command, compose stack unverified.
 
 ## Verify list
 | # | Fact | Affects |
 |---|---|---|
 | V1–V6 | ~~Enigma½ module system, login delegation, runtime areas, pointers, encoding, rename~~ Withdrawn with D3. Results are kept in `docs/spikes/m0-enigma.md` | — |
-| V7 | Ergo: accounts, SASL, external auth, history, WebSocket | 08 |
+| V7 | ~~Ergo: accounts, SASL, external auth, history, WebSocket~~ Verified 2026-09-30 against Ergo 2.19.1 (source and tests in `apps/core/src/irc/*.test.ts` run the real server). Found: opers can't follow accounts, unregistering needs a confirmation code, the network name can't hold spaces | 08 |
 | V8 | Evennia: auth backend, web client embedding | 09 |
 | V9 | xterm.js screen reader support | 10 |
-| V10 | Licences of bundled GIFs, fonts, any embedded clients | 07, 08, 10 |
+| V10 | Licences of bundled GIFs, fonts, any embedded clients. Ergo and irc-framework are MIT (checked 2026-09-30) | 07, 08, 10 |
 | V11 | Caddy on-demand TLS with ask endpoint. The `ask` endpoint and `Caddyfile.prod` are written and the endpoint is tested; Caddy itself has not been run against a real domain | 07, 15 |
 | V12 | Node telnet and SSH server libraries (e.g. `ssh2`): pty, public-key auth, terminal-type and window-size negotiation, xterm.js over WebSocket | 04 |
 

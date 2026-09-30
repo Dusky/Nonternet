@@ -51,6 +51,12 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 ## M5 — IRC
 Ergo container, provisioning/auth, ring channels, Chat app, presence, IRC console page,
 announcements to `#lobby`.
+**Progress:** built. Ergo 2.19.1 with a generated config and core's auth-script; terminal passwords and
+one-use chat tickets; the sync bot (official, ring and trusted users' channels, ops, suspensions, held
+handles); the Chat app; presence; the console's IRC tab; announcements to `#lobby`. Tests run the real
+Ergo: `irc/auth.test.ts`, `irc/sync.test.ts`, `chat.spec.ts` (desktop and phone, accessibility in both
+themes). The compose services (`irc-config`, `ergo`) and TLS for native clients are written but not run
+here (no Docker).
 
 ## M6 — MUD
 Engine decision, container, auth backend, builders, MUD window, console page, MUD broadcasts.

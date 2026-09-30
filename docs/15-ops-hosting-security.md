@@ -19,7 +19,7 @@ limits:
   homepage_quota_mb: { user: 50, trusted: 100 }
   trusted_board_quota: 3
   trusted_ring_quota: 2
-services: { bbs: false, irc: false, mud: false }   # each turns on as its milestone ships;
+services: { bbs: false, irc: true, mud: false }   # each turns on as its milestone ships;
                                                     # bbs later takes { telnet: true, ssh: true }
 ```
 DB-backed versioned settings (`11`) override runtime keys; `site.*` only via config + deploy.
@@ -52,6 +52,14 @@ Not legal advice — get proper advice for your jurisdiction. Plan for:
 
 **As built (M4):** four pages (`terms`, `privacy`, `acceptable-use`, `takedown`) served at `/legal/:slug`, editable by admins in the console's Legal tab; every save is a version with a reason and an audit entry. Until edited, each shows built-in placeholder text with a notice saying it is placeholder text. The content is not legal advice and must be replaced. The takedown page carries a public form (`POST /api/v1/legal/requests`, signed-out allowed, 5/hour/IP, good-faith statement required); requests appear in the Legal tab for an admin to mark acted-on or declined with a note, both audited. Preserving evidence and mandatory reporting workflows are not built; decide them with counsel.
 - Data protection: export and deletion (`12`), hashed IPs, retention periods documented.
+
+## IRC (as built, M5)
+Set `IRC_SECRET` (32+ characters, `openssl rand -base64 32`) in `deploy/.env`; compose passes it to core
+and to the one-shot `irc-config` service, which writes Ergo's config into the `ircd-data` volume before
+Ergo starts. Caddy sends `/ws/irc` to Ergo's WebSocket listener; core reaches Ergo's plain listener and
+HTTP API on the private network only. For native clients, give `irc-config` `IRC_TLS_CERT` and
+`IRC_TLS_KEY` and publish `irc.public_port` (6697). IRC history lives in Ergo's memory; `ircd.db` is not
+backed up because core rebuilds it (`08`).
 
 ## Backups
 Nightly: pg_dump, homes, MUD data (once it exists), config, keys. Encrypted, off-site copy, 30 days retention (PROPOSED). Monthly automated

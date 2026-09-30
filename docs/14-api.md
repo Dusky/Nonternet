@@ -59,7 +59,7 @@ Caddy on-demand TLS check: `GET /internal/tls-allowed?domain=`
 (built: newest first, `?before=` paging with `next_before`, `action=user.*` matches a family)
 `GET/PATCH /admin/settings` · `GET /admin/settings/:key/history` · `POST /admin/settings/:key/rollback`
 `GET/POST /admin/announcements` · `GET /admin/services/:name` · `GET /admin/jobs`
-`GET /legal/:slug` · `POST /legal/requests` (public) · `GET|PUT /admin/legal/pages[/:slug]` · `GET /admin/legal/requests` · `POST /admin/legal/requests/:id/resolve` · `POST /admin/backups` · `POST /admin/console {command}` (parses to the calls above)
+IRC (`08`): `POST /irc/ticket` · `GET|POST /irc/channels` · `POST /irc/channels/remove` · `GET /online` · `GET|PUT /me/terminal-password` · `POST /me/terminal-password/remove` · `GET /admin/irc` · `POST /admin/irc/channels|disconnect|sync` · `GET|POST /admin/irc/bans` · `POST /admin/irc/bans/remove` · `POST /admin/users/:id/terminal-password/remove` · private: `POST /internal/irc/auth` (Ergo's auth-script, bearer token) · `GET /legal/:slug` · `POST /legal/requests` (public) · `GET|PUT /admin/legal/pages[/:slug]` · `GET /admin/legal/requests` · `POST /admin/legal/requests/:id/resolve` · `POST /admin/backups` · `POST /admin/console {command}` (parses to the calls above)
 
 ## OIDC provider (built)
 `/oidc/*` is served by the provider itself: `/.well-known/openid-configuration`, `/auth`, `/token`, `/me`,
@@ -95,5 +95,7 @@ share the work). A new group starts from new events, or from the beginning if as
 whose handler fails is retried after a minute, and after 5 failed tries it moves to the stream
 `events:dead` so one bad event can't block or spin forever.
 
-Built since: `user.renamed`. Planned, not built yet: `user.deleted`, `board.*`, `ring.*`, `bbs.*`, `irc.*`, `mud.*`,
+IRC (M5) consumes events with the group `irc-sync` and does not publish any.
+
+Built since: `user.renamed`, `user.deleted`, `board.created`, `ring.created`, `ring.member_changed`. Planned, not built yet: `bbs.*`, `irc.*`, `mud.*`,
 `presence.changed`, `export.*`, `settings.changed`.

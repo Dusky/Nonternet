@@ -20,6 +20,10 @@
 	handle /ring/* {
 		reverse_proxy core:3000
 	}
+	# The Chat app's IRC connection (docs/08).
+	handle /ws/irc {
+		reverse_proxy ergo:8097
+	}
 	handle {
 		reverse_proxy shell:80
 	}

@@ -44,6 +44,10 @@ services:
       REDIS_URL: redis://redis:6379
       HOMES_DIR: /data/homes
       HOMES_PUBLIC_PORT: ${HOMES_HTTP_PORT:-8081}
+      # Shared with Ergo; core derives the auth-script token, API token and bot password from it.
+      IRC_SECRET: ${IRC_SECRET:?set IRC_SECRET in deploy/.env (openssl rand -base64 32)}
+      IRC_HOST: ergo
+      IRC_API_URL: http://ergo:8089
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - homes-data:/data/homes
@@ -79,6 +83,36 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
+  # Writes Ergo's config from the site config, then exits (docs/08). Same image as core.
+  irc-config:
+    build:
+      context: ..
+      dockerfile: apps/core/Dockerfile
+    command: ["node", "cli.cjs", "irc-config", "--out", "/ircd/ircd.yaml"]
+    user: "0"
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      IRC_SECRET: ${IRC_SECRET:?set IRC_SECRET in deploy/.env (openssl rand -base64 32)}
+      IRC_CORE_URL: http://core:3000
+      IRC_AUTH_SCRIPT: /config/auth.sh
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+      - ircd-data:/ircd
+
+  # The IRC server. Accounts come from core through the auth-script; nobody registers on IRC itself.
+  ergo:
+    image: ghcr.io/ergochat/ergo:v2.19.1
+    entrypoint: ["/bin/sh", "-c", "[ -f /ircd/ircd.db ] || /ircd-bin/ergo initdb --conf /ircd/ircd.yaml; exec /ircd-bin/ergo run --conf /ircd/ircd.yaml"]
+    volumes:
+      - ircd-data:/ircd
+      - ../services/irc/auth.sh:/config/auth.sh:ro
+    ports:
+      # Plain IRC for trying a native client locally. Production listens with TLS on irc.public_port instead.
+      - "127.0.0.1:${IRC_PLAIN_PORT:-6667}:6667"
+    depends_on:
+      irc-config: { condition: service_completed_successfully }
+
   shell:
     build:
       context: ..
@@ -98,8 +132,10 @@ services:
       - core
       - shell
       - homes
+      - ergo
 
 volumes:
+  ircd-data:
   homes-data:
   postgres-data:
   redis-data:

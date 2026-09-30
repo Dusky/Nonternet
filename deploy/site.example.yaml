@@ -15,20 +15,26 @@ limits:
   homepage_quota_mb: { user: 50, trusted: 100 }
   trusted_board_quota: 3
   trusted_ring_quota: 2
+  trusted_channel_quota: 3   # IRC channels a trusted user may register besides ring channels
 
-# Services that sign users in through the OIDC provider at /oidc (IRC, MUD, BBS). Uncomment as they
-# ship. A confidential client (a server) needs its secret in core's environment, never in this file:
+# Services that sign users in through the OIDC provider at /oidc (MUD, BBS). IRC does not use it: Ergo
+# asks core directly (docs/08). Uncomment as they ship. A confidential client (a server) needs its secret in core's environment, never in this file:
 # OIDC_SECRET_<CLIENT_ID>, e.g. OIDC_SECRET_MUD_SERVER (at least 32 characters).
 # oidc:
 #   clients:
-#     - { client_id: irc-web, redirect_uris: ["https://example.net/chat/callback"], public: true }
 #     - { client_id: mud-server, redirect_uris: ["https://example.net/mud/callback"] }
 
 # Each service turns on as its milestone ships.
 services:
   bbs: false
-  irc: false
+  irc: true
   mud: false
+
+irc:
+  official_channels: ["#lobby", "#help"]   # the first is where everyone lands and announcements go
+  # public_host: irc.example.net   # default irc.{site.domain}
+  public_port: 6697
+  history_days: 7
 
 moderation:
   public_modlog: true   # each board's mod log can be read by anyone who can read the board

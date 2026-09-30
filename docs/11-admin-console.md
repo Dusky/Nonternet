@@ -68,7 +68,7 @@ escalations from ops, bulk actions, canned reasons, mod log preview.
 One detail page per service:
 - **BBS** (last milestone): live nodes (who, where in the menus, connected via), post rates
   per board, art pack in use.
-- **IRC**: channels, users, opers, bans/K-lines, message rates.
+- **IRC**: channels, users, opers, bans/K-lines, message rates. *As built (M5):* status, live channels, who is online, official channels, disconnect, address bans, sync failures (`08`); no opers list or message rates.
 - **MUD**: connected players, room occupancy heatmap, builder activity, object counts.
 - **Homepages**: storage by user, top pages by hits, recently updated, custom domains and
   their verification/TLS status.

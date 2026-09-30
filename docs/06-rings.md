@@ -9,7 +9,7 @@ extended so a ring is a small group with its own spaces.
 | **Profile** | name, slug, short description, long "about" (plain text / light markdown), banner (e.g. 468×60 or 88×31 button), topic tags |
 | **Members** | users who joined; list is public by default |
 | **Ring board** | one board owned by the ring (created automatically) |
-| **Ring channel** | one IRC channel, e.g. `#ring-synths` (created automatically once IRC ships) |
+| **Ring channel** | one IRC channel, e.g. `#ring-synths`, created automatically; founder and ring ops are channel ops (`08`) |
 | **Nav bar** | prev / next / random / list — embeddable on members' homepages |
 | **Ring page** | a public page on the site: about, members, latest posts, member homepages |
 | **Ops** | founder is first ring op; can appoint more |
@@ -69,7 +69,7 @@ board with `ring_id` set. Ring board visibility defaults: public read, members p
   when it has not been seen for 30 days. Nobody is removed automatically.
 - **Directory:** newest, most active this week (posts plus new members), name; tag and search; random ring.
   Admins hide and restore rings (the board goes with them), audited.
-- Not built yet: banner image upload (the column does not exist yet), the ring IRC channel (M5), and a user's
+- Not built yet: banner image upload (the column does not exist yet),  a user's
   profile page listing their rings.
 
 ## Acceptance tests

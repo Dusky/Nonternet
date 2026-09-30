@@ -129,10 +129,12 @@ core runs the provider at `{site.domain}/oidc` (`node-oidc-provider`, discovery 
 | IRC | web client SASL with short-lived token | SASL PLAIN with terminal password |
 | MUD | login ticket on WebSocket connect | `connect <handle> <terminal password>` |
 
-### Terminal password (PROPOSED)
+### Terminal password (DECIDED, built in M5)
 A separate password for native clients, because telnet sends it in cleartext. Leaking it
-doesn't expose the web account or email. Set in Settings. SSH keys for BBS SSH.
-core exposes a private `verify` endpoint; services never store their own copy.
+doesn't expose the web account or email. Set in Settings → Terminal password (needs the website
+password; it must differ from it; argon2id; set and remove are audited; an admin can remove one with
+a reason). SSH keys for BBS SSH come with the BBS.
+core exposes a private `verify` endpoint (`/internal/irc/auth` for IRC); services never store their own copy.
 
 ## Provisioning into services
 | Event | BBS | IRC | MUD |
@@ -146,6 +148,12 @@ core exposes a private `verify` endpoint; services never store their own copy.
 The BBS holds no copy of users, so it has nothing to provision. IRC and MUD hooks are
 idempotent; a nightly **reconcile** job compares core users with each of them and fixes
 drift, reporting to the admin console.
+
+**IRC as built (M5, `08`):** there is no per-event handler. Ergo creates an account at first login
+(core checks the password); a suspension or a rename's held old handle becomes `NS SUSPEND`, which
+drops every session at once; roles and ops become channel modes. All of it is one reconcile that events
+trigger within a moment and that also runs every 30 s (fully every 6 hours). Admins are not IRC opers
+(Ergo cannot map opers to accounts); they get channel ops and moderate from the console.
 
 ## Account deletion
 User can export (`12`) then delete. Posts remain but author shows as "deleted user"
