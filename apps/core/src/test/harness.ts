@@ -63,7 +63,7 @@ export function makeClock(start = Date.now()) {
 // TXT records the fake DNS knows about. A test sets one with dnsRecords.set(name, [values]).
 export const dnsRecords = new Map<string, string[]>();
 
-export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean; oidcClients?: AppDeps['oidcClients']; publicUrl?: string; irc?: AppDeps['irc'] } = {}) {
+export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean; oidcClients?: AppDeps['oidcClients']; publicUrl?: string; irc?: AppDeps['irc']; mud?: AppDeps['mud'] } = {}) {
   const mailer = memoryMailer();
   const clock = makeClock();
   const deps: AppDeps = {
@@ -82,6 +82,7 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     homes: new HomeStore(mkdtempSync(join(tmpdir(), 'homes-test-'))),
     oidcClients: opts.oidcClients ?? [],
     irc: opts.irc,
+    mud: opts.mud,
   };
   const app = await buildApp(deps);
   return { app, deps, mailer, clock };

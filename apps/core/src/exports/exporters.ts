@@ -148,7 +148,7 @@ export const EXEMPT: Record<string, string> = {
   legal_page_versions: 'site documents written by admins',
   legal_requests: 'takedown requests from the public, about content rather than by the account',
   sessions: 'security state, not content',
-  irc_tickets: 'one-use sign-in tickets for chat',
+  terminal_tickets: 'one-use sign-in tickets for chat and the MUD',
   irc_applied: 'a record of what the bot has told the IRC server',
   email_verifications: 'security state, not content',
   password_resets: 'security state, not content',

@@ -20,6 +20,7 @@ import { ringRoutes } from './routes/rings';
 import { settingsRoutes } from './routes/settings';
 import { legalRoutes } from './routes/legal';
 import { ircRoutes } from './routes/irc';
+import { mudRoutes } from './routes/mud';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -95,5 +96,6 @@ export async function buildApp(deps: AppDeps) {
   settingsRoutes(app, deps);
   legalRoutes(app, deps);
   ircRoutes(app, deps);
+  mudRoutes(app, deps);
   return app;
 }

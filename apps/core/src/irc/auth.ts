@@ -8,41 +8,50 @@ import type { Ctx, SessionUser } from '../accounts';
 const TICKET_PREFIX = 'tk1_';
 const TICKET_TTL_MS = 60_000;
 
+export type TerminalService = 'irc' | 'mud';
 export interface AuthResult { success: boolean; accountName?: string; error?: string }
+export interface LoginUser { id: string; handle: string; role: string }
 
-// Called by Ergo's auth-script for every SASL PLAIN login (docs/08). The password is either the
-// person's terminal password or a one-use ticket the Chat app got from core a moment ago. Only
-// active users with a confirmed email may use IRC (Q4, decided 2026-09-30).
-export async function checkIrcLogin(deps: AppDeps, accountName: unknown, passphrase: unknown): Promise<AuthResult> {
+// How IRC and the MUD sign people in (docs/02, 08, 09): the password is either the person's terminal
+// password or a one-use ticket their browser got from core a moment ago for that service. Only active
+// users with a confirmed email may use them (Q4, decided 2026-09-30).
+export async function checkTerminalLogin(deps: AppDeps, service: TerminalService, accountName: unknown, passphrase: unknown): Promise<{ ok: true; user: LoginUser } | { ok: false; error: string }> {
   if (typeof accountName !== 'string' || typeof passphrase !== 'string' || !accountName || !passphrase || accountName.length > 40 || passphrase.length > 200) {
-    return { success: false, error: 'missing name or password' };
+    return { ok: false, error: 'missing name or password' };
   }
   const r = await deps.db.query<{ id: string; handle: string; role: string; status: string; terminal_password_hash: string | null }>(
     `SELECT id, handle, role, status, terminal_password_hash FROM users WHERE lower(handle) = lower($1)`, [accountName]);
   const u = r.rows[0];
   if (!u || u.status !== 'active' || u.role === 'guest') {
     await burnPasswordCheck(passphrase); // the same time either way, so accounts can't be probed
-    return { success: false, error: u ? 'account may not use IRC' : 'no such account' };
+    return { ok: false, error: u ? `account may not use ${service}` : 'no such account' };
   }
   if (passphrase.startsWith(TICKET_PREFIX)) {
     const used = await deps.db.query(
-      `UPDATE irc_tickets SET used_at = now() WHERE token_hash = $1 AND user_id = $2 AND used_at IS NULL AND expires_at > to_timestamp($3 / 1000.0)`,
-      [sha256(passphrase), u.id, deps.now()]);
-    return used.rowCount ? { success: true, accountName: u.handle } : { success: false, error: 'ticket not valid' };
+      `UPDATE terminal_tickets SET used_at = now() WHERE token_hash = $1 AND user_id = $2 AND service = $4 AND used_at IS NULL AND expires_at > to_timestamp($3 / 1000.0)`,
+      [sha256(passphrase), u.id, deps.now(), service]);
+    return used.rowCount ? { ok: true, user: u } : { ok: false, error: 'ticket not valid' };
   }
   if (!u.terminal_password_hash) {
     await burnPasswordCheck(passphrase);
-    return { success: false, error: 'no terminal password set' };
+    return { ok: false, error: 'no terminal password set' };
   }
-  return (await verifyPassword(u.terminal_password_hash, passphrase)) ? { success: true, accountName: u.handle } : { success: false, error: 'wrong password' };
+  return (await verifyPassword(u.terminal_password_hash, passphrase)) ? { ok: true, user: u } : { ok: false, error: 'wrong password' };
 }
 
-export async function issueTicket(deps: AppDeps, user: SessionUser): Promise<{ ticket: string; nick: string; expires_in: number }> {
-  if (!deps.irc) throw new ApiError(503, 'irc_off', 'Chat is not set up on this site yet.');
-  if (user.role === 'guest') throw new ApiError(403, 'email_unconfirmed', 'Confirm your email address to use chat.');
+// Ergo's auth-script answer (docs/08).
+export async function checkIrcLogin(deps: AppDeps, accountName: unknown, passphrase: unknown): Promise<AuthResult> {
+  const r = await checkTerminalLogin(deps, 'irc', accountName, passphrase);
+  return r.ok ? { success: true, accountName: r.user.handle } : { success: false, error: r.error };
+}
+
+export async function issueTicket(deps: AppDeps, user: SessionUser, service: TerminalService = 'irc'): Promise<{ ticket: string; nick: string; expires_in: number }> {
+  if (service === 'irc' && !deps.irc) throw new ApiError(503, 'irc_off', 'Chat is not set up on this site yet.');
+  if (service === 'mud' && !deps.mud) throw new ApiError(503, 'mud_off', 'The MUD is not set up on this site yet.');
+  if (user.role === 'guest') throw new ApiError(403, 'email_unconfirmed', service === 'irc' ? 'Confirm your email address to use chat.' : 'Confirm your email address to play the MUD.');
   const ticket = `${TICKET_PREFIX}${randomToken()}`;
-  await deps.db.query(`DELETE FROM irc_tickets WHERE expires_at < now() - interval '1 hour'`);
-  await deps.db.query(`INSERT INTO irc_tickets (token_hash, user_id, expires_at) VALUES ($1, $2, to_timestamp($3 / 1000.0))`, [sha256(ticket), user.userId, deps.now() + TICKET_TTL_MS]);
+  await deps.db.query(`DELETE FROM terminal_tickets WHERE expires_at < now() - interval '1 hour'`);
+  await deps.db.query(`INSERT INTO terminal_tickets (token_hash, user_id, expires_at, service) VALUES ($1, $2, to_timestamp($3 / 1000.0), $4)`, [sha256(ticket), user.userId, deps.now() + TICKET_TTL_MS, service]);
   return { ticket, nick: user.handle, expires_in: TICKET_TTL_MS / 1000 };
 }
 
