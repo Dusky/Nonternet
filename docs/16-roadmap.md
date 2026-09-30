@@ -106,6 +106,10 @@ last by decision, not by dependency.
 10. Door games: drop files, sandboxed child process, operator config.
 11. QWK offline mail: packet download, REP upload.
 **Accept:** tests in `04`.
+**Built (2026-09-30):** all of the above, with the M8 additions; every acceptance test in `04` is covered by
+`apps/bbs/src/bbs.test.ts` (live, over real telnet, SSH and WebSocket connections against core) or
+`e2e/tests/terminal.spec.ts`. Not built: ZMODEM in the terminal (QWK packets move over the web), a bundled VGA
+font, door games checked against a real DOS door.
 
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Import
