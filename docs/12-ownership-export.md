@@ -27,7 +27,8 @@ mud/                     # characters: descriptions, stats, inventory as JSON
 mail/conversations.json  # each conversation: subject, people, and only the person's own messages (M7)
 mail/blocked.json        # handles they have blocked
 files/{area}/{name}      # every file they uploaded to the file areas, as uploaded, plus files.json (M7)
-vouches.json             # vouches they gave: for whom, their note, and what came of it (M7)
+vouches.json             # vouches they gave
+                         # QWK replies are ordinary posts, so they are in posts/ already: for whom, their note, and what came of it (M7)
 keys/public.key          # public key; private key only if user opts in with password protection
 README.txt               # human explanation of the archive
 ```

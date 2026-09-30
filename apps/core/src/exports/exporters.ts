@@ -240,6 +240,8 @@ export const EXEMPT: Record<string, string> = {
   home_hit_seen: 'anonymous, short-lived counter records',
   exports: 'the export records themselves',
   metrics_rollup: 'site-wide numbers, not a person’s content',
+  qwk_conferences: 'offline-mail settings (which number each board has); the posts themselves are in posts/',
+  qwk_uploads: 'a record of reply packets already taken, so none is posted twice',
   bbs_calls: 'a log of BBS calls for the last callers list; not content',
   activity_days: 'which days an account was used, for site statistics; not content',
   backup_runs: 'the operator’s backup and restore-test record',

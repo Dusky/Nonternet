@@ -47,3 +47,15 @@ test('SSH keys are added and removed in Settings, Terminal', async ({ page }) =>
   await page.getByRole('button', { name: 'Remove the key me@laptop' }).click();
   await expect(page.getByText('No keys yet.')).toBeVisible();
 });
+
+test('offline mail: download a QWK packet from Settings, Terminal', async ({ page }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/settings/terminal');
+  await expect(page.getByRole('heading', { name: 'Offline mail (QWK)' })).toBeVisible();
+  await scan(page, 'the offline mail panel');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download new messages \(E2ETEST\.QWK\)/ }).click()]);
+  expect(download.suggestedFilename()).toBe('E2ETEST.QWK');
+  await expect(page.getByText(/Your packet has \d+ new messages\./)).toBeVisible();
+  await expect(page.getByLabel('Send your replies (E2ETEST.REP)')).toBeVisible();
+});

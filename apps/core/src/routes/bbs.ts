@@ -6,6 +6,7 @@ import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import { issueTicket } from '../irc/auth';
 import * as bbs from '../bbs/service';
+import * as qwk from '../qwk';
 import { online } from '../presence-view';
 import { ircOnline } from '../irc/sync';
 
@@ -78,6 +79,22 @@ export function bbsRoutes(app: FastifyInstance, deps: AppDeps): void {
     const b = z.object({ handle, reason: z.string().trim().min(3, 'give a reason (at least 3 characters)').max(500) }).parse(req.body);
     await bbs.disconnect(deps, who, b.handle, b.reason, ctxOf(deps, req));
     return reply.code(204).send();
+  });
+
+  // QWK offline mail (docs/04): what is in a packet, making one, and taking replies.
+  app.get('/api/v1/me/qwk', async (req) => qwk.qwkInfo(deps, requireUser(req)));
+  app.post('/api/v1/me/qwk/packet', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req, reply) => {
+    const p = await qwk.makePacket(deps, requireUser(req));
+    return reply.type('application/zip').header('content-disposition', `attachment; filename="${p.name}"`).header('x-message-count', String(p.count)).header('cache-control', 'no-store').send(Buffer.from(p.zip));
+  });
+  app.register(async (scope) => {
+    scope.removeAllContentTypeParsers();
+    scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: qwk.MAX_REP_BYTES + 1 }, (_req, body, done) => done(null, body));
+    scope.post('/api/v1/me/qwk/reply', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req) => {
+      const v = requireUser(req);
+      if (!Buffer.isBuffer(req.body)) throw new ApiError(400, 'bad_request', 'Send the REP file itself as the request body.');
+      return qwk.takeReplies(deps, v, req.body, ctxOf(deps, req));
+    });
   });
 
   // SSH keys (Settings → Terminal).

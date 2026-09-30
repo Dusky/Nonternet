@@ -74,3 +74,48 @@ export function SshKeys() {
     </section>
   );
 }
+
+// QWK offline mail (docs/04): new messages from your boards as a packet for an offline reader, and your
+// replies back as a REP packet. Making a packet marks what is in it as read.
+export function OfflineMail() {
+  const t = useT();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['qwk'], queryFn: () => api.get<{ packet: string; reply: string; conferences: { conf: number; slug: string; name: string }[] }>('/me/qwk') });
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const download = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/v1/me/qwk/packet', { method: 'POST', credentials: 'same-origin' });
+      if (!res.ok) { const d = await res.json().catch(() => null) as { error?: { message?: string } } | null; throw new Error(d?.error?.message ?? t('qwk.failed')); }
+      const count = Number(res.headers.get('x-message-count') ?? 0);
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url; a.download = q.data?.packet ?? 'packet.qwk'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      return count;
+    },
+    onSuccess: (n) => { setMsg({ ok: true, text: t('qwk.downloaded', { count: n }) }); void qc.invalidateQueries({ queryKey: ['boards'] }); },
+    onError: (e) => setMsg({ ok: false, text: errorText(e) }),
+  });
+  const upload = useMutation({
+    mutationFn: (f: File) => api.upload<{ posted: number; skipped: { subject: string; reason: string }[] }>('/me/qwk/reply', f, 'POST'),
+    onSuccess: (r) => setMsg({ ok: r.skipped.length === 0, text: [t('qwk.posted', { count: r.posted }), ...r.skipped.map((s) => t('qwk.skipped', { subject: s.subject || '-', reason: s.reason }))].join(' ') }),
+    onError: (e) => setMsg({ ok: false, text: errorText(e) }),
+  });
+  return (
+    <section className="panel" aria-labelledby="qwk-h">
+      <h2 id="qwk-h">{t('qwk.title')}</h2>
+      <p className="hint">{t('qwk.intro')}</p>
+      {q.data && (
+        <p className="hint">{t('qwk.boards', { boards: q.data.conferences.map((c) => `${c.conf} ${c.name}`).join(', ') || '-' })}</p>
+      )}
+      <div className="actions">
+        <button type="button" className="btn btn-primary" onClick={() => { setMsg(null); download.mutate(); }} disabled={download.isPending}>{t('qwk.download', { name: q.data?.packet ?? '.QWK' })}</button>
+      </div>
+      <div className="field">
+        <label htmlFor="rep-file">{t('qwk.upload', { name: q.data?.reply ?? '.REP' })}</label>
+        <input id="rep-file" type="file" accept=".rep,.REP,application/zip" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setMsg(null); upload.mutate(f); e.target.value = ''; } }} disabled={upload.isPending} />
+      </div>
+      {msg && <Alert kind={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>}
+    </section>
+  );
+}

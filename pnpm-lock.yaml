@@ -90,6 +90,9 @@ importers:
       fastify:
         specifier: ^5.0.0
         version: 5.12.5
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       iconv-lite:
         specifier: ^0.7.3
         version: 0.7.3
@@ -148,9 +151,6 @@ importers:
       esbuild:
         specifier: ^0.24.0
         version: 0.24.2
-      fflate:
-        specifier: ^0.8.3
-        version: 0.8.3
       tsx:
         specifier: ^4.19.0
         version: 4.23.15

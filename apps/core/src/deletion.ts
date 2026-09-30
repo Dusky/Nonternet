@@ -71,6 +71,8 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`DELETE FROM activity_days WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM ssh_keys WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM bbs_calls WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM qwk_conferences WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM qwk_uploads WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM read_state WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM notifications WHERE user_id = $1 OR actor_id = $1`, [userId]);
     await q.query(`DELETE FROM board_members WHERE user_id = $1`, [userId]);

@@ -6,10 +6,9 @@ import { homepages } from './homepages';
 import { mail } from './mail';
 import { rings } from './rings';
 import { doors } from './doors';
+import { qwk } from './qwk';
 
 export type Screen = (s: Session) => Promise<void>;
-
-const later = (what: string): Screen => async (s) => { s.term.line(`${what} is not ready yet. Use the web for now: ${s.ctx.siteUrl}`); };
 
 export const SCREENS: Record<Action, Screen> = {
   boards,
@@ -20,7 +19,7 @@ export const SCREENS: Record<Action, Screen> = {
   who,
   lastcallers: lastCallers,
   doors,
-  qwk: later('QWK offline mail'),
+  qwk,
   settings,
   goodbye: async () => undefined,
 };

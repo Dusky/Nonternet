@@ -121,5 +121,15 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   environment, passes keystrokes straight through and converts between CP437 and UTF-8 as needed. Limits per
   door: callers at once, minutes per visit, lowest role. The folder is removed afterwards. Doors get no
   access to core. VERIFY a real door (e.g. under DOSBox-X) before offering it; only the test door has run here.
+- **QWK offline mail** (`apps/core/src/qwk.ts`): the packet (`<BBSID>.QWK`, BBSID = `site.short_name` in
+  capitals, 8 characters) holds CONTROL.DAT, MESSAGES.DAT (128-byte blocks, CP437, lines ended by 0xE3, QWKE
+  lines for subjects and names over 25 characters), an NDX per conference (MBF block numbers) and DOOR.ID.
+  Conferences are the boards you watch (all readable boards if none), numbered once per person
+  (`qwk_conferences`) so replies find their board. Message numbers are the posts' site-wide `seq`. Making a
+  packet moves the read pointers past it (up to 2,000 messages). A `<BBSID>.REP` (up to 200 messages, 1 MB)
+  becomes posts through the ordinary post path, with the same checks; a reference number makes it a reply;
+  each REP file is taken once (`qwk_uploads`). Transfer is on the web (Settings → Terminal); **ZMODEM in the
+  terminal is not built** (the BBS's QWK menu points to the web). Private mail is not in packets. VERIFY with
+  real readers (MultiMail, OLX) before announcing it.
 - Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.
