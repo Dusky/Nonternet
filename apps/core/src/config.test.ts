@@ -15,7 +15,7 @@ describe('site config', () => {
     expect(cfg.site.name).toBe('Test Site');
     expect(cfg.signup.mode).toBe('invite');
     expect(cfg.limits.trusted_board_quota).toBe(3);
-    expect(cfg.services).toEqual({ bbs: false, irc: false, mud: false });
+    expect(cfg.services).toEqual({ bbs: false, irc: false, mud: false, gopher: false });
   });
 
   it('has no fallback name: a config without site.name is rejected', () => {

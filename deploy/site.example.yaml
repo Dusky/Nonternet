@@ -31,6 +31,12 @@ services:
   bbs: false
   irc: true
   mud: true
+  gopher: true               # read-only mirror of public boards, homepages and file areas
+
+# Where Gopher clients reach it. The local stack publishes it on port 7070; production uses 70.
+gopher:
+  host: localhost
+  port: 7070
 
 irc:
   official_channels: ["#lobby", "#help"]   # the first is where everyone lands and announcements go

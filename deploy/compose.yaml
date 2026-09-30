@@ -61,6 +61,29 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
 
+  # The read-only Gopher mirror (docs/05): same image as core, its own process. It only reads.
+  gopher:
+    build:
+      context: ..
+      dockerfile: apps/core/Dockerfile
+    command: ["node", "gopher-main.cjs"]
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      GOPHER_LISTEN_PORT: "7070"
+      FILES_DIR: /data/files
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/app
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/.env (openssl rand -base64 32)}
+      NODE_ENV: development
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+    ports:
+      - "${GOPHER_PORT:-7070}:7070"
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+      - files-data:/data/files:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      core: { condition: service_started }
+
   # The MUD (docs/09): Evennia, signing everyone in through core. Its world is in its own database.
   mud:
     build:

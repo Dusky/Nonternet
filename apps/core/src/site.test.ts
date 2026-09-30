@@ -16,7 +16,7 @@ describe.skipIf(!dbAvailable)('site endpoints', () => {
   it('serves the public site config, driven by config alone', async () => {
     const { app } = await makeApp(db, { yaml: SITE_YAML('services: { irc: true }') });
     expect((await app.inject('/api/v1/site')).json()).toMatchObject({
-      name: 'Test Site', short_name: 'testsite', signup_mode: 'invite', services: { bbs: false, irc: true, mud: false },
+      name: 'Test Site', short_name: 'testsite', signup_mode: 'invite', services: { bbs: false, irc: true, mud: false, gopher: false },
     });
   });
 

@@ -118,3 +118,13 @@ Built on the web first; the BBS will show the same areas later (`04`). Gopher li
 - **Storage:** one file per ID under `FILES_DIR` (compose volume `files-data`), in backups.
 - **Ownership:** exported as `files/{area}/{name}` with `files.json`; deleted with the account.
 - Code: `apps/core/src/files.ts`, the Files app; tests `files.test.ts`, `e2e/tests/files.spec.ts`.
+
+## Gopher mirror (M7)
+A read-only Gopher server (RFC 1436) in its own process (`gopher-main.cjs`, compose service `gopher`), on
+when `services.gopher` is true. It shows exactly what a logged-out web visitor sees, through the same core
+functions with no viewer: public boards → thread lists → each thread as one text document wrapped to 79
+columns (dot-stuffed, ending with its web address); the homepage directory as web links (`URL:` type `h`);
+public file areas → files served as binary (type 9), never hidden ones or members-only areas. Menu lines
+carry `gopher.host` (default `site.domain`) and `gopher.port` (default 70). Limits: 512-byte selectors,
+10 s per connection, 100 connections. Nothing is ever stored. No Gemini (owners, 2026-09-30).
+Code `apps/core/src/gopher/`; tests `gopher.test.ts` (real TCP).

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "esbuild src/main.ts src/cli.ts src/homes-main.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --external:@node-rs/argon2 --log-override:empty-import-meta=silent && rm -rf dist/migrations && cp -r src/migrations dist/migrations && node scripts/write-runtime-package.mjs",
+    "build": "esbuild src/main.ts src/cli.ts src/homes-main.ts src/gopher-main.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --external:@node-rs/argon2 --log-override:empty-import-meta=silent && rm -rf dist/migrations && cp -r src/migrations dist/migrations && node scripts/write-runtime-package.mjs",
     "start": "node dist/main.cjs",
     "typecheck": "tsc --noEmit",
     "cli": "tsx src/cli.ts"

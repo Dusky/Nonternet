@@ -107,8 +107,12 @@ export const siteConfigSchema = z
         bbs: z.boolean().default(false),
         irc: z.boolean().default(false),
         mud: z.boolean().default(false),
+        // A read-only Gopher mirror of public boards, homepages and file areas (docs/05, M7).
+        gopher: z.boolean().default(false),
       })
       .default({}),
+    // Where Gopher clients reach the mirror: the host and port written into every menu line.
+    gopher: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(70) }).default({}),
   })
   .superRefine((cfg, ctx) => {
     // Homepages run untrusted user HTML, so they must never share the shell's origin (docs/15).
@@ -130,7 +134,7 @@ export const publicSiteSchema = z.object({
   minimum_age: z.number().int(),
   irc: z.object({ host: z.string(), port: z.number().int(), lobby: z.string() }),
   mud: z.object({ host: z.string(), port: z.number().int() }),
-  services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean() }),
+  services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean(), gopher: z.boolean() }),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
 

@@ -29,6 +29,7 @@ One deployment, run by the admin team, on one server (or a small cluster later).
 | **core** | Accounts, OIDC, roles, boards and posts, rings, homepages, export, notifications, audit, event bus, admin APIs | **Built** (TypeScript) |
 | **shell** | Web UI: launcher, windows, boards, homepage studio, rings, chat, admin console | **Built** (React) |
 | **BBS** | Telnet/SSH/WebSocket terminal front door; a client of core's API (`04`) | **Built** (TypeScript), last milestone |
+| **gopher** | Read-only Gopher mirror of public boards, homepages and file areas (`05`); same image as core, own process | **Built** (TypeScript, M7) |
 | **Ergo** | IRC server | Borrowed (PROPOSED) |
 | **MUD engine** | Shared world | Borrowed (PROPOSED: Evennia) |
 | **Postgres / Redis** | Data, sessions, presence, event streams | Borrowed |
@@ -73,6 +74,7 @@ repo/
 | 23, 22 (or 2222) | BBS telnet/SSH (once shipped) | public (telnet can be disabled) |
 | 6697 | IRC TLS | public |
 | 4000 | MUD telnet | public, optional |
+| 70 | Gopher mirror (`services.gopher`; 7070 locally) | public, optional |
 | internal | core, Postgres, Redis | private network only |
 
 ## Domains
