@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { ERGO_BIN } from '../support/stack';
+import { BASE_URL, ERGO_BIN } from '../support/stack';
 import { makeAdmin, makeUser, PASSWORD, signIn, totp, uniq } from '../support/helpers';
 
 async function scan(page: Page, what: string) {
@@ -105,6 +105,10 @@ test.describe('chat', () => {
     await page.getByRole('button', { name: 'Publish' }).click();
     await expect(log(page2, '#lobby').getByText(title)).toBeVisible({ timeout: 15_000 });
     await other.close();
+    // End it again: the test database is shared, and a live banner would sit over every later test's page.
+    const list = await (await page.request.get('/api/v1/admin/announcements')).json() as { announcements: { id: string; title: string }[] };
+    const made = list.announcements.find((a) => a.title === title)!;
+    expect((await page.request.delete(`/api/v1/admin/announcements/${made.id}`, { headers: { origin: BASE_URL } })).status()).toBe(204);
   });
 
   test('opening Chat from the desktop signs you in with no prompt (amber theme, accessibility)', async ({ page, isMobile }) => {
