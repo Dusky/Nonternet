@@ -257,3 +257,21 @@ ul.plain { list-style: none; margin: 0; padding: 0; }
 .irc-c10 { color: color-mix(in srgb, #009393 55%, var(--text)); } .irc-c11 { color: color-mix(in srgb, #00b8b8 55%, var(--text)); }
 .irc-c12 { color: color-mix(in srgb, #0000fc 55%, var(--text)); } .irc-c13 { color: color-mix(in srgb, #ff00ff 55%, var(--text)); }
 .irc-c14 { color: color-mix(in srgb, #7f7f7f 55%, var(--text)); } .irc-c15 { color: color-mix(in srgb, #a0a0a0 55%, var(--text)); }
+
+/* ---- MUD */
+.mud-screen { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); height: min(70vh, 42rem); min-height: 20rem; }
+.mud-log { flex: 1; overflow-y: auto; padding: .5rem .7rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92rem; line-height: 1.4; overflow-wrap: anywhere; }
+.mud-log p { margin: 0; white-space: pre-wrap; }
+.mud-out { margin-bottom: .35rem; }
+.mud-you { color: var(--muted); }
+.mud-note { color: var(--muted); font-style: italic; }
+.mud-u { text-decoration: underline; }
+.mud-red-b, .mud-red { color: color-mix(in srgb, #e02020 60%, var(--text)); }
+.mud-green-b, .mud-green { color: color-mix(in srgb, #10a010 60%, var(--text)); }
+.mud-yellow-b, .mud-yellow { color: color-mix(in srgb, #c8a000 60%, var(--text)); }
+.mud-blue-b, .mud-blue { color: color-mix(in srgb, #2050ff 60%, var(--text)); }
+.mud-magenta-b, .mud-magenta { color: color-mix(in srgb, #c020c0 60%, var(--text)); }
+.mud-cyan-b, .mud-cyan { color: color-mix(in srgb, #00a0a0 60%, var(--text)); }
+.mud-white-b, .mud-white, .mud-black-b, .mud-grey { color: var(--text); }
+.mud-black { color: var(--muted); }
+.mud-red-b, .mud-green-b, .mud-yellow-b, .mud-blue-b, .mud-magenta-b, .mud-cyan-b, .mud-white-b { font-weight: 600; }

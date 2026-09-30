@@ -6,7 +6,9 @@ import react from '@vitejs/plugin-react';
 const core = process.env.CORE_URL ?? 'http://localhost:3000';
 // The Chat app's WebSocket goes to Ergo (IRC_WS_URL, default ws://localhost:8097), as Caddy does in production.
 const irc = process.env.IRC_WS_URL ?? 'ws://localhost:8097';
-const proxy = { '/api': core, '/oidc': core, '/widgets': core, '^/ring/': core, '/ws/irc': { target: irc, ws: true, rewrite: () => '/' } };
+// The MUD window's WebSocket goes to Evennia (MUD_WS_URL, default ws://localhost:4002).
+const mud = process.env.MUD_WS_URL ?? 'ws://localhost:4002';
+const proxy = { '/api': core, '/oidc': core, '/widgets': core, '^/ring/': core, '/ws/irc': { target: irc, ws: true, rewrite: () => '/' }, '/ws/mud': { target: mud, ws: true, rewrite: () => '/' } };
 
 export default defineConfig({
   plugins: [react()],

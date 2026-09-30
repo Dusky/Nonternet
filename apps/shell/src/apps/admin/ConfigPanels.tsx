@@ -128,13 +128,13 @@ export function AnnouncementsPanel() {
   const t = useT();
   const qc = useQueryClient();
   const site = useSite();
-  const [f, setF] = useState({ title: '', body: '', level: 'info' as 'info' | 'warning', starts: '', ends: '', irc: false });
+  const [f, setF] = useState({ title: '', body: '', level: 'info' as 'info' | 'warning', starts: '', ends: '', irc: false, mud: false });
   const [error, setError] = useState<string | null>(null);
   const list = useQuery({ queryKey: ['admin', 'announcements'], queryFn: () => api.get<{ announcements: AnnRow[] }>('/admin/announcements') });
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['admin', 'announcements'] }); void qc.invalidateQueries({ queryKey: ['announcements'] }); };
   const create = useMutation({
-    mutationFn: () => api.post('/admin/announcements', { title: f.title, body: f.body, level: f.level, starts_at: iso(f.starts), ends_at: iso(f.ends), irc: f.irc }),
-    onSuccess: () => { setF({ title: '', body: '', level: 'info', starts: '', ends: '', irc: false }); setError(null); refresh(); }, onError: (e) => setError(errorText(e)),
+    mutationFn: () => api.post('/admin/announcements', { title: f.title, body: f.body, level: f.level, starts_at: iso(f.starts), ends_at: iso(f.ends), irc: f.irc, mud: f.mud }),
+    onSuccess: () => { setF({ title: '', body: '', level: 'info', starts: '', ends: '', irc: false, mud: false }); setError(null); refresh(); }, onError: (e) => setError(errorText(e)),
   });
   const end = useMutation({ mutationFn: (id: string) => api.del(`/admin/announcements/${id}`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
   return (
@@ -152,6 +152,7 @@ export function AnnouncementsPanel() {
         <div className="field"><label htmlFor="ann-start">{t('admin.ann.starts')}</label><input id="ann-start" type="datetime-local" value={f.starts} onChange={(e) => setF({ ...f, starts: e.target.value })} /></div>
         <div className="field"><label htmlFor="ann-end">{t('admin.ann.ends')}</label><input id="ann-end" type="datetime-local" value={f.ends} onChange={(e) => setF({ ...f, ends: e.target.value })} /></div>
         {site.services.irc && <label className="check"><input type="checkbox" checked={f.irc} onChange={(e) => setF({ ...f, irc: e.target.checked })} />{t('admin.ann.irc', { channel: site.irc.lobby })}</label>}
+        {site.services.mud && <label className="check"><input type="checkbox" checked={f.mud} onChange={(e) => setF({ ...f, mud: e.target.checked })} />{t('admin.ann.mud')}</label>}
         {f.title && <><h3>{t('admin.ann.preview')}</h3><AnnouncementBox a={{ id: 'preview', title: f.title, body: f.body, level: f.level }} /></>}
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn btn-primary" type="submit" disabled={create.isPending}>{t('admin.ann.publish')}</button>

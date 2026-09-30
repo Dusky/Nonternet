@@ -11,6 +11,7 @@ import { ReasonForm } from '../boards/ModTools';
 import { AnnouncementsPanel, LegalPanel, SettingsPanel } from './ConfigPanels';
 import { BackupsPanel, StatusPanel } from './StatusPanels';
 import { IrcPanel } from './IrcPanel';
+import { MudPanel } from './MudPanel';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
 interface UserRow { id: string; handle: string; display_name: string | null; email: string; role: Role; status: string; created_at: string; last_seen_at: string | null }
@@ -28,7 +29,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'backups'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -51,6 +52,7 @@ export default function AdminApp() {
         <AppNavLink to="announcements">{t('admin.tab.announcements')}</AppNavLink>
         <AppNavLink to="settings">{t('admin.tab.config')}</AppNavLink>
         {site.services.irc && <AppNavLink to="irc">{t('admin.tab.irc')}</AppNavLink>}
+        {site.services.mud && <AppNavLink to="mud">{t('admin.tab.mud')}</AppNavLink>}
         <AppNavLink to="legal">{t('admin.tab.legal')}</AppNavLink>
         <AppNavLink to="backups">{t('admin.tab.backups')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
@@ -59,6 +61,7 @@ export default function AdminApp() {
         {route?.pattern === 'status' && <StatusPanel />}
         {route?.pattern === 'legal' && <LegalPanel />}
         {route?.pattern === 'irc' && <IrcPanel />}
+        {route?.pattern === 'mud' && <MudPanel />}
         {route?.pattern === 'backups' && <BackupsPanel />}
         {route?.pattern === 'users' && <Users />}
         {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}

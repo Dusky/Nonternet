@@ -76,6 +76,13 @@ export const siteConfigSchema = z
         history_days: z.number().int().min(0).max(365).default(7),
       })
       .default({}),
+    mud: z
+      .object({
+        // Where native MUD clients connect (telnet); default mud.{site.domain}.
+        public_host: hostname.optional(),
+        public_port: z.number().int().min(1).max(65535).default(4000),
+      })
+      .default({}),
     moderation: z
       .object({
         // The mod log of each board is readable by anyone who can read the board (docs/03).
@@ -119,6 +126,7 @@ export const publicSiteSchema = z.object({
   signup_mode: z.enum(['open', 'invite', 'application']),
   minimum_age: z.number().int(),
   irc: z.object({ host: z.string(), port: z.number().int(), lobby: z.string() }),
+  mud: z.object({ host: z.string(), port: z.number().int() }),
   services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean() }),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
@@ -132,6 +140,7 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     signup_mode: cfg.signup.mode,
     minimum_age: cfg.signup.minimum_age,
     irc: { host: cfg.irc.public_host ?? `irc.${cfg.site.domain}`, port: cfg.irc.public_port, lobby: cfg.irc.official_channels[0]! },
+    mud: { host: cfg.mud.public_host ?? `mud.${cfg.site.domain}`, port: cfg.mud.public_port },
     services: cfg.services,
   };
 }

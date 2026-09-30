@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { client, createTestDb, dbAvailable, loginAs, makeApp, makeUser, TEST_PASSWORD } from '../test/harness';
+import { client, createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser, TEST_PASSWORD } from '../test/harness';
 import { newId } from '../crypto';
 import { ircSecrets } from '../irc/secrets';
 import { mudSecrets } from './secrets';
@@ -29,6 +29,25 @@ describe.skipIf(!dbAvailable)('MUD sign-in', () => {
     await db.query(`INSERT INTO scoped_roles (id, user_id, role, scope_type, scope_id, granted_by) VALUES ($1, $2, 'mud_builder', 'mud', 'world', $2)`, [newId('o'), u.id]);
     const again = (await c.post('/api/v1/mud/ticket')).body.ticket;
     expect((await auth({ accountName: u.handle, passphrase: again })).body.builder).toBe(true);
+  });
+
+  it('lets admins appoint and remove builders by handle, audited, and only admins', async () => {
+    const admin = await makeAdmin(ctx);
+    const u = await makeUser(ctx);
+    expect((await admin.client.post('/api/v1/admin/mud/builders', { handle: 'nobody-here', reason: 'x y z' })).status).toBe(404);
+    expect((await admin.client.post('/api/v1/admin/mud/builders', { handle: u.handle.toUpperCase(), reason: 'builds the swamp' })).status).toBe(201);
+    const list = (await admin.client.get('/api/v1/admin/mud/builders')).body.builders;
+    const b = list.find((x: { handle: string }) => x.handle === u.handle);
+    expect(b).toBeTruthy();
+    const c = await loginAs(ctx, u.handle);
+    expect((await c.get('/api/v1/admin/mud/builders')).status).toBe(403);
+    const t = (await c.post('/api/v1/mud/ticket')).body.ticket;
+    expect((await auth({ accountName: u.handle, passphrase: t })).body.builder).toBe(true);
+    expect((await admin.client.post('/api/v1/admin/mud/builders/remove', { user_id: b.user_id, op_id: b.op_id, reason: 'done building' })).status).toBe(204);
+    const t2 = (await c.post('/api/v1/mud/ticket')).body.ticket;
+    expect((await auth({ accountName: u.handle, passphrase: t2 })).body.builder).toBe(false);
+    const a = await db.query(`SELECT after FROM audit_log WHERE action = 'user.ops_changed' AND target_id = $1 ORDER BY id`, [u.id]);
+    expect(a.rows.map((r) => r.after.granted ?? `-${r.after.revoked}`)).toEqual(['mud:world', '-mud:world']);
   });
 
   it('keeps chat tickets and MUD tickets apart', async () => {
