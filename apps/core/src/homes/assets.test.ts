@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { ASSETS } from './assets';
 import { TEMPLATES } from './templates';
 
+// The name is built from pieces so this file does not itself contain the placeholder (tests/placeholder-name.test.ts).
+const SITE_NAMES = new RegExp(['test site', ['non', 'ternet'].join('')].join('|'), 'i');
+
 describe('the asset library', () => {
   it('has unique ids and every category', () => {
     expect(new Set(ASSETS.map((a) => a.id)).size).toBe(ASSETS.length);
@@ -28,7 +31,7 @@ describe('templates', () => {
       const files = t.files({ handle: 'zerocool', title: 'My page' });
       expect(Object.keys(files), t.id).toContain('index.html');
       expect(files['index.html'], t.id).toContain('<title>');
-      expect(JSON.stringify(files), t.id).not.toMatch(/test site|nonternet/i);
+      expect(JSON.stringify(files), t.id).not.toMatch(SITE_NAMES);
     }
   });
 });

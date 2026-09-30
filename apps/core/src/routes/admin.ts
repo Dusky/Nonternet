@@ -3,6 +3,8 @@ import { grantOpSchema, roleSchema } from '@app/shared';
 import { z } from 'zod';
 import * as accounts from '../accounts';
 import * as admin from '../admin';
+import * as homes from '../homes/service';
+import * as widgets from '../homes/widgets';
 import { ctxOf, requireAdmin } from '../http';
 import type { AppDeps } from '../deps';
 
@@ -108,5 +110,27 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
     const p = z.object({ type: z.string().max(40), id: z.string().max(100) }).parse(req.params);
     const q = auditQuery.pick({ before: true, limit: true }).parse(req.query);
     return admin.listAudit(deps, { targetType: p.type, targetId: p.id, before: q.before, limit: q.limit });
+  });
+
+  // Homepages (docs/07, docs/11): the list, and hiding one. Hidden pages are not served or listed.
+  app.get('/api/v1/admin/homepages', async (req) => {
+    requireAdmin(req);
+    const q = z.object({
+      q: z.string().trim().max(100).optional(), hidden: z.enum(['true', 'false']).optional(),
+      before: z.string().regex(/^u_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(200).optional(),
+    }).parse(req.query);
+    return homes.adminList(deps, { ...q, hidden: q.hidden === undefined ? undefined : q.hidden === 'true' });
+  });
+  for (const hide of [true, false]) {
+    app.post(`/api/v1/admin/homepages/:id/${hide ? 'hide' : 'restore'}`, async (req, reply) => {
+      const who = requireAdmin(req);
+      await homes.setHidden(deps, who, userIdParam.parse(req.params).id, hide, reasonBody.parse(req.body).reason, ctxOf(deps, req));
+      return reply.code(204).send();
+    });
+  }
+  app.post('/api/v1/admin/guestbook/:id/hide', async (req, reply) => {
+    const who = requireAdmin(req);
+    await widgets.adminHideEntry(deps, who, z.object({ id: z.string().regex(/^g_[0-9A-Z]{26}$/) }).parse(req.params).id, reasonBody.parse(req.body).reason, ctxOf(deps, req));
+    return reply.code(204).send();
   });
 }

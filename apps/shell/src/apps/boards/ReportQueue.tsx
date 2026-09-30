@@ -40,44 +40,60 @@ export function ReportQueue() {
 function Report({ r }: { r: ReportView }) {
   const t = useT();
   const qc = useQueryClient();
-  const [tool, setTool] = useState<null | 'hide' | 'remove' | 'dismiss'>(null);
+  const [tool, setTool] = useState<null | 'hide' | 'remove' | 'dismiss' | 'hide-page' | 'hide-entry'>(null);
   const [error, setError] = useState<string | null>(null);
-  const done = () => { setTool(null); setError(null); for (const k of ['reports', 'thread', 'threads', 'modlog']) void qc.invalidateQueries({ queryKey: [k] }); };
+  const done = () => { setTool(null); setError(null); for (const k of ['reports', 'thread', 'threads', 'modlog', 'admin']) void qc.invalidateQueries({ queryKey: [k] }); };
   const act = useMutation({
-    mutationFn: (reason: string) => (tool === 'dismiss'
-      ? api.post(`/reports/${r.id}/resolve`, { resolution: 'dismissed', note: reason })
-      : api.post('/mod-actions', { action: tool, post_id: r.post.id, reason })),
+    mutationFn: (reason: string) => {
+      if (tool === 'dismiss') return api.post(`/reports/${r.id}/resolve`, { resolution: 'dismissed', note: reason });
+      if (tool === 'hide-page') return api.post(`/admin/homepages/${r.target.id}/hide`, { reason });
+      if (tool === 'hide-entry') return api.post(`/admin/guestbook/${r.target.id}/hide`, { reason });
+      return api.post('/mod-actions', { action: tool, post_id: r.target.id, reason });
+    },
     onSuccess: done,
     onError: (e) => setError(errorText(e)),
   });
   const open = r.status === 'open';
-  const live = r.post.state === 'ok' || r.post.state === 'hidden';
+  const post = r.post;
+  const live = post ? post.state === 'ok' || post.state === 'hidden' : true;
+  const title =
+    r.target.type === 'post' ? t('boards.reports.by', { name: r.reporter.handle, board: r.board.name })
+    : t('boards.reports.byPlain', { name: r.reporter.handle });
+  const about = r.target.type === 'homepage' ? t('boards.reports.aboutPage', { name: r.target.handle ?? '' })
+    : r.target.type === 'guestbook' ? t('boards.reports.aboutEntry', { name: r.target.handle ?? '' }) : null;
+  const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : t(`boards.mod.${k}`);
   return (
     <li>
       <p>
-        <strong>{t('boards.reports.by', { name: r.reporter.handle, board: r.board.name })}</strong>{' '}
+        <strong>{title}</strong>{' '}
         <span className="badge">{t(`boards.report.cat.${r.category}`)}</span>{' '}
         {!open && <span className="badge">{t(r.status === 'dismissed' ? 'boards.reports.dismissed' : 'boards.reports.actioned')}</span>}{' '}
         {r.escalated && <span className="badge badge-warn">{t('boards.reports.escalated')}</span>}
       </p>
+      {about && <p className="hint">{about}</p>}
       {r.note && <p>{r.note}</p>}
       <blockquote className="excerpt">
-        {r.post.state === 'ok' || r.post.state === 'hidden'
-          ? <><strong>{r.post.subject}</strong>{r.post.author ? ` (${r.post.author})` : ''}<br />{r.post.excerpt}</>
-          : <span className="muted">{t('boards.reports.postGone')}</span>}
+        {post
+          ? (post.state === 'ok' || post.state === 'hidden'
+            ? <><strong>{post.subject}</strong>{post.author ? ` (${post.author})` : ''}<br />{r.excerpt}</>
+            : <span className="muted">{t('boards.reports.postGone')}</span>)
+          : r.excerpt}
       </blockquote>
       <p className="hint">
         {formatWhen(r.at)}{r.other_open > 0 ? ` · ${t('boards.reports.others', { count: r.other_open })}` : ''}
         {r.resolved_by ? ` · ${t('boards.reports.resolvedBy', { name: r.resolved_by })}` : ''}{r.resolution_note ? ` · ${r.resolution_note}` : ''}
       </p>
       <div className="mod-tools">
-        {live && <OpenAppLink app="boards" to={`${r.board.slug}/t/${r.post.thread_id}`}>{t('boards.reports.open')}</OpenAppLink>}
-        {open && live && r.post.state === 'ok' && <button type="button" className="link" onClick={() => setTool('hide')}>{t('boards.mod.hide')}</button>}
-        {open && live && <button type="button" className="link" onClick={() => setTool('remove')}>{t('boards.mod.remove')}</button>}
+        {post && live && <OpenAppLink app="boards" to={`${r.board.slug}/t/${post.thread_id}`}>{t('boards.reports.open')}</OpenAppLink>}
+        {r.target.type === 'homepage' && r.target.handle && <OpenAppLink app="homepages" to="">{t('app.homepages')}</OpenAppLink>}
+        {open && post && live && post.state === 'ok' && <button type="button" className="link" onClick={() => setTool('hide')}>{t('boards.mod.hide')}</button>}
+        {open && post && live && <button type="button" className="link" onClick={() => setTool('remove')}>{t('boards.mod.remove')}</button>}
+        {open && r.target.type === 'homepage' && <button type="button" className="link" onClick={() => setTool('hide-page')}>{t('boards.reports.hidePage')}</button>}
+        {open && r.target.type === 'guestbook' && <button type="button" className="link" onClick={() => setTool('hide-entry')}>{t('boards.reports.hideEntry')}</button>}
         {open && <button type="button" className="link" onClick={() => setTool('dismiss')}>{t('boards.reports.dismiss')}</button>}
       </div>
       {tool && (
-        <ReasonForm label={tool === 'dismiss' ? t('boards.reports.dismiss') : t(`boards.mod.${tool}`)} submitLabel={t('boards.mod.confirm')}
+        <ReasonForm label={label(tool)} submitLabel={t('boards.mod.confirm')}
           hint={tool === 'remove' ? t('boards.mod.removeHint') : undefined} pending={act.isPending} error={error} onSubmit={(reason) => act.mutate(reason)} onCancel={() => setTool(null)} />
       )}
     </li>

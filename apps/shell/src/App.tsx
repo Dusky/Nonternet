@@ -12,6 +12,7 @@ import { Centered } from './components/ui';
 import { LoginPage } from './pages/Login';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
 import { Setup2faPage } from './pages/Setup2fa';
+import { ReportHomepagePage } from './pages/ReportHomepage';
 import { SignupPage } from './pages/Signup';
 
 // Sends anyone who is not signed in to the login page, and back here afterwards. An admin who
@@ -130,6 +131,7 @@ export function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/setup-2fa" element={<Setup2faRoute />} />
+      <Route path="/report/homepage/:handle" element={<RequireUser>{() => <ReportHomepagePage />}</RequireUser>} />
       {APPS.map((app) => <Route key={app.id} path={`${app.path}/*`} element={<AppRoute app={app} />} />)}
       <Route path="*" element={<NotFound />} />
     </Routes>

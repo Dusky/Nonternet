@@ -61,6 +61,25 @@ or SFTP with terminal password; git push deploys.
   `assets/` folder, so it is theirs and will be in their export. Classic animated GIFs are not included.
 - **Isolation is tested in a real browser:** a script on a homepage sees no cookies, cannot read the
   shell API, and a forged cross-site logout does not sign the visitor out (`studio.spec.ts`).
+- **Widgets** are scripts a person pastes in (the studio's Widgets tab has the lines to copy):
+  `guestbook.js`, `counter.js`, `updated.js`, `online.js`, each with `data-user="{handle}"`. They run on the
+  homepage's origin and use the public widget API (`/api/v1/widgets/{handle}/…`), which answers any
+  site (`Access-Control-Allow-Origin: *`, no credentials), never looks at a session, and is exempt from
+  the origin check for that reason. Scripts build their output with `textContent` only (a test refuses
+  `innerHTML`), so nothing a visitor types becomes markup.
+- **Guestbook:** anyone can sign from the widget (name, optional http(s) address, message up to 500
+  characters), with a hidden field that quietly drops bots and 5 signings per address per hour. Signing
+  from the site (`/homepages/guestbook/{handle}`) while logged in uses the account's own name. The owner
+  chooses open, approval or closed, approves or hides entries in the studio, and entries can be reported.
+- **Counter:** one count per visitor per day (hashed address and browser), total kept apart from the daily records.
+  **Online** means seen on the site in the last 5 minutes (PROPOSED until real presence exists).
+- **Directory** (`Homepages` app, `/homepages`, public): recently updated or by name, search of title,
+  description and handle, and a random page. Pages without a front page, hidden pages and suspended people are left out.
+- **Reporting:** the footer's link goes to `/report/homepage/{handle}` (login first). Reports about pages and
+  guestbook entries go to admins only; hiding a page or entry closes them. Admins hide and restore pages
+  from the console (Homepages tab) with a reason, audited as `homepage.hidden` and `homepage.restored`.
+- Not built yet: a "sign with your account" autofill inside the widget itself (it is on the site page),
+  and the ring nav bar widget (with rings).
 - Per-user quota overrides (docs say admin-configurable) are not built; the role quotas are.
 
 ## Acceptance tests

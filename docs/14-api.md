@@ -19,6 +19,7 @@ OIDC under `/oidc/*`.
 `/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
+Homepages (built): `GET /homes/me`, `PATCH /homes/me`, `PUT|GET|DELETE /homes/me/file?path=`, `POST /homes/me/{folders,move,template,assets}`, `GET /homes/{templates,assets,assets/:id,me/snippets}`, guestbook `GET /homes/me/guestbook`, `PATCH /homes/me/guestbook/:id`, `POST /homes/:handle/guestbook`; public directory `GET /homepages`, `GET /homepages/random`; public widget API `GET|POST /widgets/:handle/{guestbook,counter,hit,status}` (CORS open, no session) and scripts at `/widgets/{name}.js`; reports take `{post_id}`, `{homepage}` or `{guestbook_entry}`; admin `GET /admin/homepages`, `POST /admin/homepages/:id/{hide,restore}`, `POST /admin/guestbook/:id/hide`.
 Moderation (built): `POST /mod-actions {action, post_id, reason, to_board?}` (hide, unhide, remove, lock, unlock, move), `POST /mod-actions/:id/undo`, `GET /modlog?board=&before=`, `POST /reports`, `GET /reports?status=&before=`, `POST /reports/:id/resolve`, `GET|POST /boards/:slug/ops`, `DELETE /boards/:slug/ops/:opId`. Event: `mod.action`.
 Notifications (built): `GET /notifications?before=&limit=` (with the unread count), `GET /notifications/count`, `POST /notifications/read {ids}` or `{all: true}`.
 Built (M2): everything below except `PATCH` of ring boards, plus `PUT|DELETE /boards/:slug/watch`,

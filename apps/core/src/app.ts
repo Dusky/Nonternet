@@ -15,6 +15,7 @@ import { meRoutes } from './routes/me';
 import { boardRoutes } from './routes/boards';
 import { moderationRoutes } from './routes/moderation';
 import { homeRoutes } from './routes/homes';
+import { widgetRoutes, WIDGET_API } from './routes/widgets';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -59,6 +60,8 @@ export async function buildApp(deps: AppDeps) {
     // The OIDC endpoints are called by services with their own credentials (client auth, PKCE), not
     // with a browser session cookie, and the provider protects its own forms.
     if (req.url === OIDC_PATH || req.url.startsWith(`${OIDC_PATH}/`)) return;
+    // The public widget API answers any website and never reads a session (see routes/widgets.ts).
+    if (req.url.startsWith(WIDGET_API)) return;
     const origin = req.headers.origin;
     if (origin ? !deps.allowedOrigins.includes(origin) : Boolean(req.cookies[COOKIE])) {
       throw new ApiError(403, 'bad_origin', 'This request did not come from the site.');
@@ -83,5 +86,6 @@ export async function buildApp(deps: AppDeps) {
   boardRoutes(app, deps);
   moderationRoutes(app, deps);
   homeRoutes(app, deps);
+  widgetRoutes(app, deps);
   return app;
 }

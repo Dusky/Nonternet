@@ -5,12 +5,13 @@ import { api } from '../../api';
 import { Alert, TextField } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 import { AppNavLink, matchRoute, useAppNav } from '../../nav';
+import { CopyButton } from '../../components/ui';
 
 const CodeEditor = lazy(() => import('./CodeEditor'));
 interface Mine { homepage: HomepageSummary; files: HomeFileEntry[] }
 interface AssetInfo { id: string; title: string; category: string; width: number; height: number }
 
-const ROUTES = ['files', 'assets', 'settings'] as const;
+const ROUTES = ['files', 'assets', 'widgets', 'guestbook', 'settings'] as const;
 const fmt = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
 
 export default function StudioApp() {
@@ -27,12 +28,16 @@ export default function StudioApp() {
       <nav className="tabs" aria-label={t('app.studio')}>
         <AppNavLink to="files">{t('studio.tab.files')}</AppNavLink>
         <AppNavLink to="assets">{t('studio.tab.assets')}</AppNavLink>
+        <AppNavLink to="widgets">{t('studio.tab.widgets')}</AppNavLink>
+        <AppNavLink to="guestbook">{t('studio.tab.guestbook')}</AppNavLink>
         <AppNavLink to="settings">{t('studio.tab.settings')}</AppNavLink>
       </nav>
       <div className="app-content">
         <Usage h={homepage} />
         {route?.pattern === 'files' && <Files mine={q.data} />}
         {route?.pattern === 'assets' && <Assets />}
+        {route?.pattern === 'widgets' && <Widgets />}
+        {route?.pattern === 'guestbook' && <GuestbookManager h={homepage} />}
         {route?.pattern === 'settings' && <Settings h={homepage} />}
       </div>
     </div>
@@ -298,5 +303,63 @@ function Settings({ h }: { h: HomepageSummary }) {
       {saved && <Alert kind="success">{t('studio.settings.saved')}</Alert>}
       <button className="btn btn-primary" type="submit" disabled={save.isPending}>{t('common.save')}</button>
     </form>
+  );
+}
+
+// ---------------------------------------------------------------- widgets and guestbook
+
+function Widgets() {
+  const t = useT();
+  const list = useQuery({ queryKey: ['studio', 'snippets'], queryFn: () => api.get<{ snippets: { id: string; html: string }[] }>('/homes/me/snippets') });
+  return (
+    <>
+      <p>{t('studio.widgets.hint')}</p>
+      <ul className="rows">
+        {list.data?.snippets.map((s) => (
+          <li key={s.id}>
+            <strong>{t(`studio.widgets.${s.id}` as 'studio.widgets.guestbook')}</strong>
+            {/* Long lines scroll sideways, so the box must take the keyboard focus to be readable without a mouse. */}
+            <pre className="terminal" tabIndex={0} role="group" aria-label={t(`studio.widgets.${s.id}` as 'studio.widgets.guestbook')}>{s.html}</pre>
+            <CopyButton text={s.html} />
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+interface GbRow { id: string; name: string; url: string | null; message: string; at: string; status: 'visible' | 'pending' | 'hidden'; member: string | null }
+
+function GuestbookManager({ h }: { h: HomepageSummary }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const list = useQuery({ queryKey: ['studio', 'guestbook'], queryFn: () => api.get<{ entries: GbRow[] }>('/homes/me/guestbook') });
+  const refresh = () => { void qc.invalidateQueries({ queryKey: ['studio'] }); };
+  const mode = useMutation({ mutationFn: (m: string) => api.patch('/homes/me', { guestbook_mode: m }), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
+  const set = useMutation({ mutationFn: (v: { id: string; status: 'visible' | 'hidden' }) => api.patch(`/homes/me/guestbook/${v.id}`, { status: v.status }), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
+  return (
+    <>
+      <div className="field">
+        <label htmlFor="gb-mode">{t('studio.guestbook.mode')}</label>
+        <select id="gb-mode" value={h.guestbook_mode} onChange={(e) => mode.mutate(e.target.value)}>
+          {(['open', 'approval', 'off'] as const).map((m) => <option key={m} value={m}>{t(`studio.guestbook.mode.${m}`)}</option>)}
+        </select>
+      </div>
+      {error && <Alert kind="error">{error}</Alert>}
+      <h2>{t('studio.guestbook.entries')}</h2>
+      {list.data?.entries.length === 0 && <p>{t('studio.guestbook.none')}</p>}
+      <ul className="rows">
+        {list.data?.entries.map((e) => (
+          <li key={e.id}>
+            <strong>{e.name}</strong> <span className="badge">{t(`studio.guestbook.state.${e.status}`)}</span> <span className="muted">{formatWhen(e.at)}</span>
+            <p className="post-body">{e.message}</p>
+            {e.url && <p className="hint">{e.url}</p>}
+            {e.status !== 'visible' && <button type="button" className="link" onClick={() => set.mutate({ id: e.id, status: 'visible' })}>{e.status === 'pending' ? t('studio.guestbook.approve') : t('studio.guestbook.show')}</button>}
+            {e.status !== 'hidden' && <button type="button" className="link" onClick={() => set.mutate({ id: e.id, status: 'hidden' })}>{t('studio.guestbook.hide')}</button>}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

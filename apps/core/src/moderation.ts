@@ -1,4 +1,4 @@
-import { UNDOABLE_MOD_ACTIONS, type ModAction, type ModLogEntry, type ReportCategory, type ReportView } from '@app/shared';
+import { UNDOABLE_MOD_ACTIONS, type ModAction, type ModLogEntry, type PostView, type ReportCategory, type ReportView } from '@app/shared';
 import { audit } from './audit';
 import { newId } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
@@ -194,8 +194,9 @@ async function boardsIModerate(q: Queryable, v: SessionUser): Promise<string[] |
 
 interface ReportRow {
   id: string; status: ReportView['status']; category: ReportCategory; note: string; created_at: Date; reporter: string;
-  resolved_by: string | null; resolved_at: Date | null; resolution_note: string | null; slug: string; board_name: string;
-  post_id: string; thread_id: string; subject: string; body: string; deleted_at: Date | null; deleted_by: string | null; hidden_at: Date | null; post_author: string | null; other_open: string;
+  resolved_by: string | null; resolved_at: Date | null; resolution_note: string | null; target_type: 'post' | 'homepage' | 'guestbook'; target_id: string;
+  slug: string | null; board_name: string | null; thread_id: string | null; subject: string | null; body: string | null; deleted_at: Date | null;
+  deleted_by: string | null; hidden_at: Date | null; post_author: string | null; handle: string | null; page_title: string | null; entry_message: string | null; other_open: string;
 }
 
 export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?: 'open' | 'actioned' | 'dismissed' | 'all'; board?: string; before?: string; limit?: number }): Promise<{ reports: ReportView[]; next: string | null }> {
@@ -204,15 +205,22 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
   const status = opts.status ?? 'open';
   const limit = Math.min(opts.limit ?? 30, 100);
   const r = await deps.db.query<ReportRow>(
-    `SELECT r.id, r.status, r.category, r.note, r.created_at, ru.handle AS reporter, r.resolved_by, r.resolved_at, r.resolution_note,
-            b.slug, b.name AS board_name, p.id AS post_id, COALESCE(p.thread_root_id, p.id) AS thread_id,
-            COALESCE((SELECT subject FROM posts t WHERE t.id = COALESCE(p.thread_root_id, p.id)), '') AS subject, p.body,
+    `SELECT r.id, r.status, r.category, r.note, r.created_at, ru.handle AS reporter, r.resolved_by, r.resolved_at, r.resolution_note, r.target_type, r.target_id,
+            b.slug, b.name AS board_name, COALESCE(p.thread_root_id, p.id) AS thread_id,
+            (SELECT subject FROM posts t WHERE t.id = COALESCE(p.thread_root_id, p.id)) AS subject, p.body,
             p.deleted_at, p.deleted_by, p.hidden_at, pa.handle AS post_author,
-            (SELECT count(*) FROM reports o WHERE o.target_type = 'post' AND o.target_id = r.target_id AND o.status = 'open' AND o.id <> r.id) AS other_open
-     FROM reports r JOIN users ru ON ru.id = r.reporter_id JOIN posts p ON p.id = r.target_id JOIN boards b ON b.id = p.board_id
+            COALESCE(hu.handle, gu.handle) AS handle, hp.title AS page_title, ge.message AS entry_message,
+            (SELECT count(*) FROM reports o WHERE o.target_type = r.target_type AND o.target_id = r.target_id AND o.status = 'open' AND o.id <> r.id) AS other_open
+     FROM reports r JOIN users ru ON ru.id = r.reporter_id
+       LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
+       LEFT JOIN boards b ON b.id = p.board_id
        LEFT JOIN users pa ON pa.id = p.author_id
+       LEFT JOIN users hu ON r.target_type = 'homepage' AND hu.id = r.target_id
+       LEFT JOIN homepages hp ON hp.user_id = hu.id
+       LEFT JOIN guestbook_entries ge ON r.target_type = 'guestbook' AND ge.id = r.target_id
+       LEFT JOIN users gu ON gu.id = ge.home_user_id
      WHERE ($1::text = 'all' OR r.status = $1)
-       AND ($2::text[] IS NULL OR r.scope_id = ANY($2))
+       AND ($2::text[] IS NULL OR (r.scope_type = 'board' AND r.scope_id = ANY($2)))
        AND ($3::text IS NULL OR b.slug = $3)
        AND ($4::text IS NULL OR (r.created_at, r.id) < (SELECT created_at, id FROM reports WHERE id = $4))
      ORDER BY r.created_at DESC, r.id DESC LIMIT $5`,
@@ -220,16 +228,19 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
   const page = r.rows.slice(0, limit);
   const now = deps.now();
   return {
-    reports: page.map((x) => ({
-      id: x.id, status: x.status, category: x.category, note: x.note, at: x.created_at.toISOString(),
-      escalated: x.status === 'open' && now - x.created_at.getTime() > ESCALATE_AFTER_MS, other_open: Number(x.other_open),
-      reporter: { handle: x.reporter }, board: { slug: x.slug, name: x.board_name },
-      post: {
-        id: x.post_id, thread_id: x.thread_id, subject: x.deleted_at ? '' : x.subject, excerpt: x.deleted_at ? '' : [...x.body].slice(0, 300).join(''),
-        state: x.deleted_at ? (x.deleted_by === 'moderator' ? 'removed' : 'deleted') : x.hidden_at ? 'hidden' : 'ok', author: x.post_author,
-      },
-      resolved_by: x.resolved_by, resolved_at: x.resolved_at ? x.resolved_at.toISOString() : null, resolution_note: x.resolution_note,
-    })),
+    reports: page.map((x): ReportView => {
+      const isPost = x.target_type === 'post';
+      const state: PostView['state'] = x.deleted_at ? (x.deleted_by === 'moderator' ? 'removed' : 'deleted') : x.hidden_at ? 'hidden' : 'ok';
+      return {
+        id: x.id, status: x.status, category: x.category, note: x.note, at: x.created_at.toISOString(),
+        escalated: x.status === 'open' && now - x.created_at.getTime() > ESCALATE_AFTER_MS, other_open: Number(x.other_open),
+        reporter: { handle: x.reporter }, board: { slug: x.slug ?? '', name: x.board_name ?? '' },
+        target: { type: x.target_type, id: x.target_id, handle: x.handle },
+        post: isPost ? { id: x.target_id, thread_id: x.thread_id ?? '', subject: x.deleted_at ? '' : x.subject ?? '', excerpt: '', state, author: x.post_author } : null,
+        excerpt: isPost ? (x.deleted_at ? '' : [...(x.body ?? '')].slice(0, 300).join('')) : x.target_type === 'guestbook' ? [...(x.entry_message ?? '')].slice(0, 300).join('') : x.page_title ?? '',
+        resolved_by: x.resolved_by, resolved_at: x.resolved_at ? x.resolved_at.toISOString() : null, resolution_note: x.resolution_note,
+      };
+    }),
     next: r.rows.length > limit ? page[page.length - 1]!.id : null,
   };
 }

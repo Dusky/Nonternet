@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { boardOpAddSchema, modActionSchema, modUndoSchema, reportCreateSchema, reportResolveSchema, slugSchema } from '@app/shared';
 import { z } from 'zod';
 import * as mod from '../moderation';
+import * as widgets from '../homes/widgets';
 import { ctxOf, requireUser } from '../http';
 import type { AppDeps } from '../deps';
 import { viewerOf } from '../boards';
@@ -20,7 +21,14 @@ export function moderationRoutes(app: FastifyInstance, deps: AppDeps): void {
     mod.modLog(deps, viewerOf(req.session), z.object({ board: slugSchema.optional(), before: z.string().regex(/^m_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(100).optional() }).parse(req.query)));
 
   app.post('/api/v1/reports', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req, reply) =>
-    reply.code(201).send(await mod.createReport(deps, requireUser(req), reportCreateSchema.parse(req.body), ctxOf(deps, req))));
+    reply.code(201).send(await (async () => {
+      const b = reportCreateSchema.parse(req.body);
+      const v = requireUser(req);
+      const ctx = ctxOf(deps, req);
+      if ('post_id' in b) return mod.createReport(deps, v, b, ctx);
+      if ('homepage' in b) return widgets.reportHomepage(deps, v, b.homepage, b.category, b.note, ctx);
+      return widgets.reportEntry(deps, v, b.guestbook_entry, b.category, b.note, ctx);
+    })()));
 
   app.get('/api/v1/reports', async (req) =>
     mod.listReports(deps, requireUser(req), z.object({

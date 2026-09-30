@@ -7,6 +7,7 @@ import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
 import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
+import { ReasonForm } from '../boards/ModTools';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
 interface UserRow { id: string; handle: string; display_name: string | null; email: string; role: Role; status: string; created_at: string; last_seen_at: string | null }
@@ -24,7 +25,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards'] as const;
+const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'homepages'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -40,6 +41,7 @@ export default function AdminApp() {
         <AppNavLink to="invites">{t('admin.tab.invites')}</AppNavLink>
         <AppNavLink to="reports">{t('admin.tab.moderation')}</AppNavLink>
         <AppNavLink to="boards">{t('admin.tab.boards')}</AppNavLink>
+        <AppNavLink to="homepages">{t('admin.tab.homepages')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
       </nav>
       <div className="app-content">
@@ -48,6 +50,7 @@ export default function AdminApp() {
         {route?.pattern === 'invites' && <Invites />}
         {route?.pattern === 'reports' && <ReportQueue />}
         {route?.pattern === 'boards' && <BoardsTable />}
+        {route?.pattern === 'homepages' && <HomepagesTable />}
         {route?.pattern === 'audit' && <Audit />}
       </div>
     </div>
@@ -366,6 +369,65 @@ function BoardsTable() {
             ))}
           </tbody>
         </table>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- homepages
+
+interface HpRow { user_id: string; handle: string; title: string; size_bytes: number; file_count: number; has_index: boolean; last_updated_at: string | null; hidden: boolean; url: string }
+const mb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+function HomepagesTable() {
+  const t = useT();
+  const qc = useQueryClient();
+  const [q, setQ] = useState('');
+  const dq = useDebounced(q);
+  const [acting, setActing] = useState<HpRow | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const list = useQuery({
+    queryKey: ['admin', 'homepages', dq],
+    queryFn: () => api.get<{ homepages: HpRow[]; totals: { homepages: string; bytes: string; hidden: string } }>(`/admin/homepages${dq ? `?q=${encodeURIComponent(dq)}` : ''}`),
+  });
+  const run = useMutation({
+    mutationFn: (reason: string) => api.post(`/admin/homepages/${acting!.user_id}/${acting!.hidden ? 'restore' : 'hide'}`, { reason }),
+    onSuccess: () => { setActing(null); setError(null); void qc.invalidateQueries({ queryKey: ['admin'] }); }, onError: (e) => setError(errorText(e)),
+  });
+  if (list.isError) return <Alert kind="error">{errorText(list.error)}</Alert>;
+  const d = list.data;
+  return (
+    <>
+      <TextField label={t('admin.homepages.search')} value={q} onChange={setQ} type="search" autoCapitalize="none" spellCheck={false} />
+      {d && <p className="hint">{t('admin.homepages.totals', { count: d.totals.homepages, size: mb(Number(d.totals.bytes)), hidden: d.totals.hidden })}</p>}
+      {d && d.homepages.length === 0 && <p>{t('admin.homepages.none')}</p>}
+      {d && d.homepages.length > 0 && (
+        <table className="table">
+          <thead><tr>
+            <th scope="col">{t('admin.homepages.col.owner')}</th><th scope="col">{t('admin.homepages.col.title')}</th><th scope="col">{t('admin.homepages.col.size')}</th>
+            <th scope="col">{t('admin.homepages.col.updated')}</th><th scope="col">{t('admin.homepages.col.state')}</th>
+          </tr></thead>
+          <tbody>
+            {d.homepages.map((h) => (
+              <tr key={h.user_id}>
+                <th scope="row" data-label={t('admin.homepages.col.owner')}><a href={h.url} target="_blank" rel="noopener noreferrer">{h.handle}</a></th>
+                <td data-label={t('admin.homepages.col.title')}>{h.title}</td>
+                <td data-label={t('admin.homepages.col.size')}>{mb(h.size_bytes)}</td>
+                <td data-label={t('admin.homepages.col.updated')}>{formatWhen(h.last_updated_at) ?? t('admin.never')}</td>
+                <td data-label={t('admin.homepages.col.state')}>
+                  {h.hidden && <span className="badge badge-warn">{t('admin.homepages.hidden')}</span>}{' '}
+                  <button type="button" className="link" onClick={() => { setError(null); setActing(h); }} aria-label={t('admin.homepages.hideThis', { name: h.handle })}>
+                    {h.hidden ? t('admin.homepages.restore') : t('admin.homepages.hide')}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {acting && (
+        <ReasonForm label={t('admin.homepages.hideThis', { name: acting.handle })} submitLabel={t('boards.mod.confirm')} pending={run.isPending} error={error}
+          onSubmit={(reason) => run.mutate(reason)} onCancel={() => setActing(null)} />
       )}
     </>
   );

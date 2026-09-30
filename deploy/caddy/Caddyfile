@@ -7,6 +7,9 @@
 	handle /oidc/* {
 		reverse_proxy core:3000
 	}
+	handle /widgets/* {
+		reverse_proxy core:3000
+	}
 	handle {
 		reverse_proxy shell:80
 	}

@@ -110,11 +110,13 @@ export const modUndoSchema = z.object({ reason: reasonText.optional() });
 
 export const REPORT_CATEGORIES = ['spam', 'abuse', 'illegal', 'other'] as const;
 export type ReportCategory = (typeof REPORT_CATEGORIES)[number];
-export const reportCreateSchema = z.object({
-  post_id: z.string().regex(/^p_[0-9A-Z]{26}$/),
-  category: z.enum(REPORT_CATEGORIES),
-  note: z.string().trim().max(500).default(''),
-});
+const reportDetails = { category: z.enum(REPORT_CATEGORIES), note: z.string().trim().max(500).default('') };
+// What is being reported: a post, a homepage (by handle) or a guestbook entry.
+export const reportCreateSchema = z.union([
+  z.object({ post_id: z.string().regex(/^p_[0-9A-Z]{26}$/), ...reportDetails }),
+  z.object({ homepage: z.string().trim().min(1).max(40), ...reportDetails }),
+  z.object({ guestbook_entry: z.string().regex(/^g_[0-9A-Z]{26}$/), ...reportDetails }),
+]);
 export const reportResolveSchema = z.object({
   resolution: z.enum(['actioned', 'dismissed']),
   note: z.string().trim().max(500).optional(),
@@ -132,6 +134,8 @@ export interface ReportView {
   escalated: boolean; other_open: number;
   reporter: { handle: string };
   board: { slug: string; name: string };
-  post: { id: string; thread_id: string; subject: string; excerpt: string; state: PostView['state']; author: string | null };
+  target: { type: 'post' | 'homepage' | 'guestbook'; id: string; handle: string | null };
+  post: { id: string; thread_id: string; subject: string; excerpt: string; state: PostView['state']; author: string | null } | null;
+  excerpt: string;   // the reported words: a post, a guestbook entry, or a homepage's title
   resolved_by: string | null; resolved_at: string | null; resolution_note: string | null;
 }

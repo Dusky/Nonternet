@@ -13,6 +13,9 @@ from and calls into well-tested core APIs** — it never gets private back doors
 - **Two ways to do everything.** Every action is a button *and* a console command.
 - **Ops get a slice.** Board ops and ring ops get the same console UI scoped to what they manage.
 
+> **Built (M3):** a Homepages tab (every homepage with size and last change, totals, hide and restore
+> with a reason). The Reports tab also shows reports about homepages and guestbook entries, with hide and dismiss.
+>
 > **Built (M2):** a Reports tab (the moderation queue across all boards) and a Boards tab (every
 > board you can read, with owner, who can read it, thread count and last post).
 >

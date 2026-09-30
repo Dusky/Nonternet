@@ -14,6 +14,17 @@ const pathQuery = z.object({ path: z.string().max(200) });
 export function homeRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/homes/templates', async () => ({ templates: TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description })) }));
 
+  // The directory of homepages (docs/07): recently updated, search, and a random one.
+  app.get('/api/v1/homepages', async (req) => homes.directory(deps, z.object({
+    q: z.string().trim().max(100).optional(), sort: z.enum(['recent', 'name']).optional(),
+    limit: z.coerce.number().int().min(1).max(60).optional(), offset: z.coerce.number().int().min(0).max(5000).optional(),
+  }).parse(req.query)));
+  app.get('/api/v1/homepages/random', async () => {
+    const r = await homes.randomHomepage(deps);
+    if (!r) throw new ApiError(404, 'not_found', 'There are no homepages yet.');
+    return r;
+  });
+
   app.get('/api/v1/homes/assets', async () => ({ assets: ASSETS.map((a) => ({ id: a.id, title: a.title, category: a.category, width: a.width, height: a.height })) }));
   // The picture itself, for the studio to show. Locked down so a browser only ever draws it.
   app.get('/api/v1/homes/assets/:id', async (req, reply) => {
