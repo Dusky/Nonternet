@@ -85,7 +85,7 @@
 | V8 | Evennia: auth backend, web client embedding | 09 |
 | V9 | xterm.js screen reader support | 10 |
 | V10 | Licences of bundled GIFs, fonts, any embedded clients | 07, 08, 10 |
-| V11 | Caddy on-demand TLS with ask endpoint | 07, 15 |
+| V11 | Caddy on-demand TLS with ask endpoint. The `ask` endpoint and `Caddyfile.prod` are written and the endpoint is tested; Caddy itself has not been run against a real domain | 07, 15 |
 | V12 | Node telnet and SSH server libraries (e.g. `ssh2`): pty, public-key auth, terminal-type and window-size negotiation, xterm.js over WebSocket | 04 |
 
 ## Spike log

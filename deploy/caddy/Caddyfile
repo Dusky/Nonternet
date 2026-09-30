@@ -1,5 +1,12 @@
 # Front door. For local development this listens on plain HTTP; production sets
 # CADDY_ADDRESS to the site domain so Caddy manages TLS (docs/01, docs/15).
+# People's homepages (docs/07): every name except the site's own goes to the homes server, which
+# looks the name up. Locally that is one port; try http://{handle}.{homes_domain}:8081 with the
+# homes domain pointed at 127.0.0.1 (for example homes.localhost). Production uses Caddyfile.prod.
+:8081 {
+	reverse_proxy homes:3100
+}
+
 {$CADDY_ADDRESS::80} {
 	handle /api/* {
 		reverse_proxy core:3000

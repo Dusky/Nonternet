@@ -8,3 +8,4 @@ coverage/
 .tmp/
 test-results/
 playwright-report/
+data/

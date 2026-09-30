@@ -80,6 +80,16 @@ or SFTP with terminal password; git push deploys.
   from the console (Homepages tab) with a reason, audited as `homepage.hidden` and `homepage.restored`.
 - Not built yet: a "sign with your account" autofill inside the widget itself (it is on the site page),
   and the ring nav bar widget (with rings).
+- **Custom domains** (`Domains` tab in the studio): add a name (up to `homes.max_domains`, 3), put a TXT record at
+  `_home-verify.{name}` with `home-verify={token}` in DNS, and point the name at the homes server (a CNAME to
+  `{handle}.{homes_domain}`, or an A record to `homes.public_ip` for a bare domain). "Check now" looks the TXT up. Only a
+  verified name is served or given a certificate; several people may ask for a name, and the one who proves it gets
+  it (the others' requests are dropped). Each name (with and without `www`) is added and verified on its own.
+  Caddy asks `GET /internal/tls-ask?domain=` (never routed by the front door; optional `TLS_ASK_SECRET`) before it
+  issues a certificate: 200 only for a real person's homepage name or a verified custom domain. `deploy/caddy/Caddyfile.prod`
+  has the on-demand TLS setup; it has **not** been run against a real domain (V11 stays open until it is).
+  A verified domain stops working when the person removes it, is suspended, or their page is hidden. Keeping a URL
+  after an account is deleted is not built (account deletion arrives with the export, M4).
 - Per-user quota overrides (docs say admin-configurable) are not built; the role quotas are.
 
 ## Acceptance tests

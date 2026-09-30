@@ -16,6 +16,8 @@ WORKDIR /app
 COPY --from=build /repo/apps/core/dist ./
 # Native modules (argon2) are installed here, not bundled.
 RUN npm install --omit=dev --no-audit --no-fund && chown -R node:node /app
+# Homepage files live here; a named volume mounted on it starts with these permissions.
+RUN mkdir -p /data/homes && chown -R node:node /data
 USER node
 ENV PORT=3000
 EXPOSE 3000

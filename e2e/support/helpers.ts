@@ -80,6 +80,15 @@ export async function setRole(handle: string, role: 'user' | 'trusted') {
   try { await db.query(`UPDATE users SET role = $2, role_rev = role_rev + 1 WHERE handle = $1`, [handle, role]); } finally { await db.end(); }
 }
 
+// Marks a custom domain as verified straight in the database. Real DNS is not available to the tests,
+// and the check itself is covered by the core tests with a fake resolver.
+export async function markDomainVerified(domain: string) {
+  const stack = JSON.parse(readFileSync(join(TMP, 'stack.json'), 'utf8')) as { DATABASE_URL: string };
+  const db = new pg.Client({ connectionString: stack.DATABASE_URL });
+  await db.connect();
+  try { await db.query(`UPDATE custom_domains SET status = 'verified', verified_at = now() WHERE domain = $1`, [domain]); } finally { await db.end(); }
+}
+
 export async function loginViaUi(page: Page, identifier: string, password: string, second?: { recovery?: string; totp?: string }) {
   await page.goto('/login');
   await page.getByLabel('Handle or email').fill(identifier);

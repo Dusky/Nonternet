@@ -78,3 +78,8 @@ Pinned versions of Ergo and the MUD engine; integration suite must pass before b
 Structured JSON logs; `/healthz` per service; metrics rolled up into `metrics_rollup` for the
 admin console; alerting (email/webhook) on service down, disk > 80%, backup failure,
 report SLA breaches.
+
+## Homes server and custom domains
+- `homes-main.cjs` runs beside core (same image, port 3100, `HOMES_DIR` volume mounted read-only). It serves `{handle}.{homes_domain}` and verified custom domains and holds no cookies. In production it sits behind Caddy on-demand TLS (`deploy/caddy/Caddyfile.prod`).
+- `TLS_ASK_SECRET` (optional) is shared between core and Caddy's `ask` URL. `/internal/*` must not be reachable from outside.
+- `HOMES_PUBLIC_PORT` is only for local runs where homepage addresses carry a port.

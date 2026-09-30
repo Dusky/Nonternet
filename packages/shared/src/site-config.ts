@@ -51,6 +51,13 @@ export const siteConfigSchema = z
         trusted_ring_quota: z.number().int().nonnegative().default(2),
       })
       .default({}),
+    homes: z
+      .object({
+        // The address the homes server answers on. A bare custom domain needs an A record to it.
+        public_ip: z.string().regex(/^[0-9a-f.:]+$/i, 'an IPv4 or IPv6 address').optional(),
+        max_domains: z.number().int().nonnegative().default(3),
+      })
+      .default({}),
     moderation: z
       .object({
         // The mod log of each board is readable by anyone who can read the board (docs/03).

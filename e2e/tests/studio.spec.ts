@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
 import { BASE_URL, HOMES_DOMAIN, HOMES_PORT } from '../support/stack';
-import { makeUser, PASSWORD, signIn } from '../support/helpers';
+import { makeUser, markDomainVerified, PASSWORD, signIn, uniq } from '../support/helpers';
 
 const home = (handle: string, path = '') => `http://${handle}.${HOMES_DOMAIN}:${HOMES_PORT}/${path}`;
 const h = { origin: BASE_URL };
@@ -90,6 +90,37 @@ test.describe('homepage studio', () => {
     await live.close();
   });
 
+  test('adds a custom domain, is told what to put in DNS, and it serves the page once verified', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.request.post('/api/v1/homes/me/template', { data: { template: 'about-me' }, headers: h });
+    const domain = `www.${uniq('site')}.e2e-custom.test`;
+    await page.goto('/studio/domains');
+    await page.getByLabel('Domain name').fill(domain);
+    await page.getByRole('button', { name: 'Add a domain' }).click();
+    await expect(page.getByText('Waiting for DNS')).toBeVisible();
+    await expect(page.getByText(`_home-verify.${domain}`)).toBeVisible();
+    await expect(page.getByText(/^home-verify=[0-9a-f]{32}$/)).toBeVisible();
+    await expect(page.getByText(`${u.handle}.e2e-homes.test`)).toBeVisible(); // the CNAME target
+    await page.getByRole('button', { name: `Check now for ${domain}` }).click();
+    await expect(page.getByText(/No TXT record found|did not answer/)).toBeVisible(); // the record is not in DNS
+
+    // Once DNS says yes (simulated here), the page is served on the person's own name.
+    await markDomainVerified(domain);
+    await page.reload();
+    await expect(page.getByText('Verified and live')).toBeVisible();
+    const live = await page.context().newPage();
+    await live.goto(`http://${domain}:${HOMES_PORT}/`);
+    await expect(live.getByRole('heading', { level: 1, name: `Hi, I am ${u.handle}` })).toBeVisible();
+    await live.close();
+
+    page.once('dialog', (d) => void d.accept());
+    await page.getByRole('button', { name: `Remove ${domain}` }).click();
+    await expect(page.getByText('No domains yet.')).toBeVisible();
+    const gone = await (await page.context().newPage()).goto(`http://${domain}:${HOMES_PORT}/`);
+    expect(gone!.status()).toBe(404);
+  });
+
   // The rule from docs/07: JavaScript on a homepage must not be able to read the shell's cookies or
   // use the shell's API as the person looking at it. This is the real thing, in a real browser.
   test('homepage JavaScript cannot act as the signed-in visitor', async ({ page }) => {
@@ -129,7 +160,7 @@ test.describe('homepage studio', () => {
       await expect(page.getByRole('heading', { name: 'Start with a template' })).toBeVisible();
       await scan(page, `the template chooser (${theme})`);
       await page.request.post('/api/v1/homes/me/template', { data: { template: 'about-me' }, headers: h });
-      for (const path of ['/studio/files', '/studio/assets', '/studio/settings']) {
+      for (const path of ['/studio/files', '/studio/assets', '/studio/domains', '/studio/settings']) {
         await page.goto(path);
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         await expect(page.getByText('Loading')).toHaveCount(0);

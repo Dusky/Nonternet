@@ -42,11 +42,42 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
       TRUST_PROXY: "1"
       REDIS_URL: redis://redis:6379
+      HOMES_DIR: /data/homes
+      HOMES_PUBLIC_PORT: ${HOMES_HTTP_PORT:-8081}
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+      - homes-data:/data/homes
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+
+  # The homes server: people's homepages, on their own subdomains and domains. Same image as core,
+  # its own process, port and (in production) hostnames, so a homepage is never on the site's origin.
+  homes:
+    build:
+      context: ..
+      dockerfile: apps/core/Dockerfile
+    command: ["node", "homes-main.cjs"]
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      HOMES_PORT: "3100"
+      HOMES_DIR: /data/homes
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/app
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/.env (openssl rand -base64 32)}
+      NODE_ENV: development
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      HOMES_PUBLIC_PORT: ${HOMES_HTTP_PORT:-8081}
+      TRUST_PROXY: "1"
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+      - homes-data:/data/homes:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3100/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      postgres: { condition: service_healthy }
 
   shell:
     build:
@@ -57,6 +88,7 @@ services:
     image: caddy:2-alpine
     ports:
       - "${HTTP_PORT:-8080}:80"
+      - "${HOMES_HTTP_PORT:-8081}:8081"
     environment:
       CADDY_ADDRESS: ${CADDY_ADDRESS:-:80}
     volumes:
@@ -65,8 +97,10 @@ services:
     depends_on:
       - core
       - shell
+      - homes
 
 volumes:
+  homes-data:
   postgres-data:
   redis-data:
   caddy-data:

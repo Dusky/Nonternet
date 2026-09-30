@@ -69,7 +69,8 @@ pnpm build
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/postgres \
 TEST_REDIS_URL=redis://localhost:6379 pnpm test:e2e
 ```
-They start core and the shell themselves on ports 3373 and 4373 with `RATE_LIMIT=off`.
+They start core, the homes server and the shell themselves on ports 3373, 4374 and 4373 with `RATE_LIMIT=off`, and
+map `*.e2e-homes.test` and `*.e2e-custom.test` to this machine inside the test browser.
 That setting exists for tests only, and core refuses to start with it in production.
 
 Run it locally (core on :3000, shell on :5173, which proxies `/api` to core):

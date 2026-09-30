@@ -182,3 +182,6 @@ progress { width: 100%; height: 12px; accent-color: var(--accent); }
 .code-editor .cm-editor { min-height: 22rem; }
 .preview-frame { width: 100%; min-height: 22rem; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
 @media (max-width: 899px) { .editor-split { grid-template-columns: 1fr; } }
+.dns { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; margin: 0 0 .75rem; }
+.dns dt { color: var(--muted); }
+.dns dd { margin: 0; overflow-wrap: anywhere; }

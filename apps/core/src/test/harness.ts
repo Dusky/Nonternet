@@ -59,6 +59,9 @@ export function makeClock(start = Date.now()) {
   return clock;
 }
 
+// TXT records the fake DNS knows about. A test sets one with dnsRecords.set(name, [values]).
+export const dnsRecords = new Map<string, string[]>();
+
 export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean; oidcClients?: AppDeps['oidcClients']; publicUrl?: string } = {}) {
   const mailer = memoryMailer();
   const clock = makeClock();
@@ -71,6 +74,7 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     secureCookies: false, // inject() is plain http; cookie flags are covered by a dedicated test
     trustProxy: false,
     rateLimit: opts.rateLimit ?? false,
+    dnsTxt: async (name) => { const r = dnsRecords.get(name.toLowerCase()); if (!r) throw Object.assign(new Error('not found'), { code: 'ENOTFOUND' }); return r.map((v) => [v]); },
     now: () => clock.ms,
     homesUrl: (handle) => `https://${handle.toLowerCase()}.example-homes.test/`,
     homes: new HomeStore(mkdtempSync(join(tmpdir(), 'homes-test-'))),

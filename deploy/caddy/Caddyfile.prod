@@ -1,0 +1,44 @@
+# Production front door (docs/01, docs/15). Not used by the local compose stack, and not yet run
+# against a real domain: treat it as the reviewed starting point, not a tested deployment.
+#
+# Two kinds of name:
+#   1. The site itself ({$SITE_DOMAIN}): shell, API, widgets and ring links.
+#   2. Everything else on a normal HTTPS port: homepage names ({handle}.{homes_domain}) and
+#      verified custom domains. These go to the homes server, and Caddy gets a certificate for a
+#      name the first time it is asked for it, after core says the name is real (`ask`).
+{
+	on_demand_tls {
+		# Core answers 200 for a real person's homepage name or a verified custom domain, 404 for
+		# anything else. It is on the private network only; set TLS_ASK_SECRET on core to match.
+		ask http://core:3000/internal/tls-ask?secret={$TLS_ASK_SECRET}
+	}
+}
+
+{$SITE_DOMAIN} {
+	encode gzip
+	handle /api/* {
+		reverse_proxy core:3000
+	}
+	handle /oidc/* {
+		reverse_proxy core:3000
+	}
+	handle /widgets/* {
+		reverse_proxy core:3000
+	}
+	handle /ring/* {
+		reverse_proxy core:3000
+	}
+	# Never reachable from outside: only Caddy's own `ask` uses it.
+	respond /internal/* 404
+	handle {
+		reverse_proxy shell:80
+	}
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+	encode gzip
+	reverse_proxy homes:3100
+}

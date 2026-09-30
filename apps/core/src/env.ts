@@ -1,3 +1,4 @@
+import { promises as dns } from 'node:dns';
 import { resolve } from 'node:path';
 import { parseSecretKey } from './crypto';
 import { loadSiteConfig } from './config';
@@ -24,6 +25,7 @@ function rateLimitEnabled(env: Record<string, string | undefined>, production: b
 //   SMTP_URL / MAIL_FROM   outgoing mail; without SMTP_URL mail is logged
 //   HOMES_DIR        where homepage files live; default ./data/homes
 //   HOMES_PUBLIC_PORT  port in homepage addresses, for local runs only
+//   TLS_ASK_SECRET   shared with Caddy's `ask` URL (?secret=…), optional
 //   TRUST_PROXY=1    set when core is behind Caddy
 //   RATE_LIMIT=off  turns rate limits off, for automated tests only (refused in production)
 export function depsFromEnv(env = process.env, log: (m: string) => void = console.log): AppDeps {
@@ -47,6 +49,8 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     homesUrl: (handle) => `${publicUrl.startsWith('https://') ? 'https' : 'http'}://${handle.toLowerCase()}.${config.site.homes_domain}${env.HOMES_PUBLIC_PORT ? `:${env.HOMES_PUBLIC_PORT}` : ''}/`,
     homes: new HomeStore(resolve(env.HOMES_DIR ?? './data/homes')),
     oidcClients: resolveOidcClients(config.oidc.clients, env),
+    tlsAskSecret: env.TLS_ASK_SECRET || undefined,
+    dnsTxt: (name) => dns.resolveTxt(name),
     now: Date.now,
   };
 }

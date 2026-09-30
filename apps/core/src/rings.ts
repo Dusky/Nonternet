@@ -359,7 +359,12 @@ export async function navInfo(deps: AppDeps, slug: string, member: string | unde
   const isMemberNow = member ? (await deps.db.query(`SELECT 1 FROM ring_members WHERE ring_id = $1 AND user_id = $2 AND status = 'member'`, [ring.id, member])).rowCount > 0 : false;
   if (isMemberNow && origin) {
     const h = (await deps.db.query<{ handle: string }>(`SELECT handle FROM users WHERE id = $1`, [member]))?.rows[0];
-    if (h && new URL(deps.homesUrl(h.handle)).origin === origin) {
+    let host = '';
+    try { host = new URL(origin).hostname; } catch { /* not a web address */ }
+    // The member's own page: their homepage address, or a custom domain they have verified.
+    const own = h && (new URL(deps.homesUrl(h.handle)).hostname === host ||
+      (await deps.db.query(`SELECT 1 FROM custom_domains WHERE user_id = $1 AND domain = $2 AND status = 'verified'`, [member, host])).rowCount > 0);
+    if (own) {
       await deps.db.query(`UPDATE ring_members SET nav_detected_at = now() WHERE ring_id = $1 AND user_id = $2`, [ring.id, member]);
     }
   }

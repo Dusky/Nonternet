@@ -43,6 +43,14 @@ export async function buildHomesApp(deps: AppDeps) {
     return o ? { id: o.id, handle: o.handle, status: o.status, hidden: o.hidden_at !== null } : null;
   }
 
+  async function ownerByDomain(domain: string): Promise<Owner | null> {
+    const r = await deps.db.query<{ id: string; handle: string; status: string; hidden_at: Date | null }>(
+      `SELECT u.id, u.handle, u.status, h.hidden_at FROM custom_domains c JOIN users u ON u.id = c.user_id LEFT JOIN homepages h ON h.user_id = u.id
+       WHERE c.domain = $1 AND c.status = 'verified'`, [domain]);
+    const o = r.rows[0];
+    return o ? { id: o.id, handle: o.handle, status: o.status, hidden: o.hidden_at !== null } : null;
+  }
+
   // The address of a person who has since renamed: kept working for 90 days (docs/07).
   async function renamedTo(handle: string): Promise<string | null> {
     const r = await deps.db.query<{ handle: string }>(
@@ -117,15 +125,20 @@ export async function buildHomesApp(deps: AppDeps) {
         }
         return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
       }
-      if (!host.endsWith(`.${home}`)) return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
-      const label = host.slice(0, -(home.length + 1));
-      if (!HANDLE_LABEL.test(label)) return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
-
-      const owner = await ownerByHandle(label);
-      if (!owner) {
-        const now = await renamedTo(label);
-        if (now) return reply.redirect(deps.homesUrl(now).replace(/\/$/, '') + url.pathname + url.search, 301);
-        return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
+      let owner: Owner | null;
+      if (host.endsWith(`.${home}`)) {
+        const label = host.slice(0, -(home.length + 1));
+        if (!HANDLE_LABEL.test(label)) return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
+        owner = await ownerByHandle(label);
+        if (!owner) {
+          const now = await renamedTo(label);
+          if (now) return reply.redirect(deps.homesUrl(now).replace(/\/$/, '') + url.pathname + url.search, 301);
+          return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
+        }
+      } else {
+        // Any other name is served only if someone has proved it is theirs (docs/07).
+        owner = await ownerByDomain(host);
+        if (!owner) return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
       }
       if (owner.status !== 'active') return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
       if (owner.hidden) return page(reply, 410, en['homes.hidden'], '');

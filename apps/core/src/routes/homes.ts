@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { homeFolderSchema, homeMoveSchema, homepageSettingsSchema, homeTemplateSchema } from '@app/shared';
 import { z } from 'zod';
-import { requireUser } from '../http';
+import { ctxOf, requireUser } from '../http';
 import type { AppDeps } from '../deps';
 import { cleanPath, isEditable } from '../homes/files';
 import * as homes from '../homes/service';
 import { ASSETS, assetById } from '../homes/assets';
+import * as domains from '../homes/domains';
 import { TEMPLATES } from '../homes/templates';
 import { ApiError } from '../errors';
 
@@ -23,6 +24,24 @@ export function homeRoutes(app: FastifyInstance, deps: AppDeps): void {
     const r = await homes.randomHomepage(deps);
     if (!r) throw new ApiError(404, 'not_found', 'There are no homepages yet.');
     return r;
+  });
+
+  // Custom domains: add, prove with a DNS record, remove.
+  app.get('/api/v1/homes/me/domains', async (req) => domains.listDomains(deps, requireUser(req)));
+  app.post('/api/v1/homes/me/domains', async (req, reply) =>
+    reply.code(201).send(await domains.addDomain(deps, requireUser(req), z.object({ domain: z.string().max(300) }).parse(req.body).domain, ctxOf(deps, req))));
+  app.post('/api/v1/homes/me/domains/:domain/verify', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req) =>
+    domains.verifyDomain(deps, requireUser(req), z.object({ domain: z.string().max(300) }).parse(req.params).domain, ctxOf(deps, req)));
+  app.delete('/api/v1/homes/me/domains/:domain', async (req, reply) => {
+    await domains.removeDomain(deps, requireUser(req), z.object({ domain: z.string().max(300) }).parse(req.params).domain, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+
+  // For Caddy only (never routed by the front door): may this name have a certificate? (docs/15)
+  app.get('/internal/tls-ask', async (req, reply) => {
+    const q = z.object({ domain: z.string().max(300), secret: z.string().max(200).optional() }).parse(req.query);
+    if (deps.tlsAskSecret && q.secret !== deps.tlsAskSecret) return reply.code(403).send();
+    return (await domains.mayHaveCertificate(deps, q.domain)) ? reply.code(200).send({ ok: true }) : reply.code(404).send();
   });
 
   app.get('/api/v1/homes/assets', async () => ({ assets: ASSETS.map((a) => ({ id: a.id, title: a.title, category: a.category, width: a.width, height: a.height })) }));
