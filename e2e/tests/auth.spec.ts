@@ -120,12 +120,24 @@ test.describe('signing up', () => {
     await expect(page.getByLabel('Handle')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  test('will not sign anyone up until the age box is ticked', async ({ page }) => {
+    await page.goto('/signup');
+    await page.getByLabel('Invite code').fill('SOME-CODE');
+    await page.getByLabel('Handle').fill(uniq('young'));
+    await page.getByLabel('Email').fill(`${uniq('mail')}@example.test`);
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.getByRole('button', { name: 'Sign up' }).click();
+    await expect(page.getByText('Please confirm your age to sign up.')).toBeVisible();
+    await expect(page.getByLabel('I am at least 16 years old.')).toHaveAttribute('aria-invalid', 'true');
+  });
+
   test('says when the invite code is not valid, next to the invite field', async ({ page }) => {
     await page.goto('/signup');
     await page.getByLabel('Invite code').fill('NOPE-NOPE-NOPE');
     await page.getByLabel('Handle').fill(uniq('someone'));
     await page.getByLabel('Email').fill(`${uniq('mail')}@example.test`);
     await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.getByLabel('I am at least 16 years old.').check();
     await page.getByRole('button', { name: 'Sign up' }).click();
     await expect(page.getByText('That invite code is not valid. Ask for a new one.')).toBeVisible();
     await expect(page.getByLabel('Invite code')).toHaveAttribute('aria-invalid', 'true');
@@ -146,6 +158,7 @@ test.describe('signing up', () => {
     await page.getByLabel('Handle').fill(existing.handle.toUpperCase());
     await page.getByLabel('Email').fill(`${uniq('other')}@example.test`);
     await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.getByLabel('I am at least 16 years old.').check();
     await page.getByRole('button', { name: 'Sign up' }).click();
     await expect(page.getByText('That handle is not available. Choose another.')).toBeVisible();
   });

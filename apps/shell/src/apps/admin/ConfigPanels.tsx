@@ -167,3 +167,90 @@ export function AnnouncementsPanel() {
     </>
   );
 }
+
+// ---------------------------------------------------------------- legal pages and takedown requests
+
+interface LegalPageRow { slug: string; title: string; body: string; version: number; updated_at: string | null; placeholder: boolean }
+interface LegalRequestRow { id: string; kind: string; url: string; description: string; contact_name: string; contact_email: string; status: 'open' | 'actioned' | 'declined'; created_at: string; resolved_at: string | null; resolved_by: string | null; resolution_note: string | null }
+
+function LegalEditor({ page }: { page: LegalPageRow }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState(page.title);
+  const [body, setBody] = useState(page.body);
+  const [reason, setReason] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const versions = useQuery({ queryKey: ['admin', 'legal-versions', page.slug, page.version], queryFn: () => api.get<{ versions: { version: number; reason: string; changed_at: string; changed_by: string | null }[] }>(`/admin/legal/pages/${page.slug}/versions`), enabled: open && page.version > 0 });
+  const save = useMutation({
+    mutationFn: () => api.put<{ version: number }>(`/admin/legal/pages/${page.slug}`, { title, body, reason }),
+    onSuccess: (r) => { setMsg({ ok: true, text: t('admin.legal.saved', { version: r.version }) }); setReason(''); void qc.invalidateQueries({ queryKey: ['admin', 'legal'] }); void qc.invalidateQueries({ queryKey: ['legal'] }); },
+    onError: (e) => setMsg({ ok: false, text: errorText(e) }),
+  });
+  return (
+    <section className="panel" aria-label={page.title}>
+      <h3>{page.title}</h3>
+      {page.placeholder && <p className="hint">{t('admin.legal.placeholderNote')}</p>}
+      {!open ? <button className="btn" type="button" onClick={() => setOpen(true)} aria-label={`${t('admin.legal.edit')} ${page.title}`}>{t('admin.legal.edit')}</button> : (
+        <form onSubmit={(e) => { e.preventDefault(); setMsg(null); save.mutate(); }}>
+          <TextField label={t('admin.legal.title')} value={title} onChange={setTitle} maxLength={120} required />
+          <TextField label={t('admin.legal.body')} value={body} onChange={setBody} hint={t('admin.legal.bodyHint')} multiline maxLength={60000} required />
+          <TextField label={t('admin.legal.reason')} value={reason} onChange={setReason} maxLength={500} required />
+          {msg && <Alert kind={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>}
+          <button className="btn btn-primary" type="submit" disabled={save.isPending}>{t('admin.legal.save')}</button>
+          {versions.data && versions.data.versions.length > 0 && (
+            <details>
+              <summary>{t('admin.legal.versions')}</summary>
+              <ul>{versions.data.versions.map((v) => <li key={v.version}>v{v.version}: {v.reason} ({v.changed_by ?? '–'}, {formatWhen(v.changed_at)})</li>)}</ul>
+            </details>
+          )}
+        </form>
+      )}
+    </section>
+  );
+}
+
+function LegalRequest({ r }: { r: LegalRequestRow }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const resolve = useMutation({
+    mutationFn: (status: 'actioned' | 'declined') => api.post(`/admin/legal/requests/${r.id}/resolve`, { status, note }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'legal'] }),
+    onError: (e) => setError(errorText(e)),
+  });
+  return (
+    <li className="panel">
+      <p><strong>{t(`legal.takedown.kind.${r.kind}` as StringKey)}</strong> <a href={r.url} rel="noreferrer noopener" target="_blank">{r.url}</a></p>
+      <p>{r.description}</p>
+      <p className="hint">{t('admin.legal.from', { name: r.contact_name, email: r.contact_email, when: formatWhen(r.created_at) ?? '' })}</p>
+      {r.status === 'open' ? (
+        <form onSubmit={(e) => e.preventDefault()} aria-label={`${r.contact_name} ${r.kind}`}>
+          <TextField label={t('admin.legal.resolution')} value={note} onChange={setNote} maxLength={1000} />
+          {error && <Alert kind="error">{error}</Alert>}
+          <div className="actions">
+            <button className="btn btn-primary" type="button" disabled={resolve.isPending} onClick={() => { setError(null); resolve.mutate('actioned'); }}>{t('admin.legal.actioned')}</button>
+            <button className="btn" type="button" disabled={resolve.isPending} onClick={() => { setError(null); resolve.mutate('declined'); }}>{t('admin.legal.declined')}</button>
+          </div>
+        </form>
+      ) : <p><span className="badge">{t(`admin.legal.resolved.${r.status}` as StringKey)}</span> {t('admin.legal.resolvedBy', { who: r.resolved_by ?? '–', when: formatWhen(r.resolved_at) ?? '', note: r.resolution_note ?? '' })}</p>}
+    </li>
+  );
+}
+
+export function LegalPanel() {
+  const t = useT();
+  const pages = useQuery({ queryKey: ['admin', 'legal', 'pages'], queryFn: () => api.get<{ pages: LegalPageRow[] }>('/admin/legal/pages') });
+  const reqs = useQuery({ queryKey: ['admin', 'legal', 'requests'], queryFn: () => api.get<{ requests: LegalRequestRow[] }>('/admin/legal/requests'), refetchInterval: 60_000 });
+  if (pages.isError) return <Alert kind="error">{errorText(pages.error)}</Alert>;
+  return (
+    <>
+      <h2>{t('admin.legal.requests')}</h2>
+      {reqs.data && reqs.data.requests.length === 0 && <p>{t('admin.legal.noRequests')}</p>}
+      <ul className="plain">{reqs.data?.requests.map((r) => <LegalRequest key={r.id} r={r} />)}</ul>
+      <h2>{t('admin.legal.pages')}</h2>
+      {pages.data?.pages.map((p) => <LegalEditor key={`${p.slug}-${p.version}`} page={p} />)}
+    </>
+  );
+}

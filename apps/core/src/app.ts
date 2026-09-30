@@ -18,6 +18,7 @@ import { homeRoutes } from './routes/homes';
 import { widgetRoutes, WIDGET_API } from './routes/widgets';
 import { ringRoutes } from './routes/rings';
 import { settingsRoutes } from './routes/settings';
+import { legalRoutes } from './routes/legal';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -91,5 +92,6 @@ export async function buildApp(deps: AppDeps) {
   widgetRoutes(app, deps);
   ringRoutes(app, deps);
   settingsRoutes(app, deps);
+  legalRoutes(app, deps);
   return app;
 }

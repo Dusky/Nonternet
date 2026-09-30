@@ -88,6 +88,9 @@ notice, MUD broadcast. Schedule, expire, preview per channel.
 Historical charts: users (signups, active daily/weekly/monthly), content (posts, homepages
 updated, rings founded), service usage, retention cohorts. Export CSV.
 
+### Legal tab (as built)
+Takedown and legal requests queue (act / decline with a note) and the editable legal pages with version history.
+
 ### 10. Backups & jobs
 **As built (M4):** Status and Backups tabs; per-service user counts, TLS expiry and a run-now button are not built yet; there are no background jobs beyond exports.
 Backup history, sizes, verify-restore results, run backup now; background jobs with status,

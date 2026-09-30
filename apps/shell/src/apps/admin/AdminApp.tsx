@@ -8,7 +8,7 @@ import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
 import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
 import { ReasonForm } from '../boards/ModTools';
-import { AnnouncementsPanel, SettingsPanel } from './ConfigPanels';
+import { AnnouncementsPanel, LegalPanel, SettingsPanel } from './ConfigPanels';
 import { BackupsPanel, StatusPanel } from './StatusPanels';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
@@ -27,7 +27,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'backups'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'backups'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -48,11 +48,13 @@ export default function AdminApp() {
         <AppNavLink to="homepages">{t('admin.tab.homepages')}</AppNavLink>
         <AppNavLink to="announcements">{t('admin.tab.announcements')}</AppNavLink>
         <AppNavLink to="settings">{t('admin.tab.config')}</AppNavLink>
+        <AppNavLink to="legal">{t('admin.tab.legal')}</AppNavLink>
         <AppNavLink to="backups">{t('admin.tab.backups')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
       </nav>
       <div className="app-content">
         {route?.pattern === 'status' && <StatusPanel />}
+        {route?.pattern === 'legal' && <LegalPanel />}
         {route?.pattern === 'backups' && <BackupsPanel />}
         {route?.pattern === 'users' && <Users />}
         {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}

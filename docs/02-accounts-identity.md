@@ -22,7 +22,7 @@
 ## Signup
 - Modes (admin setting): **open**, **invite** (PROPOSED default at launch), **application**
   (short "why do you want in", admin/op review — very BBS).
-- Email required (reset, abuse contact). Minimum age: OPEN (legal — see `15`).
+- Email required (reset, abuse contact). Minimum age: DECIDED (2026-09-30) — `signup.minimum_age` (default 16, an admin setting; 0 turns it off). Signup shows a tick-box "I am at least N years old"; the server refuses without it and records `users.age_confirmed_at` and the minimum in force (also in the `user.created` audit entry). No birthdate is collected.
 - New accounts start as **guest** until email verified and (if application mode) approved,
   then become **user**.
 - Password: argon2id, 10–128 characters, no composition rules (length is what counts).

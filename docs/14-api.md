@@ -59,7 +59,7 @@ Caddy on-demand TLS check: `GET /internal/tls-allowed?domain=`
 (built: newest first, `?before=` paging with `next_before`, `action=user.*` matches a family)
 `GET/PATCH /admin/settings` · `GET /admin/settings/:key/history` · `POST /admin/settings/:key/rollback`
 `GET/POST /admin/announcements` · `GET /admin/services/:name` · `GET /admin/jobs`
-`POST /admin/backups` · `POST /admin/console {command}` (parses to the calls above)
+`GET /legal/:slug` · `POST /legal/requests` (public) · `GET|PUT /admin/legal/pages[/:slug]` · `GET /admin/legal/requests` · `POST /admin/legal/requests/:id/resolve` · `POST /admin/backups` · `POST /admin/console {command}` (parses to the calls above)
 
 ## OIDC provider (built)
 `/oidc/*` is served by the provider itself: `/.well-known/openid-configuration`, `/auth`, `/token`, `/me`,

@@ -58,7 +58,7 @@
 | Q4 | Can guests use IRC `#lobby`? Observer mode in MUD? | M5/M6 |
 | Q5 | Can trusted users register non-ring IRC channels? | M5 |
 | Q6 | MUD engine and world design | M6 |
-| Q7 | Minimum age and legal jurisdiction details | M4 |
+| Q7 | Minimum age: DECIDED — configurable tick-box, default 16 (`02`). Legal jurisdiction details still need counsel; pages ship as placeholders | M4 |
 | Q8 | Funding model (free, supporter tier, donations) | before launch |
 | Q9 | IRC history in exports? Others' posts as context in exports? | M4 |
 | Q10 | Vouching: auto-promote or admin confirm? | later |

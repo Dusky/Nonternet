@@ -137,7 +137,7 @@ describe.skipIf(!dbAvailable)('deleting an account', () => {
       const b = (await client(ctx.app).get('/api/v1/boards/keeper-board')).body;
       expect(b.archived).toBe(true);
       const inv = (await admin.client.post('/api/v1/admin/invites', {})).body.code;
-      const s2 = await client(ctx.app).post('/api/v1/auth/signup', { handle: 'keeper', email: 'k@example.test', password: TEST_PASSWORD, invite: inv });
+      const s2 = await client(ctx.app).post('/api/v1/auth/signup', { handle: 'keeper', email: 'k@example.test', password: TEST_PASSWORD, invite: inv, age_confirmed: true });
       expect(s2.body.error.code).toBe('handle_unavailable');
       expect((await server.inject({ method: 'GET', url: '/', headers: { host: 'keeper.example-homes.test' } })).headers.location).toBeUndefined(); // and no redirect to a deleted person
     });

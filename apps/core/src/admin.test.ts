@@ -93,14 +93,14 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
     expect((await db.query(`SELECT 1 FROM audit_log WHERE action = 'invite.created' AND target_id = $1`, [r.body.code])).rowCount).toBe(1);
 
     // and that invite works for signup
-    const signup = await client(ctx.app).post('/api/v1/auth/signup', { handle: 'newbie', email: 'newbie@example.test', password: PASSWORD, invite: r.body.code });
+    const signup = await client(ctx.app).post('/api/v1/auth/signup', { handle: 'newbie', email: 'newbie@example.test', password: PASSWORD, invite: r.body.code, age_confirmed: true });
     expect(signup.status).toBe(201);
   });
 
   it('keeps ordinary users away from admin calls', async () => {
     await db.query(`INSERT INTO invites (code, created_by, expires_at) SELECT 'PLAIN-INVITE', id, now() + interval '1 day' FROM users WHERE handle = 'boss'`);
     const c = client(ctx.app);
-    await c.post('/api/v1/auth/signup', { handle: 'plain', email: 'plain@example.test', password: PASSWORD, invite: 'PLAIN-INVITE' });
+    await c.post('/api/v1/auth/signup', { handle: 'plain', email: 'plain@example.test', password: PASSWORD, invite: 'PLAIN-INVITE', age_confirmed: true });
     await c.post('/api/v1/auth/login', { identifier: 'plain', password: PASSWORD });
     const r = await c.post('/api/v1/admin/invites', {});
     expect(r.status).toBe(403);

@@ -80,6 +80,7 @@ test('an admin invites someone, they sign up, and the admin promotes them', asyn
   await page.getByLabel('Handle').fill(handle);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await page.getByLabel('I am at least 16 years old.').check();
   await page.getByRole('button', { name: 'Sign up' }).click();
   await expect(page.getByText('Account created. Check your email to confirm your address.')).toBeVisible();
   await shot(page, '06-signed-up', project);

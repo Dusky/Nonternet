@@ -80,7 +80,7 @@ describe.skipIf(!dbAvailable)('admin user list, dossier and invites', () => {
     it('shows who they are, how they got in, what they can do and what happened to them', async () => {
       const code = 'DOSS-IER0-INVT';
       await db.query(`INSERT INTO invites (code, created_by, expires_at) VALUES ($1, $2, now() + interval '1 day')`, [code, boss.id]);
-      const signup = await client(ctx.app, ctx.deps.publicUrl).post('/api/v1/auth/signup', { handle: 'dossier_subject', email: 'subject@example.test', password: 'correct horse battery', invite: code });
+      const signup = await client(ctx.app, ctx.deps.publicUrl).post('/api/v1/auth/signup', { handle: 'dossier_subject', email: 'subject@example.test', password: 'correct horse battery', invite: code, age_confirmed: true });
       expect(signup.status).toBe(201);
       const id = signup.body.id as string;
       await boss.client.post(`/api/v1/admin/users/${id}/role`, { role: 'user', reason: 'let them post' });

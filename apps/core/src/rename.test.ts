@@ -59,7 +59,7 @@ describe.skipIf(!dbAvailable)('changing a handle', () => {
     expect((await rename(bob.id, 'alicia')).body.error.code).toBe('handle_unavailable');
     expect((await rename(alice.id, 'alicia')).status).toBe(200); // the owner can take it back
     const inv = (await admin.client.post('/api/v1/admin/invites', {})).body.code;
-    const s = await client(ctx.app).post('/api/v1/auth/signup', { handle: 'alison', email: 'x@example.test', password: 'correct horse battery', invite: inv });
+    const s = await client(ctx.app).post('/api/v1/auth/signup', { handle: 'alison', email: 'x@example.test', password: 'correct horse battery', invite: inv, age_confirmed: true });
     expect(s.status).toBe(409);
     expect(s.body.error.code).toBe('handle_unavailable');
     // Once the 90 days are up, it is free again.

@@ -48,7 +48,9 @@ Not legal advice — get proper advice for your jurisdiction. Plan for:
 - A takedown/copyright process and contact address (e.g. DMCA agent registration in the US).
 - Handling illegal content, including mandatory reporting obligations for child sexual abuse
   material where they apply; admin tooling to preserve evidence and remove content fast.
-- Minimum age: OPEN (13+ with COPPA/GDPR considerations is common).
+- Minimum age: DECIDED — a configurable tick-box at signup (see `02`); legal advice still needed on the right number for your jurisdiction.
+
+**As built (M4):** four pages (`terms`, `privacy`, `acceptable-use`, `takedown`) served at `/legal/:slug`, editable by admins in the console's Legal tab; every save is a version with a reason and an audit entry. Until edited, each shows built-in placeholder text with a notice saying it is placeholder text. The content is not legal advice and must be replaced. The takedown page carries a public form (`POST /api/v1/legal/requests`, signed-out allowed, 5/hour/IP, good-faith statement required); requests appear in the Legal tab for an admin to mark acted-on or declined with a note, both audited. Preserving evidence and mandatory reporting workflows are not built; decide them with counsel.
 - Data protection: export and deletion (`12`), hashed IPs, retention periods documented.
 
 ## Backups

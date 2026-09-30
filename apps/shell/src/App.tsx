@@ -14,6 +14,7 @@ import { LoginPage } from './pages/Login';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
 import { Setup2faPage } from './pages/Setup2fa';
 import { ReportHomepagePage } from './pages/ReportHomepage';
+import { LegalLinks, LegalPageRoute } from './pages/Legal';
 import { SignupPage } from './pages/Signup';
 
 // Sends anyone who is not signed in to the login page, and back here afterwards. An admin who
@@ -43,6 +44,7 @@ function Landing() {
           <Link className="btn btn-primary" to="/login">{t('auth.login')}</Link>
           {site.signup_mode !== 'application' && <Link className="btn" to="/signup">{t('auth.signup')}</Link>}
         </div>
+        <LegalLinks />
       </div>
     </main>
     </>
@@ -132,6 +134,7 @@ export function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/legal/:slug" element={<LegalPageRoute />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />

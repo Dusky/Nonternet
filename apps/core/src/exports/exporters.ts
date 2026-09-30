@@ -133,6 +133,9 @@ export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.
 export const EXEMPT: Record<string, string> = {
+  legal_pages: 'site documents written by admins',
+  legal_page_versions: 'site documents written by admins',
+  legal_requests: 'takedown requests from the public, about content rather than by the account',
   sessions: 'security state, not content',
   email_verifications: 'security state, not content',
   password_resets: 'security state, not content',

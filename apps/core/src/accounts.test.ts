@@ -26,7 +26,7 @@ describe.skipIf(!dbAvailable)('accounts', () => {
   };
   const signup = (body: Record<string, unknown>) => client(ctx.app).post('/api/v1/auth/signup', body);
   const valid = async (over: Record<string, unknown> = {}) => ({
-    handle: `user${++n}`, email: `user${n}@example.test`, password: PASSWORD, invite: await invite(), ...over,
+    handle: `user${++n}`, email: `user${n}@example.test`, password: PASSWORD, invite: await invite(), age_confirmed: true, ...over,
   });
 
   describe('signup', () => {
@@ -109,6 +109,27 @@ describe.skipIf(!dbAvailable)('accounts', () => {
         expect(r.status, JSON.stringify(over)).toBe(400);
         expect(r.body.error.code).toBe('invalid_input');
       }
+    });
+
+    it('asks for the age tick-box, records it with the minimum in force, and can be turned off', async () => {
+      const refused = await signup(await valid({ age_confirmed: undefined }));
+      expect(refused.status).toBe(400);
+      expect(refused.body.error.code).toBe('age_required');
+      expect(refused.body.error.message).toContain('16');
+      expect((await signup(await valid({ age_confirmed: false }))).status).toBe(400);
+      const body = await valid();
+      expect((await signup(body)).status).toBe(201);
+      const row = await db.query(`SELECT age_confirmed_at, age_confirmed_min FROM users WHERE handle = $1`, [body.handle]);
+      expect(row.rows[0]!.age_confirmed_min).toBe(16);
+      expect(row.rows[0]!.age_confirmed_at).not.toBeNull();
+      const audited = await db.query(`SELECT after FROM audit_log WHERE action = 'user.created' AND after->>'handle' = $1`, [body.handle]);
+      expect(audited.rows[0]!.after.age_confirmed_min).toBe(16);
+
+      const off = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: open, minimum_age: 0 }` });
+      const { invite: _i, age_confirmed: _a, ...bare } = await valid();
+      expect((await client(off.app).post('/api/v1/auth/signup', bare)).status).toBe(201);
+      const none = await db.query(`SELECT age_confirmed_at FROM users WHERE handle = $1`, [bare.handle]);
+      expect(none.rows[0]!.age_confirmed_at).toBeNull();
     });
 
     it('allows open signup with no invite when the site is open', async () => {

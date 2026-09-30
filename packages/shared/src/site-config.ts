@@ -101,6 +101,7 @@ export const publicSiteSchema = z.object({
   domain: z.string(),
   homes_domain: z.string(),
   signup_mode: z.enum(['open', 'invite', 'application']),
+  minimum_age: z.number().int(),
   services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean() }),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
@@ -112,6 +113,7 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     domain: cfg.site.domain,
     homes_domain: cfg.site.homes_domain,
     signup_mode: cfg.signup.mode,
+    minimum_age: cfg.signup.minimum_age,
     services: cfg.services,
   };
 }

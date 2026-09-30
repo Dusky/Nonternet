@@ -69,6 +69,8 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
   // (docs/02) needs the review queue in the admin console first.
   if (mode === 'application') throw new ApiError(501, 'not_available', 'Signing up by application is not available yet.');
   if (mode === 'invite' && !input.invite) throw new ApiError(400, 'invite_required', 'This site is invite only. Enter your invite code.');
+  const minAge = deps.config.signup.minimum_age;
+  if (minAge > 0 && input.age_confirmed !== true) throw new ApiError(400, 'age_required', `You need to confirm that you are at least ${minAge} to sign up.`);
   if (isReservedHandle(input.handle, deps.config.site.short_name)) {
     throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
   }
@@ -91,14 +93,14 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
         throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
       }
       await q.query(
-        `INSERT INTO users (id, handle, display_name, email, password_hash) VALUES ($1, $2, $3, $4, $5)`,
-        [id, input.handle, input.display_name ?? null, input.email, passwordHash]);
+        `INSERT INTO users (id, handle, display_name, email, password_hash, age_confirmed_at, age_confirmed_min) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [id, input.handle, input.display_name ?? null, input.email, passwordHash, minAge > 0 ? new Date(deps.now()) : null, minAge > 0 ? minAge : null]);
       await ensureKeypair(q, deps.secretKey, id); // the person's signing key, made at signup (docs/02)
       if (mode === 'invite') {
         await q.query(`UPDATE invites SET used_by = $1, used_at = now() WHERE code = $2`, [id, input.invite!.toUpperCase()]);
       }
       await audit(q, { actorId: id, actorKind: 'user', action: 'user.created', targetType: 'user', targetId: id,
-        after: { handle: input.handle, role: 'guest', invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined }, origin: 'web', ipHash: ctx.ipHash });
+        after: { handle: input.handle, role: 'guest', age_confirmed_min: minAge > 0 ? minAge : undefined, invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined }, origin: 'web', ipHash: ctx.ipHash });
       await emit(q, 'user.created', { user_id: id, handle: input.handle, role: 'guest' });
       return issueVerification(q, id);
     });

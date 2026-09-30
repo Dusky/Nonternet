@@ -63,7 +63,7 @@ export async function makeUser(page: Page, opts: { handle?: string } = {}) {
   } finally { await db.end(); }
   const api = page.context().request;
   const origin = { origin: BASE_URL };
-  const signup = await api.post('/api/v1/auth/signup', { data: { handle, email, password: PASSWORD, invite: code }, headers: origin });
+  const signup = await api.post('/api/v1/auth/signup', { data: { handle, email, password: PASSWORD, invite: code, age_confirmed: true }, headers: origin });
   expect(signup.ok(), await signup.text()).toBe(true);
   const link = await linkFor(email, 'verify-email');
   const token = new URL(link).searchParams.get('token');

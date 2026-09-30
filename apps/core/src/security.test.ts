@@ -59,7 +59,7 @@ describe.skipIf(!dbAvailable)('request security', () => {
     const { app } = await makeApp(db, { rateLimit: true });
     const statuses: number[] = [];
     for (let i = 0; i < 7; i++) {
-      statuses.push((await client(app).post('/api/v1/auth/signup', { handle: `spam${i}`, email: `spam${i}@example.test`, password: PASSWORD, invite: 'NOPE' })).status);
+      statuses.push((await client(app).post('/api/v1/auth/signup', { handle: `spam${i}`, email: `spam${i}@example.test`, password: PASSWORD, invite: 'NOPE', age_confirmed: true })).status);
     }
     expect(statuses.slice(0, 5).every((s) => s === 400)).toBe(true);
     expect(statuses.slice(5)).toEqual([429, 429]);

@@ -22,6 +22,8 @@ export const signupInputSchema = z.object({
   password: passwordSchema,
   display_name: z.string().trim().min(1).max(60).optional(),
   invite: z.string().trim().min(1).max(64).optional(),
+  // Ticked at signup when the site asks for a minimum age (docs/02).
+  age_confirmed: z.boolean().optional(),
 });
 export type SignupInput = z.infer<typeof signupInputSchema>;
 
