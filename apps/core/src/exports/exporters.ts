@@ -151,6 +151,9 @@ export const EXEMPT: Record<string, string> = {
   home_hits: 'a visitor count, not a person’s content',
   home_hit_seen: 'anonymous, short-lived counter records',
   exports: 'the export records themselves',
+  settings_current: 'site-wide settings set by admins',
+  settings_history: 'site-wide settings history kept by admins',
+  announcements: 'site-wide notices written by admins',
   schema_migrations: 'database bookkeeping',
 };
 

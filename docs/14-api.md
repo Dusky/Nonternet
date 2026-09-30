@@ -19,6 +19,7 @@ OIDC under `/oidc/*`.
 `/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
+Settings (built): `GET /admin/settings`, `PUT /admin/settings/:key {value, reason, confirm}` (a risky one answers `{pending, current, next, impact}` until `confirm` is true; `value: null` returns to the file's value), `GET /admin/settings/:key/history`, `POST /admin/settings/:key/rollback {version, reason}`. Announcements: public `GET /announcements`; admin `GET|POST /admin/announcements`, `DELETE /admin/announcements/:id`.
 Ownership (built): `POST /me/export`, `GET /me/exports`, `GET /me/exports/:id/download`, `POST /me/delete`, admin `POST /admin/users/:id/delete`. Event `user.deleted`.
 Custom domains (built): `GET|POST /homes/me/domains`, `POST /homes/me/domains/:domain/verify`, `DELETE /homes/me/domains/:domain`; internal `GET /internal/tls-ask?domain=&secret=`.
 Rings (built): `GET /rings?tag=&q=&sort=newest|active|name`, `GET /rings/random`, `POST /rings`, `GET|PATCH /rings/:slug`, `POST /rings/:slug/{join,leave,invites,transfer}`, `GET /rings/:slug/members?status=`, `POST /rings/:slug/members/:userId/{approve,remove,ban,unban}`, `PUT /rings/:slug/order`, `POST /rings/:slug/ops`, `DELETE /rings/:slug/ops/:opId`, `GET /rings/:slug/snippet?style=`; public nav `GET /ring/:slug/{nav.js,next,prev,random,list}` and `GET /widgets/ring/:slug/nav?member=`; admin `GET /admin/rings`, `POST /admin/rings/:id/{hide,restore}`. Events: `ring.created`, `ring.member_changed`.

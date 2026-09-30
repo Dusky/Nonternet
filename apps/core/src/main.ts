@@ -3,6 +3,7 @@ import { depsFromEnv } from './env';
 import { pruneOutbox, redisBus, startRelay, type Relay } from './events';
 import { migrate } from './migrate';
 import { startExportWorker } from './exports/service';
+import { loadSettings } from './settings';
 
 function fail(err: unknown): never {
   console.error(err instanceof Error ? err.message : err);
@@ -12,6 +13,7 @@ function fail(err: unknown): never {
 async function start() {
   const deps = depsFromEnv();
   await migrate(deps.db, console.log);
+  await loadSettings(deps); // saved settings go over the config file's values
   const app = await buildApp(deps);
 
   // Events are always written to the outbox. With REDIS_URL set, the relay publishes them to the

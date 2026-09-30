@@ -9,6 +9,7 @@ import { Launcher } from './shell/Launcher';
 import { Shell } from './shell/Shell';
 import { applyTheme } from './theme';
 import { Centered } from './components/ui';
+import { AnnouncementBanner } from './components/Announcements';
 import { LoginPage } from './pages/Login';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
 import { Setup2faPage } from './pages/Setup2fa';
@@ -31,6 +32,8 @@ function Landing() {
   const site = useSite();
   const note = site.signup_mode === 'invite' ? t('landing.invite') : site.signup_mode === 'open' ? t('landing.open') : t('landing.closed');
   return (
+    <>
+    <AnnouncementBanner />
     <main className="center" id="main">
       <div className="card">
         <h1>{t('landing.title')}</h1>
@@ -42,6 +45,7 @@ function Landing() {
         </div>
       </div>
     </main>
+    </>
   );
 }
 
@@ -85,6 +89,7 @@ function PublicFrame({ app }: { app: AppDef }) {
           {site.signup_mode !== 'application' && <Link className="btn btn-quiet" to="/signup">{t('auth.signup')}</Link>}
         </span>
       </header>
+      <AnnouncementBanner />
       <main className="stage" id="main">
         <section className="app-page" aria-labelledby="app-title">
           <h1 id="app-title">{t(app.title)}</h1>

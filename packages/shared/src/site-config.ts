@@ -38,6 +38,8 @@ export const siteConfigSchema = z
       .object({
         mode: z.enum(['open', 'invite', 'application']).default('invite'),
         require_email: z.boolean().default(true),
+        // People confirm at signup that they are at least this old. 0 turns the question off (docs/02, decided 2026-09-30).
+        minimum_age: z.number().int().min(0).max(120).default(16),
       })
       .default({}),
     limits: z

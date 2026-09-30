@@ -13,6 +13,17 @@ from and calls into well-tested core APIs** — it never gets private back doors
 - **Two ways to do everything.** Every action is a button *and* a console command.
 - **Ops get a slice.** Board ops and ring ops get the same console UI scoped to what they manage.
 
+> **Built (M4, settings and announcements):** the Settings tab lists the settings an admin may change without a deploy
+> (sign-up mode, minimum age, trusted board and ring quotas, homepage space, custom domains per person, the public mod
+> log). The site name and addresses are shown read-only. Each change needs a reason, is saved as a new version (who, when,
+> why, old and new value), takes effect at once, and is audited as `settings.changed`. A *risky* setting (sign-up mode,
+> minimum age, homepage space) first shows a preview with how many people or pages a lower limit would touch, and only
+> changes when confirmed. Any earlier version can be brought back (as a new version), and "use the file's value again" undoes an
+> override. Saved values are loaded over the config file when the server starts. The per-file limit is not a setting: it is
+> fixed when the server starts. The Announcements tab writes notices for the shell (title, message, notice or warning,
+> optional start and end, preview, end early); everyone sees the live ones as a dismissible banner, signed in or not. Other
+> channels (BBS, IRC, MUD) are added with those services.
+>
 > **Built (M3):** a Homepages tab (every homepage with size and last change, totals, hide and restore
 > with a reason). The Reports tab also shows reports about homepages and guestbook entries, with hide and dismiss.
 >

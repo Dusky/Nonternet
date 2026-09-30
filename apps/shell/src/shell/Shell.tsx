@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Me } from '@app/shared';
 import { api } from '../api';
+import { AnnouncementBanner } from '../components/Announcements';
 import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById, visibleApps } from './apps';
 import { AppIcon } from './icons';
@@ -93,6 +94,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
           )}
         </div>
       </header>
+      <AnnouncementBanner />
       <main id="main" tabIndex={-1} className="stage">{children}</main>
     </div>
   );

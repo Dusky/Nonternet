@@ -8,6 +8,7 @@ import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
 import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
 import { ReasonForm } from '../boards/ModTools';
+import { AnnouncementsPanel, SettingsPanel } from './ConfigPanels';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
 interface UserRow { id: string; handle: string; display_name: string | null; email: string; role: Role; status: string; created_at: string; last_seen_at: string | null }
@@ -25,7 +26,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages'] as const;
+const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -43,6 +44,8 @@ export default function AdminApp() {
         <AppNavLink to="boards">{t('admin.tab.boards')}</AppNavLink>
         <AppNavLink to="rings">{t('admin.tab.rings')}</AppNavLink>
         <AppNavLink to="homepages">{t('admin.tab.homepages')}</AppNavLink>
+        <AppNavLink to="announcements">{t('admin.tab.announcements')}</AppNavLink>
+        <AppNavLink to="settings">{t('admin.tab.config')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
       </nav>
       <div className="app-content">
@@ -53,6 +56,8 @@ export default function AdminApp() {
         {route?.pattern === 'boards' && <BoardsTable />}
         {route?.pattern === 'rings' && <RingsTable />}
         {route?.pattern === 'homepages' && <HomepagesTable />}
+        {route?.pattern === 'settings' && <SettingsPanel />}
+        {route?.pattern === 'announcements' && <AnnouncementsPanel />}
         {route?.pattern === 'audit' && <Audit />}
       </div>
     </div>
