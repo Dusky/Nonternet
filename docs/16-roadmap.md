@@ -111,6 +111,15 @@ last by decision, not by dependency.
 `e2e/tests/terminal.spec.ts`. Not built: ZMODEM in the terminal (QWK packets move over the web), a bundled VGA
 font, door games checked against a real DOS door.
 
+## Launch readiness (2026-09-30, owners' choice after M8)
+- [x] Q9: 30 days of chat history, own messages in exports (`08`).
+- [x] Security review: private-by-default routes, headers and CSP, terminal guess limit, zip-bomb guard,
+  audit-log database role, dependency audit in CI (`15`).
+- [x] Production deploy: `compose.prod.yaml`, `sitectl`, runbook (`19`).
+- [x] Load test: ~1,000 requests/s, no errors, on one core process (`19`).
+- [ ] Before opening: run `sitectl doctor` on the real server, point real DNS and SMTP, pick the name (Q1),
+  have counsel review the legal pages (Q7), decide funding (Q8); check QWK with real readers and a real door.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Import
 of export archives; desktop "point" app; self-hosted nodes; hub-and-spoke federation with
