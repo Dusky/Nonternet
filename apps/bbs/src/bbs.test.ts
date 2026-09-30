@@ -261,6 +261,48 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     w.s.destroy();
   });
 
+  it('reads and answers mail, joins a ring and lists homepages from the terminal', async () => {
+    const u = await person();
+    const friend = await person();
+    const t = (await friend.c.post('/api/v1/mail', { to: [u.handle], subject: 'Tea later?', body: 'At four, by the fountain.' })).body;
+    const founder = await makeUser(ctx, { role: 'trusted' });
+    const fc = await loginAs(ctx, founder.handle);
+    const ringSlug = `tea${Date.now() % 100000}`;
+    expect((await fc.post('/api/v1/rings', { slug: ringSlug, name: 'Tea Drinkers', description: 'Hot water and leaves', tags: ['tea'] })).status).toBe(201);
+    const { s, screen, type } = telnet();
+    await screen.until(/Handle:/);
+    type(`${u.handle}\rterminal pass 1\r`);
+    await screen.until(/Main menu \[/);
+    type('m');
+    await screen.until(/1\s*\*Tea later\?/);
+    type('1\r');
+    await screen.until(/At four, by the fountain\./);
+    type('r');
+    await screen.until(/\/s save/);
+    type('See you there.\r/s\r');
+    await screen.until(/Sent\./);
+    const replies = (await friend.c.get(`/api/v1/mail/${t.id}`)).body.messages;
+    expect(replies.at(-1)).toMatchObject({ body: 'See you there.', author: { handle: u.handle } });
+    type('q');
+    type('q\r');
+    await screen.until(/Main menu \[[\s\S]*Mail[\s\S]*Main menu \[/);
+    type('r');
+    await screen.until(/Tea Drinkers/);
+    const n = screen.text.split('\n').reverse().find((l) => l.includes('Tea Drinkers'))!.trim().split(/\s+/)[0];
+    type(`${n}\r`);
+    await screen.until(/Hot water and leaves/);
+    type('j');
+    await screen.until(/You joined Tea Drinkers\./);
+    expect((await u.c.get(`/api/v1/rings/${ringSlug}`)).body.me.status).toBe('member');
+    type('q');
+    type('q\r');
+    screen.text = '';
+    type('h');
+    await screen.until(/── Homepages/);
+    type('q');
+    s.destroy();
+  });
+
   it('limits callers per address', async () => {
     for (let i = 0; i < 50 && bbs.nodes.list().length; i++) await new Promise((r) => setTimeout(r, 100)); // earlier callers have hung up
     const callers = [telnet(), telnet(), telnet()];

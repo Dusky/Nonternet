@@ -2,6 +2,9 @@ import type { Action } from '../art';
 import type { Session } from '../session';
 import { lastCallers, settings, who } from './people';
 import { boards, newscan } from './boards';
+import { homepages } from './homepages';
+import { mail } from './mail';
+import { rings } from './rings';
 
 export type Screen = (s: Session) => Promise<void>;
 
@@ -10,9 +13,9 @@ const later = (what: string): Screen => async (s) => { s.term.line(`${what} is n
 export const SCREENS: Record<Action, Screen> = {
   boards,
   newscan,
-  mail: later('Mail'),
-  rings: later('Rings'),
-  homepages: later('Homepages'),
+  mail,
+  rings,
+  homepages,
   who,
   lastcallers: lastCallers,
   doors: later('Door games'),

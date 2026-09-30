@@ -32,7 +32,7 @@ export async function boards(s: Session): Promise<void> {
   }
 }
 
-async function board(s: Session, b: BoardSummary): Promise<void> {
+export async function board(s: Session, b: BoardSummary): Promise<void> {
   const t = s.term;
   let before: number | undefined;
   const stack: (number | undefined)[] = [];

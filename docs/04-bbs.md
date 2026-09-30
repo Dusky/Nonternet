@@ -101,5 +101,10 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   line), the site's preview warnings before posting, and a new-message scan across boards
   (`GET /api/v1/boards/:slug/new`: posts after the read pointer, oldest first). Reading moves the same read
   pointer the web uses.
+- **Mail, rings, homepages, who, last callers:** mail reads, replies to, adds people to and starts the same
+  conversations as the web; rings can be browsed, joined, left, and their board read; the homepage directory
+  lists titles and addresses; who's online shows the BBS's own nodes (always current) plus people on the web
+  and in chat from core; last callers comes from core's call log. Settings points to the web and can switch
+  the character set.
 - Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.
