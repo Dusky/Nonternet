@@ -96,5 +96,10 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   types (ANSI, SyncTERM, …), UTF-8 otherwise, switchable under Settings.
 - **Art pack** (`apps/bbs/art/default`): `login`, `motd`, `main`, `goodbye` screens with `{{site.name}}`-style
   placeholders and colours, and `menus.yaml` (keys, labels, built-in actions; checked at start).
+- **Boards:** list with unread counts, thread list (20 a page, `*` for unread), reading flat or threaded (T),
+  posting and replying with a line editor (`/s` save, `/a` abandon, `/q` quote, `/l` list, `/d` delete last
+  line), the site's preview warnings before posting, and a new-message scan across boards
+  (`GET /api/v1/boards/:slug/new`: posts after the read pointer, oldest first). Reading moves the same read
+  pointer the web uses.
 - Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.

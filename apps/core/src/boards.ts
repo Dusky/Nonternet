@@ -290,6 +290,23 @@ export async function listThreads(deps: AppDeps, v: Viewer, slug: string, opts: 
   return { threads, next: r.rows.length > limit ? Number(page[page.length - 1]!.last_seq) : null };
 }
 
+// New posts on a board in the order they were written, from the viewer's read pointer on (or `after`), for
+// the terminal's new-message scan (docs/04). Their own posts and anything hidden or deleted are left out,
+// but still count as passed when the pointer moves.
+export async function newPosts(deps: AppDeps, v: SessionUser, slug: string, opts: { after?: number; limit?: number }): Promise<{ last_read_seq: number; posts: (PostView & { thread_subject: string })[]; next: number | null }> {
+  const b = await loadBoard(deps.db, slug, v);
+  const pointer = Number((await deps.db.query<{ s: string | null }>(`SELECT last_read_seq AS s FROM read_state WHERE user_id = $1 AND board_id = $2`, [v.userId, b.id])).rows[0]?.s ?? 0);
+  const from = opts.after ?? pointer;
+  const limit = Math.min(opts.limit ?? 50, 200);
+  const r = await deps.db.query<PostRow & { thread_subject: string }>(
+    `SELECT ${POST_COLUMNS}, (SELECT t.subject FROM posts t WHERE t.id = COALESCE(p.thread_root_id, p.id)) AS thread_subject FROM ${POST_FROM}
+     WHERE p.board_id = $1 AND p.seq > $2 AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.author_id IS DISTINCT FROM $3
+       AND NOT EXISTS (SELECT 1 FROM posts t WHERE t.id = p.thread_root_id AND t.hidden_at IS NOT NULL)
+     ORDER BY p.seq LIMIT $4`, [b.id, from, v.userId, limit + 1]);
+  const page = r.rows.slice(0, limit);
+  return { last_read_seq: pointer, posts: page.map((row) => ({ ...toPostView(row, false), thread_subject: row.thread_subject })), next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
+}
+
 export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }> {
   const b = await loadBoard(deps.db, slug, v);
   const mod = canModerate(v, b);

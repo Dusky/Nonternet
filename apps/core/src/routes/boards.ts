@@ -32,6 +32,8 @@ export function boardRoutes(app: FastifyInstance, deps: AppDeps): void {
     return boards.listThreads(deps, viewer(req), slugParam.parse(req.params).slug, q);
   });
 
+  app.get('/api/v1/boards/:slug/new', async (req) => boards.newPosts(deps, requireUser(req), slugParam.parse(req.params).slug, z.object({ after: cursor, limit }).parse(req.query)));
+
   app.get('/api/v1/boards/:slug/threads/:id', async (req) => {
     const p = threadParams.parse(req.params);
     return boards.getThread(deps, viewer(req), p.slug, p.id, z.object({ after: cursor, limit }).parse(req.query));

@@ -48,7 +48,7 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
   };
 
   // A telnet caller that answers the negotiation like a modern client (xterm, 100x30).
-  const telnet = () => {
+  const telnet = (ttype = 'XTERM') => {
     const screen = new Screen();
     const s = net.connect(telnetPort, '127.0.0.1');
     s.on('data', (d: Buffer) => {
@@ -56,13 +56,13 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
       for (let i = 0; i < d.length; i++) {
         if (d[i] === 255 && d[i + 1] === 253 && d[i + 2] === 24) { s.write(Buffer.from([255, 251, 24])); i += 2; }
         else if (d[i] === 255 && d[i + 1] === 253 && d[i + 2] === 31) { s.write(Buffer.from([255, 251, 31, 255, 250, 31, 0, 100, 0, 30, 255, 240])); i += 2; }
-        else if (d[i] === 255 && d[i + 1] === 250 && d[i + 2] === 24 && d[i + 3] === 1) { s.write(Buffer.from([255, 250, 24, 0, ...Buffer.from('XTERM'), 255, 240])); i += 5; }
+        else if (d[i] === 255 && d[i + 1] === 250 && d[i + 2] === 24 && d[i + 3] === 1) { s.write(Buffer.from([255, 250, 24, 0, ...Buffer.from(ttype), 255, 240])); i += 5; }
         else if (d[i] === 255) i += 2;
         else out.push(d[i]!);
       }
-      screen.add(Buffer.from(out).toString('utf8'));
+      screen.add(ttype === 'ANSI' ? Buffer.from(out).toString('latin1').replace(/\x82/g, 'é') : Buffer.from(out).toString('utf8'));
     });
-    return { s, screen, type: (x: string) => s.write(x) };
+    return { s, screen, type: (x: string | Buffer) => s.write(x) };
   };
 
   beforeAll(async () => {
@@ -175,7 +175,94 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     await b.screen.until(/expired or was already used/);
   });
 
+  it('shows web posts in the terminal, posts replies back to the web, and moves the read pointer the web uses', async () => {
+    const owner = await makeUser(ctx, { role: 'trusted' });
+    const oc = await loginAs(ctx, owner.handle);
+    const slug = `lobby${Date.now() % 100000}`;
+    expect((await oc.post('/api/v1/boards', { slug, name: 'Terminal Lobby', visibility: 'public' })).status).toBe(201);
+    const th = (await oc.post(`/api/v1/boards/${slug}/posts`, { subject: 'Hello from the web', body: 'First post, typed in a browser.' })).body;
+    const u = await person();
+    expect((await u.c.get('/api/v1/boards')).body.boards.find((b: { slug: string }) => b.slug === slug).unread).toBe(1);
+    const { s, screen, type } = telnet();
+    await screen.until(/Handle:/);
+    type(`${u.handle}\rterminal pass 1\r`);
+    await screen.until(/Main menu \[/);
+    type('b');
+    await screen.until(/Board number/);
+    const n = screen.text.split('\n').find((l) => l.includes('Terminal Lobby'))!.trim().split(/\s+/)[0];
+    type(`${n}\r`);
+    await screen.until(/1\s*\*Hello from the web/);
+    type('1\r');
+    await screen.until(/First post, typed in a browser\./);
+    expect(screen.text).toContain(`From ${owner.handle}`);
+    // Reading here cleared the web's unread count.
+    await new Promise((r) => setTimeout(r, 200));
+    expect((await u.c.get('/api/v1/boards')).body.boards.find((b: { slug: string }) => b.slug === slug).unread).toBe(0);
+    type('r');
+    await screen.until(/\/s save/);
+    type('/q\r');
+    await screen.until(/Quoted \d+ lines/);
+    type('Thanks, from a terminal.\r/s\r');
+    await screen.until(/Post it\? \[Y\/n\]/);
+    type('y');
+    await screen.until(/Posted\./);
+    const t0 = Date.now();
+    const posts = (await oc.get(`/api/v1/boards/${slug}/threads/${th.id}`)).body.posts;
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(posts[1]).toMatchObject({ reply_to_id: th.id, author: { handle: u.handle } });
+    expect(posts[1].body).toBe(`${owner.handle} wrote:\n> First post, typed in a browser.\n\nThanks, from a terminal.`);
+    // And a new web reply turns up in the terminal's new-message scan.
+    await oc.post(`/api/v1/boards/${slug}/posts`, { body: 'A web reply for the scan.', reply_to: th.id });
+    type('q'); // leave the thread
+    type('q\r'); // leave the board, back to the list of boards
+    await screen.until(/Unread\s+Threads[\s\S]*Board number, New scan[\s\S]*Board number, New scan/);
+    screen.text = '';
+    type('n\r');
+    await screen.until(/A web reply for the scan\./);
+    type('q');
+    s.destroy();
+  });
+
+  it('round-trips a post between a CP437 client and a UTF-8 one', async () => {
+    const owner = await makeUser(ctx, { role: 'trusted' });
+    const oc = await loginAs(ctx, owner.handle);
+    const slug = `cp${Date.now() % 100000}`;
+    await oc.post('/api/v1/boards', { slug, name: 'Classic', visibility: 'public' });
+    const u = await person();
+    const { s, screen, type } = telnet('ANSI');
+    await screen.until(/Handle:/);
+    type(`${u.handle}\rterminal pass 1\r`);
+    await screen.until(/Main menu \[/);
+    type('b');
+    await screen.until(/Board number/);
+    const n = screen.text.split('\n').find((l) => l.includes('Classic'))!.trim().split(/\s+/)[0];
+    type(`${n}\r`);
+    await screen.until(/Post/);
+    type('p\r');
+    await screen.until(/Subject:/);
+    type(Buffer.from([0x43, 0x61, 0x66, 0x82, 0x0d])); // "Café" in CP437
+    await screen.until(/\/s save/);
+    type(Buffer.from([0x63, 0x61, 0x66, 0x82, 0x20, 0x61, 0x75, 0x20, 0x6c, 0x61, 0x69, 0x74, 0x0d])); // "café au lait"
+    type('/s\r');
+    await screen.until(/Post it\?/);
+    type('y');
+    await screen.until(/Posted\./);
+    const threads = (await oc.get(`/api/v1/boards/${slug}/threads`)).body.threads;
+    expect(threads[0].subject).toBe('Café');
+    const posts = (await oc.get(`/api/v1/boards/${slug}/threads/${threads[0].id}`)).body.posts;
+    expect(posts[0].body).toBe('café au lait');
+    s.destroy();
+    // A UTF-8 caller reads the same words.
+    const v = await person();
+    const w = telnet();
+    await w.screen.until(/Handle:/);
+    w.type(`${v.handle}\rterminal pass 1\rn`);
+    await w.screen.until(/café au lait/);
+    w.s.destroy();
+  });
+
   it('limits callers per address', async () => {
+    for (let i = 0; i < 50 && bbs.nodes.list().length; i++) await new Promise((r) => setTimeout(r, 100)); // earlier callers have hung up
     const callers = [telnet(), telnet(), telnet()];
     await Promise.all(callers.map((c) => c.screen.until(/Handle:/)));
     const fourth = telnet();
