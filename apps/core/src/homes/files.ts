@@ -77,8 +77,9 @@ export class HomeStore {
       names.sort();
       for (const name of names) {
         const childRel = rel ? `${rel}/${name}` : name;
-        const st = await fs.lstat(this.abs(userId, childRel));
-        if (st.isSymbolicLink()) continue;
+        // Another upload may rename its temporary file away between the listing and this look.
+        const st = await this.statOrNull(this.abs(userId, childRel));
+        if (!st || st.isSymbolicLink() || name.endsWith('.part')) continue;
         if (st.isDirectory()) { out.push({ path: childRel, type: 'dir', size: 0, modified: st.mtime.toISOString() }); if (out.length < 5000) await walk(childRel); }
         else if (st.isFile()) out.push({ path: childRel, type: 'file', size: st.size, modified: st.mtime.toISOString() });
       }
