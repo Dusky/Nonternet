@@ -45,7 +45,7 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 3. Versioned settings with rollback; announcements to the shell.
 4. Status board with live tiles; metrics rollups; backups page with restore-test results.
 5. Legal pages, report/takedown flow, signup age gate (per `17` decision).
-**Progress:** tasks 1 and 2 built (export worker, format, signature, the exporter check; account deletion), with `exports/*.test.ts`, `deletion.test.ts` and `data.spec.ts`. Task 3 built (versioned settings with preview and rollback; announcements): `settings.test.ts`, `announcements.test.ts`, `config.spec.ts`.
+**Progress:** tasks 1 and 2 built (export worker, format, signature, the exporter check; account deletion), with `exports/*.test.ts`, `deletion.test.ts` and `data.spec.ts`. Task 3 built (versioned settings with preview and rollback; announcements): `settings.test.ts`, `announcements.test.ts`, `config.spec.ts`. Task 4 built: hourly `metrics_rollup`, the Status tab (live tiles polled every 15 s, sparklines, plain-worded warnings) as the console's home, `cli backup|restore-test|backup-key`, and the Backups tab with restore-test checks.
 **Accept:** export round-trip test; settings rollback works; status board live.
 
 ## M5 — IRC

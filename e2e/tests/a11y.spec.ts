@@ -62,7 +62,7 @@ for (const theme of THEMES) {
       const admin = await makeAdmin(page);
       await signIn(page, admin.handle, PASSWORD, { recovery: admin.recoveryCodes[0]! });
       const target = await makeUser(page);
-      for (const path of ['/admin/users', '/admin/invites', '/admin/audit']) {
+      for (const path of ['/admin/status', '/admin/backups', '/admin/users', '/admin/invites', '/admin/audit']) {
         await page.goto(path);
         await expect(page.getByRole('heading', { level: 1, name: 'Admin console' })).toBeVisible();
         await expect(page.getByRole('navigation', { name: 'Admin console' })).toBeVisible();

@@ -4,6 +4,7 @@ import { pruneOutbox, redisBus, startRelay, type Relay } from './events';
 import { migrate } from './migrate';
 import { startExportWorker } from './exports/service';
 import { loadSettings } from './settings';
+import { startMetricsCollector } from './metrics';
 
 function fail(err: unknown): never {
   console.error(err instanceof Error ? err.message : err);
@@ -30,6 +31,7 @@ async function start() {
   }
 
   const exportWorker = startExportWorker(deps, (m) => app.log.warn(m));
+  const metrics = startMetricsCollector(deps, (m) => app.log.warn(m));
 
   // Finish in-flight requests, stop the relay, then close connections.
   let closing = false;
@@ -39,6 +41,7 @@ async function start() {
     app.log.info(`${signal} received, shutting down`);
     if (prune) clearInterval(prune);
     await app.close();
+    metrics.stop();
     await exportWorker.stop();
     await relay?.stop();
     await bus?.close();

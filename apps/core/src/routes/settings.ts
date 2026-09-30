@@ -4,6 +4,8 @@ import { ctxOf, requireAdmin } from '../http';
 import type { AppDeps } from '../deps';
 import * as announcements from '../announcements';
 import * as settings from '../settings';
+import * as backups from '../backups';
+import { METRICS, getStatus, series } from '../metrics';
 
 const reason = z.string().trim().min(3, 'give a reason (at least 3 characters)').max(500);
 const key = z.object({ key: z.string().max(80) });
@@ -38,4 +40,13 @@ export function settingsRoutes(app: FastifyInstance, deps: AppDeps): void {
     await announcements.archiveAnnouncement(deps, requireAdmin(req), z.object({ id: z.string().regex(/^a_[0-9A-Z]{26}$/) }).parse(req.params).id, ctxOf(deps, req));
     return reply.code(204).send();
   });
+
+  // The status board, its numbers over time, and the record of backups (docs/11, docs/15).
+  app.get('/api/v1/admin/status', async (req) => { requireAdmin(req); return getStatus(deps); });
+  app.get('/api/v1/admin/metrics', async (req) => {
+    requireAdmin(req);
+    const q = z.object({ metric: z.enum(METRICS as [string, ...string[]]), hours: z.coerce.number().int().min(1).max(720).default(48) }).parse(req.query);
+    return series(deps, q.metric, q.hours);
+  });
+  app.get('/api/v1/admin/backups', async (req) => { requireAdmin(req); return { summary: await backups.summary(deps), runs: await backups.listRuns(deps) }; });
 }

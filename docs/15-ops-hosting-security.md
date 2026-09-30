@@ -55,6 +55,15 @@ Not legal advice — get proper advice for your jurisdiction. Plan for:
 Nightly: pg_dump, homes, MUD data (once it exists), config, keys. Encrypted, off-site copy, 30 days retention (PROPOSED). Monthly automated
 **restore test** to a scratch environment, result shown in the admin console.
 
+**As built:** the operator runs `node cli.cjs backup --dir /backups` nightly and `node cli.cjs restore-test --dir /backups`
+monthly (cron or a systemd timer on the host, `docker compose exec core ...`). A backup is a `pg_dump` custom-format dump
+plus a tar of the homes directory and the config, streamed through AES-256-GCM with `BACKUP_KEY` (`cli backup-key` makes one),
+with a manifest of hashes and row counts. The restore test decrypts the newest backup into a scratch database and compares
+counts, then records the result in `backup_runs`. The console warns when there is no good backup for 26 hours or no passing
+restore test for 35 days. Copying `/backups` off-site is the operator's job (rsync/rclone). `APP_SECRET_KEY` and `BACKUP_KEY`
+are deliberately not in the backups: store them separately. The core image includes `pg_dump` and `tar`.
+There is no "run backup now" button; backups are run on the host.
+
 ## Upgrades
 Pinned versions of Ergo and the MUD engine; integration suite must pass before bumping.
 `sitectl upgrade`: backup → pull → migrate → health check → rollback instructions on failure.

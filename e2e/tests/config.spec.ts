@@ -117,3 +117,17 @@ test.describe('settings and announcements', () => {
     });
   }
 });
+
+test.describe('status board', () => {
+  test('the admin console opens on the status board, and backups says nothing has run', async ({ page }) => {
+    await adminPage(page);
+    await page.goto('/admin');
+    await expect(page).toHaveURL(/\/admin\/status$/);
+    await expect(page.getByRole('heading', { level: 2, name: 'How the site is doing' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Database' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Users' })).toBeVisible();
+    await scan(page, 'the status board');
+    await page.getByRole('link', { name: 'Backups', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Backups and restore tests' })).toBeVisible();
+  });
+});

@@ -29,7 +29,7 @@ site: { name: Test Site, short_name: testsite, domain: example.test, homes_domai
 ${extra}
 `;
 
-export async function createTestDb(): Promise<{ db: Db; drop: () => Promise<void> }> {
+export async function createTestDb(): Promise<{ db: Db; url: string; drop: () => Promise<void> }> {
   const name = `t_${randomBytes(6).toString('hex')}`;
   const admin = new pg.Client({ connectionString: TEST_DB_URL });
   await admin.connect();
@@ -40,6 +40,7 @@ export async function createTestDb(): Promise<{ db: Db; drop: () => Promise<void
   await migrate(db);
   return {
     db,
+    url: url.toString(),
     drop: async () => {
       await db.end();
       await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);

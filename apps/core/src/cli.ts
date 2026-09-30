@@ -4,10 +4,14 @@ import { z } from 'zod';
 import { createAdmin, resetTotp } from './accounts';
 import { depsFromEnv } from './env';
 import { migrate } from './migrate';
+import { parseBackupKey, restoreTest, runBackup } from './backup';
 
 // Operator commands, run on the server:
 //   cli create-admin --handle <handle> --email <email>     (password from ADMIN_PASSWORD, or generated and printed once)
 //   cli reset-totp --handle <handle>                       (an admin who lost their authenticator)
+//   cli backup --dir <dir>                                 (encrypted database, homepage files and config; needs BACKUP_KEY)
+//   cli restore-test --dir <dir>                           (brings the newest backup back into a scratch database and checks it)
+//   cli backup-key                                         (prints a new BACKUP_KEY)
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -33,8 +37,23 @@ async function main() {
       if (!handle) throw new Error('--handle is required');
       await resetTotp(deps, handle);
       console.log(`Two-factor authentication reset for ${handle}. Their sessions were signed out.`);
+    } else if (command === 'backup-key') {
+      console.log(randomBytes(32).toString('base64'));
+    } else if (command === 'backup' || command === 'restore-test') {
+      const dir = arg('dir');
+      if (!dir) throw new Error('--dir is required');
+      const opts = { dir, key: parseBackupKey(process.env.BACKUP_KEY), databaseUrl: process.env.DATABASE_URL!, configFile: process.env.SITE_CONFIG, log: console.log };
+      if (command === 'backup') {
+        const r = await runBackup(deps, opts);
+        console.log(`Backup written: ${r.manifest}`);
+      } else {
+        const r = await restoreTest(deps, opts);
+        for (const c of r.checks) console.log(`${c.ok ? 'ok    ' : 'FAILED'} ${c.name} (expected ${JSON.stringify(c.expected)}, got ${JSON.stringify(c.actual)})`);
+        console.log(r.ok ? 'The newest backup restores correctly.' : 'The restore test FAILED.');
+        if (!r.ok) process.exitCode = 1;
+      }
     } else {
-      throw new Error('Usage: cli create-admin --handle <h> --email <e> | cli reset-totp --handle <h>');
+      throw new Error('Usage: cli create-admin --handle <h> --email <e> | reset-totp --handle <h> | backup --dir <d> | restore-test --dir <d> | backup-key');
     }
   } finally {
     await deps.db.end();

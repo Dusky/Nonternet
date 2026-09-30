@@ -9,6 +9,7 @@ import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
 import { ReasonForm } from '../boards/ModTools';
 import { AnnouncementsPanel, SettingsPanel } from './ConfigPanels';
+import { BackupsPanel, StatusPanel } from './StatusPanels';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
 interface UserRow { id: string; handle: string; display_name: string | null; email: string; role: Role; status: string; created_at: string; last_seen_at: string | null }
@@ -26,18 +27,19 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'backups'] as const;
 
 export default function AdminApp() {
   const t = useT();
   const me = useMe().data;
   const nav = useAppNav();
   const route = matchRoute(nav.path, ROUTES);
-  useEffect(() => { if (!route) nav.go('users', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!route) nav.go('status', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
   if (me?.role !== 'admin') return <p className="pad">{t('admin.forbidden')}</p>;
   return (
     <div className="app">
       <nav className="tabs" aria-label={t('app.admin')}>
+        <AppNavLink to="status">{t('admin.tab.status')}</AppNavLink>
         <AppNavLink to="users">{t('admin.tab.users')}</AppNavLink>
         <AppNavLink to="invites">{t('admin.tab.invites')}</AppNavLink>
         <AppNavLink to="reports">{t('admin.tab.moderation')}</AppNavLink>
@@ -46,9 +48,12 @@ export default function AdminApp() {
         <AppNavLink to="homepages">{t('admin.tab.homepages')}</AppNavLink>
         <AppNavLink to="announcements">{t('admin.tab.announcements')}</AppNavLink>
         <AppNavLink to="settings">{t('admin.tab.config')}</AppNavLink>
+        <AppNavLink to="backups">{t('admin.tab.backups')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
       </nav>
       <div className="app-content">
+        {route?.pattern === 'status' && <StatusPanel />}
+        {route?.pattern === 'backups' && <BackupsPanel />}
         {route?.pattern === 'users' && <Users />}
         {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}
         {route?.pattern === 'invites' && <Invites />}

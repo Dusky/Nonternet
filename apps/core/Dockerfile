@@ -12,6 +12,8 @@ RUN pnpm --filter @app/core build
 
 FROM node:22-alpine
 ENV NODE_ENV=production
+# pg_dump and tar are used by the operator's backup and restore-test commands.
+RUN apk add --no-cache postgresql16-client tar
 WORKDIR /app
 COPY --from=build /repo/apps/core/dist ./
 # Native modules (argon2) are installed here, not bundled.

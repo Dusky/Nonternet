@@ -70,7 +70,7 @@ test.describe('where you end up after logging in', () => {
     await page.getByRole('button', { name: 'Use a recovery code instead' }).click();
     await page.getByLabel('Recovery code').fill(admin.recoveryCodes[1]!);
     await page.getByRole('button', { name: 'Log in' }).click();
-    await expect(page).toHaveURL(/\/admin(\/users)?$/);
+    await expect(page).toHaveURL(/\/admin(\/(users|status))?$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Admin console' })).toBeVisible();
   });
 

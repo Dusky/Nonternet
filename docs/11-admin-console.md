@@ -89,6 +89,7 @@ Historical charts: users (signups, active daily/weekly/monthly), content (posts,
 updated, rings founded), service usage, retention cohorts. Export CSV.
 
 ### 10. Backups & jobs
+**As built (M4):** Status and Backups tabs; per-service user counts, TLS expiry and a run-now button are not built yet; there are no background jobs beyond exports.
 Backup history, sizes, verify-restore results, run backup now; background jobs with status,
 retries, logs.
 

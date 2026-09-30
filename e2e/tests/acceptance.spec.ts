@@ -106,6 +106,7 @@ test('an admin invites someone, they sign up, and the admin promotes them', asyn
   await loginViaUi(page, admin.handle, PASSWORD, { recovery: codes[0]! });
   await expect(page).toHaveURL(/\/$/);
   scope = await openApp(page, isMobile, 'Admin console');
+  await scope.getByRole('link', { name: 'Users', exact: true }).click();
   await scope.getByLabel('Search users').fill(handle);
   await scope.getByRole('link', { name: handle }).click();
   await expect(scope.getByRole('heading', { level: 2, name: new RegExp(`${handle}\\s+User`) })).toBeVisible();
