@@ -72,7 +72,7 @@ async function main() {
     } else if (command === 'backup' || command === 'restore-test') {
       const dir = arg('dir');
       if (!dir) throw new Error('--dir is required');
-      const opts = { dir, key: parseBackupKey(process.env.BACKUP_KEY), databaseUrl: process.env.DATABASE_URL!, configFile: process.env.SITE_CONFIG, log: console.log };
+      const opts = { dir, key: parseBackupKey(process.env.BACKUP_KEY), databaseUrl: process.env.DATABASE_URL!, mudDatabaseUrl: process.env.MUD_DATABASE_URL || undefined, configFile: process.env.SITE_CONFIG, log: console.log };
       if (command === 'backup') {
         const r = await runBackup(deps, opts);
         console.log(`Backup written: ${r.manifest}`);

@@ -95,7 +95,11 @@ share the work). A new group starts from new events, or from the beginning if as
 whose handler fails is retried after a minute, and after 5 failed tries it moves to the stream
 `events:dead` so one bad event can't block or spin forever.
 
-IRC (M5) consumes events with the group `irc-sync` and does not publish any.
+IRC (M5) consumes events with the group `irc-sync`, and the MUD sync (M6) with `mud-sync`; neither publishes any.
+
+MUD (`09`): `POST /mud/ticket` · `GET /admin/mud` · `GET|POST /admin/mud/builders` · `POST /admin/mud/builders/remove` ·
+private, core → MUD (control token): `GET /internal/status`, `POST /internal/accounts/sync`, `POST /internal/broadcast`,
+`POST /internal/export` · private, MUD → core (auth token): `POST /internal/mud/auth`. Announcements take `irc` and `mud` flags.
 
 Built since: `user.renamed`, `user.deleted`, `board.created`, `ring.created`, `ring.member_changed`. Planned, not built yet: `bbs.*`, `irc.*`, `mud.*`,
 `presence.changed`, `export.*`, `settings.changed`.

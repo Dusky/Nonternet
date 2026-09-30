@@ -155,6 +155,11 @@ drops every session at once; roles and ops become channel modes. All of it is on
 trigger within a moment and that also runs every 30 s (fully every 6 hours). Admins are not IRC opers
 (Ergo cannot map opers to accounts); they get channel ops and moderate from the console.
 
+**MUD as built (M6, `09`):** Evennia creates the account at first login (core checks the password or MUD
+ticket) and keys it by core's user id. Core pushes every person's handle, status, role and builder flag on
+relevant events and every five minutes: renames and roles apply, suspended people are disconnected at once,
+and a deleted person's account and characters are deleted.
+
 ## Account deletion
 User can export (`12`) then delete. Posts remain but author shows as "deleted user"
 (PROPOSED) unless the user chose "remove my posts" where technically possible (local boards

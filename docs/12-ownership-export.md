@@ -46,8 +46,11 @@ README.txt               # human explanation of the archive
   encrypted with `APP_SECRET_KEY`.
 - **The rule is enforced:** `exports/exporters.test.ts` reads every table from a migrated database and fails unless
   it is claimed by an exporter or listed in `EXEMPT` with a reason, and fails on stale entries.
-- **Not included** (Q9, still OPEN and left at the PROPOSED default): other people's posts in your threads. IRC history
-  arrives with IRC. Private-board posts by the person are included, since they wrote them.
+- **Not included** (Q9, still OPEN and left at the PROPOSED default): other people's posts in your threads, and IRC
+  history (kept in Ergo's memory for a few days, `08`). Private-board posts by the person are included, since they wrote them.
+- **Added since:** `irc/channels.json` (channels the person registered, M5) and `mud/characters.json` (each MUD character:
+  sheet, abilities, HP, level, coins, location, belongings, M6). The MUD's data comes from the MUD itself; if it is set up
+  but not answering, the export fails and can be asked for again. Deleting an account deletes its MUD characters.
 - **Deletion** (`POST /me/delete`, or an admin on request with a reason): as hard as logging in (password, handle typed
   out, and a current 2FA or recovery code). The person chooses what happens to their posts and guestbook entries: keep
   them without a name (default, matching `posts.author_id null = deleted user`) or erase them to tombstones. Homepage,

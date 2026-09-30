@@ -35,6 +35,18 @@ jobs:
           docker cp "$id:/ircd-bin/ergo" "$RUNNER_TEMP/ergo"
           docker rm "$id"
           echo "ERGO_BIN=$RUNNER_TEMP/ergo" >> "$GITHUB_ENV"
+      # The MUD (Evennia) in a virtualenv, pinned by services/mud/requirements.txt.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Get Evennia
+        run: |
+          python -m venv "$RUNNER_TEMP/mud"
+          "$RUNNER_TEMP/mud/bin/pip" install -q -r services/mud/requirements.txt
+          echo "EVENNIA_BIN=$RUNNER_TEMP/mud/bin/evennia" >> "$GITHUB_ENV"
+      - name: MUD tests
+        working-directory: services/mud
+        run: PATH="$RUNNER_TEMP/mud/bin:$PATH" evennia test --settings settings.py tests
       - run: pnpm typecheck
       - run: pnpm build
       # Unit tests, then the placeholder-name check over source AND the build output.
@@ -45,6 +57,7 @@ jobs:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
           REQUIRE_REDIS: "1"
           REQUIRE_ERGO: "1"
+          REQUIRE_EVENNIA: "1"
           TEST_REDIS_URL: redis://localhost:6379
 
   e2e:
@@ -79,6 +92,14 @@ jobs:
           docker cp "$id:/ircd-bin/ergo" "$RUNNER_TEMP/ergo"
           docker rm "$id"
           echo "ERGO_BIN=$RUNNER_TEMP/ergo" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Get Evennia
+        run: |
+          python -m venv "$RUNNER_TEMP/mud"
+          "$RUNNER_TEMP/mud/bin/pip" install -q -r services/mud/requirements.txt
+          echo "EVENNIA_BIN=$RUNNER_TEMP/mud/bin/evennia" >> "$GITHUB_ENV"
       - run: pnpm build
       - name: Install the browser
         run: pnpm --filter @app/e2e exec playwright install --with-deps chromium
@@ -88,6 +109,7 @@ jobs:
       - run: pnpm test:e2e
         env:
           REQUIRE_ERGO: "1"
+          REQUIRE_EVENNIA: "1"
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
           TEST_REDIS_URL: redis://localhost:6379
       - name: Keep the failure evidence

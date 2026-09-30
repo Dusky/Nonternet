@@ -54,6 +54,23 @@ describe.skipIf(!dbAvailable || !haveTools)('backup and restore test', { timeout
     expect(first(await db.query(`SELECT status, location FROM backup_runs WHERE kind = 'backup'`))).toMatchObject({ status: 'ok', location: r.manifest });
   });
 
+  it('backs up the MUD world too when there is one, and the restore test checks it', async () => {
+    const mud = await createTestDb();
+    try {
+      // Stand-ins for the Evennia tables the restore test counts.
+      await mud.db.query(`CREATE TABLE accounts_accountdb (id int); CREATE TABLE objects_objectdb (id int); CREATE TABLE typeclasses_attribute (id int)`);
+      await mud.db.query(`INSERT INTO accounts_accountdb VALUES (1), (2); INSERT INTO objects_objectdb VALUES (1), (2), (3); INSERT INTO typeclasses_attribute VALUES (1)`);
+      const r = await runBackup(ctx.deps, { ...opts(), mudDatabaseUrl: mud.url });
+      const m = JSON.parse(readFileSync(join(dir, r.manifest), 'utf8'));
+      expect(Object.keys(m.files).sort()).toEqual(['config', 'db', 'homes', 'mud']);
+      expect(m.mud_counts).toEqual({ accounts_accountdb: 2, objects_objectdb: 3, typeclasses_attribute: 1 });
+      const t = await restoreTest(ctx.deps, opts());
+      expect(t.ok, JSON.stringify(t.checks.filter((c) => !c.ok))).toBe(true);
+      expect(t.checks.map((c) => c.name)).toEqual(expect.arrayContaining(['mud file is intact', 'MUD objects_objectdb restored']));
+      expect((await db.query(`SELECT 1 FROM pg_database WHERE datname LIKE 'restore_test_%'`)).rowCount).toBe(0);
+    } finally { await mud.drop(); }
+  });
+
   it('restores the newest backup into a scratch database, checks it and cleans up', async () => {
     const r = await restoreTest(ctx.deps, opts());
     expect(r.ok, JSON.stringify(r.checks.filter((c) => !c.ok))).toBe(true);

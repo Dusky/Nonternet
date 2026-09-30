@@ -48,12 +48,41 @@ services:
       IRC_SECRET: ${IRC_SECRET:?set IRC_SECRET in deploy/.env (openssl rand -base64 32)}
       IRC_HOST: ergo
       IRC_API_URL: http://ergo:8089
+      # Shared with the MUD. MUD_DATABASE_URL is here only so `cli backup` can dump the world too.
+      MUD_SECRET: ${MUD_SECRET:?set MUD_SECRET in deploy/.env (openssl rand -base64 32)}
+      MUD_URL: http://mud:4001
+      MUD_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/mud
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - homes-data:/data/homes
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+
+  # The MUD (docs/09): Evennia, signing everyone in through core. Its world is in its own database.
+  mud:
+    build:
+      context: ..
+      dockerfile: services/mud/Dockerfile
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      MUD_SECRET: ${MUD_SECRET:?set MUD_SECRET in deploy/.env (openssl rand -base64 32)}
+      CORE_URL: http://core:3000
+      MUD_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/mud
+      # Caddy's fixed address below: its X-Forwarded-For is trusted (Evennia matches exact addresses).
+      MUD_UPSTREAM_IPS: 172.30.0.10
+      # Account #1 on first start; nobody signs in as it (logins go through core).
+      EVENNIA_SUPERUSER_USERNAME: sitebot
+      EVENNIA_SUPERUSER_PASSWORD: ${MUD_SECRET:?set MUD_SECRET in deploy/.env}
+      EVENNIA_SUPERUSER_EMAIL: ""
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+    ports:
+      # Telnet for native MUD clients.
+      - "${MUD_TELNET_PORT:-4000}:4000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      core: { condition: service_started }
 
   # The homes server: people's homepages, on their own subdomains and domains. Same image as core,
   # its own process, port and (in production) hostnames, so a homepage is never on the site's origin.
@@ -128,11 +157,21 @@ services:
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
+    networks:
+      # A fixed address, so the MUD can trust the client addresses Caddy forwards (MUD_UPSTREAM_IPS).
+      default: { ipv4_address: 172.30.0.10 }
     depends_on:
       - core
       - shell
       - homes
       - ergo
+      - mud
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
 
 volumes:
   ircd-data:

@@ -61,6 +61,16 @@ HTTP API on the private network only. For native clients, give `irc-config` `IRC
 `IRC_TLS_KEY` and publish `irc.public_port` (6697). IRC history lives in Ergo's memory; `ircd.db` is not
 backed up because core rebuilds it (`08`).
 
+## MUD (as built, M6)
+Set `MUD_SECRET` (32+ characters) in `deploy/.env`; compose passes it to core and the `mud` service. The MUD
+(Evennia, `services/mud/Dockerfile`) keeps its world in its own Postgres database, `mud`, which it creates on
+first start. Caddy sends only `/ws/mud` to it; its internal web server (core's control API) is private. Telnet
+for native clients is published on `mud.public_port` (4000). Caddy has a fixed address on the compose network
+(172.30.0.10) passed as `MUD_UPSTREAM_IPS`, because Evennia only trusts forwarded client addresses from exact
+proxy addresses; without it every web player would share one address for login throttling. Core has
+`MUD_DATABASE_URL` too, so `cli backup` dumps the world with everything else and `cli restore-test` restores it
+and checks its counts. Not yet run against a real deployment.
+
 ## Backups
 Nightly: pg_dump, homes, MUD data (once it exists), config, keys. Encrypted, off-site copy, 30 days retention (PROPOSED). Monthly automated
 **restore test** to a scratch environment, result shown in the admin console.

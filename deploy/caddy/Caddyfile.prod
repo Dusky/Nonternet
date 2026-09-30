@@ -32,6 +32,10 @@
 	handle /ws/irc {
 		reverse_proxy ergo:8097
 	}
+	# The MUD window's connection (docs/09). Only the WebSocket; the MUD's web server stays private.
+	handle /ws/mud {
+		reverse_proxy mud:4002
+	}
 	# Never reachable from outside: only Caddy's own `ask` uses it.
 	respond /internal/* 404
 	handle {

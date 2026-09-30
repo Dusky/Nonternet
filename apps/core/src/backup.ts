@@ -80,7 +80,19 @@ const countHomeFiles = async (dir: string): Promise<number> => {
   return n;
 };
 
-export interface BackupOptions { dir: string; key: Buffer; databaseUrl: string; configFile?: string; log?: (m: string) => void }
+export interface BackupOptions { dir: string; key: Buffer; databaseUrl: string; mudDatabaseUrl?: string; configFile?: string; log?: (m: string) => void }
+
+// The MUD's world lives in its own database (docs/09, 15); these tables show it came back whole.
+const MUD_COUNTED = ['accounts_accountdb', 'objects_objectdb', 'typeclasses_attribute'] as const;
+async function mudCounts(url: string): Promise<Record<string, number>> {
+  const c = new pg.Client({ connectionString: url });
+  await c.connect();
+  try {
+    const out: Record<string, number> = {};
+    for (const t of MUD_COUNTED) out[t] = Number((await c.query<{ n: string }>(`SELECT count(*) AS n FROM ${t}`)).rows[0]!.n);
+    return out;
+  } finally { await c.end(); }
+}
 
 export async function runBackup(deps: AppDeps, o: BackupOptions): Promise<{ manifest: string }> {
   const id = newId('bk');
@@ -88,17 +100,23 @@ export async function runBackup(deps: AppDeps, o: BackupOptions): Promise<{ mani
   try {
     await fs.mkdir(o.dir, { recursive: true });
     const stamp = new Date(deps.now()).toISOString().replace(/[-:]/g, '').replace(/\..*/, 'Z');
-    const files = { db: `${stamp}-db.dump.enc`, homes: `${stamp}-homes.tar.enc`, config: `${stamp}-config.yaml.enc` };
+    const files: Record<string, string> = { db: `${stamp}-db.dump.enc`, homes: `${stamp}-homes.tar.enc`, config: `${stamp}-config.yaml.enc` };
     o.log?.('dumping the database');
-    await encryptedFrom('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', '--dbname', o.databaseUrl], join(o.dir, files.db), o.key);
+    await encryptedFrom('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', '--dbname', o.databaseUrl], join(o.dir, files.db!), o.key);
+    if (o.mudDatabaseUrl) {
+      files.mud = `${stamp}-mud.dump.enc`;
+      o.log?.('dumping the MUD world');
+      await encryptedFrom('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', '--dbname', o.mudDatabaseUrl], join(o.dir, files.mud), o.key);
+    }
     o.log?.('packing homepage files');
     await fs.mkdir(deps.homes.root, { recursive: true });
-    await encryptedFrom('tar', ['-C', deps.homes.root, '-cf', '-', '.'], join(o.dir, files.homes), o.key);
-    if (o.configFile) await pipeline(createReadStream(o.configFile), encryptor(o.key), createWriteStream(join(o.dir, files.config)));
+    await encryptedFrom('tar', ['-C', deps.homes.root, '-cf', '-', '.'], join(o.dir, files.homes!), o.key);
+    if (o.configFile) await pipeline(createReadStream(o.configFile), encryptor(o.key), createWriteStream(join(o.dir, files.config!)));
     const manifest = {
       format: 'backup-v1', made_at: new Date(deps.now()).toISOString(), run: id,
       files: Object.fromEntries(await Promise.all(Object.entries(files).filter(([k]) => k !== 'config' || o.configFile).map(async ([k, name]) => [k, { name, sha256: await hashFile(join(o.dir, name)), size: (await fs.stat(join(o.dir, name))).size }]))),
       counts: await counts(deps.db), homepage_files: await countHomeFiles(deps.homes.root),
+      ...(o.mudDatabaseUrl ? { mud_counts: await mudCounts(o.mudDatabaseUrl) } : {}),
     };
     const name = `${stamp}-manifest.json`;
     await fs.writeFile(join(o.dir, name), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -129,7 +147,7 @@ export async function restoreTest(deps: AppDeps, o: BackupOptions): Promise<{ ok
     const newest = names.at(-1);
     if (!newest) throw new Error(`No backup found in ${o.dir}.`);
     location = newest;
-    const manifest = JSON.parse(await fs.readFile(join(o.dir, newest), 'utf8')) as { files: Record<string, { name: string; sha256: string; size: number }>; counts: Record<string, number>; homepage_files: number };
+    const manifest = JSON.parse(await fs.readFile(join(o.dir, newest), 'utf8')) as { files: Record<string, { name: string; sha256: string; size: number }>; counts: Record<string, number>; homepage_files: number; mud_counts?: Record<string, number> };
     for (const [kind, f] of Object.entries(manifest.files)) add(`${kind} file is intact`, f.sha256, await hashFile(join(o.dir, f.name)));
 
     if (checks.every((c) => c.ok)) {
@@ -159,6 +177,20 @@ export async function restoreTest(deps: AppDeps, o: BackupOptions): Promise<{ ok
         p.on('close', (c) => (c === 0 ? resolve(out) : reject(new Error('the homepage archive cannot be read'))));
       });
       add('homepage files restored', manifest.homepage_files, listing.split('\n').filter((l) => l && !l.endsWith('/')).length);
+
+      if (manifest.files.mud && manifest.mud_counts) {
+        const mudDump = join(work, 'mud.dump');
+        await decryptTo(join(o.dir, manifest.files.mud.name), o.key, mudDump);
+        await admin.query(`CREATE DATABASE ${scratch}_mud`);
+        const mudUrl = new URL(o.databaseUrl); mudUrl.pathname = `/${scratch}_mud`;
+        await new Promise<void>((resolve, reject) => {
+          const p = spawn('pg_restore', ['--no-owner', '--no-privileges', '--exit-on-error', '--dbname', mudUrl.toString(), mudDump], { stdio: ['ignore', 'ignore', 'pipe'] });
+          let err = ''; p.stderr.on('data', (d) => { err += d; });
+          p.on('close', (c) => (c === 0 ? resolve() : reject(new Error(`pg_restore of the MUD failed: ${err.trim().slice(0, 300)}`))));
+        });
+        const got = await mudCounts(mudUrl.toString());
+        for (const [k, v] of Object.entries(manifest.mud_counts)) add(`MUD ${k} restored`, v, got[k]);
+      }
     }
     const ok = checks.every((c) => c.ok);
     await deps.db.query(`UPDATE backup_runs SET status = $2, finished_at = now(), location = $3, detail = $4, error = $5 WHERE id = $1`,
@@ -171,6 +203,7 @@ export async function restoreTest(deps: AppDeps, o: BackupOptions): Promise<{ ok
   } finally {
     if (connected) {
       await admin.query(`DROP DATABASE IF EXISTS ${scratch} WITH (FORCE)`).catch(() => undefined);
+      await admin.query(`DROP DATABASE IF EXISTS ${scratch}_mud WITH (FORCE)`).catch(() => undefined);
       await admin.end().catch(() => undefined);
     }
     await fs.rm(work, { recursive: true, force: true });

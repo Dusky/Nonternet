@@ -61,6 +61,14 @@ here (no Docker).
 ## M6 — MUD
 Engine decision, container, auth backend, builders, MUD window, console page, MUD broadcasts.
 Separate world-design doc first.
+**Progress:** built. Spike and world design (`spikes/m6-evennia.md`, `18`); Evennia 5.0.1 in `services/mud`
+signing in through core (terminal password or one-use ticket); core pushes renames, roles, builders,
+suspensions and deletions; EvAdventure characters (3 per account) with our rules (no permanent death, safe
+town, turn-based combat against monsters) and a starting town with monsters; the MUD window; the console's MUD
+tab with builders; announcements to the MUD; characters in the export; the MUD's database in backups.
+Tests: `services/mud/tests` (Evennia's runner), `mud/*.test.ts` against a real Evennia, `mud.spec.ts` (desktop
+and phone, both themes). The container and compose service are written but not run here (no Docker). Not built:
+duels, working shops, the tavern guestbook and noticeboard, quests.
 
 ## M7 — Console depth & extras
 Audit replay with diffs, stats cohorts, heatmaps, command console; private mail; web file
