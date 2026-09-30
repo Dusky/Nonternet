@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { changePasswordSchema, profileUpdateSchema, THEMES, type Me, type ThemeName } from '@app/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { changePasswordSchema, profileUpdateSchema, THEMES, type CharacterView, type Me, type ThemeName } from '@app/shared';
 import { themes } from '@app/ui-themes';
 import { api } from '../../api';
 import { Alert, CopyButton, TextField } from '../../components/ui';
-import { errorText, useMe, useT } from '../../hooks';
+import { errorText, useMe, useSite, useT } from '../../hooks';
 import { AppNavLink, matchRoute, useAppNav } from '../../nav';
 import { YourData } from './YourData';
 import { TerminalPassword } from './Terminal';
@@ -16,6 +16,7 @@ const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'appear
 export default function SettingsApp() {
   const t = useT();
   const me = useMe().data;
+  const site = useSite();
   const nav = useAppNav();
   const route = matchRoute(nav.path, ROUTES);
   // Opening the app (or a screen that doesn't exist) lands on the first screen.
@@ -32,7 +33,7 @@ export default function SettingsApp() {
         <AppNavLink to="appearance">{t('settings.tab.appearance')}</AppNavLink>
       </nav>
       <div className="app-content">
-        {route?.pattern === 'profile' && <Profile me={me} />}
+        {route?.pattern === 'profile' && <><Profile me={me} />{site.services.mud && <FeaturedCharacter />}</>}
         {route?.pattern === 'password' && <Password />}
         {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
         {route?.pattern === 'terminal' && <TerminalPassword />}
@@ -69,6 +70,36 @@ function Profile({ me }: { me: Me }) {
       {save.isSuccess && !error && <Alert kind="success">{t('settings.profile.saved')}</Alert>}
       <button className="btn btn-primary" type="submit" disabled={save.isPending}>{t('common.save')}</button>
     </form>
+  );
+}
+
+// Which MUD character shows beside your name around the site (docs/09).
+function FeaturedCharacter() {
+  const t = useT();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['me', 'characters'], queryFn: () => api.get<{ characters: CharacterView[]; featured_character_id: string | null }>('/me/characters') });
+  const save = useMutation({
+    mutationFn: (id: string | null) => api.put('/me/featured-character', { character_id: id }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['me', 'characters'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); },
+  });
+  if (!q.data) return null;
+  return (
+    <section className="panel" aria-labelledby="featured-h">
+      <h2 id="featured-h">{t('settings.featured')}</h2>
+      {q.data.characters.length === 0 ? <p className="muted">{t('settings.featuredEmpty')}</p> : (
+        <div className="field">
+          <label htmlFor="featured-char">{t('settings.featuredPick')}</label>
+          <select id="featured-char" aria-describedby="featured-hint" value={q.data.featured_character_id ?? ''} disabled={save.isPending}
+            onChange={(e) => save.mutate(e.target.value || null)}>
+            <option value="">{t('settings.featuredNone')}</option>
+            {q.data.characters.map((c) => <option key={c.id} value={c.id}>{t('people.characterLabel', { name: c.name, level: c.level })}</option>)}
+          </select>
+          <p className="hint" id="featured-hint">{t('settings.featuredHint')}</p>
+          {save.isSuccess && <p role="status" className="hint">{t('settings.featuredSaved')}</p>}
+          {save.isError && <Alert kind="error">{errorText(save.error)}</Alert>}
+        </div>
+      )}
+    </section>
   );
 }
 

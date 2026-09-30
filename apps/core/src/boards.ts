@@ -244,10 +244,13 @@ interface PostRow {
   id: string; seq: string; board_id: string; thread_id: string; reply_to_id: string | null; subject: string; body: string;
   posted_at: Date; edited_at: Date | null; hidden_at: Date | null; deleted_at: Date | null; deleted_by: string | null; locked_at: Date | null;
   author_id: string | null; handle: string | null; display_name: string | null;
+  char_id: string | null; char_name: string | null; char_level: number | null;
 }
 const POST_COLUMNS = `p.id, p.seq, p.board_id, COALESCE(p.thread_root_id, p.id) AS thread_id, p.reply_to_id, p.subject, p.body,
-  p.posted_at, p.edited_at, p.hidden_at, p.deleted_at, p.deleted_by, p.locked_at, u.id AS author_id, u.handle, u.display_name`;
-const POST_FROM = `posts p LEFT JOIN users u ON u.id = p.author_id`;
+  p.posted_at, p.edited_at, p.hidden_at, p.deleted_at, p.deleted_by, p.locked_at, u.id AS author_id, u.handle, u.display_name,
+  fc.id AS char_id, fc.name AS char_name, fc.level AS char_level`;
+// The author's featured MUD character rides along with each post (docs/09).
+const POST_FROM = `posts p LEFT JOIN users u ON u.id = p.author_id LEFT JOIN mud_characters fc ON fc.id = u.featured_character_id AND fc.user_id = u.id`;
 
 // A deleted post shows no text. A hidden one shows none either, except to the people who moderate it.
 function toPostView(r: PostRow, mod: boolean): PostView {
@@ -256,7 +259,9 @@ function toPostView(r: PostRow, mod: boolean): PostView {
   return {
     id: r.id, seq: Number(r.seq), board_id: r.board_id, thread_id: r.thread_id, reply_to_id: r.reply_to_id,
     subject: show ? r.subject : '', body: show ? r.body : null, state,
-    author: r.author_id && state !== 'deleted' && state !== 'removed' ? { id: r.author_id, handle: r.handle!, display_name: r.display_name } : null,
+    author: r.author_id && state !== 'deleted' && state !== 'removed'
+      ? { id: r.author_id, handle: r.handle!, display_name: r.display_name, character: r.char_id ? { id: r.char_id, name: r.char_name!, level: r.char_level! } : null }
+      : null,
     posted_at: r.posted_at.toISOString(), edited_at: r.edited_at ? r.edited_at.toISOString() : null,
   };
 }
@@ -380,6 +385,7 @@ export async function search(deps: AppDeps, v: Viewer, q: string, opts: { board?
        ts_headline('english', p.subject || E'\\n' || p.body, websearch_to_tsquery('english', $${n}),
          'StartSel=\u0002, StopSel=\u0003, MaxWords=30, MinWords=12, MaxFragments=1') AS snippet
      FROM posts p JOIN boards b ON b.id = p.board_id LEFT JOIN users u ON u.id = p.author_id
+       LEFT JOIN mud_characters fc ON fc.id = u.featured_character_id AND fc.user_id = u.id
      WHERE p.body_tsv @@ websearch_to_tsquery('english', $${n}) AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND ${acc.sql}
        AND ($${n + 1}::text IS NULL OR b.slug = $${n + 1})
      ORDER BY ts_rank(p.body_tsv, websearch_to_tsquery('english', $${n})) DESC, p.seq DESC

@@ -8,6 +8,7 @@ import { AppLink, useAppNav } from '../../nav';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
 import { PostModTools, ReportPost } from './ModTools';
+import { CharacterBadge, PersonLink } from '../people/PersonLink';
 
 interface ThreadPage { board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }
 
@@ -102,8 +103,9 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
             <li key={post.id} style={depth ? { marginLeft: `${Math.min(depth, 6) * 1.25}rem` } : undefined}>
               <article className="post" tabIndex={-1} data-nav data-state={post.state} aria-label={name ? t('boards.by', { name }) : undefined}>
                 <header className="post-head">
-                  {post.author ? <strong>{post.author.display_name || post.author.handle}</strong> : null}
+                  {post.author ? <PersonLink app="people" to={post.author.handle}><strong>{post.author.display_name || post.author.handle}</strong></PersonLink> : null}
                   {post.author?.display_name && <span className="muted"> @{post.author.handle}</span>}
+                  {post.author?.character && <> <CharacterBadge character={post.author.character} /></>}
                   <span className="muted"> · <time dateTime={post.posted_at}>{formatWhen(post.posted_at)}</time></span>
                   {view === 'flat' && parent?.author && <span className="muted"> · {t('boards.inReplyTo', { name: parent.author.display_name || parent.author.handle })}</span>}
                 </header>

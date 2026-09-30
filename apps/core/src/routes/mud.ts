@@ -1,10 +1,11 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { requireAdmin, requireUser } from '../http';
-import { mudStatus } from '../mud/sync';
+import { mudStatus, mudSyncSoon } from '../mud/sync';
 import { z } from 'zod';
 import { ctxOf } from '../http';
 import { grantOp, revokeOp } from '../admin';
+import { charactersOf, publicProfile, setFeatured } from '../characters';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import { issueTicket } from '../irc/auth';
@@ -19,6 +20,13 @@ export function mudRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (!deps.mud || !same(token, deps.mud.secrets.authToken)) throw new ApiError(401, 'unauthenticated', 'Not allowed.');
     const b = (req.body ?? {}) as { accountName?: unknown; passphrase?: unknown };
     return checkMudLogin(deps, b.accountName, b.passphrase);
+  });
+  // The MUD says a character was made or changed; core refreshes its copy now (docs/09).
+  app.post('/internal/mud/characters-changed', { config: { rateLimit: false } }, async (req, reply) => {
+    const token = (req.headers.authorization ?? '').replace(/^Bearer /, '');
+    if (!deps.mud || !same(token, deps.mud.secrets.authToken)) throw new ApiError(401, 'unauthenticated', 'Not allowed.');
+    mudSyncSoon();
+    return reply.code(202).send();
   });
   // The MUD window asks for a one-use ticket and sends `connect <handle> <ticket>` over its WebSocket.
   // The console's MUD page (docs/11): who is playing and where, and how big the world is.
@@ -48,5 +56,18 @@ export function mudRoutes(app: FastifyInstance, deps: AppDeps): void {
     await revokeOp(deps, who, b.user_id, b.op_id, b.reason, ctxOf(deps, req));
     return reply.code(204).send();
   });
+  // Characters for the rest of the site (docs/09): public profiles, and your own list and featured one.
+  app.get('/api/v1/users/:handle', async (req) => publicProfile(deps, z.object({ handle: z.string().max(40) }).parse(req.params).handle));
+  app.get('/api/v1/me/characters', async (req) => {
+    const who = requireUser(req);
+    const featured = (await deps.db.query<{ f: string | null }>(`SELECT featured_character_id AS f FROM users WHERE id = $1`, [who.userId])).rows[0]?.f ?? null;
+    return { characters: await charactersOf(deps, who.userId), featured_character_id: featured };
+  });
+  app.put('/api/v1/me/featured-character', async (req, reply) => {
+    const b = z.object({ character_id: z.string().regex(/^c_\d+$/).nullable() }).parse(req.body);
+    await setFeatured(deps, requireUser(req), b.character_id);
+    return reply.code(204).send();
+  });
+
   app.post('/api/v1/mud/ticket', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) => issueTicket(deps, requireUser(req), 'mud'));
 }

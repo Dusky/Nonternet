@@ -33,6 +33,7 @@ urlpatterns = [
     path("internal/accounts/sync", internal.sync_accounts),
     path("internal/broadcast", internal.broadcast),
     path("internal/export", internal.export),
+    path("internal/characters", internal.characters),
     # add any extra urls here:
     # path("mypath/", include("path.to.my.urls.file")),
 ]

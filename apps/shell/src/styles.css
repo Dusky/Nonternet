@@ -275,3 +275,17 @@ ul.plain { list-style: none; margin: 0; padding: 0; }
 .mud-white-b, .mud-white, .mud-black-b, .mud-grey { color: var(--text); }
 .mud-black { color: var(--muted); }
 .mud-red-b, .mud-green-b, .mud-yellow-b, .mud-blue-b, .mud-magenta-b, .mud-cyan-b, .mud-white-b { font-weight: 600; }
+
+/* ---- people and characters */
+.profile-head h2 { margin-bottom: .1rem; }
+.profile-bio { white-space: pre-wrap; }
+.inline-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
+.char-cards { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 10px; }
+.char-card { border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; background: var(--surface); }
+.char-card.is-featured { border-color: var(--accent); border-left-width: 5px; }
+.char-card h4 { margin: 0 0 .2rem; }
+.abilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: .2rem .6rem; margin: .4rem 0 0; }
+.abilities div { display: flex; justify-content: space-between; }
+.abilities dt { color: var(--muted); }
+.abilities dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.char-badge { color: var(--muted); font-style: italic; }

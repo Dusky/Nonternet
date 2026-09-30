@@ -66,7 +66,8 @@ export interface BoardSummary {
 export interface PostView {
   id: string; seq: number; board_id: string; thread_id: string; reply_to_id: string | null;
   subject: string; body: string | null; state: 'ok' | 'deleted' | 'removed' | 'hidden';
-  author: { id: string; handle: string; display_name: string | null } | null;
+  // `character` is the MUD character the author features, if any (docs/09).
+  author: { id: string; handle: string; display_name: string | null; character: { id: string; name: string; level: number } | null } | null;
   posted_at: string; edited_at: string | null;
 }
 

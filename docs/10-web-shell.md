@@ -18,6 +18,7 @@ Every app also has a normal full-page URL (links, bookmarks, sharing).
 | **Settings** — profile, passwords, theme, notifications, export, custom domain; terminal password and SSH keys arrive with the first service that needs them (IRC) | yes |
 | **Admin console** (`11`) | yes (admins) |
 | **Chat** — IRC (`08`) | yes (M5), shown when `services.irc` is on |
+| **People** — public profiles: bio, homepage, rings, MUD characters (`09`) | yes (M6), public |
 | **MUD** — a text log and command line into the world (`09`) | yes (M6), shown when `services.mud` is on |
 | **Mail** — private messages | later (OPEN) |
 

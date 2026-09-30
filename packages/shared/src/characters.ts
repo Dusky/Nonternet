@@ -1,0 +1,33 @@
+// MUD characters as the rest of the site sees them (docs/09): a person's characters on their profile,
+// and the one they feature next to their name on board posts. The MUD is the source of truth; core keeps
+// a copy so any part of the site can use these.
+export const ABILITIES = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+export type Ability = (typeof ABILITIES)[number];
+
+export interface CharacterView {
+  id: string;           // c_…, stable for the character's life
+  name: string;
+  level: number;
+  xp: number;
+  hp: number;
+  hp_max: number;
+  coins: number;
+  abilities: Record<Ability, number>;
+  created_at: string;
+}
+
+// The short form shown beside a name, e.g. on a board post.
+export interface CharacterBadge { id: string; name: string; level: number }
+
+export interface PublicProfile {
+  id: string;
+  handle: string;
+  display_name: string | null;
+  bio: string | null;
+  role: 'user' | 'trusted' | 'admin';
+  joined_at: string;
+  homepage_url: string | null;
+  rings: { slug: string; name: string }[];
+  characters: CharacterView[];
+  featured_character_id: string | null;
+}

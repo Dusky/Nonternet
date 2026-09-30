@@ -27,6 +27,21 @@ def ask_core(username, password):
         return None
 
 
+def tell_core_characters_changed():
+    """Nudge core to refresh its copy of characters now (it also does every two minutes). Never blocks the game."""
+    from twisted.internet import threads
+
+    def post():
+        req = urllib.request.Request(f"{settings.CORE_URL}/internal/mud/characters-changed", data=b"{}", method="POST",
+                                     headers={"authorization": f"Bearer {settings.CORE_AUTH_TOKEN}", "content-type": "application/json"})
+        try:
+            urllib.request.urlopen(req, timeout=5).close()
+        except Exception:  # core will catch up on its own schedule
+            pass
+
+    threads.deferToThread(post)
+
+
 def apply_role(account, role, builder):
     """Site role and builder appointment become Evennia permissions."""
     wanted = "Developer" if role == "admin" else "Builder" if builder else "Player"

@@ -97,7 +97,8 @@ whose handler fails is retried after a minute, and after 5 failed tries it moves
 
 IRC (M5) consumes events with the group `irc-sync`, and the MUD sync (M6) with `mud-sync`; neither publishes any.
 
-MUD (`09`): `POST /mud/ticket` · `GET /admin/mud` · `GET|POST /admin/mud/builders` · `POST /admin/mud/builders/remove` ·
+MUD (`09`): `GET /users/:handle` (public profile with characters) · `GET /me/characters` · `PUT /me/featured-character` ·
+private, MUD → core: `POST /internal/mud/characters-changed` · `POST /mud/ticket` · `GET /admin/mud` · `GET|POST /admin/mud/builders` · `POST /admin/mud/builders/remove` ·
 private, core → MUD (control token): `GET /internal/status`, `POST /internal/accounts/sync`, `POST /internal/broadcast`,
 `POST /internal/export` · private, MUD → core (auth token): `POST /internal/mud/auth`. Announcements take `irc` and `mud` flags.
 

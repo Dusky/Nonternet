@@ -41,6 +41,18 @@ ANSI codes its menus carry (VERIFIED) are parsed into styled text, drawn toward 
 stay readable. No server HTML reaches the shell's origin. A command line with history. Native clients use
 telnet on `mud.public_port` (default 4000). (Was PROPOSED: xterm.js, which would have needed an ANSI layer.)
 
+## Characters around the site (as built)
+The point of the MUD for the rest of the site is that characters show up elsewhere. Core keeps a copy of every
+character in `mud_characters` (name, level, XP, HP, coins, the six abilities; keyed `c_<MUD object id>`), pulled from
+the MUD's `/internal/characters` after each sync pass, every two minutes, and at once when the MUD says a character was
+made (`/internal/mud/characters-changed`). Not copied: where a character is (that would say where the person is right
+now) and what it carries. Any part of the site reads characters from core, never from the MUD:
+- **Profiles** (`GET /api/v1/users/:handle`, public, the People app): the person's characters with their stats.
+- **Featured character**: a person picks one in Settings → Profile (`PUT /api/v1/me/featured-character`); board posts
+  carry it as `author.character` and show "as Tansy, level 4" beside the name. A character deleted in the MUD drops out
+  of the copy, its badge goes and the choice is cleared.
+- New features (rings, homepages, the BBS) use the same `CharacterView` / `CharacterBadge` types from `@app/shared`.
+
 ## Ownership
 Each person's characters (sheet, abilities, HP, level, coins, where they are, what they carry) join their
 export as `mud/characters.json` (`12`). If the MUD is set up but not answering, the export fails rather than

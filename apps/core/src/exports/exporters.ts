@@ -144,7 +144,8 @@ const irc: Exporter = {
 // MUD is set up but does not answer, the export fails rather than quietly leaving characters out.
 const mud: Exporter = {
   id: 'mud',
-  tables: [],
+  // mud_characters is core's copy of what the MUD hands over here in full.
+  tables: ['mud_characters'],
   async run({ deps, user, add }) {
     if (!deps.mud) return;
     const out = await mudExport(deps, user.id);

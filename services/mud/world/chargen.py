@@ -90,6 +90,9 @@ def node_apply_character(caller, raw_string, **kwargs):
         return node_change_name(caller, "", **kwargs)
     new = sheet.apply(caller)
     caller.characters.add(new)
+    from server.conf.core_auth import tell_core_characters_changed
+
+    tell_core_characters_changed()  # so the site shows it within a moment
     return f"|g{new.key} is ready.|n Type |wic {new.key}|n to play.", None
 
 

@@ -69,6 +69,25 @@ class InternalApiTest(BaseEvenniaTest):
         from evennia.objects.models import ObjectDB
         self.assertFalse(ObjectDB.objects.filter(db_key="Tansy").exists())
 
+    def test_characters_lists_every_site_character_with_its_sheet(self):
+        from world.build_town import build_town
+        from world.chargen import CharacterSheet
+
+        build_town()
+        dee = self.make("dee", "u_DEE")
+        sheet = CharacterSheet()
+        sheet.name = "Rook"
+        char = sheet.apply(dee)
+        dee.characters.add(char)
+        got = [c for c in Client().get("/internal/characters", HTTP_AUTHORIZATION=f"Bearer {TOKEN}").json()["characters"] if c["core_id"] == "u_DEE"]
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0]["id"], f"c_{char.id}")
+        self.assertEqual(got[0]["name"], "Rook")
+        self.assertEqual(set(got[0]["abilities"]), {"strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"})
+        self.assertNotIn("carrying", got[0])
+        self.assertNotIn("location", got[0])
+        self.assertEqual(Client().get("/internal/characters").status_code, 403)
+
     def test_broadcast_reaches_everyone(self):
         with patch("evennia.SESSION_HANDLER.announce_all") as announce:
             self.assertEqual(self.post("/internal/broadcast", {"text": "Maintenance at ten"}).json(), {"sent": True})

@@ -1,4 +1,5 @@
 import type { AppDeps } from '../deps';
+import { pullCharacters } from '../characters';
 
 // Core tells the MUD what changed (docs/09): renames, roles, builder appointments, and who may no longer
 // play (suspended or deleted people are disconnected at once). Core sends everyone's current state; the
@@ -52,7 +53,7 @@ export async function sendMudAnnouncements(deps: AppDeps): Promise<number> {
 let hook: () => void = () => undefined;
 export const mudSyncSoon = () => hook();
 
-export function startMudSync(deps: AppDeps, log: (m: string) => void, opts: { everyMs?: number; announceMs?: number } = {}) {
+export function startMudSync(deps: AppDeps, log: (m: string) => void, opts: { everyMs?: number; announceMs?: number; charactersMs?: number } = {}) {
   let running = false;
   let again = false;
   const pass = async () => {
@@ -60,6 +61,7 @@ export function startMudSync(deps: AppDeps, log: (m: string) => void, opts: { ev
     running = true;
     try {
       await pushAccounts(deps);
+      await pullCharacters(deps);
       await sendMudAnnouncements(deps);
     } catch (e) {
       log(`mud sync: ${e instanceof Error ? e.message : String(e)}`);
@@ -73,6 +75,8 @@ export function startMudSync(deps: AppDeps, log: (m: string) => void, opts: { ev
   hook = soon;
   const every = setInterval(() => void pass(), opts.everyMs ?? 300_000);
   const announce = setInterval(() => void sendMudAnnouncements(deps).catch(() => undefined), opts.announceMs ?? 30_000);
+  // Levels and coins change in play; the site's copy follows within two minutes.
+  const characters = setInterval(() => void pullCharacters(deps).catch((e) => log(`mud characters: ${e instanceof Error ? e.message : String(e)}`)), opts.charactersMs ?? 120_000);
   void pass();
-  return { soon, runNow: pass, stop: () => { hook = () => undefined; clearInterval(every); clearInterval(announce); clearTimeout(debounce); } };
+  return { soon, runNow: pass, stop: () => { hook = () => undefined; clearInterval(every); clearInterval(announce); clearInterval(characters); clearTimeout(debounce); } };
 }

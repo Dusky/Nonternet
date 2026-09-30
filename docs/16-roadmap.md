@@ -69,6 +69,9 @@ tab with builders; announcements to the MUD; characters in the export; the MUD's
 Tests: `services/mud/tests` (Evennia's runner), `mud/*.test.ts` against a real Evennia, `mud.spec.ts` (desktop
 and phone, both themes). The container and compose service are written but not run here (no Docker). Not built:
 duels, working shops, the tavern guestbook and noticeboard, quests.
+Owners' direction (2026-09-30): keep the MUD at this minimum and build its content later; what matters now is that
+characters are usable around the site. Built: core's copy of characters, public profiles (People app) with
+characters, a featured character shown beside the author on board posts (`characters.test.ts`, `mud.spec.ts`).
 
 ## M7 — Console depth & extras
 Audit replay with diffs, stats cohorts, heatmaps, command console; private mail; web file

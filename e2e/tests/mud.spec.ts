@@ -1,8 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { EVENNIA_BIN } from '../support/stack';
-import { makeAdmin, makeUser, PASSWORD, signIn, totp, uniq } from '../support/helpers';
+import { BASE_URL, EVENNIA_BIN } from '../support/stack';
+import { makeAdmin, makeUser, PASSWORD, setRole, signIn, totp, uniq } from '../support/helpers';
 
 async function scan(page: Page, what: string) {
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
@@ -38,6 +38,48 @@ test.describe('the MUD', () => {
       await scan(page, `the MUD (${theme})`);
     });
   }
+
+  test('a character made in the MUD shows on the profile and, featured, beside posts on the boards', async ({ page }) => {
+    const u = await makeUser(page, { handle: uniq('bard') });
+    await setRole(u.handle, 'trusted'); // to start a board
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/mud');
+    await expect(world(page).getByText('You have no character yet.', { exact: false })).toBeVisible({ timeout: 20_000 });
+    await type(page, 'charcreate');
+    await expect(world(page).getByText('Accept and create character').last()).toBeVisible();
+    await type(page, '3');
+    const ready = world(page).getByText(/ is ready\./);
+    await expect(ready).toBeVisible();
+    const name = /^(\S+) is ready\./.exec((await ready.textContent()) ?? '')![1]!;
+
+    // The MUD tells the site at once; pick it as the featured character.
+    await expect(async () => {
+      await page.goto('/settings/profile');
+      await expect(page.getByLabel('Character to show')).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20_000 });
+    await page.getByLabel('Character to show').selectOption({ label: `${name}, level 1` });
+    await expect(page.getByText('Saved.')).toBeVisible();
+
+    await page.goto(`/people/${u.handle}`);
+    const card = page.getByRole('listitem', { name: `${name}, level 1` });
+    await expect(card).toBeVisible();
+    await expect(card.getByText('featured')).toBeVisible();
+    await expect(card.getByText('STR')).toBeVisible();
+    await scan(page, 'a profile with a character');
+
+    const slug = uniq('tales');
+    const res = await page.request.post('/api/v1/boards', { data: { slug, name: 'Tales', visibility: 'public' }, headers: { origin: BASE_URL } });
+    expect(res.ok(), await res.text()).toBe(true);
+    const post = await (await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'A song', body: 'La la la.' }, headers: { origin: BASE_URL } })).json();
+    await page.goto(`/boards/${slug}/t/${post.id}`);
+    await expect(page.getByText(`as ${name}, level 1`)).toBeVisible();
+    // Signed out, the author still links to their profile.
+    await page.context().clearCookies();
+    await page.goto(`/boards/${slug}/t/${post.id}`);
+    await page.getByRole('link', { name: u.handle }).click();
+    await expect(page.getByRole('heading', { level: 2, name: u.handle })).toBeVisible();
+    await expect(page.getByRole('listitem', { name: `${name}, level 1` })).toBeVisible();
+  });
 
   test('someone who has not confirmed their email is told why they cannot play', async ({ page }) => {
     const u = await makeUser(page, { verify: false });

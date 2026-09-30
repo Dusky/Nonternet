@@ -129,6 +129,34 @@ def sync_accounts(request):
     return JsonResponse(report)
 
 
+def _sheet(c):
+    """What the rest of the site may show about a character (docs/09). Not where they are (that would say
+    where the person is right now) and not what they carry."""
+    a = c.attributes
+    return {
+        "id": f"c_{c.id}",
+        "name": c.key,
+        "created": c.db_date_created.isoformat(),
+        "level": a.get("level", 1) or 1, "xp": a.get("xp", 0) or 0,
+        "hp": a.get("hp", 0) or 0, "hp_max": a.get("hp_max", 0) or 0, "coins": a.get("coins", 0) or 0,
+        "abilities": {k: a.get(k, 0) or 0 for k in ("strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma")},
+    }
+
+
+@require_http_methods(["GET"])
+@guarded
+def characters(request):
+    """Every character of every site account, keyed by core id, for core's copy (docs/09)."""
+    from evennia.accounts.models import AccountDB
+
+    out = []
+    for account in AccountDB.objects.filter(db_attributes__db_key="core_id"):
+        core_id = account.attributes.get("core_id")
+        for c in account.characters.all():
+            out.append({**_sheet(c), "core_id": core_id})
+    return JsonResponse({"characters": out})
+
+
 def _item(obj):
     return {"name": obj.key, "desc": obj.db.desc or "", "value": obj.attributes.get("value", 0) or 0}
 

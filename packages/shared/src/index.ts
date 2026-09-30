@@ -7,3 +7,4 @@ export * from './events';
 export * from './boards';
 export * from './homes';
 export * from './rings';
+export * from './characters';
