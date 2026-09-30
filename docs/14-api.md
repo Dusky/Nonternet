@@ -15,7 +15,7 @@ OIDC under `/oidc/*`.
 ## Users (public + admin)
 `GET /users/:handle` (public profile) · admin: `GET /admin/users?…`, `GET /admin/users/:id`
 (dossier), all built: `GET /admin/users?q=&role=&status=&before=&limit=`, `GET /admin/users/:id` (basic dossier), `GET /admin/invites`, `POST /admin/invites`, `POST /admin/users/:id/role`, `/suspend`, `/unsuspend`,
-`GET|POST /admin/users/:id/ops`, `DELETE /admin/users/:id/ops/:opId`. Still to build: `/rename`, `/logout-all`,
+`GET|POST /admin/users/:id/ops`, `DELETE /admin/users/:id/ops/:opId`. `POST /admin/users/:id/rename` (built). Still to build: `/logout-all`,
 `/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
@@ -93,5 +93,5 @@ share the work). A new group starts from new events, or from the beginning if as
 whose handler fails is retried after a minute, and after 5 failed tries it moves to the stream
 `events:dead` so one bad event can't block or spin forever.
 
-Planned, not built yet: `user.renamed`, `user.deleted`, `board.*`, `ring.*`, `bbs.*`, `irc.*`, `mud.*`,
+Built since: `user.renamed`. Planned, not built yet: `user.deleted`, `board.*`, `ring.*`, `bbs.*`, `irc.*`, `mud.*`,
 `presence.changed`, `export.*`, `settings.changed`.

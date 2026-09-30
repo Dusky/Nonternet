@@ -133,6 +133,28 @@ test.describe('widgets and directory', () => {
     await ac.close();
   });
 
+  test('after an admin renames someone, their old homepage address redirects to the new one', async ({ page, browser }) => {
+    const u = await withWidgets(page, { title: `Renamed ${uniq('n')}` });
+    const admin = await makeAdmin(page);
+    const ac = await browser.newContext({ baseURL: BASE_URL });
+    const ap = await ac.newPage();
+    await signIn(ap, admin.handle, admin.password, { totp: await totp(admin.secret, 1) });
+    const found = await (await ap.request.get(`/api/v1/admin/users?q=${u.handle}`)).json();
+    const id = found.users[0].id as string;
+    await ap.goto(`/admin/users/${id}`);
+    const fresh = uniq('renamed');
+    const form = ap.locator('form').filter({ has: ap.getByRole('heading', { name: 'Change handle' }) });
+    await form.getByLabel('New handle').fill(fresh);
+    await form.getByLabel('Reason').fill('Asked for a new name');
+    await form.getByRole('button', { name: 'Apply' }).click();
+    await expect(ap.getByRole('heading', { level: 2, name: new RegExp(fresh) })).toBeVisible();
+    const visitor = await ac.newPage();
+    await visitor.goto(home(u.handle));
+    await expect(visitor).toHaveURL(new RegExp(`^http://${fresh}\\.`));
+    await expect(visitor.getByRole('heading', { level: 1, name: 'Widgets' })).toBeVisible();
+    await ac.close();
+  });
+
   for (const theme of ['modern', 'amber'] as const) {
     test(`accessibility of the directory, guestbook and widgets screens (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);

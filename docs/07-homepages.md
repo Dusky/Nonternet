@@ -90,6 +90,7 @@ or SFTP with terminal password; git push deploys.
   has the on-demand TLS setup; it has **not** been run against a real domain (V11 stays open until it is).
   A verified domain stops working when the person removes it, is suspended, or their page is hidden. Keeping a URL
   after an account is deleted is not built (account deletion arrives with the export, M4).
+- **Rename:** `POST /admin/users/:id/rename` changes the handle; files, rings, boards and domains are keyed by ID so nothing moves. The old handle redirects for 90 days and is held for its owner for that time (no signup or rename onto it). A change of letter case only leaves no redirect.
 - Per-user quota overrides (docs say admin-configurable) are not built; the role quotas are.
 
 ## Acceptance tests

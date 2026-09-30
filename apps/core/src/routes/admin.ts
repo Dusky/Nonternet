@@ -64,6 +64,13 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
     return admin.setRole(deps, who, id, body.role, body.reason, ctxOf(deps, req));
   });
 
+  app.post('/api/v1/admin/users/:id/rename', async (req) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    const body = z.object({ handle: z.string().max(40), reason }).parse(req.body);
+    return admin.renameUser(deps, who, id, body.handle, body.reason, ctxOf(deps, req));
+  });
+
   app.post('/api/v1/admin/users/:id/suspend', async (req, reply) => {
     const who = requireAdmin(req);
     const { id } = userIdParam.parse(req.params);

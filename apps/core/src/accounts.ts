@@ -85,6 +85,10 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
         // One error for unknown, used and expired so codes can't be probed.
         if (!row || row.used_by || !row.ok) throw new ApiError(400, 'invite_invalid', 'That invite code is not valid. Ask for a new one.');
       }
+      // A handle someone gave up recently is held for them for 90 days, so nobody can inherit their old address.
+      if ((await q.query(`SELECT 1 FROM handle_history WHERE handle = lower($1) AND changed_at > now() - interval '90 days'`, [input.handle])).rowCount > 0) {
+        throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
+      }
       await q.query(
         `INSERT INTO users (id, handle, display_name, email, password_hash) VALUES ($1, $2, $3, $4, $5)`,
         [id, input.handle, input.display_name ?? null, input.email, passwordHash]);

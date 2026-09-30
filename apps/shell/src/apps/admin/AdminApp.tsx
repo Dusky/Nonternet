@@ -155,6 +155,7 @@ function UserPage({ myId, id }: { myId: string; id: string }) {
       {user.status === 'suspended' && <Alert kind="info">{t('admin.user.suspendedNote')}</Alert>}
 
       <RoleForm userId={id} current={user.role} disabled={own} onDone={refresh} />
+      <RenameForm userId={id} current={user.handle} onDone={refresh} />
       <SuspendForm userId={id} suspended={user.status === 'suspended'} disabled={own} onDone={refresh} />
       <OpsSection userId={id} ops={ops} onDone={refresh} />
 
@@ -192,6 +193,27 @@ function RoleForm({ userId, current, disabled, onDone }: { userId: string; curre
       <TextField label={t('field.reason')} value={reason} onChange={setReason} hint={t('admin.user.reasonHint')} disabled={disabled} />
       {error && <Alert kind="error">{error}</Alert>}
       <button className="btn btn-primary" type="submit" disabled={disabled || change.isPending || role === current || !reasonOk(reason)}>{t('admin.user.apply')}</button>
+    </form>
+  );
+}
+
+function RenameForm({ userId, current, onDone }: { userId: string; current: string; onDone: () => void }) {
+  const t = useT();
+  const [handle, setHandle] = useState('');
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const act = useMutation({
+    mutationFn: () => api.post(`/admin/users/${userId}/rename`, { handle, reason }),
+    onSuccess: () => { setHandle(''); setReason(''); onDone(); },
+    onError: (e) => setError(errorText(e)),
+  });
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); setError(null); act.mutate(); }} className="panel">
+      <h3>{t('admin.user.rename')}</h3>
+      <TextField label={t('admin.user.renameNew')} hint={t('admin.user.renameHint')} value={handle} onChange={setHandle} autoCapitalize="none" spellCheck={false} maxLength={20} />
+      <TextField label={t('field.reason')} value={reason} onChange={setReason} hint={t('admin.user.reasonHint')} />
+      {error && <Alert kind="error">{error}</Alert>}
+      <button className="btn" type="submit" disabled={act.isPending || !handle.trim() || handle === current || !reasonOk(reason)}>{t('admin.user.apply')}</button>
     </form>
   );
 }

@@ -112,8 +112,9 @@ test('an admin invites someone, they sign up, and the admin promotes them', asyn
   await shot(page, '08-dossier', project);
   await noSidewaysScroll(page);
   await scope.getByLabel('Role', { exact: true }).selectOption('trusted');
-  await scope.getByLabel('Reason').first().fill(reason);
-  await scope.getByRole('button', { name: 'Apply' }).click();
+  const roleForm = scope.locator('form').filter({ has: page.getByRole('heading', { name: 'Change role' }) });
+  await roleForm.getByLabel('Reason').fill(reason);
+  await roleForm.getByRole('button', { name: 'Apply' }).click();
   await expect(scope.getByRole('heading', { level: 2, name: new RegExp(`${handle}\\s+Trusted`) })).toBeVisible();
 
   // -- and the audit log shows all of it
