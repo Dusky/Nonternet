@@ -38,6 +38,17 @@ bbs:
   host: localhost
   telnet_port: 2323
   ssh_port: 2222
+  # Door games (docs/04). Each is a command the BBS runs for one caller; only list programs you trust, and
+  # consider a sandbox in door_wrapper. {dropfile}, {dropdir} and {node} are filled in.
+  # doors:
+  #   - id: tw2002
+  #     name: Trade Wars
+  #     description: Space trading
+  #     command: ["dosbox-x", "-conf", "/doors/tw.conf", "-c", "TW2002.EXE {dropfile}"]
+  #     encoding: cp437
+  #     max_nodes: 4
+  #     time_limit_minutes: 30
+  # door_wrapper: ["bwrap", "--ro-bind", "/", "/", "--unshare-net", "--"]
 
 # Where Gopher clients reach it. The local stack publishes it on port 7070; production uses 70.
 gopher:

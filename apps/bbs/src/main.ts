@@ -16,7 +16,7 @@ async function start() {
   const art = new ArtPack(env.artDir, { 'site.name': env.site.site.name, 'site.domain': env.site.site.domain, 'site.url': env.publicUrl });
   const core = new Core(env.coreUrl, env.authToken, env.publicUrl);
   const nodes = new Nodes(cfg.max_nodes, cfg.per_ip);
-  const ctx: BbsContext = { core, art, nodes, secret: env.secret, siteUrl: env.publicUrl, log };
+  const ctx: BbsContext = { core, art, nodes, secret: env.secret, siteUrl: env.publicUrl, log, doors: cfg.doors, doorWrapper: cfg.door_wrapper };
   const opts = { idleMs: cfg.idle_minutes * 60_000 };
   nodes.start(core, 3000, log);
   nodes.startNews(core);

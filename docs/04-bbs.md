@@ -114,5 +114,12 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   the person's BBS sessions, audited as `bbs.disconnected`). The message of the day is the `bbs.motd`
   setting (Config), shown after login. Live announcements are shown after login and passed to everyone
   connected within 30 s.
+- **Door games** (`apps/bbs/src/doors.ts`): listed in the site config under `bbs.doors` (operator only; the
+  console can't add one, since each is a command run on the server). For each caller the BBS makes a private
+  folder with DOOR32.SYS (11 lines) and/or DOOR.SYS (52-line GAP layout), runs the command (after
+  `bbs.door_wrapper`, for a sandbox such as bwrap or nsjail) in its own process group with a minimal
+  environment, passes keystrokes straight through and converts between CP437 and UTF-8 as needed. Limits per
+  door: callers at once, minutes per visit, lowest role. The folder is removed afterwards. Doors get no
+  access to core. VERIFY a real door (e.g. under DOSBox-X) before offering it; only the test door has run here.
 - Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.

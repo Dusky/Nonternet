@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import type { ArtPack, Action } from './art';
+import type { Door } from './doors';
 import { CoreError, type Core, type LoginResult, type UserApi } from './core';
 import type { NodeHolder, Nodes } from './nodes';
 import type { Term } from './term';
@@ -12,6 +13,8 @@ export interface BbsContext {
   secret: string;          // for hashing addresses before they reach core
   siteUrl: string;
   log: (m: string) => void;
+  doors: Door[];           // from the site config, operator only (docs/04)
+  doorWrapper: string[];
 }
 
 export type PreAuth = { kind: 'login'; login: LoginResult } | { kind: 'ticket'; handle: string; ticket: string };

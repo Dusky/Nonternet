@@ -53,8 +53,14 @@ export class Term {
 
   // ---------------------------------------------------------------- input
 
+  // While a door runs, the caller's bytes go straight to it and its output straight back (docs/04).
+  private raw: ((bytes: Buffer) => void) | null = null;
+  passthrough(handler: ((bytes: Buffer) => void) | null): void { this.raw = handler; this.pending = ''; }
+  writeRaw(bytes: Buffer): void { if (!this.closed) this.t.write(bytes); }
+
   input(bytes: Buffer): void {
     this.touch();
+    if (this.raw) { this.raw(bytes); return; }
     this.pending += this.encoding === 'cp437' ? iconv.decode(bytes, 'cp437') : this.decoder.write(bytes);
     this.parse(false);
   }

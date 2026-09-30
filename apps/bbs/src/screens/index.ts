@@ -5,6 +5,7 @@ import { boards, newscan } from './boards';
 import { homepages } from './homepages';
 import { mail } from './mail';
 import { rings } from './rings';
+import { doors } from './doors';
 
 export type Screen = (s: Session) => Promise<void>;
 
@@ -18,7 +19,7 @@ export const SCREENS: Record<Action, Screen> = {
   homepages,
   who,
   lastcallers: lastCallers,
-  doors: later('Door games'),
+  doors,
   qwk: later('QWK offline mail'),
   settings,
   goodbye: async () => undefined,

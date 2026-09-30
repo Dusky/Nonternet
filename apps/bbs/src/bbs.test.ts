@@ -75,7 +75,7 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     expect(bbsAuthToken(SECRET)).toBe(ctx.deps.bbs.authToken);
     const core = new Core(coreUrl, bbsAuthToken(SECRET), 'https://example.test');
     const nodes = new Nodes(4, 3);
-    bbs = { core, art: new ArtPack(join(__dirname, '../art/default'), { 'site.name': 'Test Site', 'site.domain': 'example.test', 'site.url': 'https://example.test' }), nodes, secret: SECRET, siteUrl: 'https://example.test', log: () => undefined };
+    bbs = { core, art: new ArtPack(join(__dirname, '../art/default'), { 'site.name': 'Test Site', 'site.domain': 'example.test', 'site.url': 'https://example.test' }), nodes, secret: SECRET, siteUrl: 'https://example.test', log: () => undefined, doors: [], doorWrapper: [] };
     nodes.start(core, 500);
     const tl = telnetServer(bbs, { idleMs: 60_000, negotiateMs: 300 });
     await new Promise<void>((r) => tl.listen(0, '127.0.0.1', r));
@@ -322,6 +322,47 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     await new Promise((r) => s.on('close', r));
     expect((await admin.client.post('/api/v1/admin/bbs/disconnect', { handle: u.handle, reason: 'again' })).body.error.code).toBe('not_on');
     ctx.deps.config.bbs.motd = '';
+  });
+
+  it('runs a door game with a drop file and the caller at the keyboard, one caller at a time', async () => {
+    const door = { id: 'echo', name: 'Echo Chamber', description: 'Shouts back', command: [process.execPath, join(__dirname, '../test/echo-door.cjs'), '{dropfile}'],
+      dropfile: 'both' as const, encoding: 'utf8' as const, max_nodes: 1, time_limit_minutes: 30, min_role: 'user' as const };
+    bbs.doors.push(door);
+    try {
+      const u = await person();
+      const { s, screen, type } = telnet();
+      await screen.until(/Handle:/);
+      type(`${u.handle}\rterminal pass 1\r`);
+      await screen.until(/Main menu \[/);
+      type('d');
+      await screen.until(/1\s+Echo Chamber/);
+      type('1\r');
+      await screen.until(new RegExp(`Hello, ${u.handle} on node \\d+\\. Level 20\\.`));
+      type('quiet please\r');
+      await screen.until(/QUIET PLEASE/);
+      // While it runs, nobody else gets in (max_nodes 1).
+      const v = await person();
+      const other = telnet();
+      await other.screen.until(/Handle:/);
+      other.type(`${v.handle}\rterminal pass 1\r`);
+      await other.screen.until(/Main menu \[/);
+      other.type('d');
+      await other.screen.until(/Echo Chamber.*\(full\)/);
+      other.type('1\r');
+      await other.screen.until(/Echo Chamber is full right now/);
+      other.s.destroy();
+      type('q\r');
+      await screen.until(/Back from Echo Chamber\./);
+      // A door past its time is stopped.
+      door.time_limit_minutes = 0.02; // about a second
+      type('1\r');
+      await screen.until(/> $/m);
+      type('hang\r');
+      await screen.until(/Your time in Echo Chamber is up\./, 8000);
+      s.destroy();
+    } finally {
+      bbs.doors.splice(0);
+    }
   });
 
   it('limits callers per address', async () => {

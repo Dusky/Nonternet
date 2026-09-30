@@ -122,6 +122,23 @@ export const siteConfigSchema = z
       ssh_port: z.number().int().min(1).max(65535).default(22),
       // Shown to every caller after they log in; admins change it in the console (docs/11).
       motd: z.string().max(2000).default(''),
+      // Door games (docs/04, PROPOSED). Only the operator, in this file, can add one: each is a command the BBS
+      // runs for a caller, with a drop file and the caller's terminal on stdin/stdout. `{dropdir}`,
+      // `{dropfile}` and `{node}` in the command are filled in. `door_wrapper` is put in front of every door's
+      // command, e.g. a sandbox such as ["bwrap", …] or ["nsjail", …].
+      doors: z.array(z.object({
+        id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+        name: z.string().min(1).max(40),
+        description: z.string().max(200).default(''),
+        command: z.array(z.string().min(1)).min(1),
+        cwd: z.string().optional(),
+        dropfile: z.enum(['door32', 'door.sys', 'both']).default('both'),
+        encoding: z.enum(['cp437', 'utf8']).default('cp437'),
+        max_nodes: z.number().int().min(1).max(100).default(4),
+        time_limit_minutes: z.number().int().min(1).max(240).default(30),
+        min_role: z.enum(['user', 'trusted', 'admin']).default('user'),
+      })).default([]),
+      door_wrapper: z.array(z.string().min(1)).default([]),
     }).default({}),
     // Where Gopher clients reach the mirror: the host and port written into every menu line.
     gopher: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(70) }).default({}),
