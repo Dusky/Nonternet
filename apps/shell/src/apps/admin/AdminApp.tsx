@@ -6,6 +6,7 @@ import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, formatWhen, useMe, useSite, useT } from '../../hooks';
 import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
 import { VouchesPanel } from './VouchesPanel';
+import { BbsPanel } from './BbsPanel';
 import { AuditReplay, CommandConsole, StatsPanel } from './ConsoleDepth';
 import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
@@ -32,7 +33,7 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id', 'bbs'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -57,6 +58,7 @@ export default function AdminApp() {
         <AppNavLink to="settings">{t('admin.tab.config')}</AppNavLink>
         {site.services.irc && <AppNavLink to="irc">{t('admin.tab.irc')}</AppNavLink>}
         {site.services.mud && <AppNavLink to="mud">{t('admin.tab.mud')}</AppNavLink>}
+        {site.services.bbs && <AppNavLink to="bbs">{t('admin.tab.bbs')}</AppNavLink>}
         <AppNavLink to="legal">{t('admin.tab.legal')}</AppNavLink>
         <AppNavLink to="backups">{t('admin.tab.backups')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
@@ -68,6 +70,7 @@ export default function AdminApp() {
         {route?.pattern === 'legal' && <LegalPanel />}
         {route?.pattern === 'irc' && <IrcPanel />}
         {route?.pattern === 'mud' && <MudPanel />}
+        {route?.pattern === 'bbs' && <BbsPanel />}
         {route?.pattern === 'backups' && <BackupsPanel />}
         {route?.pattern === 'users' && <Users />}
         {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}

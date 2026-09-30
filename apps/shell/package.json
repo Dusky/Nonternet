@@ -20,6 +20,8 @@
     "@codemirror/view": "^6.43.13",
     "@lezer/highlight": "^1.2.5",
     "@tanstack/react-query": "^5.104.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "buffer": "^6.0.3",
     "codemirror": "^6.0.2",
     "irc-framework": "4.14.0",

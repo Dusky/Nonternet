@@ -13,6 +13,7 @@ export interface NodeHolder {
   token: string | null;
   user: { id: string; handle: string; role: string } | null;
   drop(message: string): void;
+  announce?(a: { id: string; title: string; body: string }): void;
 }
 
 export class Nodes {
@@ -65,5 +66,16 @@ export class Nodes {
     }, everyMs);
     this.timer.unref?.();
   }
-  stop(): void { if (this.timer) clearInterval(this.timer); }
+  stop(): void { if (this.timer) clearInterval(this.timer); if (this.newsTimer) clearInterval(this.newsTimer); }
+
+  // Live announcements go to everyone connected, once each.
+  private newsTimer: NodeJS.Timeout | null = null;
+  async announce(core: Core): Promise<void> {
+    const r = await core.publicGet<{ announcements: { id: string; title: string; body: string }[] }>('/announcements');
+    for (const a of r.announcements) for (const h of this.held.values()) h.announce?.(a);
+  }
+  startNews(core: Core, everyMs = 30_000): void {
+    this.newsTimer = setInterval(() => void this.announce(core).catch(() => undefined), everyMs);
+    this.newsTimer.unref?.();
+  }
 }

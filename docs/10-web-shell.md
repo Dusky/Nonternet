@@ -10,7 +10,7 @@ Every app also has a normal full-page URL (links, bookmarks, sharing).
 | App | v1? |
 |---|---|
 | **Boards** (`05`) | yes |
-| **Terminal** — BBS in xterm.js (`04`) | BBS milestone (last) |
+| **Terminal** — BBS in xterm.js (`04`) | yes (M8), shown when `services.bbs` is on |
 | **Rings** — directory, ring pages, my rings, ring op tools (`06`) | yes |
 | **Homepage studio** — files, editor, preview, widgets (`07`) | yes |
 | **Homepages** — directory, random page | yes |

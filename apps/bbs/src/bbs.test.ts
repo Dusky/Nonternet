@@ -303,6 +303,27 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     s.destroy();
   });
 
+  it('shows the message of the day, passes on new announcements, and lets an admin disconnect someone', async () => {
+    ctx.deps.config.bbs.motd = 'Board meeting on Friday.';
+    const u = await person();
+    const { s, screen, type } = telnet();
+    await screen.until(/Handle:/);
+    type(`${u.handle}\rterminal pass 1\r`);
+    await screen.until(/Main menu \[/);
+    expect(screen.text).toContain('Board meeting on Friday.');
+    await admin.client.post('/api/v1/admin/announcements', { title: 'Heads up', body: 'Restart at noon.', level: 'info' });
+    await bbs.nodes.announce(bbs.core);
+    await screen.until(/\*\*\* Heads up Restart at noon\./);
+    await bbs.nodes.report(bbs.core);
+    const live = (await admin.client.get('/api/v1/admin/bbs')).body;
+    expect(live.nodes.find((n: { handle: string }) => n.handle === u.handle)).toMatchObject({ via: 'telnet', where: 'Main menu' });
+    expect((await admin.client.post('/api/v1/admin/bbs/disconnect', { handle: u.handle, reason: 'testing' })).status).toBe(204);
+    await screen.until(/Your session has ended/);
+    await new Promise((r) => s.on('close', r));
+    expect((await admin.client.post('/api/v1/admin/bbs/disconnect', { handle: u.handle, reason: 'again' })).body.error.code).toBe('not_on');
+    ctx.deps.config.bbs.motd = '';
+  });
+
   it('limits callers per address', async () => {
     for (let i = 0; i < 50 && bbs.nodes.list().length; i++) await new Promise((r) => setTimeout(r, 100)); // earlier callers have hung up
     const callers = [telnet(), telnet(), telnet()];

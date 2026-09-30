@@ -106,5 +106,13 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   lists titles and addresses; who's online shows the BBS's own nodes (always current) plus people on the web
   and in chat from core; last callers comes from core's call log. Settings points to the web and can switch
   the character set.
+- **Terminal window** (shell app `terminal`, shown when `services.bbs` is on): xterm.js over `/ws/bbs`, signed
+  in by a one-use ticket; a key bar (Esc, Tab, Ctrl-C, arrows, Enter) for phones; a screen-reader mode
+  (xterm.js's own); how to connect with your own telnet or SSH program. The VGA font is used if the viewer
+  has one installed ("Px437 IBM VGA 8x16"); none is bundled (licence to check first).
+- **Console:** a BBS tab with live nodes (from the last node report), last callers, and Disconnect (revokes
+  the person's BBS sessions, audited as `bbs.disconnected`). The message of the day is the `bbs.motd`
+  setting (Config), shown after login. Live announcements are shown after login and passed to everyone
+  connected within 30 s.
 - Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.

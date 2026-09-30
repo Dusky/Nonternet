@@ -25,6 +25,7 @@ export class Session implements NodeHolder {
   callId: string | undefined;
   user: LoginResult['user'] | null = null;
   lastCall: string | null = null;
+  readonly seen = new Set<string>(); // announcements already shown to this caller
   api!: UserApi;
   private ended = false;
 
@@ -96,8 +97,10 @@ export class Session implements NodeHolder {
     const t = this.term;
     t.clear();
     t.write(this.ctx.art.render('motd', { handle: this.user!.handle, node: this.node, last_on: this.lastCall ? `${this.lastCall.slice(0, 16).replace('T', ' ')} UTC` : 'this is your first call' }));
-    const announcements = await this.ctx.core.publicGet<{ announcements: { title: string; body: string; bbs?: boolean }[] }>('/announcements').catch(() => ({ announcements: [] }));
-    for (const a of announcements.announcements) t.line(`\x1b[1m${a.title}\x1b[0m ${a.body}`);
+    const motd = (await this.ctx.core.publicGet<{ motd: string }>('/bbs/motd').catch(() => ({ motd: '' }))).motd;
+    if (motd.trim()) t.line(`\n${motd.trim()}`);
+    const announcements = await this.ctx.core.publicGet<{ announcements: { id: string; title: string; body: string }[] }>('/announcements').catch(() => ({ announcements: [] }));
+    for (const a of announcements.announcements) { this.seen.add(a.id); t.line(`\x1b[1;33m${a.title}\x1b[0m ${a.body}`); }
     for (;;) {
       if (this.ended) return;
       this.at('Main menu');
@@ -131,6 +134,13 @@ export class Session implements NodeHolder {
     const k = await this.term.readKey();
     this.term.write('\r\x1b[K');
     return k !== null && k.name !== 'escape' && !(k.name === 'char' && k.ch.toLowerCase() === 'q');
+  }
+
+  // A new announcement, shown between whatever the caller is doing (docs/04: announcements reach the BBS).
+  announce(a: { id: string; title: string; body: string }): void {
+    if (this.ended || !this.user || this.seen.has(a.id)) return;
+    this.seen.add(a.id);
+    this.term.write(`\r\n\x1b[1;33m*** ${a.title}\x1b[0m ${a.body}\r\n`);
   }
 
   drop(message: string): void {

@@ -64,6 +64,8 @@ function Setting({ s }: { s: SettingRow }) {
             <select id={id} value={value} onChange={(e) => setValue(e.target.value)}>{OPTIONS[s.key]!.map((o) => <option key={o} value={o}>{t(`${label(s.key)}.${o}` as StringKey)}</option>)}</select>
           ) : typeof s.value === 'boolean' ? (
             <select id={id} value={value} onChange={(e) => setValue(e.target.value)}><option value="true">on</option><option value="false">off</option></select>
+          ) : typeof s.value === 'string' ? (
+            <textarea id={id} rows={4} value={value} onChange={(e) => setValue(e.target.value)} maxLength={2000} />
           ) : (
             <input id={id} type="number" step="any" value={value} onChange={(e) => setValue(e.target.value)} required />
           )}

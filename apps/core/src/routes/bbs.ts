@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { ctxOf, requireUser } from '../http';
+import { ctxOf, requireAdmin, requireUser } from '../http';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import { issueTicket } from '../irc/auth';
@@ -63,6 +63,21 @@ export function bbsRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (v.role === 'guest') throw new ApiError(403, 'email_unconfirmed', 'Confirm your email address first.');
     const o = ircOnline();
     return { people: await online(deps), irc: o.accounts, at: o.at };
+  });
+
+  // The message of the day the BBS shows after login (an admin setting, docs/11).
+  app.get('/api/v1/bbs/motd', async () => ({ motd: deps.config.bbs.motd }));
+
+  // The console's BBS page: who is on which node, the last callers, and letting someone go.
+  app.get('/api/v1/admin/bbs', async (req) => {
+    requireAdmin(req);
+    return { enabled: !!deps.bbs, nodes: await bbs.liveNodes(deps), callers: await bbs.lastCallers(deps, 30) };
+  });
+  app.post('/api/v1/admin/bbs/disconnect', async (req, reply) => {
+    const who = requireAdmin(req);
+    const b = z.object({ handle, reason: z.string().trim().min(3, 'give a reason (at least 3 characters)').max(500) }).parse(req.body);
+    await bbs.disconnect(deps, who, b.handle, b.reason, ctxOf(deps, req));
+    return reply.code(204).send();
   });
 
   // SSH keys (Settings → Terminal).

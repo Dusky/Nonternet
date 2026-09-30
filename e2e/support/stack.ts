@@ -1,3 +1,4 @@
+import { connect } from 'node:net';
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { cpSync, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -25,6 +26,9 @@ export const IRC_API_PORT = Number(process.env.E2E_IRC_API_PORT ?? 6375);
 const ergoFound = process.env.ERGO_BIN ?? (() => { try { return execFileSync('sh', ['-c', 'command -v ergo'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
 export const ERGO_BIN = ergoFound || undefined;
 if (!ERGO_BIN && process.env.REQUIRE_ERGO) throw new Error('REQUIRE_ERGO is set but no ergo binary was found');
+export const BBS_TELNET_PORT = Number(process.env.E2E_BBS_TELNET_PORT ?? 6570);
+export const BBS_SSH_PORT = Number(process.env.E2E_BBS_SSH_PORT ?? 6571);
+export const BBS_WS_PORT = Number(process.env.E2E_BBS_WS_PORT ?? 6572);
 export const MUD_TELNET_PORT = Number(process.env.E2E_MUD_TELNET_PORT ?? 6470);
 export const MUD_WEB_PORT = Number(process.env.E2E_MUD_WEB_PORT ?? 6471);
 export const MUD_WS_PORT = Number(process.env.E2E_MUD_WS_PORT ?? 6472);
@@ -63,7 +67,8 @@ export async function startStack(): Promise<() => Promise<void>> {
   writeFileSync(join(TMP, 'site.yaml'), `
 site: { name: ${SITE_NAME}, short_name: e2etest, domain: 127.0.0.1, homes_domain: ${HOMES_DOMAIN} }
 signup: { mode: invite }
-services: { irc: ${ERGO_BIN ? 'true' : 'false'}, mud: ${EVENNIA_BIN ? 'true' : 'false'} }
+services: { irc: ${ERGO_BIN ? 'true' : 'false'}, mud: ${EVENNIA_BIN ? 'true' : 'false'}, bbs: true }
+bbs: { host: 127.0.0.1, telnet_port: ${BBS_TELNET_PORT}, ssh_port: ${BBS_SSH_PORT} }
 irc: { public_host: 127.0.0.1, public_port: ${IRC_PORT} }
 mud: { public_host: 127.0.0.1, public_port: ${MUD_TELNET_PORT} }
 oidc:
@@ -81,6 +86,7 @@ oidc:
     HOMES_DIR: join(TMP, 'homes'),
     HOMES_PUBLIC_PORT: String(HOMES_PORT),
     HOMES_PORT: String(HOMES_PORT),
+    BBS_SECRET: randomBytes(24).toString('base64url'),
     RATE_LIMIT: 'off', // the tests sign up far more people than one address may in an hour
     ...(process.env.TEST_REDIS_URL ? { REDIS_URL: process.env.TEST_REDIS_URL } : {}),
     ...(ERGO_BIN ? { IRC_SECRET: randomBytes(24).toString('base64url'), IRC_HOST: '127.0.0.1', IRC_PORT: String(IRC_PORT), IRC_API_URL: `http://127.0.0.1:${IRC_API_PORT}` } : {}),
@@ -133,9 +139,20 @@ oidc:
       await new Promise((r) => setTimeout(r, 250));
     }
   }
+  // The BBS, as a client of core like in production.
+  start('bbs', process.execPath, [join(ROOT, 'apps/bbs/dist/main.cjs')], join(ROOT, 'apps/bbs/dist'), {
+    CORE_URL: `http://127.0.0.1:${CORE_PORT}`, BBS_TELNET_PORT: String(BBS_TELNET_PORT), BBS_SSH_PORT: String(BBS_SSH_PORT), BBS_WS_PORT: String(BBS_WS_PORT),
+    BBS_HOST_KEY_FILE: join(TMP, 'bbs', 'host_key'), BBS_ART_DIR: join(ROOT, 'apps/bbs/dist/art/default'),
+  });
+  for (let end = Date.now() + 20_000; ;) {
+    const up = await new Promise<boolean>((r) => { const s = connect(BBS_TELNET_PORT, '127.0.0.1'); s.once('connect', () => { s.destroy(); r(true); }); s.once('error', () => r(false)); });
+    if (up) break;
+    if (Date.now() > end) throw new Error(`the BBS did not start. See ${join(TMP, 'bbs.log')}`);
+    await new Promise((r) => setTimeout(r, 200));
+  }
   start('homes', process.execPath, [join(ROOT, 'apps/core/dist/homes-main.cjs')], join(ROOT, 'apps/core'));
   await waitFor(`http://127.0.0.1:${HOMES_PORT}/healthz`, 'homes', join(TMP, 'homes.log'));
-  start('shell', join(ROOT, 'apps/shell/node_modules/.bin/vite'), ['preview', '--host', '127.0.0.1', '--port', String(SHELL_PORT), '--strictPort'], join(ROOT, 'apps/shell'), { CORE_URL: `http://127.0.0.1:${CORE_PORT}`, IRC_WS_URL: `ws://127.0.0.1:${IRC_WS_PORT}`, MUD_WS_URL: `ws://127.0.0.1:${MUD_WS_PORT}` });
+  start('shell', join(ROOT, 'apps/shell/node_modules/.bin/vite'), ['preview', '--host', '127.0.0.1', '--port', String(SHELL_PORT), '--strictPort'], join(ROOT, 'apps/shell'), { CORE_URL: `http://127.0.0.1:${CORE_PORT}`, IRC_WS_URL: `ws://127.0.0.1:${IRC_WS_PORT}`, MUD_WS_URL: `ws://127.0.0.1:${MUD_WS_PORT}`, BBS_WS_URL: `ws://127.0.0.1:${BBS_WS_PORT}` });
   await waitFor(`${BASE_URL}/`, 'shell', join(TMP, 'shell.log'));
 
   return async () => {

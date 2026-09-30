@@ -9,7 +9,7 @@ export interface AppDef {
   path: string;            // the app's own full-page address (docs/10: every app has one)
   adminOnly: boolean;
   public?: boolean;        // readable without logging in (docs/05)
-  service?: 'irc' | 'mud'; // shown only when the site turns that service on
+  service?: 'irc' | 'mud' | 'bbs'; // shown only when the site turns that service on
   Component: LazyExoticComponent<ComponentType>;
 }
 
@@ -22,6 +22,7 @@ export const APPS: AppDef[] = [
   { id: 'files', title: 'app.files', path: '/files', adminOnly: false, public: true, Component: lazy(() => import('../apps/files/FilesApp')) },
   { id: 'chat', title: 'app.chat', path: '/chat', adminOnly: false, service: 'irc', Component: lazy(() => import('../apps/chat/ChatApp')) },
   { id: 'mud', title: 'app.mud', path: '/mud', adminOnly: false, service: 'mud', Component: lazy(() => import('../apps/mud/MudApp')) },
+  { id: 'terminal', title: 'app.terminal', path: '/terminal', adminOnly: false, service: 'bbs', Component: lazy(() => import('../apps/terminal/TerminalApp')) },
   { id: 'homepages', title: 'app.homepages', path: '/homepages', adminOnly: false, public: true, Component: lazy(() => import('../apps/homepages/HomepagesApp')) },
   { id: 'studio', title: 'app.studio', path: '/studio', adminOnly: false, Component: lazy(() => import('../apps/studio/StudioApp')) },
   { id: 'notifications', title: 'app.notifications', path: '/notifications', adminOnly: false, Component: lazy(() => import('../apps/notifications/NotificationsApp')) },

@@ -327,3 +327,9 @@ ul.plain { list-style: none; margin: 0; padding: 0; }
 .console-error { color: var(--danger); }
 .console-input input { font-family: var(--font-mono); width: 100%; }
 .console-hints { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* The Terminal window (docs/04): the BBS in xterm.js. It keeps its own colours in every theme. */
+.terminal-app { display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+.terminal-screen { flex: 1; min-height: 20rem; background: #000; padding: .25rem; border-radius: var(--radius); }
+.terminal-keys { display: flex; flex-wrap: wrap; gap: .25rem; }
+.terminal-keys .btn { min-width: 2.75rem; font-family: var(--font-mono); }

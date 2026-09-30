@@ -84,7 +84,7 @@ escalations from ops, bulk actions, canned reasons, mod log preview.
 ### 6. Services
 One detail page per service:
 - **BBS** (last milestone): live nodes (who, where in the menus, connected via), post rates
-  per board, art pack in use.
+  per board, art pack in use. *As built (M8):* live nodes, last callers, disconnect; MOTD under Config (`04`).
 - **IRC**: channels, users, opers, bans/K-lines, message rates. *As built (M5):* status, live channels, who is online, official channels, disconnect, address bans, sync failures (`08`); no opers list or message rates.
 - **MUD**: connected players, room occupancy heatmap, builder activity, object counts. *As built (M6):* who is
   playing and where, busiest rooms, counts, builders (appoint/remove) (`09`); no heatmap or builder activity yet.

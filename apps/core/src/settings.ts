@@ -39,6 +39,7 @@ export const SETTINGS: SettingDef[] = [
   { key: 'limits.file_quota_mb', schema: z.number().min(1).max(100000), risky: true, get: (c) => c.limits.file_quota_mb, set: (c, v) => { c.limits.file_quota_mb = v as number; },
     impact: async (deps, next) => ({ affected: Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM (SELECT uploader_id FROM files WHERE deleted_at IS NULL AND uploader_id IS NOT NULL GROUP BY uploader_id HAVING sum(size_bytes) > $1) x`, [Math.floor((next as number) * MB)])).rows[0]!.n), note: 'people already over that keep their files but cannot upload more' }) },
   { key: 'homes.max_domains', schema: int(0, 20), risky: false, get: (c) => c.homes.max_domains, set: (c, v) => { c.homes.max_domains = v as number; } },
+  { key: 'bbs.motd', schema: z.string().max(2000), risky: false, get: (c) => c.bbs.motd, set: (c, v) => { c.bbs.motd = v as string; } },
   { key: 'moderation.public_modlog', schema: z.boolean(), risky: false, get: (c) => c.moderation.public_modlog, set: (c, v) => { c.moderation.public_modlog = v as boolean; } },
 ];
 export const settingDef = (key: string): SettingDef | undefined => SETTINGS.find((s) => s.key === key);

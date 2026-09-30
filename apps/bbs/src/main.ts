@@ -19,6 +19,7 @@ async function start() {
   const ctx: BbsContext = { core, art, nodes, secret: env.secret, siteUrl: env.publicUrl, log };
   const opts = { idleMs: cfg.idle_minutes * 60_000 };
   nodes.start(core, 3000, log);
+  nodes.startNews(core);
   telnetServer(ctx, opts).listen(env.telnetPort, '0.0.0.0', () => log(`telnet on ${env.telnetPort}`));
   sshServer(ctx, hostKey(env.hostKeyFile), opts).listen(env.sshPort, '0.0.0.0', () => log(`ssh on ${env.sshPort}`));
   const wss = new WebSocketServer({ port: env.wsPort, maxPayload: 64 * 1024 }, () => log(`websocket on ${env.wsPort}`));

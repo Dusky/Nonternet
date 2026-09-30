@@ -5,7 +5,8 @@ import { newId, randomToken, sha256 } from '../crypto';
 import { ApiError } from '../errors';
 import { noteActive } from '../activity';
 import { checkTerminalLogin } from '../irc/auth';
-import { setBbsNodes, type BbsNodeState } from '../presence';
+import { bbsNodes, setBbsNodes, type BbsNodeState } from '../presence';
+import type { Ctx, SessionUser } from '../accounts';
 
 // Signing BBS callers in (docs/04). The BBS never sees a user table: it asks core, and core answers with a
 // short-lived ordinary session (kind 'bbs') that the BBS uses to call the public API as that person. So
@@ -82,6 +83,25 @@ export async function reportNodes(deps: AppDeps, nodes: { node: number; token: s
   });
   setBbsNodes(live);
   return { nodes: answer };
+}
+
+// The nodes as the BBS last reported them, with handles, for the console.
+export async function liveNodes(deps: AppDeps) {
+  const nodes = bbsNodes();
+  const r = await deps.db.query<{ id: string; handle: string }>(`SELECT id, handle FROM users WHERE id = ANY($1)`, [nodes.map((n) => n.user_id)]);
+  const handles = new Map(r.rows.map((x) => [x.id, x.handle]));
+  return nodes.map((n) => ({ node: n.node, handle: handles.get(n.user_id) ?? '?', via: n.via, where: n.where, since: n.since }));
+}
+
+// An admin lets someone go from the BBS: their BBS sessions end, and the BBS drops them within seconds.
+export async function disconnect(deps: AppDeps, admin: SessionUser, handle: string, reason: string, ctx: Ctx): Promise<void> {
+  await deps.db.tx(async (q) => {
+    const u = await q.query<{ id: string }>(`SELECT id FROM users WHERE lower(handle) = lower($1)`, [handle]);
+    if (!u.rows[0]) throw new ApiError(404, 'not_found', 'No such user.');
+    const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND kind = 'bbs' AND revoked_at IS NULL`, [u.rows[0].id]);
+    if (!r.rowCount) throw new ApiError(409, 'not_on', `${handle} is not on the BBS.`);
+    await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'bbs.disconnected', targetType: 'user', targetId: u.rows[0].id, after: { reason }, origin: 'web', ipHash: ctx.ipHash });
+  });
 }
 
 export async function lastCallers(deps: AppDeps, limit = 20) {

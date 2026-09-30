@@ -105,7 +105,7 @@ File areas (`05`, M7): `GET /files` · `GET /files/areas/:slug` · `POST /files/
 `GET /files/:id` · `GET /files/:id/download` · `PATCH|DELETE /files/:id` · `POST /files/:id/report` · `GET /me/files` · admin: `POST /admin/files/areas` ·
 `PATCH /admin/files/areas/:slug` · `POST /admin/files/:id/hide|unhide`. Reports gain the target type `file`.
 
-BBS (`04`, M8): `GET /boards/:slug/new?after=` (new posts after the read pointer) · `POST /bbs/ticket` · `GET /bbs/last-callers` · `GET /online` (web, chat and BBS) · `GET|POST /me/ssh-keys` · `DELETE /me/ssh-keys/:id` ·
+BBS (`04`, M8): `GET /bbs/motd` · `GET /admin/bbs` · `POST /admin/bbs/disconnect` · `GET /boards/:slug/new?after=` (new posts after the read pointer) · `POST /bbs/ticket` · `GET /bbs/last-callers` · `GET /online` (web, chat and BBS) · `GET|POST /me/ssh-keys` · `DELETE /me/ssh-keys/:id` ·
 private, BBS → core (token from `BBS_SECRET`): `POST /internal/bbs/login`, `/login-key`, `/has-keys`, `/logout`, `/nodes`.
 
 Console (`11`, M7): `GET /admin/stats?days=&weeks=` · `GET /admin/stats.csv?kind=days|cohorts|heatmap` · `GET /admin/console/commands` ·

@@ -120,6 +120,8 @@ export const siteConfigSchema = z
       host: z.string().min(1).optional(),
       telnet_port: z.number().int().min(1).max(65535).default(23),
       ssh_port: z.number().int().min(1).max(65535).default(22),
+      // Shown to every caller after they log in; admins change it in the console (docs/11).
+      motd: z.string().max(2000).default(''),
     }).default({}),
     // Where Gopher clients reach the mirror: the host and port written into every menu line.
     gopher: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(70) }).default({}),
@@ -144,6 +146,7 @@ export const publicSiteSchema = z.object({
   minimum_age: z.number().int(),
   irc: z.object({ host: z.string(), port: z.number().int(), lobby: z.string() }),
   mud: z.object({ host: z.string(), port: z.number().int() }),
+  bbs: z.object({ host: z.string(), telnet_port: z.number().int(), ssh_port: z.number().int() }),
   services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean(), gopher: z.boolean() }),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
@@ -158,6 +161,7 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     minimum_age: cfg.signup.minimum_age,
     irc: { host: cfg.irc.public_host ?? `irc.${cfg.site.domain}`, port: cfg.irc.public_port, lobby: cfg.irc.official_channels[0]! },
     mud: { host: cfg.mud.public_host ?? `mud.${cfg.site.domain}`, port: cfg.mud.public_port },
+    bbs: { host: cfg.bbs.host ?? `bbs.${cfg.site.domain}`, telnet_port: cfg.bbs.telnet_port, ssh_port: cfg.bbs.ssh_port },
     services: cfg.services,
   };
 }
