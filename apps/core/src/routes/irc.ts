@@ -42,7 +42,6 @@ export function ircRoutes(app: FastifyInstance, deps: AppDeps): void {
     return reply.code(204).send();
   });
   // Who is on IRC right now (docs/08), by handle.
-  app.get('/api/v1/online', async (req) => { requireUser(req); const o = ircOnline(); return { irc: o.accounts, at: o.at }; });
 
   app.get('/api/v1/admin/irc', async (req) => { requireAdmin(req); return ircAdmin.overview(deps); });
   app.post('/api/v1/admin/irc/channels', async (req, reply) => {

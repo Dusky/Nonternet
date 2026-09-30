@@ -9,6 +9,7 @@ import { makeMailer } from './mailer';
 import { resolveOidcClients } from './oidc/provider';
 import { ircSecrets } from './irc/secrets';
 import { mudSecrets } from './mud/secrets';
+import { bbsSecrets } from './bbs/secrets';
 
 // Rate limits are on unless RATE_LIMIT=off, which exists for automated tests that sign up more people
 // than one address is allowed to. It refuses to run in production, where turning them off is never
@@ -34,6 +35,7 @@ function rateLimitEnabled(env: Record<string, string | undefined>, production: b
 //   RATE_LIMIT=off  turns rate limits off, for automated tests only (refused in production)
 //   IRC_SECRET       shared with Ergo (32+ characters); turns chat on. IRC_HOST/IRC_PORT (default ergo:6667)
 //                    are Ergo's private listener for the bot, IRC_API_URL (default http://ergo:8089) its API
+//   BBS_SECRET       shared with the BBS (32+ characters); turns it on
 //   MUD_SECRET       shared with the MUD (32+ characters); turns it on. MUD_URL (default http://mud:4001) is
 //                    its internal web server
 export function depsFromEnv(env = process.env, log: (m: string) => void = console.log): AppDeps {
@@ -62,6 +64,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     tlsAskSecret: env.TLS_ASK_SECRET || undefined,
     dnsTxt: (name) => dns.resolveTxt(name),
     irc: env.IRC_SECRET ? { secrets: ircSecrets(env.IRC_SECRET), host: env.IRC_HOST ?? 'ergo', port: Number(env.IRC_PORT ?? 6667), apiUrl: (env.IRC_API_URL ?? 'http://ergo:8089').replace(/\/$/, '') } : undefined,
+    bbs: env.BBS_SECRET ? bbsSecrets(env.BBS_SECRET) : undefined,
     mud: env.MUD_SECRET ? { secrets: mudSecrets(env.MUD_SECRET), url: (env.MUD_URL ?? 'http://mud:4001').replace(/\/$/, '') } : undefined,
     now: Date.now,
   };

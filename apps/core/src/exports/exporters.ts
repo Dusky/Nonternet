@@ -125,9 +125,12 @@ const boards: Exporter = {
 
 const keys: Exporter = {
   id: 'keys',
-  tables: [],
-  async run({ user, add }) {
+  tables: ['ssh_keys'],
+  async run({ deps, user, add }) {
     if (user.public_key) add('keys/public.key', user.public_key);
+    // SSH keys for the BBS (docs/04), as an authorized_keys file.
+    const r = await deps.db.query<{ key_type: string; public_key: string; name: string }>(`SELECT key_type, public_key, name FROM ssh_keys WHERE user_id = $1 ORDER BY created_at`, [user.id]);
+    if (r.rowCount) add('keys/ssh_authorized_keys', r.rows.map((k) => `${k.key_type} ${k.public_key} ${k.name.replace(/\s+/g, '_')}`).join('\n') + '\n');
   },
 };
 
@@ -237,6 +240,7 @@ export const EXEMPT: Record<string, string> = {
   home_hit_seen: 'anonymous, short-lived counter records',
   exports: 'the export records themselves',
   metrics_rollup: 'site-wide numbers, not a person’s content',
+  bbs_calls: 'a log of BBS calls for the last callers list; not content',
   activity_days: 'which days an account was used, for site statistics; not content',
   backup_runs: 'the operator’s backup and restore-test record',
   settings_current: 'site-wide settings set by admins',

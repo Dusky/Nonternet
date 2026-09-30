@@ -35,3 +35,42 @@ export function TerminalPassword() {
     </>
   );
 }
+
+interface SshKey { id: string; name: string; type: string; fingerprint: string; added_at: string; last_used_at: string | null }
+
+// SSH keys for signing in to the BBS without a password (docs/04). Only the public half is ever sent.
+export function SshKeys() {
+  const t = useT();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['ssh-keys'], queryFn: () => api.get<{ keys: SshKey[]; max: number }>('/me/ssh-keys') });
+  const [name, setName] = useState('');
+  const [key, setKey] = useState('');
+  const refresh = () => void qc.invalidateQueries({ queryKey: ['ssh-keys'] });
+  const add = useMutation({ mutationFn: () => api.post('/me/ssh-keys', { name, public_key: key }), onSuccess: () => { setName(''); setKey(''); refresh(); } });
+  const remove = useMutation({ mutationFn: (id: string) => api.del(`/me/ssh-keys/${id}`), onSuccess: refresh });
+  return (
+    <section className="panel" aria-labelledby="ssh-h">
+      <h2 id="ssh-h">{t('ssh.title')}</h2>
+      <p className="hint">{t('ssh.intro')}</p>
+      {q.data && q.data.keys.length === 0 && <p className="muted">{t('ssh.none')}</p>}
+      <ul className="rows">
+        {q.data?.keys.map((k) => (
+          <li key={k.id}>
+            <strong>{k.name}</strong> <span className="muted">{k.type}</span>
+            <p className="hint"><code className="checksum">{k.fingerprint}</code></p>
+            <p className="hint">{t('ssh.added', { when: formatWhen(k.added_at) ?? '' })} · {k.last_used_at ? t('ssh.used', { when: formatWhen(k.last_used_at) ?? '' }) : t('ssh.neverUsed')}</p>
+            <button type="button" className="btn btn-quiet" aria-label={t('ssh.removeLabel', { name: k.name })} disabled={remove.isPending}
+              onClick={() => { if (window.confirm(t('ssh.removeConfirm', { name: k.name }))) remove.mutate(k.id); }}>{t('ssh.remove')}</button>
+          </li>
+        ))}
+      </ul>
+      {remove.isError && <Alert kind="error">{errorText(remove.error)}</Alert>}
+      <form onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
+        <TextField label={t('ssh.key')} value={key} onChange={setKey} hint={t('ssh.keyHint')} multiline required />
+        <TextField label={t('ssh.name')} value={name} onChange={setName} maxLength={60} hint={t('ssh.nameHint')} />
+        {add.isError && <Alert kind="error">{errorText(add.error)}</Alert>}
+        <button type="submit" className="btn" disabled={add.isPending || !key.trim()}>{t('ssh.add')}</button>
+      </form>
+    </section>
+  );
+}

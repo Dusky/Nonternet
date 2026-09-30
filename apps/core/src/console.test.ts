@@ -48,7 +48,7 @@ describe.skipIf(!dbAvailable)('console stats and commands', () => {
     const today = s.days.at(-1);
     expect(today.dau).toBeGreaterThanOrEqual(2); // the person above, and ids[2]
     expect(today.mau).toBeGreaterThanOrEqual(today.wau);
-    const week = s.cohorts.find((c: { size: number; week: string }) => c.size >= 3 && c.active[0] === 3);
+    const week = s.cohorts.find((c: { size: number; week: string; active: number[] }) => c.size >= 3 && c.active[0] === 3);
     expect(week.active.slice(0, 3)).toEqual([3, 2, 1]);
     expect(s.heatmap).toHaveLength(7);
     expect(s.heatmap[0]).toHaveLength(24);
@@ -65,7 +65,7 @@ describe.skipIf(!dbAvailable)('console stats and commands', () => {
 
   it('runs commands through the same core functions, audited twice: the action and the command', async () => {
     const u = await makeUser(ctx, { handle: 'zerocool' });
-    expect((await run('help')).body.table.rows.map((r: string[]) => r[0].split(' ')[0])).toContain('user');
+    expect((await run('help')).body.table.rows.map((r: string[]) => r[0]!.split(' ')[0])).toContain('user');
     expect((await run('user show zerocool')).body.lines[0]).toContain('zerocool (');
     expect((await run('user role zerocool trusted')).body.error.code).toBe('reason_required');
     expect((await run('user role zerocool wizard --reason "no such role"')).body.error.code).toBe('usage');

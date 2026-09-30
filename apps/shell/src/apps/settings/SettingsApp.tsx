@@ -8,7 +8,7 @@ import { errorText, useMe, useSite, useT } from '../../hooks';
 import { AppNavLink, matchRoute, useAppNav } from '../../nav';
 import { YourData } from './YourData';
 import { Blocks } from './Blocks';
-import { TerminalPassword } from './Terminal';
+import { SshKeys, TerminalPassword } from './Terminal';
 import { TotpSetup } from '../../pages/Setup2fa';
 import { applyTheme, effectPrefs, saveEffectPrefs } from '../../theme';
 
@@ -38,7 +38,7 @@ export default function SettingsApp() {
         {route?.pattern === 'profile' && <><Profile me={me} />{site.services.mud && <FeaturedCharacter />}</>}
         {route?.pattern === 'password' && <Password />}
         {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
-        {route?.pattern === 'terminal' && <TerminalPassword />}
+        {route?.pattern === 'terminal' && <><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <SshKeys />}</>}
         {route?.pattern === 'data' && <YourData me={me} />}
         {route?.pattern === 'blocked' && <Blocks />}
         {route?.pattern === 'appearance' && <Appearance me={me} />}

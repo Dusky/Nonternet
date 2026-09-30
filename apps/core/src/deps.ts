@@ -5,6 +5,7 @@ import type { Mailer } from './mailer';
 import type { ResolvedOidcClient } from './oidc/provider';
 import type { IrcDeps } from './irc/secrets';
 import type { MudDeps } from './mud/secrets';
+import type { BbsDeps } from './bbs/secrets';
 
 export interface AppDeps {
   config: SiteConfig;
@@ -25,5 +26,6 @@ export interface AppDeps {
   dnsTxt: (name: string) => Promise<string[][]>; // TXT lookup, injectable so tests need no network
   irc?: IrcDeps;            // set when IRC_SECRET is; chat is off without it
   mud?: MudDeps;            // set when MUD_SECRET is; the MUD is off without it
+  bbs?: BbsDeps;            // set when BBS_SECRET is; the BBS is off without it
   now: () => number;        // ms; injectable so tests can move the clock (TOTP steps)
 }

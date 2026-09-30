@@ -2,7 +2,7 @@ import type { AppDeps } from './deps';
 
 // Days people were active (docs/11 stats). Written at most once per person, per service, per day from each
 // core process, so a busy session costs one small write a day. Failures are ignored: this is statistics.
-export type ActivityService = 'web' | 'irc' | 'mud';
+export type ActivityService = 'web' | 'irc' | 'mud' | 'bbs';
 const seen = new Map<string, string>(); // "user:service" → the UTC day last written
 
 export function noteActive(deps: AppDeps, userId: string, service: ActivityService): void {

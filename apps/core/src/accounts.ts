@@ -1,5 +1,6 @@
 import { isReservedHandle, toPublicSite, type LoginInput, type Me, type ProfileUpdate, type SignupInput } from '@app/shared';
 import { noteActive } from './activity';
+import { noteWebSeen } from './presence';
 import { makeT } from '@app/strings';
 import { audit } from './audit';
 import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
@@ -206,19 +207,20 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
 
 export async function resolveSession(deps: AppDeps, rawToken: string): Promise<SessionUser | null> {
   const r = await deps.db.query<{
-    sid: string; id: string; handle: string; display_name: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string; role: SessionUser['role'];
+    sid: string; kind: 'web' | 'bbs'; id: string; handle: string; display_name: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string; role: SessionUser['role'];
     email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean; recovery_remaining: number; role_rev: number; ops: string[];
   }>(
     // `limited` is worked out from the user's CURRENT role, not just the session's flag: someone
     // promoted to admin mid-session must set up TOTP before they can use any admin power.
-    `SELECT s.id AS sid, (s.limited OR (u.role = 'admin' AND u.totp_enabled_at IS NULL)) AS limited, u.role_rev,
+    `SELECT s.id AS sid, s.kind, (s.limited OR (u.role = 'admin' AND u.totp_enabled_at IS NULL)) AS limited, u.role_rev,
             COALESCE((SELECT array_agg(o.scope_type || ':' || o.scope_id ORDER BY o.scope_type, o.scope_id) FROM scoped_roles o WHERE o.user_id = u.id), '{}') AS ops,
             (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.bio, u.theme, u.email, u.role, u.email_verified_at, u.totp_enabled_at
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
   const row = r.rows[0];
   if (!row) return null;
-  if (!row.limited) noteActive(deps, row.id, 'web');
+  // BBS sessions count as the BBS when it signs in (bbs/service.ts), not as web visits.
+  if (!row.limited && row.kind === 'web') { noteActive(deps, row.id, 'web'); noteWebSeen(row.id, deps.now()); }
   return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, email: row.email, role: row.role,
     emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
 }

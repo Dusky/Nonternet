@@ -9,7 +9,7 @@ import type { Ctx, SessionUser } from '../accounts';
 const TICKET_PREFIX = 'tk1_';
 const TICKET_TTL_MS = 60_000;
 
-export type TerminalService = 'irc' | 'mud';
+export type TerminalService = 'irc' | 'mud' | 'bbs';
 export interface AuthResult { success: boolean; accountName?: string; error?: string }
 export interface LoginUser { id: string; handle: string; role: string }
 
@@ -52,7 +52,8 @@ export async function checkIrcLogin(deps: AppDeps, accountName: unknown, passphr
 export async function issueTicket(deps: AppDeps, user: SessionUser, service: TerminalService = 'irc'): Promise<{ ticket: string; nick: string; expires_in: number }> {
   if (service === 'irc' && !deps.irc) throw new ApiError(503, 'irc_off', 'Chat is not set up on this site yet.');
   if (service === 'mud' && !deps.mud) throw new ApiError(503, 'mud_off', 'The MUD is not set up on this site yet.');
-  if (user.role === 'guest') throw new ApiError(403, 'email_unconfirmed', service === 'irc' ? 'Confirm your email address to use chat.' : 'Confirm your email address to play the MUD.');
+  if (service === 'bbs' && !deps.bbs) throw new ApiError(503, 'bbs_off', 'The BBS is not set up on this site yet.');
+  if (user.role === 'guest') throw new ApiError(403, 'email_unconfirmed', service === 'irc' ? 'Confirm your email address to use chat.' : service === 'mud' ? 'Confirm your email address to play the MUD.' : 'Confirm your email address to use the BBS.');
   const ticket = `${TICKET_PREFIX}${randomToken()}`;
   await deps.db.query(`DELETE FROM terminal_tickets WHERE expires_at < now() - interval '1 hour'`);
   await deps.db.query(`INSERT INTO terminal_tickets (token_hash, user_id, expires_at, service) VALUES ($1, $2, to_timestamp($3 / 1000.0), $4)`, [sha256(ticket), user.userId, deps.now() + TICKET_TTL_MS, service]);
