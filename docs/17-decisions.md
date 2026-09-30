@@ -54,7 +54,7 @@
 |---|---|---|
 | Q1 | Final name and domain(s) | before public launch |
 | Q2 | ~~Bridge vs fallback~~ Withdrawn: no Enigma | — |
-| Q3 | Allow JavaScript on homepages? Inject footer/report link? | M3 |
+| Q3 | ~~Allow JavaScript on homepages? Inject footer/report link?~~ Resolved 2026-09-30: JS is allowed, isolated by origin; the homes server injects a small report footer into every HTML page (see `07`) | — |
 | Q4 | Can guests use IRC `#lobby`? Observer mode in MUD? | M5/M6 |
 | Q5 | Can trusted users register non-ring IRC channels? | M5 |
 | Q6 | MUD engine and world design | M6 |

@@ -1,4 +1,8 @@
 import { randomBytes } from 'node:crypto';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { HomeStore } from '../homes/files';
 import pg from 'pg';
 import { parseSiteConfig } from '../config';
 import { connect, type Db } from '../db';
@@ -68,6 +72,8 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     trustProxy: false,
     rateLimit: opts.rateLimit ?? false,
     now: () => clock.ms,
+    homesUrl: (handle) => `https://${handle.toLowerCase()}.example-homes.test/`,
+    homes: new HomeStore(mkdtempSync(join(tmpdir(), 'homes-test-'))),
     oidcClients: opts.oidcClients ?? [],
   };
   const app = await buildApp(deps);

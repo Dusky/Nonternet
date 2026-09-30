@@ -37,6 +37,7 @@ embedding Enigma. The spike is kept in `docs/spikes/m0-enigma.md` for reference.
 5. Custom domains with verification + on-demand TLS.
 6. Admin console: rings, homepages service page.
 **Accept:** tests in `06` and `07`.
+**Progress:** task 1 backend built (files, quotas, serving, redirects, templates; `homes.test.ts`). Q3 decided (JS allowed, report footer injected).
 
 ## M4 — Ownership & console polish (completes v1)
 1. Export worker + archive format + signature; "exporter registered" CI check.

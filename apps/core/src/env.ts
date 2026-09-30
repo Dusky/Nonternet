@@ -1,7 +1,9 @@
+import { resolve } from 'node:path';
 import { parseSecretKey } from './crypto';
 import { loadSiteConfig } from './config';
 import { connect } from './db';
 import type { AppDeps } from './deps';
+import { HomeStore } from './homes/files';
 import { makeMailer } from './mailer';
 import { resolveOidcClients } from './oidc/provider';
 
@@ -20,6 +22,8 @@ function rateLimitEnabled(env: Record<string, string | undefined>, production: b
 //   APP_SECRET_KEY   32 random bytes, base64 (required)
 //   PUBLIC_URL       base of emailed links; default https://{site.domain}
 //   SMTP_URL / MAIL_FROM   outgoing mail; without SMTP_URL mail is logged
+//   HOMES_DIR        where homepage files live; default ./data/homes
+//   HOMES_PUBLIC_PORT  port in homepage addresses, for local runs only
 //   TRUST_PROXY=1    set when core is behind Caddy
 //   RATE_LIMIT=off  turns rate limits off, for automated tests only (refused in production)
 export function depsFromEnv(env = process.env, log: (m: string) => void = console.log): AppDeps {
@@ -40,6 +44,8 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     secureCookies: publicUrl.startsWith('https://'),
     trustProxy: env.TRUST_PROXY === '1',
     rateLimit: rateLimitEnabled(env, production),
+    homesUrl: (handle) => `${publicUrl.startsWith('https://') ? 'https' : 'http'}://${handle.toLowerCase()}.${config.site.homes_domain}${env.HOMES_PUBLIC_PORT ? `:${env.HOMES_PUBLIC_PORT}` : ''}/`,
+    homes: new HomeStore(resolve(env.HOMES_DIR ?? './data/homes')),
     oidcClients: resolveOidcClients(config.oidc.clients, env),
     now: Date.now,
   };

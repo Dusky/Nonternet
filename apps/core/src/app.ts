@@ -14,6 +14,7 @@ import { authRoutes } from './routes/auth';
 import { meRoutes } from './routes/me';
 import { boardRoutes } from './routes/boards';
 import { moderationRoutes } from './routes/moderation';
+import { homeRoutes } from './routes/homes';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -45,6 +46,7 @@ export async function buildApp(deps: AppDeps) {
       return reply.code(400).send({ error: { code: 'invalid_input', message: first ? `${first.path.join('.') || 'input'}: ${first.message}` : 'Invalid input.' } });
     }
     if (err.statusCode === 429) return reply.code(429).send({ error: { code: 'rate_limited', message: 'Too many attempts. Wait a few minutes and try again.' } });
+    if (err.statusCode === 413) return reply.code(413).send({ error: { code: 'file_too_large', message: 'That is too large to send. Files can be up to the size shown in the studio.' } });
     if (err.statusCode && err.statusCode < 500) return reply.code(err.statusCode).send({ error: { code: 'bad_request', message: 'The request could not be understood.' } });
     req.log.error(err);
     return reply.code(500).send({ error: { code: 'internal', message: 'Something went wrong. The admins have been notified.' } });
@@ -80,5 +82,6 @@ export async function buildApp(deps: AppDeps) {
   adminRoutes(app, deps);
   boardRoutes(app, deps);
   moderationRoutes(app, deps);
+  homeRoutes(app, deps);
   return app;
 }

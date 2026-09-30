@@ -46,6 +46,7 @@ export const siteConfigSchema = z
           user: 50,
           trusted: 100,
         }),
+        homepage_file_max_mb: z.number().positive().default(10),
         trusted_board_quota: z.number().int().nonnegative().default(3),
         trusted_ring_quota: z.number().int().nonnegative().default(2),
       })
