@@ -46,8 +46,21 @@ new-scan, post, reply with quoting), Rings, Who's online, Last callers, Homepage
 and a settings page that points to the web. Presence is reported to core for the site-wide
 "who's online".
 
-## Later, or OPEN (see Q13 in `17`)
-File areas, door games, QWK/offline mail, FTN echomail, terminal signup, private mail.
+## Also in M8 (owners, 2026-09-30; Q13)
+- **Private mail** in the terminal: the same conversations as the web Mail app (`10`): list, read, reply,
+  start one. Blocks apply.
+- **Door games** (PROPOSED design): native doors run as a child process with a DOOR32.SYS / DOOR.SYS
+  drop file and the caller's terminal on stdin/stdout, one sandboxed process per session, configured by the
+  operator (name, command, working folder, node limit, time limit). DOS doors need an emulator the operator
+  installs (e.g. DOSEMU2 or DOSBox-X); the BBS only starts the configured command. VERIFY before relying on
+  a specific door.
+- **QWK offline mail** (PROPOSED): download new messages from chosen boards as a `.QWK` packet (CONTROL.DAT,
+  MESSAGES.DAT, index files), reply offline, upload the `.REP` packet; replies become posts through core
+  with the same checks as any post. Transfer by ZMODEM in the terminal, or by the web (Settings).
+- **SSH keys**: added and removed in Settings → Terminal; part of the export.
+
+## Later (see Q13 in `17`)
+File areas in the terminal, FTN echomail, terminal signup.
 
 ## Notes carried over from the Enigma½ spike
 The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:

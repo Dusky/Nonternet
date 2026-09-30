@@ -102,6 +102,9 @@ last by decision, not by dependency.
 6. Shell Terminal window: xterm.js, VGA font, mobile key bar, negotiation shim.
 7. UTF-8 and CP437 modes.
 8. Admin console: BBS service page (live nodes); MOTD and announcements publish to the BBS.
+9. Private mail in the terminal; SSH keys in Settings → Terminal (owners, 2026-09-30).
+10. Door games: drop files, sandboxed child process, operator config.
+11. QWK offline mail: packet download, REP upload.
 **Accept:** tests in `04`.
 
 ## Later phases (not scheduled)
