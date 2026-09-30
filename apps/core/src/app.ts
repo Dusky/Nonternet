@@ -21,6 +21,7 @@ import { settingsRoutes } from './routes/settings';
 import { legalRoutes } from './routes/legal';
 import { ircRoutes } from './routes/irc';
 import { mudRoutes } from './routes/mud';
+import { mailRoutes } from './routes/mail';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -97,5 +98,6 @@ export async function buildApp(deps: AppDeps) {
   legalRoutes(app, deps);
   ircRoutes(app, deps);
   mudRoutes(app, deps);
+  mailRoutes(app, deps);
   return app;
 }

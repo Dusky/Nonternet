@@ -153,7 +153,32 @@ const mud: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud];
+// Private mail (docs/10): each conversation the person is in, with who was there and the messages they
+// wrote. Others' messages are left out, as with board posts (Q9, still open, PROPOSED default).
+const mail: Exporter = {
+  id: 'mail',
+  tables: ['mail_threads', 'mail_participants', 'mail_messages', 'user_blocks'],
+  async run({ deps, user, add }) {
+    const threads = await deps.db.query<{ id: string; subject: string; created_at: Date; joined_at: Date; left_at: Date | null }>(
+      `SELECT t.id, t.subject, t.created_at, p.joined_at, p.left_at FROM mail_participants p JOIN mail_threads t ON t.id = p.thread_id WHERE p.user_id = $1 ORDER BY t.created_at`, [user.id]);
+    const out = [];
+    for (const t of threads.rows) {
+      const people = await deps.db.query<{ handle: string }>(`SELECT u.handle FROM mail_participants p JOIN users u ON u.id = p.user_id WHERE p.thread_id = $1 AND u.status <> 'deleted' ORDER BY u.handle`, [t.id]);
+      const mine = await deps.db.query<{ body: string; created_at: Date; deleted_at: Date | null }>(
+        `SELECT body, created_at, deleted_at FROM mail_messages WHERE thread_id = $1 AND author_id = $2 AND kind = 'message' ORDER BY created_at`, [t.id, user.id]);
+      out.push({
+        subject: t.subject, started: t.created_at.toISOString(), joined: t.joined_at.toISOString(), left: t.left_at ? t.left_at.toISOString() : null,
+        people: people.rows.map((p) => p.handle),
+        my_messages: mine.rows.map((m) => ({ at: m.created_at.toISOString(), body: m.deleted_at ? null : m.body })),
+      });
+    }
+    const blocks = await deps.db.query<{ handle: string }>(`SELECT u.handle FROM user_blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = $1 ORDER BY u.handle`, [user.id]);
+    if (out.length) add('mail/conversations.json', json(out));
+    if (blocks.rowCount) add('mail/blocked.json', json(blocks.rows.map((b) => b.handle)));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.

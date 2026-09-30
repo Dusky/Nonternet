@@ -61,6 +61,8 @@ can be an op if appointed. Stored in `scoped_roles`; carried in the token's `ops
   reason, never the removed text. Every action is also in the audit log (`mod.*`, `report.*`).
 - The reports queue is in the Boards app for people who moderate something, and in the admin
   console for admins.
+- A report on a private mail message (M7) goes to admins only and shows that one message, never the
+  rest of the conversation. Sending mail is not audited; the report is (`report.created`).
 
 ## Audit log
 Append-only, and enforced by the database, not just by convention: triggers refuse UPDATE, DELETE

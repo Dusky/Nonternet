@@ -22,6 +22,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const [menu, setMenu] = useState<'apps' | 'account' | null>(null);
   const bar = useRef<HTMLElement>(null);
   // A number on the bell. Checked once a minute; there is no live push yet.
+  const unreadMail = useQuery({ queryKey: ['mail', 'unread', me.id], queryFn: () => api.get<{ unread: number }>('/mail/unread'), refetchInterval: 60_000, staleTime: 15_000, enabled: me.role !== 'guest' }).data?.unread ?? 0;
   const unread = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), refetchInterval: 60_000, staleTime: 15_000 }).data?.unread ?? 0;
 
   // Escape and clicking elsewhere close a menu, as people expect.
@@ -80,6 +81,13 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
         )}
 
         <div className="taskbar-account">
+          {me.role !== 'guest' && (
+            <button type="button" className="btn btn-quiet bell" onClick={() => launch('mail')}
+              aria-label={unreadMail > 0 ? t('mail.bellCount', { count: unreadMail }) : t('mail.bell')}>
+              <AppIcon id="mail" size={22} />
+              {unreadMail > 0 && <span className="badge badge-open" aria-hidden="true">{unreadMail > 99 ? '99+' : unreadMail}</span>}
+            </button>
+          )}
           <button type="button" className="btn btn-quiet bell" onClick={() => launch('notifications')}
             aria-label={unread > 0 ? t('notifications.bellCount', { count: unread }) : t('notifications.bell')}>
             <AppIcon id="notifications" size={22} />

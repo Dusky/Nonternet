@@ -60,7 +60,8 @@ function Report({ r }: { r: ReportView }) {
     r.target.type === 'post' ? t('boards.reports.by', { name: r.reporter.handle, board: r.board.name })
     : t('boards.reports.byPlain', { name: r.reporter.handle });
   const about = r.target.type === 'homepage' ? t('boards.reports.aboutPage', { name: r.target.handle ?? '' })
-    : r.target.type === 'guestbook' ? t('boards.reports.aboutEntry', { name: r.target.handle ?? '' }) : null;
+    : r.target.type === 'guestbook' ? t('boards.reports.aboutEntry', { name: r.target.handle ?? '' })
+    : r.target.type === 'mail_message' ? t('boards.reports.aboutMail', { name: r.target.handle ?? t('mail.deletedPerson') }) : null;
   const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : t(`boards.mod.${k}`);
   return (
     <li>

@@ -7,11 +7,12 @@ import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, useMe, useSite, useT } from '../../hooks';
 import { AppNavLink, matchRoute, useAppNav } from '../../nav';
 import { YourData } from './YourData';
+import { Blocks } from './Blocks';
 import { TerminalPassword } from './Terminal';
 import { TotpSetup } from '../../pages/Setup2fa';
 import { applyTheme, effectPrefs, saveEffectPrefs } from '../../theme';
 
-const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'appearance'] as const;
+const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance'] as const;
 
 export default function SettingsApp() {
   const t = useT();
@@ -30,6 +31,7 @@ export default function SettingsApp() {
         <AppNavLink to="two-factor">{t('settings.tab.twofa')}</AppNavLink>
         <AppNavLink to="terminal">{t('settings.tab.terminal')}</AppNavLink>
         <AppNavLink to="data">{t('settings.tab.data')}</AppNavLink>
+        {me.role !== 'guest' && <AppNavLink to="blocked">{t('settings.tab.blocked')}</AppNavLink>}
         <AppNavLink to="appearance">{t('settings.tab.appearance')}</AppNavLink>
       </nav>
       <div className="app-content">
@@ -38,6 +40,7 @@ export default function SettingsApp() {
         {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
         {route?.pattern === 'terminal' && <TerminalPassword />}
         {route?.pattern === 'data' && <YourData me={me} />}
+        {route?.pattern === 'blocked' && <Blocks />}
         {route?.pattern === 'appearance' && <Appearance me={me} />}
       </div>
     </div>

@@ -43,6 +43,13 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     if (opts.posts === 'erase') await q.query(`UPDATE guestbook_entries SET message = '', name = $2, url = NULL, status = 'hidden', author_id = NULL WHERE author_id = $1`, [userId, en['account.deletedName']]);
     else await q.query(`UPDATE guestbook_entries SET name = $2, url = NULL, author_id = NULL WHERE author_id = $1`, [userId, en['account.deletedName']]);
 
+    // Mail follows the same choice as posts: kept without their name, or erased. They leave every
+    // conversation, and their blocks go.
+    if (opts.posts === 'erase') await q.query(`UPDATE mail_messages SET body = '', deleted_at = COALESCE(deleted_at, now()) WHERE author_id = $1 AND kind = 'message'`, [userId]);
+    await q.query(`UPDATE mail_messages SET author_id = NULL WHERE author_id = $1`, [userId]);
+    await q.query(`UPDATE mail_participants SET left_at = COALESCE(left_at, now()) WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM user_blocks WHERE user_id = $1 OR blocked_id = $1`, [userId]);
+
     // Whatever they had on their own page goes with it.
     await q.query(`DELETE FROM guestbook_entries WHERE home_user_id = $1`, [userId]);
     await q.query(`DELETE FROM home_hit_seen WHERE user_id = $1`, [userId]);

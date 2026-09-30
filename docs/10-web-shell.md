@@ -20,10 +20,10 @@ Every app also has a normal full-page URL (links, bookmarks, sharing).
 | **Chat** — IRC (`08`) | yes (M5), shown when `services.irc` is on |
 | **People** — public profiles: bio, homepage, rings, MUD characters (`09`) | yes (M6), public |
 | **MUD** — a text log and command line into the world (`09`) | yes (M6), shown when `services.mud` is on |
-| **Mail** — private messages | later (OPEN) |
+| **Mail** — private conversations between two people or a group of up to 10 (Q11) | yes (M7), confirmed users |
 
 ## Desktop layout
-Taskbar (launcher, open windows, online count, notifications, clock); draggable/resizable
+Taskbar (launcher, open windows, online count, mail with unread count, notifications, clock); draggable/resizable
 windows with remembered positions; desktop icons; keyboard window cycling.
 
 ## Mobile
@@ -68,3 +68,20 @@ xterm.js support). The Boards app is the accessible path to BBS content.
 ## Tech (PROPOSED)
 React + Vite + TypeScript; TanStack Query; Zustand for the window manager; xterm.js;
 in-house window manager. All strings from `packages/strings` with `site.name` interpolation.
+
+## As built (M7): Mail
+- **Conversations**, not single messages: a subject, the people in it (2 to 10 counting you) and the
+  messages. Anyone in a conversation can add someone; a newcomer reads from when they joined, not before
+  (a "joined" line marks it). Leaving stops new messages and keeps what was said while you were there.
+- **Only confirmed users** (not guests) can take part. People with the `user` role can start 20 new
+  conversations a day; trusted people and admins have no daily cap. Replies are rate-limited per minute.
+- **Blocking** (Settings → Blocked, or Block on a profile): the blocked person can't start a conversation
+  with you or add you to one (either way they get a generic "can't send mail" so they aren't told), and
+  their messages are hidden from you in groups you share. Admins can't be blocked.
+- **Private by default:** sending mail is not audited. A **report** on one message goes to the admins'
+  report queue with that message only, never the rest of the conversation (audited as `report.created`).
+- **Delete** your own message: everyone sees "Message deleted."
+- **Account deletion** treats mail like posts: kept without the name, or erased; the person leaves every
+  conversation and their blocks go. **Export** (`12`): `mail/conversations.json` (each conversation's
+  subject, people, and only your own messages) and `mail/blocked.json`.
+- API in `14`; core in `apps/core/src/mail.ts`; tests `mail.test.ts`, `e2e/tests/mail.spec.ts`.

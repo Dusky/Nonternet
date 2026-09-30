@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ABILITIES, type CharacterView, type PublicProfile } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, TextField } from '../../components/ui';
-import { errorText, formatWhen, useT } from '../../hooks';
+import { errorText, formatWhen, useMe, useT } from '../../hooks';
+import { OpenAppLink } from '../../shell/OpenAppLink';
+import { useBlocks } from '../settings/Blocks';
 import { matchRoute, useAppNav } from '../../nav';
 import { PersonLink } from './PersonLink';
 
@@ -49,6 +51,7 @@ function Profile({ handle }: { handle: string }) {
         <p className="muted">@{p.handle}{p.role !== 'user' && <> · <span className="badge">{t(`people.role.${p.role}` as StringKey)}</span></>} · {t('people.joined', { when: formatWhen(p.joined_at) ?? '' })}</p>
       </header>
       {p.bio && <p className="profile-bio">{p.bio}</p>}
+      <PersonActions p={p} />
       {p.homepage_url && <p><a href={p.homepage_url} rel="noopener">{t('people.homepage')}</a></p>}
       {p.rings.length > 0 && (
         <section aria-labelledby="profile-rings">
@@ -76,5 +79,33 @@ function CharacterCard({ c, featured }: { c: CharacterView; featured: boolean })
         {ABILITIES.map((a) => <div key={a}><dt>{t(`people.ability.${a}` as StringKey)}</dt><dd>{c.abilities[a] >= 0 ? `+${c.abilities[a]}` : c.abilities[a]}</dd></div>)}
       </dl>
     </li>
+  );
+}
+
+// Mail and block, for signed-in, confirmed people looking at someone else.
+function PersonActions({ p }: { p: PublicProfile }) {
+  const t = useT();
+  const me = useMe().data;
+  const qc = useQueryClient();
+  const mine = Boolean(me && me.role !== 'guest' && me.id !== p.id);
+  const blocks = useBlocks();
+  const blocked = Boolean(blocks.data?.blocks.some((b) => b.handle.toLowerCase() === p.handle.toLowerCase()));
+  const toggle = useMutation({
+    mutationFn: () => api.post(blocked ? '/me/blocks/remove' : '/me/blocks', { handle: p.handle }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['me', 'blocks'] }); void qc.invalidateQueries({ queryKey: ['mail'] }); },
+  });
+  if (!mine) return null;
+  return (
+    <div className="toolbar">
+      {!blocked && <OpenAppLink app="mail" to={`new/${encodeURIComponent(p.handle)}`} className="btn">{t('mail.write')}</OpenAppLink>}
+      {p.role !== 'admin' && (
+        <button type="button" className="btn btn-quiet" disabled={toggle.isPending || !blocks.data}
+          onClick={() => { if (blocked || window.confirm(t('blocks.blockConfirm', { handle: p.handle }))) toggle.mutate(); }}>
+          {blocked ? t('blocks.unblock') : t('blocks.block')}
+        </button>
+      )}
+      {blocked && <span className="muted">{t('blocks.blocked')}</span>}
+      {toggle.isError && <Alert kind="error">{errorText(toggle.error)}</Alert>}
+    </div>
   );
 }

@@ -46,6 +46,10 @@ describe.skipIf(!dbAvailable)('export', () => {
     await bob.c.post('/api/v1/rings/synths/join');
     await alice.c.post('/api/v1/homes/me/domains', { domain: 'alice-site.com' });
     await db.query(`INSERT INTO handle_history (user_id, handle) VALUES ($1, 'oldalice')`, [alice.id]);
+    const mt = (await alice.c.post('/api/v1/mail', { to: ['bob'], subject: 'Lunch', body: 'Noon at the café?' })).body;
+    await bob.c.post(`/api/v1/mail/${mt.id}/messages`, { body: 'Bob’s private reply' });
+    const dave = await person('dave');
+    await alice.c.post('/api/v1/me/blocks', { handle: dave.handle });
   });
   afterAll(async () => drop());
 
@@ -95,7 +99,7 @@ describe.skipIf(!dbAvailable)('export', () => {
     it('holds what she made, and nothing that is not hers', () => {
       expect(Object.keys(files).sort()).toEqual([
         'README.txt', 'boards/club.json', 'boards/general.json', 'boards/mine.json', 'guestbook.json', 'homepage.json', 'homepage/img/pixel.gif', 'homepage/index.html',
-        'keys/public.key', 'manifest.json', 'manifest.sig', 'posts/posts.json', 'posts/posts.mbox', 'profile.json', 'rings/synths/members.json', 'rings/synths/ring.json',
+        'keys/public.key', 'mail/blocked.json', 'mail/conversations.json', 'manifest.json', 'manifest.sig', 'posts/posts.json', 'posts/posts.mbox', 'profile.json', 'rings/synths/members.json', 'rings/synths/ring.json',
       ].sort());
       const posts = JSON.parse(text(files, 'posts/posts.json')) as { subject: string; body: string; board: string; state: string; reply_to: string | null }[];
       expect(posts.map((p) => p.subject)).toEqual(['Café hours', 'Re: Café hours', 'Private thoughts', '']);
@@ -106,6 +110,13 @@ describe.skipIf(!dbAvailable)('export', () => {
       expect(text(files, 'posts/posts.mbox')).toContain('Subject: =?UTF-8?B?'); // café
       expect(text(files, 'posts/posts.mbox')).toContain('>From me to you, always.');
       expect(text(files, 'posts/posts.mbox').match(/^From alice@example\.test /gm)).toHaveLength(3); // deleted post left out
+    });
+
+    it('has her mail conversations with only her own messages, and who she blocked', () => {
+      const conv = JSON.parse(text(files, 'mail/conversations.json'));
+      expect(conv).toEqual([expect.objectContaining({ subject: 'Lunch', people: ['alice', 'bob'], my_messages: [expect.objectContaining({ body: 'Noon at the café?' })] })]);
+      expect(JSON.stringify(conv)).not.toContain('Bob’s private reply');
+      expect(JSON.parse(text(files, 'mail/blocked.json'))).toEqual(['dave']);
     });
 
     it('has her homepage exactly as uploaded, its settings and both guestbook directions', () => {

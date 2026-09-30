@@ -78,6 +78,8 @@ Audit replay with diffs, stats cohorts, heatmaps, command console; private mail;
 areas; Gopher/Gemini mirror; more themes; vouching.
 **Scope (owners, 2026-09-30):** private mail with small group threads; vouching (two trusted vouches, admin
 confirms); web file areas; a read-only Gopher mirror. Not in M7: Gemini, new themes.
+- [x] Private mail: conversations of 2–10 people, add/leave, blocks, delete own, report one message, export and
+  deletion (`mail.test.ts`, `mail.spec.ts`; design in `10`).
 
 ## M8 — BBS (in-house, last)
 Design in `04`. Depends only on core's API, so it can start once M4 is done; it is scheduled

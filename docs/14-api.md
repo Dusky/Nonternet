@@ -97,6 +97,10 @@ whose handler fails is retried after a minute, and after 5 failed tries it moves
 
 IRC (M5) consumes events with the group `irc-sync`, and the MUD sync (M6) with `mud-sync`; neither publishes any.
 
+Mail (`10`, M7): `GET|POST /mail` · `GET /mail/unread` · `GET /mail/:id` · `POST /mail/:id/messages` · `POST /mail/:id/people` ·
+`POST /mail/:id/leave` · `DELETE /mail/:id/messages/:mid` · `POST /mail/:id/messages/:mid/report` · blocks: `GET|POST /me/blocks` · `POST /me/blocks/remove`.
+Reports gain the target type `mail_message`.
+
 MUD (`09`): `GET /users/:handle` (public profile with characters) · `GET /me/characters` · `PUT /me/featured-character` ·
 private, MUD → core: `POST /internal/mud/characters-changed` · `POST /mud/ticket` · `GET /admin/mud` · `GET|POST /admin/mud/builders` · `POST /admin/mud/builders/remove` ·
 private, core → MUD (control token): `GET /internal/status`, `POST /internal/accounts/sync`, `POST /internal/broadcast`,

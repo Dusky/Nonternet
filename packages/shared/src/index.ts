@@ -8,3 +8,4 @@ export * from './boards';
 export * from './homes';
 export * from './rings';
 export * from './characters';
+export * from './mail';

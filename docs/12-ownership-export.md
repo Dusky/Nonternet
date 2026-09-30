@@ -24,6 +24,8 @@ rings/                   # for rings they founded/op: profile, member list, sett
 boards/                  # for boards they own: metadata (messages by others are NOT included)
 irc/                     # their own messages from server history, if retained (OPEN)
 mud/                     # characters: descriptions, stats, inventory as JSON
+mail/conversations.json  # each conversation: subject, people, and only the person's own messages (M7)
+mail/blocked.json        # handles they have blocked
 keys/public.key          # public key; private key only if user opts in with password protection
 README.txt               # human explanation of the archive
 ```
