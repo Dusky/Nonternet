@@ -5,7 +5,9 @@ export const HANDLE_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{1,19}$/;
 export const handleSchema = z.string().regex(HANDLE_PATTERN, 'handle must be 2–20 characters: letters, digits, _ or -, starting with a letter');
 
 // Reserved handles (docs/02). The site short name is reserved too, so callers pass it in.
-const RESERVED = ['admin', 'root', 'sysop', 'guest', 'all', 'postmaster', 'abuse', 'support', 'service', 'system', 'moderator', 'mod'];
+const RESERVED = ['admin', 'root', 'sysop', 'guest', 'all', 'postmaster', 'abuse', 'support', 'service', 'system', 'moderator', 'mod',
+  // IRC service names (docs/08): Ergo's own services and the site's bot.
+  'chanserv', 'nickserv', 'histserv', 'hostserv', 'sitebot'];
 export function isReservedHandle(handle: string, shortName: string): boolean {
   const h = handle.toLowerCase();
   return RESERVED.includes(h) || h === shortName.toLowerCase();

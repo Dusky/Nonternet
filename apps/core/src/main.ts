@@ -5,6 +5,10 @@ import { migrate } from './migrate';
 import { startExportWorker } from './exports/service';
 import { loadSettings } from './settings';
 import { startMetricsCollector } from './metrics';
+import { startIrcSync, type IrcSync } from './irc/sync';
+
+// Events that change what IRC should look like (docs/02 provisioning table).
+const IRC_EVENTS = new Set(['user.created', 'user.role_changed', 'user.ops_changed', 'user.renamed', 'user.deleted', 'user.suspended', 'user.unsuspended', 'ring.created', 'ring.member_changed']);
 
 function fail(err: unknown): never {
   console.error(err instanceof Error ? err.message : err);
@@ -33,6 +37,20 @@ async function start() {
   const exportWorker = startExportWorker(deps, (m) => app.log.warn(m));
   const metrics = startMetricsCollector(deps, (m) => app.log.warn(m));
 
+  // IRC: the bot keeps Ergo matching core. Events make it act within a moment; it also checks every 30 s.
+  let ircSync: IrcSync | undefined;
+  const stopEvents = new AbortController();
+  if (deps.irc) {
+    ircSync = startIrcSync(deps, (m) => app.log.warn(m));
+    if (bus) {
+      void bus.subscribe({
+        group: 'irc-sync', consumer: `core-${process.pid}`, signal: stopEvents.signal,
+        handler: async (e) => { if (IRC_EVENTS.has(e.type)) ircSync!.soon(); },
+        onError: (err) => app.log.warn(`irc events: ${err instanceof Error ? err.message : String(err)}`),
+      });
+    }
+  }
+
   // Finish in-flight requests, stop the relay, then close connections.
   let closing = false;
   const shutdown = async (signal: string) => {
@@ -42,6 +60,8 @@ async function start() {
     if (prune) clearInterval(prune);
     await app.close();
     metrics.stop();
+    stopEvents.abort();
+    ircSync?.stop();
     await exportWorker.stop();
     await relay?.stop();
     await bus?.close();

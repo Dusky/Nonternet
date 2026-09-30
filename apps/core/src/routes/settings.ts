@@ -33,6 +33,7 @@ export function settingsRoutes(app: FastifyInstance, deps: AppDeps): void {
     const b = z.object({
       title: z.string().trim().min(2).max(120), body: z.string().trim().max(2000).default(''), level: z.enum(['info', 'warning']).default('info'),
       starts_at: z.string().datetime().optional(), ends_at: z.string().datetime().optional(),
+      irc: z.boolean().default(false), // also post it in the IRC lobby when it goes live
     }).parse(req.body);
     return reply.code(201).send(await announcements.createAnnouncement(deps, who, b, ctxOf(deps, req)));
   });

@@ -7,6 +7,9 @@ const hostname = z
   .min(3)
   .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i, 'must be a hostname');
 
+// IRC channel names we accept for registered channels: # then lowercase letters, digits, - and _.
+export const ircChannelName = z.string().regex(/^#[a-z0-9][a-z0-9_-]{0,29}$/, 'a # followed by up to 30 lowercase letters, digits, - or _');
+
 export const siteSchema = z.object({
   name: z.string().min(1),
   short_name: z.string().regex(/^[a-z][a-z0-9-]{1,19}$/, 'lowercase letters, digits and hyphens'),
@@ -51,6 +54,8 @@ export const siteConfigSchema = z
         homepage_file_max_mb: z.number().positive().default(10),
         trusted_board_quota: z.number().int().nonnegative().default(3),
         trusted_ring_quota: z.number().int().nonnegative().default(2),
+        // IRC channels a trusted user may register besides ring channels (docs/08, decided 2026-09-30).
+        trusted_channel_quota: z.number().int().nonnegative().default(3),
       })
       .default({}),
     homes: z
@@ -58,6 +63,17 @@ export const siteConfigSchema = z
         // The address the homes server answers on. A bare custom domain needs an A record to it.
         public_ip: z.string().regex(/^[0-9a-f.:]+$/i, 'an IPv4 or IPv6 address').optional(),
         max_domains: z.number().int().nonnegative().default(3),
+      })
+      .default({}),
+    irc: z
+      .object({
+        // Registered at start, owned by the site; admins are channel ops in them (docs/08).
+        official_channels: z.array(ircChannelName).min(1).default(['#lobby', '#help']),
+        // Where native clients connect; default irc.{site.domain}.
+        public_host: hostname.optional(),
+        public_port: z.number().int().min(1).max(65535).default(6697),
+        // Messages are kept in memory for this long, for scrollback (docs/08).
+        history_days: z.number().int().min(0).max(365).default(7),
       })
       .default({}),
     moderation: z
@@ -102,6 +118,7 @@ export const publicSiteSchema = z.object({
   homes_domain: z.string(),
   signup_mode: z.enum(['open', 'invite', 'application']),
   minimum_age: z.number().int(),
+  irc: z.object({ host: z.string(), port: z.number().int(), lobby: z.string() }),
   services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean() }),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
@@ -114,6 +131,7 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     homes_domain: cfg.site.homes_domain,
     signup_mode: cfg.signup.mode,
     minimum_age: cfg.signup.minimum_age,
+    irc: { host: cfg.irc.public_host ?? `irc.${cfg.site.domain}`, port: cfg.irc.public_port, lobby: cfg.irc.official_channels[0]! },
     services: cfg.services,
   };
 }

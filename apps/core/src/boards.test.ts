@@ -277,7 +277,7 @@ describe.skipIf(!dbAvailable)('boards', () => {
       expect((await threads()).find((t) => t.id === p4.id)!.unread).toBe(true);
       await cc.put('/api/v1/boards/unread/read-pointer', { all: true });
       expect(await unread()).toBe(0);
-      expect((await cc.put('/api/v1/boards/unread/read-pointer', { post_id: p1.id.replace(/.$/, '0') })).status).toBe(404);
+      expect((await cc.put('/api/v1/boards/unread/read-pointer', { post_id: p1.id.replace(/.$/, (ch: string) => (ch === '0' ? '1' : '0')) })).status).toBe(404);
       expect((await visitor().put('/api/v1/boards/unread/read-pointer', { all: true })).status).toBe(401);
     });
     it('marks a thread unread again when someone replies to it', async () => {

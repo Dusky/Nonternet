@@ -3,6 +3,7 @@ import type { Db } from './db';
 import type { HomeStore } from './homes/files';
 import type { Mailer } from './mailer';
 import type { ResolvedOidcClient } from './oidc/provider';
+import type { IrcDeps } from './irc/secrets';
 
 export interface AppDeps {
   config: SiteConfig;
@@ -20,5 +21,6 @@ export interface AppDeps {
   oidcClients: ResolvedOidcClient[]; // services allowed to sign users in (site config + env secrets)
   tlsAskSecret?: string;    // when set, Caddy's certificate question must carry it
   dnsTxt: (name: string) => Promise<string[][]>; // TXT lookup, injectable so tests need no network
+  irc?: IrcDeps;            // set when IRC_SECRET is; chat is off without it
   now: () => number;        // ms; injectable so tests can move the clock (TOTP steps)
 }

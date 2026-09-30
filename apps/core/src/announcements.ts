@@ -3,6 +3,7 @@ import { newId } from './crypto';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import type { Ctx, SessionUser } from './accounts';
+import { ircSyncSoon } from './irc/hook';
 
 export interface AnnouncementView { id: string; title: string; body: string; level: 'info' | 'warning'; starts_at: string; ends_at: string | null; state: 'scheduled' | 'live' | 'ended' | 'archived'; channels: string[] }
 interface Row { id: string; title: string; body: string; level: 'info' | 'warning'; channels: string[]; starts_at: Date; ends_at: Date | null; archived_at: Date | null }
@@ -26,13 +27,14 @@ export async function listAnnouncements(deps: AppDeps): Promise<AnnouncementView
   return r.rows.map((x) => view(x, now));
 }
 
-export async function createAnnouncement(deps: AppDeps, admin: SessionUser, input: { title: string; body: string; level: 'info' | 'warning'; starts_at?: string; ends_at?: string }, ctx: Ctx): Promise<AnnouncementView> {
+export async function createAnnouncement(deps: AppDeps, admin: SessionUser, input: { title: string; body: string; level: 'info' | 'warning'; starts_at?: string; ends_at?: string; irc?: boolean }, ctx: Ctx): Promise<AnnouncementView> {
   const start = input.starts_at ? new Date(input.starts_at) : new Date(deps.now());
   const end = input.ends_at ? new Date(input.ends_at) : null;
   if (end && end.getTime() <= start.getTime()) throw new ApiError(400, 'bad_dates', 'It has to end after it starts.');
   const id = newId('a');
   await deps.db.tx(async (q) => {
-    await q.query(`INSERT INTO announcements (id, title, body, level, starts_at, ends_at, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)`, [id, input.title, input.body, input.level, start, end, admin.userId]);
+    await q.query(`INSERT INTO announcements (id, title, body, level, starts_at, ends_at, created_by, channels) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [id, input.title, input.body, input.level, start, end, admin.userId, input.irc ? ['shell', 'irc'] : ['shell']]);
+    if (input.irc) ircSyncSoon();
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'announcement.created', targetType: 'announcement', targetId: id, after: { title: input.title, level: input.level, starts_at: start.toISOString(), ends_at: end?.toISOString() ?? null }, origin: 'web', ipHash: ctx.ipHash });
   });
   return (await listAnnouncements(deps)).find((a) => a.id === id)!;

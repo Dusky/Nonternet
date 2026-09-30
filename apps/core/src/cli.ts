@@ -5,6 +5,33 @@ import { createAdmin, resetTotp } from './accounts';
 import { depsFromEnv } from './env';
 import { migrate } from './migrate';
 import { parseBackupKey, restoreTest, runBackup } from './backup';
+import { writeFileSync } from 'node:fs';
+import { loadSiteConfig } from './config';
+import { renderErgoConfig } from './irc/render';
+import { ircSecrets } from './irc/secrets';
+
+// Needs no database: run it before Ergo starts (the compose file does, in a one-shot service).
+//   IRC_CORE_URL (default http://core:3000), IRC_AUTH_SCRIPT (default /config/auth.sh),
+//   IRC_TLS_CERT + IRC_TLS_KEY to listen for native clients with TLS on irc.public_port.
+function writeIrcConfig() {
+  const env = process.env;
+  const out = arg('out');
+  if (!out) throw new Error('--out is required');
+  if (!env.IRC_SECRET) throw new Error('IRC_SECRET is required');
+  const cfg = loadSiteConfig(env.SITE_CONFIG);
+  const publicUrl = (env.PUBLIC_URL ?? `https://${cfg.site.domain}`).replace(/\/$/, '');
+  const origins = [...new Set([new URL(publicUrl).origin, `https://${cfg.site.domain}`])];
+  writeFileSync(out, renderErgoConfig(cfg, {
+    secrets: ircSecrets(env.IRC_SECRET),
+    coreUrl: env.IRC_CORE_URL ?? 'http://core:3000',
+    authScript: env.IRC_AUTH_SCRIPT ?? '/config/auth.sh',
+    plainListen: ':6667', websocketListen: ':8097', apiListen: ':8089',
+    websocketOrigins: origins,
+    tls: env.IRC_TLS_CERT && env.IRC_TLS_KEY ? { listen: `:${cfg.irc.public_port}`, cert: env.IRC_TLS_CERT, key: env.IRC_TLS_KEY } : undefined,
+    datastore: '/ircd/ircd.db',
+  }), { mode: 0o600 });
+  console.log(`Wrote ${out}.`);
+}
 
 // Operator commands, run on the server:
 //   cli create-admin --handle <handle> --email <email>     (password from ADMIN_PASSWORD, or generated and printed once)
@@ -12,6 +39,7 @@ import { parseBackupKey, restoreTest, runBackup } from './backup';
 //   cli backup --dir <dir>                                 (encrypted database, homepage files and config; needs BACKUP_KEY)
 //   cli restore-test --dir <dir>                           (brings the newest backup back into a scratch database and checks it)
 //   cli backup-key                                         (prints a new BACKUP_KEY)
+//   cli irc-config --out <file>                            (writes Ergo's config from the site config; needs IRC_SECRET)
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -19,6 +47,7 @@ function arg(name: string): string | undefined {
 
 async function main() {
   const [command] = process.argv.slice(2);
+  if (command === 'irc-config') return writeIrcConfig();
   const deps = depsFromEnv();
   try {
     await migrate(deps.db);

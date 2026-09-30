@@ -128,7 +128,18 @@ const keys: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys];
+// IRC channels a person registered (docs/08). Chat messages live in Ergo's memory for a few days and are
+// not exported (Q9 is still open).
+const irc: Exporter = {
+  id: 'irc',
+  tables: ['irc_channels'],
+  async run({ deps, user, add }) {
+    const r = await deps.db.query<{ name: string; created_at: Date; removed_at: Date | null }>(`SELECT name, created_at, removed_at FROM irc_channels WHERE owner_id = $1 ORDER BY name`, [user.id]);
+    if (r.rows.length) add('irc/channels.json', json(r.rows.map((c) => ({ name: c.name, created_at: c.created_at.toISOString(), removed: c.removed_at !== null }))));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.
@@ -137,6 +148,8 @@ export const EXEMPT: Record<string, string> = {
   legal_page_versions: 'site documents written by admins',
   legal_requests: 'takedown requests from the public, about content rather than by the account',
   sessions: 'security state, not content',
+  irc_tickets: 'one-use sign-in tickets for chat',
+  irc_applied: 'a record of what the bot has told the IRC server',
   email_verifications: 'security state, not content',
   password_resets: 'security state, not content',
   recovery_codes: 'security state, not content',

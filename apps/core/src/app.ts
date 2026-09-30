@@ -19,6 +19,7 @@ import { widgetRoutes, WIDGET_API } from './routes/widgets';
 import { ringRoutes } from './routes/rings';
 import { settingsRoutes } from './routes/settings';
 import { legalRoutes } from './routes/legal';
+import { ircRoutes } from './routes/irc';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -93,5 +94,6 @@ export async function buildApp(deps: AppDeps) {
   ringRoutes(app, deps);
   settingsRoutes(app, deps);
   legalRoutes(app, deps);
+  ircRoutes(app, deps);
   return app;
 }
