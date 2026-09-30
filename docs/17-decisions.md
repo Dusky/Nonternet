@@ -83,7 +83,7 @@
 |---|---|---|
 | V1–V6 | ~~Enigma½ module system, login delegation, runtime areas, pointers, encoding, rename~~ Withdrawn with D3. Results are kept in `docs/spikes/m0-enigma.md` | — |
 | V7 | ~~Ergo: accounts, SASL, external auth, history, WebSocket~~ Verified 2026-09-30 against Ergo 2.19.1 (source and tests in `apps/core/src/irc/*.test.ts` run the real server). Found: opers can't follow accounts, unregistering needs a confirmation code, the network name can't hold spaces | 08 |
-| V8 | Evennia: auth backend, web client embedding | 09 |
+| V8 | ~~Evennia: auth backend, web client embedding~~ Verified 2026-09-30 against Evennia 5.0.1 (`spikes/m6-evennia.md`): login can be handed to core, stable ids and roles map, ticket login works over WebSocket; its WebSocket sends Evennia markup, not ANSI | 09 |
 | V9 | xterm.js screen reader support | 10 |
 | V10 | Licences of bundled GIFs, fonts, any embedded clients. Ergo and irc-framework are MIT (checked 2026-09-30) | 07, 08, 10 |
 | V11 | Caddy on-demand TLS with ask endpoint. The `ask` endpoint and `Caddyfile.prod` are written and the endpoint is tested; Caddy itself has not been run against a real domain | 07, 15 |
@@ -93,6 +93,7 @@
 | Date | Item | Result |
 |---|---|---|
 | 2026-09-29 | M0 (run against Enigma 0.5.1-beta) | 0.1 pass, 0.2 pass with custom code, 0.3 pass (not persistent), 0.4 partly tested. See `docs/spikes/m0-enigma.md`. |
+| 2026-09-30 | M6 spike (Evennia 5.0.1) | Pass: core-backed login, account per user by core id, role mapping, ticket login over WebSocket. See `docs/spikes/m6-evennia.md`. |
 | 2026-09-29 | Direction change | Enigma½ dropped in favour of an in-house BBS, scheduled last (D17). Spike kept as a record; the bridge code was removed from the repo (it is in git history). |
 
 ## Change process

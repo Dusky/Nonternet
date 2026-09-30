@@ -9,7 +9,7 @@
 | **PennMUSH/TinyMUSH** | Authentic MUSH culture, softcode | Harder web/SSO integration |
 | **Custom** | Full control | Large scope |
 
-VERIFY: Evennia custom auth backend, embeddable/replaceable web client, current version support.
+VERIFIED 2026-09-30 (Evennia 5.0.1, `spikes/m6-evennia.md`): a custom Django auth backend can hand every login to core; its WebSocket protocol is JSON with Evennia markup, so the shell renders it itself.
 
 ## Integration
 - Auth via core: login ticket (web), terminal password (native).
@@ -17,10 +17,11 @@ VERIFY: Evennia custom auth backend, embeddable/replaceable web client, current 
 - Role mapping: guest → none (or a read-only "observer", OPEN), user → Player,
   admin → Admin/Developer. **Builders** are appointed separately by admins (building is a
   world-level privilege, not tied to trusted) (PROPOSED).
-- Shell window: xterm.js over WebSocket, the same terminal window the BBS will use (PROPOSED), with the engine's
-  web client as fallback.
+- Shell window (PROPOSED, changed after the spike): an accessible text log like the Chat app, fed by
+  Evennia's WebSocket in raw mode, with Evennia's colour markup parsed into styled text. No server
+  HTML on the shell's origin. (Was: xterm.js, which would need an ANSI translation layer anyway.)
 
-## World design (OPEN — its own design doc later)
+## World design (OPEN — draft in `18-mud-world.md`)
 Setting, starting area, what players do (socializing, exploring, puzzles, economy?), how the
 world grows. Admins and appointed builders own the world.
 
