@@ -76,6 +76,8 @@ characters, a featured character shown beside the author on board posts (`charac
 ## M7 — Console depth & extras
 Audit replay with diffs, stats cohorts, heatmaps, command console; private mail; web file
 areas; Gopher/Gemini mirror; more themes; vouching.
+**Scope (owners, 2026-09-30):** private mail with small group threads; vouching (two trusted vouches, admin
+confirms); web file areas; a read-only Gopher mirror. Not in M7: Gemini, new themes.
 
 ## M8 — BBS (in-house, last)
 Design in `04`. Depends only on core's API, so it can start once M4 is done; it is scheduled

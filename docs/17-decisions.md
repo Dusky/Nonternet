@@ -61,10 +61,10 @@
 | Q7 | Minimum age: DECIDED — configurable tick-box, default 16 (`02`). Legal jurisdiction details still need counsel; pages ship as placeholders | M4 |
 | Q8 | Funding model (free, supporter tier, donations) | before launch |
 | Q9 | IRC history in exports? Others' posts as context in exports? | M4 |
-| Q10 | Vouching: auto-promote or admin confirm? | later |
-| Q11 | Private mail: local DMs, later netmail? | M7 |
+| Q10 | ~~Vouching: auto-promote or admin confirm?~~ Resolved 2026-09-30: two trusted users vouch, an admin confirms; sponsors flagged if the person is demoted for abuse soon after (`03`) | — |
+| Q11 | ~~Private mail: local DMs, later netmail?~~ Resolved 2026-09-30: local private messages and small group threads on this site; netmail maybe later with the BBS | — |
 | Q12 | Future federation shape: hub-and-spoke, points, peers | later phase |
-| Q13 | BBS scope beyond boards: file areas, door games, QWK/offline mail, FTN echomail, terminal signup — in or out, and when? | before M8 |
+| Q13 | BBS scope beyond boards: file areas, door games, QWK/offline mail, FTN echomail, terminal signup — in or out, and when? File areas: in, built on the web in M7 (2026-09-30); the rest still open | before M8 |
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
@@ -78,6 +78,7 @@
 - 2026-09-30: IRC (M5). Accounts come only from core via Ergo's auth-script; the Chat app uses one-use tickets; native clients use the terminal password. A bot owned by core registers every channel and applies modes and suspensions by reconciling desired against applied state (`08`). Admins are channel ops, not IRC opers. Account bans stay site suspensions; the console bans addresses only. IRC history is in Ergo's memory for 7 days and is not exported or backed up.
 - 2026-09-30: MUD (M6). Evennia, building on its EvAdventure example (Knave rules, CC-BY credit). Generic fantasy, combat at launch (turn-based, monsters only unless both agree to a duel, no permanent death: PROPOSED), 3 characters per account, confirmed users only (`18`). The MUD window renders Evennia's raw markup as an accessible text log rather than xterm.js (`09`).
 - 2026-09-30: MUD as built. Logins go only through core (terminal password or a MUD-only ticket); builders are a core op (`mud:world`); core pushes account state to the MUD and it deletes a deleted person's characters. Found while building (VERIFIED against Evennia 5.0.1): EvAdventure ships no item prototypes and never places starting gear in the character's inventory, and copies wisdom into charisma, so the game carries its own character sheet and prototypes; Evennia's menus send ANSI codes even in raw mode; its trusted-proxy list (`UPSTREAM_IPS`) matches exact addresses, so compose gives Caddy a fixed one. The MUD's database is dumped by `cli backup` when `MUD_DATABASE_URL` is set.
+- 2026-09-30: M7 scope from the owners: private mail with group threads, vouching with admin confirmation, web file areas, a read-only Gopher mirror (no Gemini), no new themes this milestone, plus the console items (audit replay, stats cohorts, heatmaps, command console).
 - Still open from M1: Q16, no OIDC signing-key rotation command, compose stack unverified.
 
 ## Verify list
