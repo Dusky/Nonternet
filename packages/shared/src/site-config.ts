@@ -76,7 +76,8 @@ export const siteConfigSchema = z
         public_host: hostname.optional(),
         public_port: z.number().int().min(1).max(65535).default(6697),
         // Messages are kept in memory for this long, for scrollback (docs/08).
-        history_days: z.number().int().min(0).max(365).default(7),
+        // Chat history kept this long (Q9: 30 days, and a person's own messages are in their export).
+        history_days: z.number().int().min(0).max(365).default(30),
       })
       .default({}),
     mud: z

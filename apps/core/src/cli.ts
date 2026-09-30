@@ -6,15 +6,29 @@ import { depsFromEnv } from './env';
 import { migrate } from './migrate';
 import { parseBackupKey, restoreTest, runBackup } from './backup';
 import { writeFileSync } from 'node:fs';
+import pg from 'pg';
 import { loadSiteConfig } from './config';
 import { renderErgoConfig } from './irc/render';
 import { ircSecrets } from './irc/secrets';
 
-// Needs no database: run it before Ergo starts (the compose file does, in a one-shot service).
+// Run it before Ergo starts (the compose file does, in a one-shot service). With IRC_HISTORY_DATABASE_URL it
+// also makes Ergo's history database if it doesn't exist yet (Q9); otherwise it needs no database.
 //   IRC_CORE_URL (default http://core:3000), IRC_AUTH_SCRIPT (default /config/auth.sh),
 //   IRC_TLS_CERT + IRC_TLS_KEY to listen for native clients with TLS on irc.public_port.
 //   IRC_LISTEN (:6667), IRC_WS_LISTEN (:8097), IRC_API_LISTEN (:8089), IRC_DATASTORE (/ircd/ircd.db) move things.
-function writeIrcConfig() {
+async function ensureDatabase(url: string): Promise<void> {
+  const target = new URL(url);
+  const name = decodeURIComponent(target.pathname.replace(/^\//, ''));
+  if (!/^[a-z0-9_]+$/.test(name)) throw new Error(`IRC_HISTORY_DATABASE_URL: the database name must be lowercase letters, digits and _`);
+  const server = new URL(url); server.pathname = '/postgres';
+  const c = new pg.Client({ connectionString: server.toString() });
+  await c.connect();
+  try {
+    if (!(await c.query('SELECT 1 FROM pg_database WHERE datname = $1', [name])).rowCount) { await c.query(`CREATE DATABASE ${name}`); console.log(`Made the database ${name}.`); }
+  } finally { await c.end(); }
+}
+
+async function writeIrcConfig() {
   const env = process.env;
   const out = arg('out');
   if (!out) throw new Error('--out is required');
@@ -22,6 +36,7 @@ function writeIrcConfig() {
   const cfg = loadSiteConfig(env.SITE_CONFIG);
   const publicUrl = (env.PUBLIC_URL ?? `https://${cfg.site.domain}`).replace(/\/$/, '');
   const origins = [...new Set([new URL(publicUrl).origin, `https://${cfg.site.domain}`])];
+  if (env.IRC_HISTORY_DATABASE_URL) await ensureDatabase(env.IRC_HISTORY_DATABASE_URL);
   writeFileSync(out, renderErgoConfig(cfg, {
     secrets: ircSecrets(env.IRC_SECRET),
     coreUrl: env.IRC_CORE_URL ?? 'http://core:3000',
@@ -30,6 +45,7 @@ function writeIrcConfig() {
     websocketOrigins: origins,
     tls: env.IRC_TLS_CERT && env.IRC_TLS_KEY ? { listen: `:${cfg.irc.public_port}`, cert: env.IRC_TLS_CERT, key: env.IRC_TLS_KEY } : undefined,
     datastore: env.IRC_DATASTORE ?? '/ircd/ircd.db',
+    historyDatabaseUrl: env.IRC_HISTORY_DATABASE_URL || undefined,
   }), { mode: 0o600 });
   console.log(`Wrote ${out}.`);
 }
@@ -72,7 +88,7 @@ async function main() {
     } else if (command === 'backup' || command === 'restore-test') {
       const dir = arg('dir');
       if (!dir) throw new Error('--dir is required');
-      const opts = { dir, key: parseBackupKey(process.env.BACKUP_KEY), databaseUrl: process.env.DATABASE_URL!, mudDatabaseUrl: process.env.MUD_DATABASE_URL || undefined, configFile: process.env.SITE_CONFIG, log: console.log };
+      const opts = { dir, key: parseBackupKey(process.env.BACKUP_KEY), databaseUrl: process.env.DATABASE_URL!, mudDatabaseUrl: process.env.MUD_DATABASE_URL || undefined, ircHistoryDatabaseUrl: process.env.IRC_HISTORY_DATABASE_URL || undefined, configFile: process.env.SITE_CONFIG, log: console.log };
       if (command === 'backup') {
         const r = await runBackup(deps, opts);
         console.log(`Backup written: ${r.manifest}`);

@@ -13,6 +13,17 @@ import { ircSecrets, type IrcDeps } from '../irc/secrets';
 const found = process.env.ERGO_BIN ?? spawnSync('sh', ['-c', 'command -v ergo'], { encoding: 'utf8' }).stdout.trim();
 export const ERGO_BIN = found || undefined;
 export const ergoAvailable = Boolean(ERGO_BIN);
+// Persistent history needs an Ergo built with PostgreSQL support (the official image is; some release
+// binaries aren't). CI sets REQUIRE_ERGO_HISTORY.
+export const ergoHasPostgres = ergoAvailable && (() => {
+  const dir = mkdtempSync(join(tmpdir(), 'ergo-pg-'));
+  const conf = join(dir, 'c.yaml');
+  const def = spawnSync(ERGO_BIN!, ['defaultconfig'], { encoding: 'utf8' }).stdout.replace('    postgresql:\n        enabled: false', '    postgresql:\n        enabled: true');
+  writeFileSync(conf, def);
+  const r = spawnSync(ERGO_BIN!, ['initdb', '--conf', conf], { cwd: dir, encoding: 'utf8' });
+  return !/not built with PostgreSQL support/.test(`${r.stdout}${r.stderr}`);
+})();
+if (!ergoHasPostgres && process.env.REQUIRE_ERGO_HISTORY) throw new Error('REQUIRE_ERGO_HISTORY is set but this ergo has no PostgreSQL support');
 if (!ergoAvailable && process.env.REQUIRE_ERGO) throw new Error('REQUIRE_ERGO is set but no ergo binary was found');
 export const AUTH_SCRIPT = fileURLToPath(new URL('../../../../services/irc/auth.sh', import.meta.url));
 
@@ -37,7 +48,7 @@ async function waitForPort(port: number, ms = 10_000): Promise<void> {
 
 export interface RunningErgo { irc: IrcDeps; wsPort: number; stop(): Promise<void>; log: string[] }
 
-export async function startErgo(config: SiteConfig, opts: { coreUrl: string; secret?: string; origins?: string[] }): Promise<RunningErgo> {
+export async function startErgo(config: SiteConfig, opts: { coreUrl: string; secret?: string; origins?: string[]; historyDatabaseUrl?: string }): Promise<RunningErgo> {
   const dir = mkdtempSync(join(tmpdir(), 'ergo-test-'));
   const secret = opts.secret ?? `test-secret-${Math.random().toString(36).slice(2)}-${'x'.repeat(24)}`;
   const secrets = ircSecrets(secret);
@@ -46,7 +57,7 @@ export async function startErgo(config: SiteConfig, opts: { coreUrl: string; sec
   writeFileSync(conf, renderErgoConfig(config, {
     secrets, coreUrl: opts.coreUrl, authScript: AUTH_SCRIPT,
     plainListen: `127.0.0.1:${port}`, websocketListen: `127.0.0.1:${wsPort}`, apiListen: `127.0.0.1:${apiPort}`,
-    websocketOrigins: opts.origins ?? ['https://example.test'], datastore: join(dir, 'ircd.db'),
+    websocketOrigins: opts.origins ?? ['https://example.test'], datastore: join(dir, 'ircd.db'), historyDatabaseUrl: opts.historyDatabaseUrl,
   }));
   const init = spawnSync(ERGO_BIN!, ['initdb', '--conf', conf], { cwd: dir, encoding: 'utf8' });
   if (init.status !== 0) throw new Error(`ergo initdb failed: ${init.stderr}`);

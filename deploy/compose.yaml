@@ -55,6 +55,8 @@ services:
       # Shared with the BBS, which signs callers in through core (docs/04).
       BBS_SECRET: ${BBS_SECRET:?set BBS_SECRET in deploy/.env (openssl rand -base64 32)}
       MUD_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/mud
+      # Read for exports of people's own chat messages (Q9), and dumped by `cli backup`.
+      IRC_HISTORY_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/ergo_history
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - homes-data:/data/homes
@@ -172,9 +174,13 @@ services:
       IRC_SECRET: ${IRC_SECRET:?set IRC_SECRET in deploy/.env (openssl rand -base64 32)}
       IRC_CORE_URL: http://core:3000
       IRC_AUTH_SCRIPT: /config/auth.sh
+      # Chat history kept for irc.history_days in its own database (Q9); made here if missing.
+      IRC_HISTORY_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/ergo_history
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - ircd-data:/ircd
+    depends_on:
+      postgres: { condition: service_healthy }
 
   # The IRC server. Accounts come from core through the auth-script; nobody registers on IRC itself.
   ergo:

@@ -22,7 +22,7 @@ posts/
   posts.mbox             # same posts as mbox for mail/news tools (PROPOSED)
 rings/                   # for rings they founded/op: profile, member list, settings
 boards/                  # for boards they own: metadata (messages by others are NOT included)
-irc/                     # their own messages from server history, if retained (OPEN)
+irc/messages.json        # their own chat messages from the last irc.history_days (Q9): time, channel or person, text
 mud/                     # characters: descriptions, stats, inventory as JSON
 mail/conversations.json  # each conversation: subject, people, and only the person's own messages (M7)
 mail/blocked.json        # handles they have blocked

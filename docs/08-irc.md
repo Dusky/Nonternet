@@ -72,8 +72,19 @@ Not built: mentions as shell notifications (they show only inside the Chat app),
 private-message history across devices.
 
 ## History
-Kept in Ergo's memory for `irc.history_days` (default 7), lost when Ergo restarts. Not exported
-(Q9 still open) and not backed up.
+**Decided (Q9, 2026-09-30):** kept for `irc.history_days` (default 30) in Ergo's persistent history, in its own
+Postgres database (`ergo_history`, made by `cli irc-config` if missing; `IRC_HISTORY_DATABASE_URL` for both
+`irc-config` and core). The site's registered channels and direct messages between logged-in people are
+stored (`registered-channels` and `direct-messages: mandatory`, account indexing on); unregistered channels
+are not. Ergo deletes what is older than `expire-time` itself. A person's **own** messages (channel and
+direct, PRIVMSG and NOTICE) are in their export as `irc/messages.json`; nobody else's are. Deleting an account
+has the sync bot send `HISTSERV FORGET` for every handle it had in the window, at once. `cli backup` dumps the
+history database too. Core reads Ergo's tables directly (schema version 2, checked; an unknown version fails
+the export rather than leaving messages out). Without a history database, history stays in Ergo's memory
+and is neither exported nor backed up.
+VERIFIED: Ergo 2.19 stores history in MySQL, PostgreSQL or SQLite, but only when built with those tags. The
+official image (`make install`, all tags) has them; some release binaries don't, and the history tests skip
+there (CI sets `REQUIRE_ERGO_HISTORY`, with the binary taken from the image).
 
 ## Presence
 The bot lists who is connected every 20 s (`WHO`); `GET /api/v1/online` returns the handles, and the

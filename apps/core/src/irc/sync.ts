@@ -14,6 +14,7 @@ export interface Desired {
   amodes: Map<string, string>;  // "channel account" → mode letter
   suspended: Set<string>;       // account names (lowercase handles)
   release: Set<string>;         // old handles whose hold has run out: their Ergo accounts are removed
+  forget: Map<string, string>;  // "userId:handle" → handle, for deleted accounts: their chat history is erased at once (Q9)
 }
 
 export const ringChannel = (slug: string) => `#ring-${slug}`;
@@ -55,7 +56,11 @@ export async function desiredState(deps: AppDeps): Promise<Desired> {
     `SELECT DISTINCT hh.handle AS h FROM handle_history hh WHERE NOT EXISTS (SELECT 1 FROM handle_history x WHERE x.handle = hh.handle AND x.changed_at > now() - ${HOLD})
        AND NOT EXISTS (SELECT 1 FROM users u WHERE lower(u.handle) = hh.handle)`)).rows.map((r) => r.h));
   for (const h of release) suspended.delete(h);
-  return { channels, amodes, suspended, release };
+  // Deleted accounts, and every handle they had while history was being kept.
+  const forget = new Map((await deps.db.query<{ k: string; h: string }>(
+    `SELECT hh.user_id || ':' || hh.handle AS k, hh.handle AS h FROM handle_history hh JOIN users u ON u.id = hh.user_id
+     WHERE u.status = 'deleted' AND hh.changed_at > now() - make_interval(days => $1)`, [deps.config.irc.history_days + 1])).rows.map((r) => [r.k, r.h]));
+  return { channels, amodes, suspended, release, forget };
 }
 
 type Applied = Map<string, string>;
@@ -150,6 +155,16 @@ export async function reconcile(deps: AppDeps, bot: IrcBot, opts: { full?: boole
     if (!ok(n, /unregistered/i, /no such account/i, /invalid account/i)) { rep.failures.push(`release ${account}: ${n.join(' / ')}`); continue; }
     await record(deps, 'released', account);
     rep.released.push(account);
+  }
+  // A deleted account's chat history goes now, not when it would expire (Q9).
+  if (deps.config.irc.history_days > 0) {
+    const forgotten = await applied(deps, 'forgotten');
+    for (const [key, account] of want.forget) {
+      if (forgotten.has(key)) continue;
+      const n = await bot.call(`HISTSERV FORGET ${account}`);
+      if (!ok(n, /enqueued/i)) { rep.failures.push(`forget ${account}: ${n.join(' / ')}`); continue; }
+      await record(deps, 'forgotten', key, account);
+    }
   }
   // A released handle someone signs up with again starts over.
   for (const account of released.keys()) if (!want.release.has(account)) await forget(deps, 'released', account);

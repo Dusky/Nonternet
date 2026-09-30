@@ -13,6 +13,7 @@ export interface RenderOptions {
   websocketOrigins: string[];  // the site's own origin(s)
   tls?: { listen: string; cert: string; key: string }; // native clients, e.g. ":6697"
   datastore?: string;          // path of Ergo's own database
+  historyDatabaseUrl?: string; // postgres:// URL for chat history kept for history_days (Q9); in memory only without it
 }
 
 // Ergo's config, made from the site config (docs/08). The name and domain come from config, never
@@ -83,7 +84,7 @@ export function renderErgoConfig(cfg: SiteConfig, o: RenderOptions): string {
       [BOT_NICK]: { class: 'server-admin', hidden: true, 'whois-line': 'is the site bot', password: bcrypt.hashSync(o.secrets.botPassword, 10) },
     },
     logging: [{ method: 'stderr', type: '* -userinput -useroutput', level: 'info' }],
-    datastore: { path: o.datastore ?? 'ircd.db', autoupgrade: true },
+    datastore: { path: o.datastore ?? 'ircd.db', autoupgrade: true, ...(o.historyDatabaseUrl ? { postgresql: { enabled: true, uri: o.historyDatabaseUrl, timeout: '3s', 'max-conns': 4 } } : {}) },
     limits: { nicklen: 32, identlen: 20, realnamelen: 150, channellen: 64, awaylen: 390, kicklen: 390, topiclen: 390, 'monitor-entries': 100, 'whowas-entries': 100, 'chan-list-modes': 100, 'registration-messages': 1024, multiline: { 'max-bytes': 4096, 'max-lines': 100 } },
     fakelag: { enabled: true, window: '1s', 'burst-limit': 5, 'messages-per-window': 2, cooldown: '2s' },
     roleplay: { enabled: false },
@@ -96,8 +97,10 @@ export function renderErgoConfig(cfg: SiteConfig, o: RenderOptions): string {
       'chathistory-maxmessages': 1000,
       'znc-maxmessages': 2048,
       restrictions: { 'expire-time': `${Math.max(1, cfg.irc.history_days)}d`, 'query-cutoff': 'none', 'grace-period': '1h' },
-      persistent: { enabled: false },
-      retention: { 'allow-individual-delete': false, 'enable-account-indexing': false },
+      // Kept in Postgres for history_days when a history database is set (Q9, decided 2026-09-30): the channels
+      // of the site and people's direct messages, so a person's export can include their own messages.
+      persistent: o.historyDatabaseUrl ? { enabled: true, 'unregistered-channels': false, 'registered-channels': 'mandatory', 'direct-messages': 'mandatory' } : { enabled: false },
+      retention: { 'allow-individual-delete': false, 'enable-account-indexing': !!o.historyDatabaseUrl },
       'tagmsg-storage': { default: false, whitelist: ['+draft/react', '+react'] },
     },
     'allow-environment-overrides': false,

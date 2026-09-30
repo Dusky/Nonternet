@@ -57,6 +57,7 @@ jobs:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
           REQUIRE_REDIS: "1"
           REQUIRE_ERGO: "1"
+          REQUIRE_ERGO_HISTORY: "1"
           REQUIRE_EVENNIA: "1"
           TEST_REDIS_URL: redis://localhost:6379
 
@@ -109,6 +110,7 @@ jobs:
       - run: pnpm test:e2e
         env:
           REQUIRE_ERGO: "1"
+          REQUIRE_ERGO_HISTORY: "1"
           REQUIRE_EVENNIA: "1"
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
           TEST_REDIS_URL: redis://localhost:6379

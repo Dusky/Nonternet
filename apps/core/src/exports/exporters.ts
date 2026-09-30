@@ -1,3 +1,4 @@
+import pg from 'pg';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -134,14 +135,21 @@ const keys: Exporter = {
   },
 };
 
-// IRC channels a person registered (docs/08). Chat messages live in Ergo's memory for a few days and are
-// not exported (Q9 is still open).
+// IRC (docs/08): channels a person registered, and (Q9, decided 2026-09-30) their own chat messages from the
+// last `irc.history_days`, read from Ergo's history database. Other people's messages stay out.
 const irc: Exporter = {
   id: 'irc',
   tables: ['irc_channels'],
   async run({ deps, user, add }) {
     const r = await deps.db.query<{ name: string; created_at: Date; removed_at: Date | null }>(`SELECT name, created_at, removed_at FROM irc_channels WHERE owner_id = $1 ORDER BY name`, [user.id]);
     if (r.rows.length) add('irc/channels.json', json(r.rows.map((c) => ({ name: c.name, created_at: c.created_at.toISOString(), removed: c.removed_at !== null }))));
+    if (deps.irc?.historyDatabaseUrl) {
+      const handles = (await deps.db.query<{ h: string }>(
+        `SELECT lower(handle) AS h FROM users WHERE id = $1 UNION SELECT handle FROM handle_history WHERE user_id = $1 AND changed_at > now() - make_interval(days => $2)`,
+        [user.id, deps.config.irc.history_days + 1])).rows.map((x) => x.h);
+      const messages = await ircMessagesOf(deps.irc.historyDatabaseUrl, handles);
+      if (messages.length) add('irc/messages.json', json(messages));
+    }
   },
 };
 
@@ -210,6 +218,8 @@ const fileAreas: Exporter = {
   },
 };
 
+export { ircMessagesOf };
+
 export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
@@ -252,3 +262,29 @@ export const EXEMPT: Record<string, string> = {
 };
 
 export const sha256Hex = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex');
+
+// Ergo's history tables (schema version 2, checked against Ergo 2.19): `history` holds each item as JSON,
+// `account_messages` indexes it by the sender's account, `sequence` gives a channel message its channel and
+// `conversations` a direct message the other person. Only PRIVMSG (1) and NOTICE (2) are exported.
+async function ircMessagesOf(url: string, accounts: string[]): Promise<{ at: string; to: string; kind: 'message' | 'notice'; text: string }[]> {
+  const c = new pg.Client({ connectionString: url });
+  await c.connect();
+  try {
+    const v = (await c.query<{ value: string }>(`SELECT value FROM metadata WHERE key_name = 'db.version'`)).rows[0]?.value;
+    if (v !== '2') throw new Error(`Ergo's history database has schema version ${v ?? 'unknown'}; exports know version 2. Check the Ergo upgrade.`);
+    const r = await c.query<{ data: Buffer; channel: Buffer | null; peer: Buffer | null }>(
+      `SELECT h.data, s.target AS channel, cv.correspondent AS peer FROM account_messages a JOIN history h ON h.id = a.history_id
+       LEFT JOIN sequence s ON s.history_id = h.id LEFT JOIN conversations cv ON cv.history_id = h.id AND cv.target = a.account
+       WHERE convert_from(a.account, 'UTF8') = ANY($1) ORDER BY h.id LIMIT 100000`, [accounts]);
+    const out: { at: string; to: string; kind: 'message' | 'notice'; text: string }[] = [];
+    for (const row of r.rows) {
+      const item = JSON.parse(row.data.toString('utf8')) as { Type: number; Message?: { Message?: string; Split?: { Message: string; Concat: boolean }[] | null; Time?: string } };
+      if (item.Type !== 1 && item.Type !== 2) continue;
+      const m = item.Message ?? {};
+      const text = m.Split?.length ? m.Split.map((p, i) => (i && !p.Concat ? '\n' : '') + p.Message).join('') : m.Message ?? '';
+      const to = row.channel?.toString('utf8') ?? row.peer?.toString('utf8') ?? '';
+      out.push({ at: m.Time ?? '', to, kind: item.Type === 1 ? 'message' : 'notice', text });
+    }
+    return out;
+  } finally { await c.end(); }
+}

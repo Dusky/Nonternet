@@ -80,7 +80,7 @@ const countHomeFiles = async (dir: string): Promise<number> => {
   return n;
 };
 
-export interface BackupOptions { dir: string; key: Buffer; databaseUrl: string; mudDatabaseUrl?: string; configFile?: string; log?: (m: string) => void }
+export interface BackupOptions { dir: string; key: Buffer; databaseUrl: string; mudDatabaseUrl?: string; ircHistoryDatabaseUrl?: string; configFile?: string; log?: (m: string) => void }
 
 // The MUD's world lives in its own database (docs/09, 15); these tables show it came back whole.
 const MUD_COUNTED = ['accounts_accountdb', 'objects_objectdb', 'typeclasses_attribute'] as const;
@@ -107,6 +107,11 @@ export async function runBackup(deps: AppDeps, o: BackupOptions): Promise<{ mani
       files.mud = `${stamp}-mud.dump.enc`;
       o.log?.('dumping the MUD world');
       await encryptedFrom('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', '--dbname', o.mudDatabaseUrl], join(o.dir, files.mud), o.key);
+    }
+    if (o.ircHistoryDatabaseUrl) {
+      files.irc = `${stamp}-irc-history.dump.enc`;
+      o.log?.('dumping the chat history');
+      await encryptedFrom('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', '--dbname', o.ircHistoryDatabaseUrl], join(o.dir, files.irc), o.key);
     }
     o.log?.('packing homepage files');
     await fs.mkdir(deps.homes.root, { recursive: true });

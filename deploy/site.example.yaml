@@ -59,7 +59,7 @@ irc:
   official_channels: ["#lobby", "#help"]   # the first is where everyone lands and announcements go
   # public_host: irc.example.net   # default irc.{site.domain}
   public_port: 6697
-  history_days: 7
+  history_days: 30   # chat history kept this long; people's own messages are in their export (Q9)
 
 mud:
   # public_host: mud.example.net   # default mud.{site.domain}

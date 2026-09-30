@@ -18,4 +18,5 @@ export interface IrcDeps {
   host: string;      // where the bot connects (Ergo's plain listener on the private network)
   port: number;
   apiUrl: string;    // Ergo's HTTP API, e.g. http://ergo:8089
+  historyDatabaseUrl?: string; // Ergo's persistent history (Postgres), read for exports (Q9)
 }
