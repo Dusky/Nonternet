@@ -20,6 +20,12 @@ describe('Evennia markup', () => {
     expect(parseMarkup('|uunder|n')).toEqual([[{ text: 'under', underline: true }]]);
   });
 
+  it('understands the ANSI codes Evennia mixes into its menus', () => {
+    const menu = '\x1b[0m |lc3|lt\x1b[1m\x1b[37m3\x1b[0m|le: \x1b[1m\x1b[37m\x1b[0mAccept \x1b[1m\x1b[37m\x1b[0mand create';
+    expect(plainText(menu)).toBe(' 3: Accept and create');
+    expect(parseMarkup('\x1b[31mred\x1b[0m plain')).toEqual([[{ text: 'red', fg: 'red' }, { text: ' plain' }]]);
+  });
+
   it('never produces markup from what people type', () => {
     expect(plainText('<script>alert(1)</script>')).toBe('<script>alert(1)</script>');
   });

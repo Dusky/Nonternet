@@ -107,6 +107,14 @@ def sync_accounts(request):
         p = people.get(account.attributes.get("core_id"))
         if not p:
             continue
+        if p["status"] == "deleted":
+            # A deleted account takes its characters with it (docs/12); it can't sign in again anyway.
+            on_reactor(_disconnect, account, "Your account was deleted.")
+            for char in account.characters.all():
+                char.delete()
+            account.delete()
+            report["deleted"] = report.get("deleted", 0) + 1
+            continue
         if p["status"] != "active":
             report["disconnected"] += on_reactor(_disconnect, account, "Your account can't use the MUD right now.")
             continue
@@ -119,6 +127,36 @@ def sync_accounts(request):
         if sorted(account.permissions.all()) != before:
             report["roles"] += 1
     return JsonResponse(report)
+
+
+def _item(obj):
+    return {"name": obj.key, "desc": obj.db.desc or "", "value": obj.attributes.get("value", 0) or 0}
+
+
+@require_http_methods(["POST"])
+@guarded
+def export(request):
+    """Everything of one person's in the MUD, for their export (docs/12): each character's sheet and belongings."""
+    from evennia.accounts.models import AccountDB
+
+    core_id = json.loads(request.body or b"{}").get("core_id")
+    account = AccountDB.objects.filter(db_attributes__db_key="core_id", db_attributes__db_value=core_id).first()
+    if not account:
+        return JsonResponse({"account": None, "characters": []})
+    chars = []
+    for c in account.characters.all():
+        a = c.attributes
+        chars.append({
+            "name": c.key,
+            "created": c.db_date_created.isoformat(),
+            "description": a.get("desc", "") or "",
+            "abilities": {k: a.get(k, 0) for k in ("strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma")},
+            "hp": a.get("hp", 0), "hp_max": a.get("hp_max", 0),
+            "level": a.get("level", 1), "xp": a.get("xp", 0), "coins": a.get("coins", 0),
+            "location": c.location.key if c.location else None,
+            "carrying": [_item(o) for o in c.contents],
+        })
+    return JsonResponse({"account": account.username, "created": account.date_joined.isoformat(), "characters": chars})
 
 
 @require_http_methods(["POST"])

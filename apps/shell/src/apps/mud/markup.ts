@@ -16,6 +16,15 @@ export function parseMarkup(input: string): MudSeg[][] {
   for (let i = 0; i < s.length; i++) {
     const ch = s[i]!;
     if (ch === '\n') { newline(); continue; }
+    if (ch === '\x1b') {
+      // Evennia's menus arrive with real ANSI colour codes mixed in, even in raw mode (VERIFIED, 5.0.1).
+      const m = /^\x1b\[([0-9;]*)([A-Za-z])/.exec(s.slice(i));
+      if (m) {
+        if (m[2] === 'm') { flush(); style = applySgr(style, m[1]!); }
+        i += m[0].length - 1;
+        continue;
+      }
+    }
     if (ch !== '|' || i === s.length - 1) { buf += ch; continue; }
     const next = s[i + 1]!;
     if (next === '|') { buf += '|'; i++; continue; }
@@ -27,7 +36,7 @@ export function parseMarkup(input: string): MudSeg[][] {
     if (next === 'l') { // |lc...|lt...|le: keep the visible text only
       const lt = s.indexOf('|lt', i);
       const le = s.indexOf('|le', i);
-      if (s[i + 2] === 'c' && lt > i && le > lt) { buf += s.slice(lt + 3, le); i = le + 2; continue; }
+      if (s[i + 2] === 'c' && lt > i && le > lt) { i = lt + 2; continue; } // parse the visible text as usual
       if (s[i + 2] === 'e' || s[i + 2] === 't') { i += 2; continue; }
     }
     const lower = next.toLowerCase();
@@ -51,4 +60,19 @@ export function parseMarkup(input: string): MudSeg[][] {
   return lines;
 }
 
-export const plainText = (input: string) => parseMarkup(input).map((l) => l.map((x) => x.text).join('')).join('\n');
+const ANSI = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+
+function applySgr(style: Omit<MudSeg, 'text'>, params: string): Omit<MudSeg, 'text'> {
+  let next = { ...style };
+  for (const p of (params || '0').split(';').map(Number)) {
+    if (p === 0) next = {};
+    else if (p === 1) next = { ...next, bright: true };
+    else if (p === 4) next = { ...next, underline: true };
+    else if (p >= 30 && p <= 37) next = { ...next, fg: ANSI[p - 30], rgb: undefined };
+    else if (p >= 90 && p <= 97) next = { ...next, fg: ANSI[p - 90], bright: true, rgb: undefined };
+    else if (p === 39) next = { ...next, fg: undefined };
+  }
+  return next;
+}
+
+export const plainText =(input: string) => parseMarkup(input).map((l) => l.map((x) => x.text).join('')).join('\n');

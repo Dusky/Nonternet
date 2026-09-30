@@ -48,6 +48,7 @@ class CharacterTest(BaseEvenniaTest):
         self.assertEqual(char.db.charisma, 3)  # upstream would have copied wisdom
         self.assertEqual(char.location, search_tag("start", category="world")[0])
         self.assertTrue(char.equipment.all())  # weapon and pack at least
+        self.assertTrue(all(o.location == char for o in char.equipment.all(only_objs=True)))
         self.assertNotIn("none", [o.key for o in char.contents])
 
     def test_names_must_be_fresh_and_not_someone_elses_handle(self):
@@ -68,6 +69,7 @@ class CharacterTest(BaseEvenniaTest):
         road = search_tag("room:road", category="build")[0]
         char.move_to(road, quiet=True)
         gear = sorted(o.key for o in char.contents)
+        self.assertIn("ration", gear)  # carried, not just listed
         char.hp = 0
         char.at_defeat()
         self.assertEqual(char.location, search_tag("respawn", category="world")[0])

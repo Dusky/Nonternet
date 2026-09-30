@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { AppDeps } from '../deps';
 import { formatMbox } from './mbox';
+import { mudExport } from '../mud/sync';
 
 // Ownership is a feature (docs/12, CLAUDE.md): everything a person makes is in their export. Every
 // table is either handled by an exporter below or listed in EXEMPT with the reason it is not the
@@ -139,7 +140,19 @@ const irc: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc];
+// MUD characters (docs/09, 18) live in the MUD's own database; the MUD hands them over by core id. If the
+// MUD is set up but does not answer, the export fails rather than quietly leaving characters out.
+const mud: Exporter = {
+  id: 'mud',
+  tables: [],
+  async run({ deps, user, add }) {
+    if (!deps.mud) return;
+    const out = await mudExport(deps, user.id);
+    if (out.characters.length) add('mud/characters.json', json(out));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.

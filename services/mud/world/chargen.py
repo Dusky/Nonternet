@@ -60,7 +60,10 @@ class CharacterSheet(ev.TemporaryCharacterSheet):
         for key in (self.weapon, self.armor, self.shield, self.helmet, *self.backpack):
             proto = by_key(key) if key else None
             if proto:
-                new.equipment.move(spawn(proto)[0])
+                # EvAdventure's equipment handler expects the item to be carried already (upstream never
+                # sets this, so starting gear ended up nowhere).
+                item = spawn({**proto, "location": new})[0]
+                new.equipment.move(item)
         return new
 
 

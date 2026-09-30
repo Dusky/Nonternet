@@ -47,6 +47,28 @@ class InternalApiTest(BaseEvenniaTest):
         self.assertEqual(ann.username, "annie")
         self.assertEqual(sorted(ann.permissions.all()), ["developer"])
 
+    def test_export_has_each_character_and_deletion_removes_them(self):
+        from world.build_town import build_town
+        from world.chargen import CharacterSheet
+
+        build_town()
+        cat = self.make("cat", "u_CAT")
+        sheet = CharacterSheet()
+        sheet.name = "Tansy"
+        cat.characters.add(sheet.apply(cat))
+        out = self.post("/internal/export", {"core_id": "u_CAT"}).json()
+        self.assertEqual(out["account"], "cat")
+        self.assertEqual([c["name"] for c in out["characters"]], ["Tansy"])
+        self.assertEqual(out["characters"][0]["location"], "Town square")
+        self.assertTrue(out["characters"][0]["carrying"])
+        self.assertEqual(self.post("/internal/export", {"core_id": "u_NOBODY"}).json(), {"account": None, "characters": []})
+        with patch("web.internal._disconnect", return_value=0):
+            res = self.post("/internal/accounts/sync", {"accounts": [{"core_id": "u_CAT", "handle": "deleted-1", "status": "deleted", "role": "user", "builder": False}]}).json()
+        self.assertEqual(res["deleted"], 1)
+        self.assertEqual(self.post("/internal/export", {"core_id": "u_CAT"}).json()["characters"], [])
+        from evennia.objects.models import ObjectDB
+        self.assertFalse(ObjectDB.objects.filter(db_key="Tansy").exists())
+
     def test_broadcast_reaches_everyone(self):
         with patch("evennia.SESSION_HANDLER.announce_all") as announce:
             self.assertEqual(self.post("/internal/broadcast", {"text": "Maintenance at ten"}).json(), {"sent": True})

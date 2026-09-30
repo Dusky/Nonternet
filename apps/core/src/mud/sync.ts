@@ -25,6 +25,9 @@ export interface MudStatus {
 }
 export const mudStatus = (deps: AppDeps) => call<MudStatus>(deps, 'GET', 'status');
 
+export interface MudExport { account: string | null; created?: string; characters: Record<string, unknown>[] }
+export const mudExport = (deps: AppDeps, coreId: string) => call<MudExport>(deps, 'POST', 'export', { core_id: coreId });
+
 export async function pushAccounts(deps: AppDeps): Promise<{ renamed: number; roles: number; disconnected: number }> {
   const r = await deps.db.query<{ id: string; handle: string; status: string; role: string; builder: boolean }>(
     `SELECT u.id, u.handle, u.status, u.role,

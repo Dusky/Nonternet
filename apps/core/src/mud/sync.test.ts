@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser, SITE_YAML } from '../test/harness';
 import { evenniaAvailable, mudConnect, startEvennia, type RunningMud } from '../test/evennia';
 import { mudSecrets } from './secrets';
-import { mudStatus, pushAccounts, sendMudAnnouncements } from './sync';
+import { mudExport, mudStatus, pushAccounts, sendMudAnnouncements } from './sync';
+import { EXPORTERS, type ExportUser } from '../exports/exporters';
 
 const SECRET = 'mud-sync-test-secret-0123456789abcdefghijk';
 const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 8000) => {
@@ -58,6 +59,30 @@ describe.skipIf(!dbAvailable || !evenniaAvailable)('the MUD, through a real Even
     const r = await pushAccounts(ctx.deps);
     expect(r).toMatchObject({ renamed: 1, roles: 1 });
     expect((await pushAccounts(ctx.deps))).toMatchObject({ renamed: 0, roles: 0 }); // nothing left to do
+  }, 60_000);
+
+  it('puts a person’s characters in their export, and deleting the account removes them', async () => {
+    const u = await makeUser(ctx);
+    const s = await mudConnect(mud.wsPort, u.handle, await ticket(u.handle));
+    await until('the welcome', () => s.texts.some((t) => t.includes('You have no character yet'))); // someone new is told how to start
+    await new Promise((r) => setTimeout(r, 500)); // let the login finish, as a person typing would
+    s.send('charcreate');
+    const plain = (t: string) => t.replace(/\x1b\[[0-9;]*m/g, ''); // menus carry ANSI codes even in raw mode
+    await until('the character sheet', () => s.texts.some((t) => plain(t).includes('Accept and create character'))).catch((e) => { throw new Error(`${e.message}: ${s.texts.slice(2).join(' // ').replace(/\n/g, ' ⏎ ')} closed=${s.closed()}`); });
+    s.send('3');
+    await until('the new character', () => s.texts.some((t) => /is ready/.test(t)));
+    const files: Record<string, string> = {};
+    const mudExporter = EXPORTERS.find((e) => e.id === 'mud')!;
+    await mudExporter.run({ deps: ctx.deps, user: { id: u.id } as ExportUser, add: (p, d) => { files[p] = String(d); } });
+    const out = JSON.parse(files['mud/characters.json']!);
+    expect(out.account).toBe(u.handle);
+    expect(out.characters).toHaveLength(1);
+    expect(out.characters[0].location).toBe('Town square');
+    expect(out.characters[0].carrying.length).toBeGreaterThan(0);
+    s.close();
+    await db.query(`UPDATE users SET status = 'deleted' WHERE id = $1`, [u.id]);
+    expect((await pushAccounts(ctx.deps)) as unknown as { deleted: number }).toMatchObject({ deleted: 1 });
+    expect((await mudExport(ctx.deps, u.id)).characters).toEqual([]);
   }, 60_000);
 
   it('sends an announcement to everyone playing, once, and the console can see the MUD', async () => {

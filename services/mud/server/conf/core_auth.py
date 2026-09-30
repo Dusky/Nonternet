@@ -56,9 +56,11 @@ class CoreBackend:
             return None
         account = find_account(res["user_id"], res["accountName"])
         if account is None:
-            from evennia.accounts.accounts import DefaultAccount
+            from evennia.utils.utils import class_from_module
 
-            account, _errors = DefaultAccount.create(username=res["accountName"], password=secrets.token_urlsafe(32))
+            # The game's own account class (DefaultAccount.create would make a plain DefaultAccount).
+            Account = class_from_module(settings.BASE_ACCOUNT_TYPECLASS)
+            account, _errors = Account.create(username=res["accountName"], password=secrets.token_urlsafe(32))
             if account is None:
                 return None
         elif account.username != res["accountName"]:
