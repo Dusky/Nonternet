@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react';
 // In dev and preview, /api and /oidc go to core (CORE_URL, default http://localhost:3000). In
 // compose and production, Caddy does the routing.
 const core = process.env.CORE_URL ?? 'http://localhost:3000';
-const proxy = { '/api': core, '/oidc': core, '/widgets': core, '^/ring/': core };
+// The Chat app's WebSocket goes to Ergo (IRC_WS_URL, default ws://localhost:8097), as Caddy does in production.
+const irc = process.env.IRC_WS_URL ?? 'ws://localhost:8097';
+const proxy = { '/api': core, '/oidc': core, '/widgets': core, '^/ring/': core, '/ws/irc': { target: irc, ws: true, rewrite: () => '/' } };
 
 export default defineConfig({
   plugins: [react()],

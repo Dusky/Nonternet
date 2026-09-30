@@ -59,7 +59,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
             <button type="button" className="btn btn-quiet" aria-haspopup="menu" aria-expanded={menu === 'apps'} onClick={() => setMenu(menu === 'apps' ? null : 'apps')}>{t('nav.apps')}</button>
             {menu === 'apps' && (
               <ul className="menu" role="menu">
-                {visibleApps(me).map((a) => (
+                {visibleApps(me, site).map((a) => (
                   <li key={a.id} role="none"><button type="button" role="menuitem" onClick={() => launch(a.id)}><AppIcon id={a.id} /> {t(a.title)}</button></li>
                 ))}
               </ul>

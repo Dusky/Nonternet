@@ -3,13 +3,14 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { OP_SCOPES, ROLES, type Role } from '@app/shared';
 import { api } from '../../api';
 import { Alert, CopyButton, TextField } from '../../components/ui';
-import { errorText, formatWhen, useMe, useT } from '../../hooks';
+import { errorText, formatWhen, useMe, useSite, useT } from '../../hooks';
 import { AppLink, AppNavLink, matchRoute, useAppNav } from '../../nav';
 import type { BoardSummary } from '@app/shared';
 import { ReportQueue } from '../boards/ReportQueue';
 import { ReasonForm } from '../boards/ModTools';
 import { AnnouncementsPanel, LegalPanel, SettingsPanel } from './ConfigPanels';
 import { BackupsPanel, StatusPanel } from './StatusPanels';
+import { IrcPanel } from './IrcPanel';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
 interface UserRow { id: string; handle: string; display_name: string | null; email: string; role: Role; status: string; created_at: string; last_seen_at: string | null }
@@ -27,11 +28,12 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'backups'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'backups'] as const;
 
 export default function AdminApp() {
   const t = useT();
   const me = useMe().data;
+  const site = useSite();
   const nav = useAppNav();
   const route = matchRoute(nav.path, ROUTES);
   useEffect(() => { if (!route) nav.go('status', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -48,6 +50,7 @@ export default function AdminApp() {
         <AppNavLink to="homepages">{t('admin.tab.homepages')}</AppNavLink>
         <AppNavLink to="announcements">{t('admin.tab.announcements')}</AppNavLink>
         <AppNavLink to="settings">{t('admin.tab.config')}</AppNavLink>
+        {site.services.irc && <AppNavLink to="irc">{t('admin.tab.irc')}</AppNavLink>}
         <AppNavLink to="legal">{t('admin.tab.legal')}</AppNavLink>
         <AppNavLink to="backups">{t('admin.tab.backups')}</AppNavLink>
         <AppNavLink to="audit">{t('admin.tab.audit')}</AppNavLink>
@@ -55,6 +58,7 @@ export default function AdminApp() {
       <div className="app-content">
         {route?.pattern === 'status' && <StatusPanel />}
         {route?.pattern === 'legal' && <LegalPanel />}
+        {route?.pattern === 'irc' && <IrcPanel />}
         {route?.pattern === 'backups' && <BackupsPanel />}
         {route?.pattern === 'users' && <Users />}
         {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}

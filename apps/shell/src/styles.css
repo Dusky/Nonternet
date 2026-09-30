@@ -205,3 +205,55 @@ progress { width: 100%; height: 12px; accent-color: var(--accent); }
 .spark { margin: 0; color: var(--accent); }
 .spark figcaption { color: var(--text); font-weight: 600; }
 .legal-links { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-top: 1rem; font-size: .9rem; }
+
+/* ---- chat */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+ul.plain { list-style: none; margin: 0; padding: 0; }
+.row { display: flex; gap: .4rem; align-items: stretch; }
+.row > input { flex: 1; min-width: 0; }
+.chat-grid { display: grid; grid-template-columns: 12rem minmax(0, 1fr) 11rem; gap: 10px; min-height: 22rem; height: min(70vh, 40rem); }
+.chat-buffers, .chat-users { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: .4rem; overflow-y: auto; }
+.chat-buf { display: flex; justify-content: space-between; align-items: center; gap: .3rem; width: 100%; min-height: 40px; padding: .3rem .5rem; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.chat-buf:hover { background: var(--surface2); }
+.chat-buf.is-active { background: var(--surface2); border-color: var(--border); font-weight: 600; }
+.chat-buf.is-mention .badge { border-color: var(--danger); }
+.chat-join { margin-top: .6rem; border-top: 1px solid var(--border); padding-top: .6rem; }
+.chat-join label { display: block; font-weight: 600; margin-bottom: .25rem; }
+.chat-more, .chat-users h2 { font-size: .95rem; margin: .8rem 0 .3rem; }
+.chat-main { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.chat-head { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
+.chat-head h2 { font-size: 1.05rem; margin: 0; }
+.chat-topic { margin: .1rem 0 0; overflow-wrap: anywhere; }
+.chat-log { flex: 1; overflow-y: auto; margin: 0; padding: .4rem .6rem; font-size: .95rem; line-height: 1.45; overflow-wrap: anywhere; }
+.chat-line { padding: 1px 0; }
+.chat-line.is-mention { background: var(--surface2); border-left: 3px solid var(--accent); padding-left: .4rem; }
+.chat-time { color: var(--muted); font-size: .85em; font-variant-numeric: tabular-nums; }
+.chat-nick { font-weight: 700; }
+.chat-nick::after { content: ':'; }
+.chat-k-action .chat-nick::after, .chat-k-notice .chat-nick::after { content: ''; }
+.chat-k-join, .chat-k-part, .chat-k-quit, .chat-k-nick, .chat-k-kick, .chat-k-topic { color: var(--muted); }
+.chat-k-error { color: var(--danger); }
+.chat-compose { display: flex; gap: .4rem; padding: .4rem; border-top: 1px solid var(--border); }
+.chat-compose input { flex: 1; min-width: 0; }
+.chat-users li { padding: 2px .2rem; overflow-wrap: anywhere; }
+.chat-prefix { display: inline-block; min-width: 1ch; color: var(--accent); font-weight: 700; }
+.chat-users-toggle { display: none; }
+@media (max-width: 899px) {
+  .chat-grid { grid-template-columns: 1fr; height: auto; }
+  .chat-buffers { max-height: 12rem; }
+  .chat-log { height: 55vh; flex: none; }
+  .chat-users { display: none; }
+  .chat-users.is-open { display: block; }
+  .chat-users-toggle { display: inline-flex; }
+}
+/* mIRC colours, pulled toward the theme's text colour so they stay readable in every theme. */
+.irc-b { font-weight: 700; } .irc-i { font-style: italic; } .irc-u { text-decoration: underline; } .irc-s { text-decoration: line-through; }
+.irc-m { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.irc-c0 { color: color-mix(in srgb, #ffffff 35%, var(--text)); } .irc-c1 { color: color-mix(in srgb, #000000 35%, var(--text)); }
+.irc-c2 { color: color-mix(in srgb, #00007f 55%, var(--text)); } .irc-c3 { color: color-mix(in srgb, #009300 55%, var(--text)); }
+.irc-c4 { color: color-mix(in srgb, #ff0000 55%, var(--text)); } .irc-c5 { color: color-mix(in srgb, #7f0000 55%, var(--text)); }
+.irc-c6 { color: color-mix(in srgb, #9c009c 55%, var(--text)); } .irc-c7 { color: color-mix(in srgb, #fc7f00 55%, var(--text)); }
+.irc-c8 { color: color-mix(in srgb, #c8a800 55%, var(--text)); } .irc-c9 { color: color-mix(in srgb, #00c000 55%, var(--text)); }
+.irc-c10 { color: color-mix(in srgb, #009393 55%, var(--text)); } .irc-c11 { color: color-mix(in srgb, #00b8b8 55%, var(--text)); }
+.irc-c12 { color: color-mix(in srgb, #0000fc 55%, var(--text)); } .irc-c13 { color: color-mix(in srgb, #ff00ff 55%, var(--text)); }
+.irc-c14 { color: color-mix(in srgb, #7f7f7f 55%, var(--text)); } .irc-c15 { color: color-mix(in srgb, #a0a0a0 55%, var(--text)); }

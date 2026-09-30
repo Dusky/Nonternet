@@ -47,7 +47,7 @@ export async function makeAdmin(page: Page, opts: { withTotp?: boolean } = {}): 
 
 // A verified user, signed up properly (invite, signup, email link) but over the API and the
 // database, so a test that is about something else doesn't have to click through it.
-export async function makeUser(page: Page, opts: { handle?: string } = {}) {
+export async function makeUser(page: Page, opts: { handle?: string; verify?: boolean } = {}) {
   const handle = opts.handle ?? uniq('person');
   const email = `${handle}@example.test`;
   const stack = JSON.parse(readFileSync(join(TMP, 'stack.json'), 'utf8')) as { DATABASE_URL: string };
@@ -65,6 +65,7 @@ export async function makeUser(page: Page, opts: { handle?: string } = {}) {
   const origin = { origin: BASE_URL };
   const signup = await api.post('/api/v1/auth/signup', { data: { handle, email, password: PASSWORD, invite: code, age_confirmed: true }, headers: origin });
   expect(signup.ok(), await signup.text()).toBe(true);
+  if (opts.verify === false) return { handle, email, password: PASSWORD, id: (await signup.json()).id as string };
   const link = await linkFor(email, 'verify-email');
   const token = new URL(link).searchParams.get('token');
   expect((await api.post('/api/v1/auth/verify-email', { data: { token }, headers: origin })).ok()).toBe(true);

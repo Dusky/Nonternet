@@ -13,6 +13,7 @@ import { ircSecrets } from './irc/secrets';
 // Needs no database: run it before Ergo starts (the compose file does, in a one-shot service).
 //   IRC_CORE_URL (default http://core:3000), IRC_AUTH_SCRIPT (default /config/auth.sh),
 //   IRC_TLS_CERT + IRC_TLS_KEY to listen for native clients with TLS on irc.public_port.
+//   IRC_LISTEN (:6667), IRC_WS_LISTEN (:8097), IRC_API_LISTEN (:8089), IRC_DATASTORE (/ircd/ircd.db) move things.
 function writeIrcConfig() {
   const env = process.env;
   const out = arg('out');
@@ -25,10 +26,10 @@ function writeIrcConfig() {
     secrets: ircSecrets(env.IRC_SECRET),
     coreUrl: env.IRC_CORE_URL ?? 'http://core:3000',
     authScript: env.IRC_AUTH_SCRIPT ?? '/config/auth.sh',
-    plainListen: ':6667', websocketListen: ':8097', apiListen: ':8089',
+    plainListen: env.IRC_LISTEN ?? ':6667', websocketListen: env.IRC_WS_LISTEN ?? ':8097', apiListen: env.IRC_API_LISTEN ?? ':8089',
     websocketOrigins: origins,
     tls: env.IRC_TLS_CERT && env.IRC_TLS_KEY ? { listen: `:${cfg.irc.public_port}`, cert: env.IRC_TLS_CERT, key: env.IRC_TLS_KEY } : undefined,
-    datastore: '/ircd/ircd.db',
+    datastore: env.IRC_DATASTORE ?? '/ircd/ircd.db',
   }), { mode: 0o600 });
   console.log(`Wrote ${out}.`);
 }

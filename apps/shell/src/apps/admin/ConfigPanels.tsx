@@ -4,7 +4,7 @@ import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, TextField } from '../../components/ui';
 import { AnnouncementBox } from '../../components/Announcements';
-import { errorText, formatWhen, useT } from '../../hooks';
+import { errorText, formatWhen, useSite, useT } from '../../hooks';
 
 interface SettingRow { key: string; value: unknown; default: unknown; overridden: boolean; version: number; risky: boolean; updated_at: string | null; updated_by: string | null }
 type Change = { changed: true; version: number } | { pending: true; current: unknown; next: unknown; impact: { affected: number; note: string } | null };
@@ -127,13 +127,14 @@ const iso = (local: string) => (local ? new Date(local).toISOString() : undefine
 export function AnnouncementsPanel() {
   const t = useT();
   const qc = useQueryClient();
-  const [f, setF] = useState({ title: '', body: '', level: 'info' as 'info' | 'warning', starts: '', ends: '' });
+  const site = useSite();
+  const [f, setF] = useState({ title: '', body: '', level: 'info' as 'info' | 'warning', starts: '', ends: '', irc: false });
   const [error, setError] = useState<string | null>(null);
   const list = useQuery({ queryKey: ['admin', 'announcements'], queryFn: () => api.get<{ announcements: AnnRow[] }>('/admin/announcements') });
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['admin', 'announcements'] }); void qc.invalidateQueries({ queryKey: ['announcements'] }); };
   const create = useMutation({
-    mutationFn: () => api.post('/admin/announcements', { title: f.title, body: f.body, level: f.level, starts_at: iso(f.starts), ends_at: iso(f.ends) }),
-    onSuccess: () => { setF({ title: '', body: '', level: 'info', starts: '', ends: '' }); setError(null); refresh(); }, onError: (e) => setError(errorText(e)),
+    mutationFn: () => api.post('/admin/announcements', { title: f.title, body: f.body, level: f.level, starts_at: iso(f.starts), ends_at: iso(f.ends), irc: f.irc }),
+    onSuccess: () => { setF({ title: '', body: '', level: 'info', starts: '', ends: '', irc: false }); setError(null); refresh(); }, onError: (e) => setError(errorText(e)),
   });
   const end = useMutation({ mutationFn: (id: string) => api.del(`/admin/announcements/${id}`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
   return (
@@ -150,6 +151,7 @@ export function AnnouncementsPanel() {
         </div>
         <div className="field"><label htmlFor="ann-start">{t('admin.ann.starts')}</label><input id="ann-start" type="datetime-local" value={f.starts} onChange={(e) => setF({ ...f, starts: e.target.value })} /></div>
         <div className="field"><label htmlFor="ann-end">{t('admin.ann.ends')}</label><input id="ann-end" type="datetime-local" value={f.ends} onChange={(e) => setF({ ...f, ends: e.target.value })} /></div>
+        {site.services.irc && <label className="check"><input type="checkbox" checked={f.irc} onChange={(e) => setF({ ...f, irc: e.target.checked })} />{t('admin.ann.irc', { channel: site.irc.lobby })}</label>}
         {f.title && <><h3>{t('admin.ann.preview')}</h3><AnnouncementBox a={{ id: 'preview', title: f.title, body: f.body, level: f.level }} /></>}
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn btn-primary" type="submit" disabled={create.isPending}>{t('admin.ann.publish')}</button>
