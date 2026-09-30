@@ -7,6 +7,9 @@ environment and the site config, so nothing here names the site:
   CORE_URL           where core answers, default http://core:3000
   MUD_DATABASE_URL   postgres://user:pass@host:port/db; without it a local SQLite file is used (dev, tests)
   MUD_TELNET_PORT / MUD_WEB_PORT / MUD_WS_PORT / MUD_AMP_PORT   default 4000 / 4001 / 4002 / 4006
+  MUD_UPSTREAM_IPS   comma-separated addresses of the reverse proxy (Caddy); their X-Forwarded-For is trusted.
+                     VERIFIED: Evennia 5.0.1 matches these exactly, so give Caddy a fixed address.
+  MUD_LOGIN_THROTTLE_LIMIT  failed logins per address before a pause (default Evennia's 5; tests raise it)
 """
 import base64
 import hashlib
@@ -52,6 +55,8 @@ TELNET_PORTS = [int(os.environ.get("MUD_TELNET_PORT", 4000))]
 WEBSERVER_PORTS = [(int(os.environ.get("MUD_WEB_PORT", 4001)), int(os.environ.get("MUD_WEB_INTERNAL_PORT", 4005)))]
 WEBSOCKET_CLIENT_PORT = int(os.environ.get("MUD_WS_PORT", 4002))
 AMP_PORT = int(os.environ.get("MUD_AMP_PORT", 4006))
+UPSTREAM_IPS = [ip.strip() for ip in os.environ.get("MUD_UPSTREAM_IPS", "127.0.0.1").split(",") if ip.strip()]
+LOGIN_THROTTLE_LIMIT = int(os.environ.get("MUD_LOGIN_THROTTLE_LIMIT", LOGIN_THROTTLE_LIMIT))
 # The web server is only on the private network (Caddy routes nothing to it but the WebSocket).
 ALLOWED_HOSTS = ["*"]
 

@@ -6,8 +6,10 @@ import { startExportWorker } from './exports/service';
 import { loadSettings } from './settings';
 import { startMetricsCollector } from './metrics';
 import { startIrcSync, type IrcSync } from './irc/sync';
+import { startMudSync } from './mud/sync';
 
 // Events that change what IRC should look like (docs/02 provisioning table).
+const MUD_EVENTS = new Set(['user.role_changed', 'user.ops_changed', 'user.renamed', 'user.deleted', 'user.suspended', 'user.unsuspended']);
 const IRC_EVENTS = new Set(['user.created', 'user.role_changed', 'user.ops_changed', 'user.renamed', 'user.deleted', 'user.suspended', 'user.unsuspended', 'ring.created', 'ring.member_changed']);
 
 function fail(err: unknown): never {
@@ -36,10 +38,20 @@ async function start() {
 
   const exportWorker = startExportWorker(deps, (m) => app.log.warn(m));
   const metrics = startMetricsCollector(deps, (m) => app.log.warn(m));
+  const stopEvents = new AbortController();
+
+  // MUD: core pushes account state to the MUD on changes and every five minutes (docs/09).
+  const mudSync = deps.mud ? startMudSync(deps, (m) => app.log.warn(m)) : undefined;
+  if (mudSync && bus) {
+    void bus.subscribe({
+      group: 'mud-sync', consumer: `core-${process.pid}`, signal: stopEvents.signal,
+      handler: async (e) => { if (MUD_EVENTS.has(e.type)) mudSync.soon(); },
+      onError: (err) => app.log.warn(`mud events: ${err instanceof Error ? err.message : String(err)}`),
+    });
+  }
 
   // IRC: the bot keeps Ergo matching core. Events make it act within a moment; it also checks every 30 s.
   let ircSync: IrcSync | undefined;
-  const stopEvents = new AbortController();
   if (deps.irc) {
     ircSync = startIrcSync(deps, (m) => app.log.warn(m));
     if (bus) {
@@ -62,6 +74,7 @@ async function start() {
     metrics.stop();
     stopEvents.abort();
     ircSync?.stop();
+    mudSync?.stop();
     await exportWorker.stop();
     await relay?.stop();
     await bus?.close();

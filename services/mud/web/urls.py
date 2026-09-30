@@ -15,6 +15,8 @@ Search the Django documentation for "URL dispatcher" for more help.
 
 from django.urls import include, path
 
+from web import internal
+
 # default evennia patterns
 from evennia.web.urls import urlpatterns as evennia_default_urlpatterns
 
@@ -26,6 +28,10 @@ urlpatterns = [
     path("webclient/", include("web.webclient.urls")),
     # web admin
     path("admin/", include("web.admin.urls")),
+    # core's private control endpoints (docs/09)
+    path("internal/status", internal.status),
+    path("internal/accounts/sync", internal.sync_accounts),
+    path("internal/broadcast", internal.broadcast),
     # add any extra urls here:
     # path("mypath/", include("path.to.my.urls.file")),
 ]

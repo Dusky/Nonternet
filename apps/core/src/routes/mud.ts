@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { requireUser } from '../http';
+import { requireAdmin, requireUser } from '../http';
+import { mudStatus } from '../mud/sync';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import { issueTicket } from '../irc/auth';
@@ -17,5 +18,11 @@ export function mudRoutes(app: FastifyInstance, deps: AppDeps): void {
     return checkMudLogin(deps, b.accountName, b.passphrase);
   });
   // The MUD window asks for a one-use ticket and sends `connect <handle> <ticket>` over its WebSocket.
+  // The console's MUD page (docs/11): who is playing and where, and how big the world is.
+  app.get('/api/v1/admin/mud', async (req) => {
+    requireAdmin(req);
+    if (!deps.mud) return { configured: false, reachable: false, status: null };
+    try { return { configured: true, reachable: true, status: await mudStatus(deps) }; } catch { return { configured: true, reachable: false, status: null }; }
+  });
   app.post('/api/v1/mud/ticket', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) => issueTicket(deps, requireUser(req), 'mud'));
 }
