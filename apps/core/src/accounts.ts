@@ -7,6 +7,7 @@ import { emit } from './events';
 import { revokeOidcForUser } from './oidc/adapter';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
+import { ensureKeypair } from './exports/keys';
 import { burnPasswordCheck, hashPassword, verifyPassword } from './passwords';
 import { matchTotpStep, newTotpSecret, totpUri } from './totp';
 
@@ -92,6 +93,7 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
       await q.query(
         `INSERT INTO users (id, handle, display_name, email, password_hash) VALUES ($1, $2, $3, $4, $5)`,
         [id, input.handle, input.display_name ?? null, input.email, passwordHash]);
+      await ensureKeypair(q, deps.secretKey, id); // the person's signing key, made at signup (docs/02)
       if (mode === 'invite') {
         await q.query(`UPDATE invites SET used_by = $1, used_at = now() WHERE code = $2`, [id, input.invite!.toUpperCase()]);
       }
@@ -147,6 +149,23 @@ export async function verifyEmail(deps: AppDeps, token: string, ctx: Ctx): Promi
 
 // ---------------------------------------------------------------- login & sessions
 
+// The second step of a login, and of anything that must be as hard to do as logging in (deleting an
+// account): a current authenticator code or a recovery code, for anyone who has two-factor on.
+export async function requireSecondFactor(
+  deps: AppDeps, u: { id: string; totp_enabled_at: string | Date | null; totp_secret_enc: string | null }, input: { totp?: string; recovery_code?: string }, ctx: Ctx,
+): Promise<void> {
+  if (!u.totp_enabled_at) return;
+  if (input.recovery_code) {
+    await useRecoveryCode(deps, u.id, input.recovery_code, ctx);
+  } else if (input.totp) {
+    const result = await acceptTotp(deps, deps.db, u.id, u.totp_secret_enc!, input.totp);
+    if (result === 'invalid') throw new ApiError(401, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
+    if (result === 'reused') throw new ApiError(401, 'totp_reused', 'That code was already used. Wait for the next one and try again.');
+  } else {
+    throw new ApiError(401, 'totp_required', 'Enter the 6-digit code from your authenticator app, or a recovery code.');
+  }
+}
+
 export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise<{ token: string; user: Me }> {
   const bad = new ApiError(401, 'invalid_credentials', 'That handle, email or password is not right.');
   const found = await deps.db.query<{
@@ -160,17 +179,7 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   if (u.status === 'deleted') throw bad;
   if (u.status === 'suspended') throw new ApiError(403, 'suspended', 'This account is suspended. Contact the admins to appeal.');
 
-  if (u.totp_enabled_at) {
-    if (input.recovery_code) {
-      await useRecoveryCode(deps, u.id, input.recovery_code, ctx);
-    } else if (input.totp) {
-      const result = await acceptTotp(deps, deps.db, u.id, u.totp_secret_enc!, input.totp);
-      if (result === 'invalid') throw new ApiError(401, 'invalid_totp', 'That code is not right. Check the time on your device and try again.');
-      if (result === 'reused') throw new ApiError(401, 'totp_reused', 'That code was already used. Wait for the next one and try again.');
-    } else {
-      throw new ApiError(401, 'totp_required', 'Enter the 6-digit code from your authenticator app, or a recovery code.');
-    }
-  }
+  await requireSecondFactor(deps, u, input, ctx);
 
   // Admins must have TOTP (docs/15). Until they set it up their session is limited.
   const limited = u.role === 'admin' && !u.totp_enabled_at;

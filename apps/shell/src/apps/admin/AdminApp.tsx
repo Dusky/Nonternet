@@ -156,6 +156,7 @@ function UserPage({ myId, id }: { myId: string; id: string }) {
 
       <RoleForm userId={id} current={user.role} disabled={own} onDone={refresh} />
       <RenameForm userId={id} current={user.handle} onDone={refresh} />
+      <DeleteForm userId={id} handle={user.handle} disabled={own} onDone={refresh} />
       <SuspendForm userId={id} suspended={user.status === 'suspended'} disabled={own} onDone={refresh} />
       <OpsSection userId={id} ops={ops} onDone={refresh} />
 
@@ -214,6 +215,28 @@ function RenameForm({ userId, current, onDone }: { userId: string; current: stri
       <TextField label={t('field.reason')} value={reason} onChange={setReason} hint={t('admin.user.reasonHint')} />
       {error && <Alert kind="error">{error}</Alert>}
       <button className="btn" type="submit" disabled={act.isPending || !handle.trim() || handle === current || !reasonOk(reason)}>{t('admin.user.apply')}</button>
+    </form>
+  );
+}
+
+function DeleteForm({ userId, handle, disabled, onDone }: { userId: string; handle: string; disabled: boolean; onDone: () => void }) {
+  const t = useT();
+  const [reason, setReason] = useState('');
+  const [posts, setPosts] = useState<'keep' | 'erase'>('keep');
+  const [error, setError] = useState<string | null>(null);
+  const act = useMutation({ mutationFn: () => api.post(`/admin/users/${userId}/delete`, { reason, posts }), onSuccess: () => { setReason(''); onDone(); }, onError: (e) => setError(errorText(e)) });
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); setError(null); if (window.confirm(t('data.delete.confirm'))) act.mutate(); }} className="panel">
+      <h3>{t('admin.user.delete')}</h3>
+      <p className="hint">{t('admin.user.deleteHint')}</p>
+      <fieldset>
+        <legend>{t('data.delete.postsLegend')}</legend>
+        <label className="check"><input type="radio" name={`dposts-${userId}`} checked={posts === 'keep'} onChange={() => setPosts('keep')} />{t('data.delete.postsKeep')}</label>
+        <label className="check"><input type="radio" name={`dposts-${userId}`} checked={posts === 'erase'} onChange={() => setPosts('erase')} />{t('data.delete.postsErase')}</label>
+      </fieldset>
+      <TextField label={t('field.reason')} value={reason} onChange={setReason} hint={t('admin.user.reasonHint')} disabled={disabled} />
+      {error && <Alert kind="error">{error}</Alert>}
+      <button className="btn btn-danger" type="submit" disabled={disabled || act.isPending || !reasonOk(reason)} aria-label={`${t('admin.user.deleteGo')}: ${handle}`}>{t('admin.user.deleteGo')}</button>
     </form>
   );
 }

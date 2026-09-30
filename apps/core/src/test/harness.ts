@@ -77,6 +77,7 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     dnsTxt: async (name) => { const r = dnsRecords.get(name.toLowerCase()); if (!r) throw Object.assign(new Error('not found'), { code: 'ENOTFOUND' }); return r.map((v) => [v]); },
     now: () => clock.ms,
     homesUrl: (handle) => `https://${handle.toLowerCase()}.example-homes.test/`,
+    exportsDir: mkdtempSync(join(tmpdir(), 'exports-test-')),
     homes: new HomeStore(mkdtempSync(join(tmpdir(), 'homes-test-'))),
     oidcClients: opts.oidcClients ?? [],
   };

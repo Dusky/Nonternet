@@ -2,6 +2,7 @@ import { buildApp } from './app';
 import { depsFromEnv } from './env';
 import { pruneOutbox, redisBus, startRelay, type Relay } from './events';
 import { migrate } from './migrate';
+import { startExportWorker } from './exports/service';
 
 function fail(err: unknown): never {
   console.error(err instanceof Error ? err.message : err);
@@ -26,6 +27,8 @@ async function start() {
     app.log.warn('REDIS_URL is not set: events are kept in the outbox and not published');
   }
 
+  const exportWorker = startExportWorker(deps, (m) => app.log.warn(m));
+
   // Finish in-flight requests, stop the relay, then close connections.
   let closing = false;
   const shutdown = async (signal: string) => {
@@ -34,6 +37,7 @@ async function start() {
     app.log.info(`${signal} received, shutting down`);
     if (prune) clearInterval(prune);
     await app.close();
+    await exportWorker.stop();
     await relay?.stop();
     await bus?.close();
     await deps.db.end();

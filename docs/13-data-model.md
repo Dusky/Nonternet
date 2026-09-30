@@ -23,7 +23,7 @@ users (
   theme text,                       -- modern|amber, null = site default
   last_seen_at timestamptz
 )
-handle_aliases (handle text pk, user_id fk, expires_at)
+handle_aliases (handle text pk, user_id fk, expires_at)   -- built as handle_history (migration 0009)
 ssh_keys (id, user_id fk, public_key, fingerprint unique, label)
 sessions (id, user_id fk, token_hash unique, user_agent, ip_hash, limited bool, expires_at, revoked_at)
                                    -- token_hash = sha256 of the cookie value; limited = admin still setting up TOTP

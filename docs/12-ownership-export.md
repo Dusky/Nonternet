@@ -32,6 +32,29 @@ README.txt               # human explanation of the archive
 - **Rule:** any new kind of user content must be added here; CI has a test that fails if a
   content table has no exporter registered.
 
+## As built (M4, export and deletion)
+- **Request** (`POST /me/export`, password again; optional private key locked with that password) queues a job;
+  a worker in core builds it (polls every 5 s), mails a link, and keeps the archive 7 days (`EXPORTS_DIR`), then deletes
+  the file. One export a day; a failed one does not use up the day. Download is only for the owner, `no-store`, audited.
+- **Format** is `export-v1`: `manifest.json` (every file with size and SHA-256), `manifest.sig` (base64 Ed25519 over the exact
+  manifest bytes), `keys/public.key` (PEM), `profile.json`, `homepage/` and `homepage.json`, `guestbook.json` (entries on the
+  page, and entries the person signed elsewhere), `posts/posts.json` and `posts/posts.mbox` (mboxrd, one `Newsgroups:` per board),
+  `rings/{slug}/` for rings founded or run, `boards/{slug}.json` for boards owned, `README.txt` with the OpenSSL check.
+  A deleted post appears in `posts.json` as an empty tombstone and not in the mbox. The private key file is JSON:
+  scrypt (N=2^15) then AES-256-GCM.
+- **Keys:** every account gets an Ed25519 key at signup (older accounts on their first export). The private half is
+  encrypted with `APP_SECRET_KEY`.
+- **The rule is enforced:** `exports/exporters.test.ts` reads every table from a migrated database and fails unless
+  it is claimed by an exporter or listed in `EXEMPT` with a reason, and fails on stale entries.
+- **Not included** (Q9, still OPEN and left at the PROPOSED default): other people's posts in your threads. IRC history
+  arrives with IRC. Private-board posts by the person are included, since they wrote them.
+- **Deletion** (`POST /me/delete`, or an admin on request with a reason): as hard as logging in (password, handle typed
+  out, and a current 2FA or recovery code). The person chooses what happens to their posts and guestbook entries: keep
+  them without a name (default, matching `posts.author_id null = deleted user`) or erase them to tombstones. Homepage,
+  files, domains, exports, keys, memberships, notifications and watches are deleted; boards they own are archived; the account
+  row stays, emptied (`status deleted`, handle `deleted-…`, no email), and the old handle is held for 90 days. A ring founder
+  must hand over or archive the ring first, and the last admin cannot be deleted. Announced as `user.deleted`.
+
 ## Whose content is it?
 - A user's export includes **what they authored**. Others' posts in their threads are not
   included (PROPOSED), except as quoted context in thread files if we add that later (OPEN).

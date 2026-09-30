@@ -2,7 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { changePasswordSchema, profileUpdateSchema } from '@app/shared';
 import { z } from 'zod';
 import * as accounts from '../accounts';
+import { createReadStream } from 'node:fs';
 import { ctxOf, requireUser } from '../http';
+import * as exports_ from '../exports/service';
+import { deleteOwnAccount } from '../deletion';
+import { COOKIE } from '../http';
 import type { AppDeps } from '../deps';
 
 const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, 'enter the 6-digit code') });
@@ -37,5 +41,26 @@ export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/me/totp/recovery-codes', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req) => {
     const { code } = codeSchema.parse(req.body);
     return { recovery_codes: await accounts.regenerateRecoveryCodes(deps, requireUser(req), code, ctxOf(deps, req)) };
+  });
+
+  // Export (docs/12): asking needs the password again; the archive is built by a worker and kept for 7 days.
+  app.post('/api/v1/me/export', async (req, reply) =>
+    reply.code(202).send(await exports_.requestExport(deps, requireUser(req), z.object({ password: z.string().max(200), include_private_key: z.boolean().default(false) }).parse(req.body), ctxOf(deps, req))));
+  app.get('/api/v1/me/exports', async (req) => ({ exports: await exports_.listExports(deps, requireUser(req)) }));
+  app.get('/api/v1/me/exports/:id/download', async (req, reply) => {
+    const { id } = z.object({ id: z.string().regex(/^x_[0-9A-Z]{26}$/) }).parse(req.params);
+    const f = await exports_.downloadTarget(deps, requireUser(req), id, ctxOf(deps, req));
+    return reply.type('application/zip').header('content-disposition', `attachment; filename="${f.name.replace(/[^A-Za-z0-9._-]/g, '_')}"`)
+      .header('content-length', f.size).header('cache-control', 'no-store').header('x-content-type-options', 'nosniff').send(createReadStream(f.path));
+  });
+
+  // Deleting the account (docs/12): as hard to do as logging in, and it cannot be undone.
+  app.post('/api/v1/me/delete', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
+    const b = z.object({
+      password: z.string().max(200), confirm_handle: z.string().max(40), posts: z.enum(['keep', 'erase']),
+      totp: z.string().regex(/^\d{6}$/).optional(), recovery_code: z.string().max(40).optional(),
+    }).parse(req.body);
+    await deleteOwnAccount(deps, requireUser(req), b, ctxOf(deps, req));
+    return reply.clearCookie(COOKIE, { path: '/' }).code(204).send();
   });
 }

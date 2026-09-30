@@ -16,6 +16,7 @@
     "@fastify/cookie": "^11.1.2",
     "@fastify/rate-limit": "^11.2.0",
     "@node-rs/argon2": "^2.2.1",
+    "archiver": "^8.0.0",
     "fastify": "^5.0.0",
     "iconv-lite": "^0.7.3",
     "ioredis": "^6.0.0",
@@ -31,11 +32,13 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/archiver": "^8.0.0",
     "@types/nodemailer": "^8.0.2",
     "@types/oidc-provider": "^9.12.1",
     "@types/pg": "^8.23.1",
     "@types/send": "^1.2.1",
     "esbuild": "^0.24.0",
+    "fflate": "^0.8.3",
     "tsx": "^4.19.0"
   }
 }

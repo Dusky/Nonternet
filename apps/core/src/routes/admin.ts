@@ -4,9 +4,11 @@ import { z } from 'zod';
 import * as accounts from '../accounts';
 import * as admin from '../admin';
 import * as homes from '../homes/service';
+import { deleteAccount } from '../deletion';
 import * as widgets from '../homes/widgets';
 import { ctxOf, requireAdmin } from '../http';
 import type { AppDeps } from '../deps';
+import { ApiError } from '../errors';
 
 const inviteSchema = z.object({ expires_in_days: z.number().int().min(1).max(90).optional() }).default({});
 const userIdParam = z.object({ id: z.string().regex(/^u_[0-9A-Z]{26}$/, 'not a user ID') });
@@ -69,6 +71,16 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
     const { id } = userIdParam.parse(req.params);
     const body = z.object({ handle: z.string().max(40), reason }).parse(req.body);
     return admin.renameUser(deps, who, id, body.handle, body.reason, ctxOf(deps, req));
+  });
+
+  // Deleting someone's account on their behalf, for example when they ask by email (docs/12).
+  app.post('/api/v1/admin/users/:id/delete', async (req, reply) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    if (id === who.userId) throw new ApiError(409, 'own_account', 'Use Settings to delete your own account.');
+    const b = z.object({ reason, posts: z.enum(['keep', 'erase']) }).parse(req.body);
+    await deleteAccount(deps, id, { posts: b.posts, actor: who, reason: b.reason }, ctxOf(deps, req));
+    return reply.code(204).send();
   });
 
   app.post('/api/v1/admin/users/:id/suspend', async (req, reply) => {

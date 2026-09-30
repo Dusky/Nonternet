@@ -79,6 +79,9 @@ Structured JSON logs; `/healthz` per service; metrics rolled up into `metrics_ro
 admin console; alerting (email/webhook) on service down, disk > 80%, backup failure,
 report SLA breaches.
 
+## Exports
+- `EXPORTS_DIR` (default `./data/exports`) holds finished archives for 7 days; it needs a volume and is part of what to back up only if you want exports to survive a restore (they are short-lived). The worker runs inside core.
+
 ## Homes server and custom domains
 - `homes-main.cjs` runs beside core (same image, port 3100, `HOMES_DIR` volume mounted read-only). It serves `{handle}.{homes_domain}` and verified custom domains and holds no cookies. In production it sits behind Caddy on-demand TLS (`deploy/caddy/Caddyfile.prod`).
 - `TLS_ASK_SECRET` (optional) is shared between core and Caddy's `ask` URL. `/internal/*` must not be reachable from outside.

@@ -6,10 +6,11 @@ import { api } from '../../api';
 import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
 import { AppNavLink, matchRoute, useAppNav } from '../../nav';
+import { YourData } from './YourData';
 import { TotpSetup } from '../../pages/Setup2fa';
 import { applyTheme, effectPrefs, saveEffectPrefs } from '../../theme';
 
-const ROUTES = ['profile', 'password', 'two-factor', 'appearance'] as const;
+const ROUTES = ['profile', 'password', 'two-factor', 'data', 'appearance'] as const;
 
 export default function SettingsApp() {
   const t = useT();
@@ -25,12 +26,14 @@ export default function SettingsApp() {
         <AppNavLink to="profile">{t('settings.tab.profile')}</AppNavLink>
         <AppNavLink to="password">{t('settings.tab.password')}</AppNavLink>
         <AppNavLink to="two-factor">{t('settings.tab.twofa')}</AppNavLink>
+        <AppNavLink to="data">{t('settings.tab.data')}</AppNavLink>
         <AppNavLink to="appearance">{t('settings.tab.appearance')}</AppNavLink>
       </nav>
       <div className="app-content">
         {route?.pattern === 'profile' && <Profile me={me} />}
         {route?.pattern === 'password' && <Password />}
         {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
+        {route?.pattern === 'data' && <YourData me={me} />}
         {route?.pattern === 'appearance' && <Appearance me={me} />}
       </div>
     </div>

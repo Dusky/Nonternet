@@ -13,6 +13,7 @@ export const eventPayloads = {
   'user.role_changed': z.object({ user_id: userId, role: roleSchema, previous_role: roleSchema, role_rev: z.number().int() }),
   'user.ops_changed': z.object({ user_id: userId, ops: z.array(z.string()), role_rev: z.number().int() }),
   'user.renamed': z.object({ user_id: userId, handle: z.string(), previous_handle: z.string(), role_rev: z.number().int() }),
+  'user.deleted': z.object({ user_id: userId }),
   'user.suspended': z.object({ user_id: userId }),
   'user.unsuspended': z.object({ user_id: userId }),
   // Every session of the user was ended (suspension, password reset, 2FA reset), or one session
