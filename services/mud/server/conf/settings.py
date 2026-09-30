@@ -48,8 +48,12 @@ AUTHENTICATION_BACKENDS = ["server.conf.core_auth.CoreBackend"]
 NEW_ACCOUNT_REGISTRATION_ENABLED = False
 GUEST_ENABLED = False
 
-# Up to three characters per account, made in-game (docs/18, decided 2026-09-30).
+# Up to three characters per account, made in-game with `charcreate` (docs/18, decided 2026-09-30).
 MAX_NR_CHARACTERS = 3
+AUTO_CREATE_CHARACTER_WITH_ACCOUNT = False
+AUTO_PUPPET_ON_LOGIN = True
+BASE_CHARACTER_TYPECLASS = "typeclasses.characters.Character"
+BASE_ROOM_TYPECLASS = "typeclasses.rooms.Room"
 
 TELNET_PORTS = [int(os.environ.get("MUD_TELNET_PORT", 4000))]
 WEBSERVER_PORTS = [(int(os.environ.get("MUD_WEB_PORT", 4001)), int(os.environ.get("MUD_WEB_INTERNAL_PORT", 4005)))]

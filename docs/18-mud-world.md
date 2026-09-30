@@ -65,6 +65,17 @@ with our own tests, and pin the Evennia version.
 Site rules apply. Ops tools: mute in a room, move someone to the temple, freeze a character; every
 action audited in core (`03`). Suspension drops MUD sessions within 5 s (`02`).
 
+## As built (M6)
+- EvAdventure character sheet (`charcreate`, up to 3), with our own item prototypes (upstream ships none)
+  and a fix for its charisma roll; names must be new and can't be another person's handle.
+- Turn-based combat against monsters in wild rooms; town rooms refuse all fighting; defeat carries you to
+  the temple at half HP, gear kept, weakened for 5 minutes.
+- Starting town built by `world/build_town.py` on first start (square, tavern, temple, market, training
+  yard, the old road, a cellar and a goblin den with three monsters that come back 3 minutes after they
+  are beaten). A developer can rerun it with `buildtown`.
+- Not built yet: duels between players, working shops in the market, the tavern guestbook and noticeboard,
+  quests, the weakened effect changing rolls.
+
 ## Still open
 1. How many areas at launch (suggest: the town plus two adventure areas)?
 2. Who builds the first areas?

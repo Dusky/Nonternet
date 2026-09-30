@@ -15,6 +15,10 @@ own cmdsets by inheriting from them or directly from `evennia.CmdSet`.
 """
 
 from evennia import default_cmds
+from evennia.contrib.tutorials.evadventure.combat_turnbased import TurnCombatCmdSet
+from evennia.contrib.tutorials.evadventure.commands import EvAdventureCmdSet
+
+from commands.characters import CmdBuildTown, CmdCharCreate
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -33,6 +37,10 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         super().at_cmdset_creation()
         #
         # any commands you add below will overload the default ones.
+        # EvAdventure's inventory, equipment and talk commands, and turn-based combat (docs/18).
+        self.add(EvAdventureCmdSet)
+        self.add(TurnCombatCmdSet)
+        self.add(CmdBuildTown())
         #
 
 
@@ -53,6 +61,7 @@ class AccountCmdSet(default_cmds.AccountCmdSet):
         super().at_cmdset_creation()
         #
         # any commands you add below will overload the default ones.
+        self.add(CmdCharCreate())
         #
 
 

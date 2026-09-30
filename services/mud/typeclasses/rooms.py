@@ -1,24 +1,19 @@
 """
-Room
-
-Rooms are simple containers that has no location of their own.
-
+Rooms (docs/18). Town rooms are safe: no fighting at all. Wild rooms allow fighting monsters. No room
+allows fighting another person by default, and none allows death.
 """
-
-from evennia.objects.objects import DefaultRoom
+from evennia.contrib.tutorials.evadventure.rooms import EvAdventureRoom
+from evennia.typeclasses.attributes import AttributeProperty
 
 from .objects import ObjectParent
 
 
-class Room(ObjectParent, DefaultRoom):
-    """
-    Rooms are like any Object, except their location is None
-    (which is default). They also use basetype_setup() to
-    add locks so they cannot be puppeted or picked up.
-    (to change that, use at_object_creation instead)
+class Room(ObjectParent, EvAdventureRoom):
+    allow_combat = AttributeProperty(False, autocreate=False)
+    allow_pvp = AttributeProperty(False, autocreate=False)
+    allow_death = AttributeProperty(False, autocreate=False)
 
-    See mygame/typeclasses/objects.py for a list of
-    properties and methods available on all Objects.
-    """
 
-    pass
+class WildRoom(Room):
+    """Outside town: monsters can be fought here."""
+    allow_combat = AttributeProperty(True, autocreate=False)

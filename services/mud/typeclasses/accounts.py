@@ -136,7 +136,16 @@ class Account(DefaultAccount):
 
     """
 
-    pass
+    def at_post_login(self, session=None, **kwargs):
+        # Someone with no character yet is shown how to make one (docs/18), instead of Evennia's
+        # "The Character does not exist." from trying to play a character they never had.
+        if not self.characters.all():
+            if session:
+                session.msg(logged_in={})
+            self.msg("|wWelcome!|n You have no character yet. Type |wcharcreate|n to roll one.", session=session)
+            self.msg(self.at_look(target=self.characters, session=session), session=session)
+            return
+        super().at_post_login(session=session, **kwargs)
 
 
 class Guest(DefaultGuest):
