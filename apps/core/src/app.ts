@@ -26,11 +26,17 @@ import { vouchRoutes } from './routes/vouches';
 import { fileRoutes } from './routes/files';
 import { consoleRoutes } from './routes/console';
 import { bbsRoutes } from './routes/bbs';
+import { isPublicRoute } from './public-routes';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export async function buildApp(deps: AppDeps) {
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test', trustProxy: deps.trustProxy });
+
+  // Every route, as registered, for the route audit in security.test.ts.
+  const routeList: { method: string; url: string }[] = [];
+  app.decorate('routeList', routeList);
+  app.addHook('onRoute', (r) => { for (const m of [r.method].flat()) if (m !== 'HEAD') routeList.push({ method: m, url: r.url }); });
 
   await app.register(cookie);
   if (deps.rateLimit) await app.register(rateLimit, { global: false });
@@ -83,6 +89,8 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('preHandler', async (req) => {
     const raw = req.cookies[COOKIE];
     req.session = raw ? await resolveSession(deps, raw) : null;
+    // Private by default (docs/15): a route not listed as public refuses a visitor before it runs.
+    if (!req.session && req.routeOptions.url && !isPublicRoute(req.method, req.routeOptions.url)) throw new ApiError(401, 'unauthenticated', 'Log in to continue.');
   });
 
   app.get('/healthz', async () => ({ status: 'ok' }));

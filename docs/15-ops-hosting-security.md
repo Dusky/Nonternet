@@ -106,6 +106,26 @@ Pinned versions of Ergo and the MUD engine; integration suite must pass before b
 - Admin accounts require 2FA.
 - Custom domains: TXT verification before on-demand TLS; allowlist endpoint for Caddy.
 
+### Launch review (2026-09-30)
+- **Private by default:** core refuses a request with no session on every route not listed in
+  `apps/core/src/public-routes.ts` (each entry says why it is public), before the route's code runs.
+  `/internal/*` (service tokens), `/oidc` (client auth) and the widget API (reads no session) have their own
+  checks. `security.test.ts` walks every registered route (about 200) and fails if one answers a visitor.
+- **Headers:** Caddy sends HSTS (production), `nosniff`, `Referrer-Policy`, `Permissions-Policy`,
+  `X-Frame-Options: DENY` and the shell's CSP (`default-src 'self'`; scripts only from the site; inline styles
+  allowed for the editor and terminal; the studio's preview frame may load the homes domain; nothing may frame
+  the site). `vite preview` sends the same, so the end-to-end suite runs under it; a test keeps the copies equal.
+- **Terminal passwords:** after 10 wrong answers in 15 minutes an account refuses terminal logins (IRC, MUD,
+  BBS alike), even with the right password, until the window passes.
+- **Uploads that unpack:** a REP packet is refused if its `.MSG` would unpack past 8 MB; nothing else in it is
+  unpacked (zip bombs). File-area and homepage uploads are stored as sent, never unpacked.
+- **No server-side fetches of user-supplied URLs** (checked): core only calls Ergo, the MUD and its own
+  services. SQL is parameterised; the few interpolations are fixed fragments or validated names (checked).
+- **Dependencies:** `pnpm audit --prod` is clean and runs in CI; dev-tool advisories (Vite, Vitest, esbuild)
+  were fixed by upgrading.
+- **WebSockets:** the Terminal and MUD windows sign in with one-use tickets, not cookies, so a foreign page
+  opening them gets only a login prompt; Ergo checks the Origin of chat connections.
+
 ## Observability
 Structured JSON logs; `/healthz` per service; metrics rolled up into `metrics_rollup` for the
 admin console; alerting (email/webhook) on service down, disk > 80%, backup failure,

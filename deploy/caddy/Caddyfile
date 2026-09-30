@@ -7,7 +7,20 @@
 	reverse_proxy homes:3100
 }
 
+# The same headers as production (Caddyfile.prod) except HSTS, since this is plain HTTP.
+(site_headers) {
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; frame-src 'self' http: https:"
+		-Server
+	}
+}
+
 {$CADDY_ADDRESS::80} {
+	import site_headers
 	handle /api/* {
 		reverse_proxy core:3000
 	}

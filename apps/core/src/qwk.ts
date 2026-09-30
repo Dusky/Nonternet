@@ -17,6 +17,8 @@ const LINE_END = 0xe3;
 export const MAX_PACKET_MESSAGES = 2000;
 export const MAX_REP_MESSAGES = 200;
 export const MAX_REP_BYTES = 1024 * 1024;
+// A small zip can inflate to gigabytes; only the .MSG file is unpacked, and only up to this size.
+export const MAX_REP_UNPACKED = 8 * 1024 * 1024;
 
 export const bbsId = (shortName: string) => (shortName.toUpperCase().replace(/[^A-Z0-9]/g, '') || 'BBS').slice(0, 8);
 
@@ -102,7 +104,15 @@ export interface RepMessage { conf: number; ref: number; to: string; subject: st
 // number in the message-number field.
 export function parseRep(zip: Uint8Array, id: string): RepMessage[] {
   let files: Record<string, Uint8Array>;
-  try { files = unzipSync(zip); } catch { throw new ApiError(400, 'bad_packet', 'That is not a REP packet (it should be a zip file).'); }
+  let tooBig = false;
+  try {
+    files = unzipSync(zip, { filter: (f) => {
+      if (f.name.toUpperCase() !== `${id}.MSG`) return false;
+      if (f.originalSize > MAX_REP_UNPACKED) { tooBig = true; return false; }
+      return true;
+    } });
+  } catch { throw new ApiError(400, 'bad_packet', 'That is not a REP packet (it should be a zip file).'); }
+  if (tooBig) throw new ApiError(413, 'too_large', 'That reply packet unpacks to more than a reply packet should hold.');
   const name = Object.keys(files).find((n) => n.toUpperCase() === `${id}.MSG`);
   if (!name) throw new ApiError(400, 'bad_packet', `The packet has no ${id}.MSG in it. Is it a reply packet for this site?`);
   const data = Buffer.from(files[name]!);

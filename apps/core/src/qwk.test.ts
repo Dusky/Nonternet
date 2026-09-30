@@ -54,6 +54,14 @@ describe('the QWK format', () => {
     expect(() => parseRep(zipSync({ 'TESTSITE.MSG': new Uint8Array(100) }), 'TESTSITE')).toThrow(/damaged/);
   });
 
+  it('refuses a reply packet that would unpack to far more than it should (a zip bomb)', () => {
+    const bomb = zipSync({ 'TESTSITE.MSG': new Uint8Array(20 * 1024 * 1024) }, { level: 9 });
+    expect(bomb.length).toBeLessThan(1024 * 1024); // small on the wire
+    expect(() => parseRep(bomb, 'TESTSITE')).toThrow(/unpacks to more/);
+    const decoy = zipSync({ 'OTHER.BIN': new Uint8Array(20 * 1024 * 1024) }, { level: 9 });
+    expect(() => parseRep(decoy, 'TESTSITE')).toThrow(/no TESTSITE.MSG/); // other files are never unpacked
+  });
+
   it('makes an 8-character id from the short name', () => {
     expect(bbsId('testsite')).toBe('TESTSITE');
     expect(bbsId('my-great-place!')).toBe('MYGREATP');

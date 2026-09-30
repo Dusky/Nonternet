@@ -1,7 +1,8 @@
 import { buildApp } from './app';
 import { depsFromEnv } from './env';
 import { pruneOutbox, redisBus, startRelay, type Relay } from './events';
-import { migrate } from './migrate';
+import { grantRuntimeRole, migrate } from './migrate';
+import { connect } from './db';
 import { startExportWorker } from './exports/service';
 import { loadSettings } from './settings';
 import { startMetricsCollector } from './metrics';
@@ -19,7 +20,17 @@ function fail(err: unknown): never {
 
 async function start() {
   const deps = depsFromEnv();
-  await migrate(deps.db, console.log);
+  // With DB_RUNTIME_ROLE, migrations run as the owner (MIGRATION_DATABASE_URL) and core itself connects as the
+  // runtime role, which cannot change the audit log (docs/15).
+  if (process.env.MIGRATION_DATABASE_URL) {
+    const owner = connect(process.env.MIGRATION_DATABASE_URL);
+    try {
+      await migrate(owner, console.log);
+      if (process.env.DB_RUNTIME_ROLE) await grantRuntimeRole(owner, process.env.DB_RUNTIME_ROLE, process.env.DB_RUNTIME_PASSWORD || undefined);
+    } finally { await owner.end(); }
+  } else {
+    await migrate(deps.db, console.log);
+  }
   await loadSettings(deps); // saved settings go over the config file's values
   const app = await buildApp(deps);
 

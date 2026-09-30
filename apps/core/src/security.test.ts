@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAdmin } from './accounts';
+import { isPublicRoute } from './public-routes';
 import { client, createTestDb, dbAvailable, makeApp, ORIGIN } from './test/harness';
 
 const PASSWORD = 'correct horse battery';
@@ -81,4 +82,32 @@ describe.skipIf(!dbAvailable)('request security', () => {
     expect(Object.keys(r.body)).toEqual(['error']);
     expect(Object.keys(r.body.error).sort()).toEqual(['code', 'message']);
   });
+});
+
+// Every route refuses a visitor with no session unless it is meant to be public, and every private
+// /internal route refuses anyone without its service token. A new route must either require a session or be
+// added to PUBLIC on purpose.
+describe.skipIf(!dbAvailable)('the route audit', () => {
+  const isPublic = isPublicRoute;
+  const fill = (url: string) => url
+    .replace(/:id\b/g, 'u_01HZZZZZZZZZZZZZZZZZZZZZZZ').replace(/:mid\b/g, 'mm_01HZZZZZZZZZZZZZZZZZZZZZZZ').replace(/:userId\b/g, 'u_01HZZZZZZZZZZZZZZZZZZZZZZZ')
+    .replace(/:slug\b/g, 'nosuchboard').replace(/:handle\b/g, 'nobody').replace(/:[a-zA-Z]+/g, 'x').replace(/\*$/, 'x');
+
+  it('refuses every non-public route without a session, and every /internal route without its token', async () => {
+    const { db, drop } = await createTestDb();
+    try {
+      const ctx = await makeApp(db);
+      const routes = (ctx.app as unknown as { routeList: { method: string; url: string }[] }).routeList;
+      expect(routes.length).toBeGreaterThan(150);
+      const leaks: string[] = [];
+      for (const r of routes) {
+        if (isPublic(r.method, r.url)) continue;
+        const res = await ctx.app.inject({ method: r.method as 'GET', url: fill(r.url), headers: { origin: 'https://example.test', 'content-type': 'application/json' }, payload: r.method === 'GET' || r.method === 'DELETE' ? undefined : '{}' });
+        // 401 (log in), 403 (not allowed / off), 404 for a service that isn't set up are all refusals.
+        const refused = res.statusCode === 401 || res.statusCode === 403 || (r.url.startsWith('/internal/') && res.statusCode === 404);
+        if (!refused) leaks.push(`${r.method} ${r.url} → ${res.statusCode} ${res.body.slice(0, 100)}`);
+      }
+      expect(leaks).toEqual([]);
+    } finally { await drop(); }
+  }, 60_000);
 });

@@ -35,6 +35,20 @@ describe.skipIf(!dbAvailable)('IRC sign-in (terminal passwords and tickets)', ()
     expect(a.rows.map((r) => r.action)).toEqual(['user.terminal_password_set', 'user.terminal_password_cleared']);
   });
 
+  it('stops guessing: after ten wrong terminal passwords the account refuses terminal logins for a while', async () => {
+    const u = await makeUser(ctx);
+    const c = await loginAs(ctx, u.handle);
+    await c.put('/api/v1/me/terminal-password', { password: TEST_PASSWORD, terminal_password: 'the real terminal pass' });
+    for (let i = 0; i < 10; i++) expect((await auth({ accountName: u.handle, passphrase: `guess ${i}` })).body.success).toBe(false);
+    const r = (await auth({ accountName: u.handle, passphrase: 'the real terminal pass' })).body;
+    expect(r).toEqual({ success: false, error: 'too many attempts; try again later' });
+    // Someone else's account is unaffected.
+    const v = await makeUser(ctx);
+    const cv = await loginAs(ctx, v.handle);
+    await cv.put('/api/v1/me/terminal-password', { password: TEST_PASSWORD, terminal_password: 'another terminal pass' });
+    expect((await auth({ accountName: v.handle, passphrase: 'another terminal pass' })).body.success).toBe(true);
+  });
+
   it('refuses the auth-script call without the right token', async () => {
     expect((await auth({ accountName: 'x', passphrase: 'y' }, 'wrong')).status).toBe(401);
     expect((await client(ctx.app).post('/internal/irc/auth', { accountName: 'x', passphrase: 'y' }, { origin: '' })).status).toBe(401);

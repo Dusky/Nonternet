@@ -16,7 +16,24 @@ export interface LoginUser { id: string; handle: string; role: string }
 // How IRC and the MUD sign people in (docs/02, 08, 09): the password is either the person's terminal
 // password or a one-use ticket their browser got from core a moment ago for that service. Only active
 // users with a confirmed email may use them (Q4, decided 2026-09-30).
-export async function checkTerminalLogin(deps: AppDeps, service: TerminalService, accountName: unknown, passphrase: unknown): Promise<{ ok: true; user: LoginUser } | { ok: false; error: string }> {
+// Guessing a terminal password is slowed per account, whichever door it comes through (IRC, MUD, BBS):
+// after MAX_FAILURES wrong answers in the window, the account refuses terminal logins until the window passes.
+const MAX_FAILURES = 10;
+const FAILURE_WINDOW_MS = 15 * 60_000;
+const failures = new Map<string, { n: number; until: number }>();
+function tooMany(handle: string, now: number): boolean {
+  const f = failures.get(handle);
+  if (f && f.until < now) { failures.delete(handle); return false; }
+  return Boolean(f && f.n >= MAX_FAILURES);
+}
+function failed(handle: string, now: number): void {
+  const f = failures.get(handle);
+  if (!f || f.until < now) failures.set(handle, { n: 1, until: now + FAILURE_WINDOW_MS });
+  else f.n++;
+  if (failures.size > 100_000) for (const [k, v] of failures) if (v.until < now) failures.delete(k);
+}
+
+async function checkTerminalLoginOnce(deps: AppDeps, service: TerminalService, accountName: unknown, passphrase: unknown): Promise<{ ok: true; user: LoginUser } | { ok: false; error: string }> {
   if (typeof accountName !== 'string' || typeof passphrase !== 'string' || !accountName || !passphrase || accountName.length > 40 || passphrase.length > 200) {
     return { ok: false, error: 'missing name or password' };
   }
@@ -41,6 +58,16 @@ export async function checkTerminalLogin(deps: AppDeps, service: TerminalService
   if (!(await verifyPassword(u.terminal_password_hash, passphrase))) return { ok: false, error: 'wrong password' };
   noteActive(deps, u.id, service);
   return { ok: true, user: u };
+}
+
+export async function checkTerminalLogin(deps: AppDeps, service: TerminalService, accountName: unknown, passphrase: unknown): Promise<{ ok: true; user: LoginUser } | { ok: false; error: string }> {
+  const key = typeof accountName === 'string' ? accountName.toLowerCase().slice(0, 40) : '';
+  const now = Date.now();
+  if (key && tooMany(key, now)) { await burnPasswordCheck(typeof passphrase === 'string' ? passphrase : ''); return { ok: false, error: 'too many attempts; try again later' }; }
+  const r = await checkTerminalLoginOnce(deps, service, accountName, passphrase);
+  if (!r.ok && key && r.error !== 'missing name or password') failed(key, now);
+  if (r.ok) failures.delete(key);
+  return r;
 }
 
 // Ergo's auth-script answer (docs/08).

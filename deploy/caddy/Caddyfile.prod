@@ -14,7 +14,23 @@
 	}
 }
 
+# Security headers for the site itself (docs/15). The shell's policy: only our own scripts; styles may be inline
+# (the editor and terminal inject them); the studio previews homepages from the homes domain in a frame;
+# nothing may frame the site. Keep the policy in step with apps/shell/vite.config.ts (a test compares them).
+(site_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; frame-src 'self' https://*.{$HOMES_DOMAIN}"
+		-Server
+	}
+}
+
 {$SITE_DOMAIN} {
+	import site_headers
 	encode gzip
 	handle /api/* {
 		reverse_proxy core:3000
@@ -45,6 +61,14 @@
 	handle {
 		reverse_proxy shell:80
 	}
+}
+
+# irc.<domain>: named here so Caddy gets and renews a certificate for it, which Ergo uses for native clients on
+# 6697 (compose.prod.yaml mounts Caddy's data into Ergo). `sitectl irc-reload` (weekly, from cron) makes Ergo
+# pick up a renewed certificate; Ergo reloads certificates when it rehashes on SIGHUP.
+irc.{$SITE_DOMAIN} {
+	import site_headers
+	respond "Chat is on port 6697 (TLS), or in the web app." 200
 }
 
 https:// {
