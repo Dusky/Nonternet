@@ -252,7 +252,7 @@ export function LegalPanel() {
       {reqs.data && reqs.data.requests.length === 0 && <p>{t('admin.legal.noRequests')}</p>}
       <ul className="plain">{reqs.data?.requests.map((r) => <LegalRequest key={r.id} r={r} />)}</ul>
       <h2>{t('admin.legal.pages')}</h2>
-      {pages.data?.pages.map((p) => <LegalEditor key={`${p.slug}-${p.version}`} page={p} />)}
+      {pages.data?.pages.map((p) => <LegalEditor key={p.slug} page={p} />)}
     </>
   );
 }
