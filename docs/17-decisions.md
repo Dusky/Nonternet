@@ -55,9 +55,9 @@
 | Q1 | Final name and domain(s) | before public launch |
 | Q2 | ~~Bridge vs fallback~~ Withdrawn: no Enigma | — |
 | Q3 | ~~Allow JavaScript on homepages? Inject footer/report link?~~ Resolved 2026-09-30: JS is allowed, isolated by origin; the homes server injects a small report footer into every HTML page (see `07`) | — |
-| Q4 | ~~Can guests use IRC `#lobby`?~~ Resolved 2026-09-30: IRC is for confirmed users only (`08`). Observer mode in MUD still open | M6 |
+| Q4 | ~~Can guests use IRC `#lobby`? Observer mode in MUD?~~ Resolved 2026-09-30: confirmed users only, for IRC (`08`) and the MUD (`18`) | — |
 | Q5 | ~~Can trusted users register non-ring IRC channels?~~ Resolved 2026-09-30: yes, within `limits.trusted_channel_quota` (default 3) | — |
-| Q6 | MUD engine and world design | M6 |
+| Q6 | ~~MUD engine and world design~~ Resolved 2026-09-30: Evennia; generic fantasy with combat at launch; 3 characters per account (`18`). Combat details PROPOSED | — |
 | Q7 | Minimum age: DECIDED — configurable tick-box, default 16 (`02`). Legal jurisdiction details still need counsel; pages ship as placeholders | M4 |
 | Q8 | Funding model (free, supporter tier, donations) | before launch |
 | Q9 | IRC history in exports? Others' posts as context in exports? | M4 |
@@ -76,6 +76,7 @@
 - 2026-09-29: board moderation is hide/unhide, remove, lock/unlock and move, each with a reason and each audited; a removal erases the text and cannot be undone; warn and mute are deferred (`03`). Private boards are readable by listed members only, admins included (`05`, PROPOSED). The mod log is public per board unless `moderation.public_modlog` is false.
 - 2026-09-29: a window's place inside its app is held in the window manager, so apps can link to each other (`10`).
 - 2026-09-30: IRC (M5). Accounts come only from core via Ergo's auth-script; the Chat app uses one-use tickets; native clients use the terminal password. A bot owned by core registers every channel and applies modes and suspensions by reconciling desired against applied state (`08`). Admins are channel ops, not IRC opers. Account bans stay site suspensions; the console bans addresses only. IRC history is in Ergo's memory for 7 days and is not exported or backed up.
+- 2026-09-30: MUD (M6). Evennia, building on its EvAdventure example (Knave rules, CC-BY credit). Generic fantasy, combat at launch (turn-based, monsters only unless both agree to a duel, no permanent death: PROPOSED), 3 characters per account, confirmed users only (`18`). The MUD window renders Evennia's raw markup as an accessible text log rather than xterm.js (`09`).
 - Still open from M1: Q16, no OIDC signing-key rotation command, compose stack unverified.
 
 ## Verify list

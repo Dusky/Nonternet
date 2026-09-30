@@ -2,7 +2,7 @@
 
 **One shared world for everyone** (DECIDED). No areas owned by rings or users.
 
-## Engine (PROPOSED: Evennia; OPEN until the MUD milestone)
+## Engine (DECIDED 2026-09-30: Evennia)
 | Engine | Pros | Cons |
 |---|---|---|
 | **Evennia** (Python) | Web client + WebSocket, custom auth backends, easy scripting, good admin | Python beside Node |
@@ -13,8 +13,8 @@ VERIFIED 2026-09-30 (Evennia 5.0.1, `spikes/m6-evennia.md`): a custom Django aut
 
 ## Integration
 - Auth via core: login ticket (web), terminal password (native).
-- One account per user; characters created in-game (limit PROPOSED 3 per account).
-- Role mapping: guest → none (or a read-only "observer", OPEN), user → Player,
+- One account per user; characters created in-game, up to 3 per account (DECIDED).
+- Role mapping: guest → none (confirmed users only, DECIDED), user → Player,
   admin → Admin/Developer. **Builders** are appointed separately by admins (building is a
   world-level privilege, not tied to trusted) (PROPOSED).
 - Shell window (PROPOSED, changed after the spike): an accessible text log like the Chat app, fed by
