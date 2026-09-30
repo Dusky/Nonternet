@@ -519,6 +519,7 @@ export const en = {
   'setting.signup.minimum_age': 'Minimum age (0 turns the question off)',
   'setting.limits.trusted_board_quota': 'Boards a trusted user can own',
   'setting.limits.trusted_ring_quota': 'Rings a trusted user can found',
+  'setting.limits.trusted_channel_quota': 'IRC channels a trusted user can register',
   'setting.limits.homepage_quota_mb.user': 'Homepage space for users (MB)',
   'setting.limits.homepage_quota_mb.trusted': 'Homepage space for trusted users (MB)',
   'setting.homes.max_domains': 'Custom domains per person',

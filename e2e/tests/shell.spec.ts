@@ -36,7 +36,7 @@ test.describe('desktop windows', () => {
     await page.getByRole('button', { name: 'Open Settings' }).click();
     const win = page.getByRole('dialog', { name: 'Settings window' });
     await expect(win).toBeVisible();
-    await win.getByRole('link', { name: 'Password' }).click();
+    await win.getByRole('link', { name: 'Password', exact: true }).click();
     await expect(win.getByLabel('Current password')).toBeVisible();
     expect(new URL(page.url()).pathname).toBe('/'); // moving around inside a window leaves the address alone
     // The window now covers the icon, so open it again the way a person would: from the Apps menu.
@@ -224,7 +224,7 @@ test.describe('on a phone', () => {
     await page.getByRole('link', { name: 'Settings' }).click();
     for (const target of [
       page.getByRole('link', { name: 'Back' }), page.getByRole('button', { name: /Account menu/ }),
-      page.getByRole('link', { name: 'Password' }), page.getByLabel('Display name (optional)'), page.getByRole('button', { name: 'Save' }),
+      page.getByRole('link', { name: 'Password', exact: true }), page.getByLabel('Display name (optional)'), page.getByRole('button', { name: 'Save' }),
     ]) {
       const b = await box(target);
       expect(b.height, await target.evaluate((el) => el.outerHTML.slice(0, 60))).toBeGreaterThanOrEqual(44);

@@ -206,7 +206,7 @@ test.describe('forgotten and changed passwords', () => {
     if (isMobile) await page.getByRole('link', { name: 'Settings' }).click();
     else await page.getByRole('button', { name: 'Open Settings' }).click();
     const scope = isMobile ? page.locator('main') : page.getByRole('dialog', { name: 'Settings window' });
-    await scope.getByRole('link', { name: 'Password' }).click();
+    await scope.getByRole('link', { name: 'Password', exact: true }).click();
     await scope.getByLabel('Current password').fill('wrong password here');
     await scope.getByLabel('New password').fill('a much longer new password');
     await scope.getByRole('button', { name: 'Password' }).click();

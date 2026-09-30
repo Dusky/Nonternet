@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { client, createTestDb, dbAvailable, first, loginAs, makeAdmin, makeApp, makeUser } from './test/harness';
-import { loadSettings } from './settings';
+import { en } from '@app/strings';
+import { loadSettings, SETTINGS } from './settings';
 
 describe.skipIf(!dbAvailable)('versioned settings', () => {
   let drop: () => Promise<void>;
@@ -23,6 +24,10 @@ describe.skipIf(!dbAvailable)('versioned settings', () => {
     expect(await one('limits.trusted_board_quota')).toMatchObject({ value: 3, default: 3, overridden: false, version: 0, risky: false });
     expect(r.readonly).toMatchObject({ name: 'Test Site', domain: 'example.test' });
     expect(JSON.stringify(r.settings.map((s: { key: string }) => s.key))).not.toMatch(/site\./); // the name and domains are not settings
+  });
+
+  it('has a label in the UI strings for every setting', () => {
+    expect(SETTINGS.filter((s) => !(`setting.${s.key}` in en)).map((s) => s.key)).toEqual([]);
   });
 
   it('is for admins only', async () => {
