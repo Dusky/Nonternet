@@ -5,7 +5,8 @@ export const cut = (s: string, w: number) => { const c = [...s]; return c.length
 export const when = (iso: string) => `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
 export const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
 export const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
-export const heading = (s: string) => `\x1b[36m── \x1b[1m${s}\x1b[0m\x1b[36m ${'─'.repeat(Math.max(3, 70 - width(s)))}\x1b[0m`;
+// The rule after the title fills to about 70 columns, or less on a narrow screen so it never wraps.
+export const heading = (s: string, cols = 80) => `\x1b[36m── \x1b[1m${s}\x1b[0m\x1b[36m ${'─'.repeat(Math.max(3, Math.min(70 - width(s), cols - 5 - width(s))))}\x1b[0m`;
 
 // Word-wraps text to a width, keeping blank lines and breaking words longer than a line.
 export function wrap(text: string, w: number): string[] {

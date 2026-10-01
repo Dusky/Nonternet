@@ -7,7 +7,7 @@ import { bold, cut, dim, heading, pad, when, wrap } from './util';
 // The BBS classics (M9-E, docs/04): the oneliners wall, bulletins, the voting booth and the file areas. The rows
 // live in core, so the web shows the same ones.
 
-const art = (s: Session, name: string) => { if (s.ctx.art.has(name)) s.term.write(s.ctx.art.render(name, { handle: s.user!.handle, node: s.node })); };
+const art = (s: Session, name: string) => { if (s.ctx.art.has(name)) s.term.write(s.ctx.art.render(name, { handle: s.user!.handle, node: s.node }, { cols: s.term.cols - 1 })); };
 const mark = (n: string | number, w: number) => pad(String(n), w);
 
 // ---------------------------------------------------------------- oneliners
@@ -21,7 +21,7 @@ export async function oneliners(s: Session): Promise<void> {
   s.at('Oneliners');
   art(s, 'oneliners');
   for (;;) {
-    t.line(heading('Oneliners'));
+    t.line(heading('Oneliners', t.cols));
     const lines = await recentOneliners(s, Math.max(5, Math.min(20, t.rows - 8)));
     if (!lines.length) t.line('The wall is empty. Be the first.');
     for (const o of [...lines].reverse()) t.line(`${dim(when(o.at))} ${pad(o.author?.handle ?? '-', 16)} ${o.body}`);
@@ -45,7 +45,7 @@ export async function bulletins(s: Session): Promise<void> {
   art(s, 'bulletins');
   for (;;) {
     const r = await s.api.get<{ bulletins: BulletinSummary[]; unread: number }>('/bulletins');
-    t.line(heading('Bulletins'));
+    t.line(heading('Bulletins', t.cols));
     if (!r.bulletins.length) { t.line('There are no bulletins.'); return; }
     t.line(dim(`${pad('#', 5)}${pad('Posted', 18)}Title`));
     await page(s, r.bulletins.map((b) => `${mark(b.number, 4)}${b.unread ? bold('*') : ' '}${pad(when(b.at), 18)}${cut(b.title, 50)}`));
@@ -56,7 +56,7 @@ export async function bulletins(s: Session): Promise<void> {
     if (!Number.isInteger(n)) { t.line('Type a bulletin number.'); continue; }
     try {
       const b = await s.api.get<BulletinView>(`/bulletins/${n}`);
-      t.line(heading(`#${b.number} ${cut(b.title, 50)}`));
+      t.line(heading(`#${b.number} ${cut(b.title, 50)}`, t.cols));
       t.line(dim(`${when(b.at)} UTC${b.updated_at ? ` (updated ${when(b.updated_at)})` : ''}`));
       t.line();
       await page(s, wrap(b.body, Math.min(79, t.cols - 1)));
@@ -79,7 +79,7 @@ const bar = (votes: number, total: number, w = 20) => '#'.repeat(total ? Math.ro
 
 function showPoll(s: Session, p: PollView): void {
   const t = s.term;
-  t.line(heading(cut(p.question, 60)));
+  t.line(heading(cut(p.question, 60), t.cols));
   t.line(dim(`${p.by ? `Asked by ${p.by}. ` : ''}${p.closed ? 'Closed.' : p.closes_at ? `Open until ${when(p.closes_at)} UTC.` : 'Open.'}`));
   p.options.forEach((o, i) => {
     const extra = p.can_see_results && o.votes !== null && p.total !== null ? `  ${bar(o.votes, p.total)} ${o.votes}` : '';
@@ -94,7 +94,7 @@ export async function polls(s: Session): Promise<void> {
   art(s, 'polls');
   for (;;) {
     const r = await s.api.get<{ polls: PollSummary[] }>('/polls');
-    t.line(heading('Voting booth'));
+    t.line(heading('Voting booth', t.cols));
     if (!r.polls.length) { t.line('Nothing to vote on. Admins and trusted people can ask a question on the web.'); return; }
     t.line(dim(`${pad('#', 4)}${pad('Question', 52)}You`));
     r.polls.forEach((p, i) => t.line(`${mark(i + 1, 4)}${pad(cut(p.question, 50), 52)}${p.voted ? 'voted' : p.closed ? 'closed' : bold('open')}`));
@@ -125,7 +125,7 @@ export async function files(s: Session): Promise<void> {
   art(s, 'files');
   for (;;) {
     const r = await s.api.get<{ areas: FileAreaView[] }>('/files');
-    t.line(heading('File areas'));
+    t.line(heading('File areas', t.cols));
     if (!r.areas.length) { t.line('There are no file areas yet.'); return; }
     r.areas.forEach((a, i) => t.line(`${mark(i + 1, 4)}${pad(cut(a.name, 30), 32)}${a.file_count} file${a.file_count === 1 ? '' : 's'}`));
     t.write(`\nArea number, or ${bold('Q')} to go back: `);
@@ -134,7 +134,7 @@ export async function files(s: Session): Promise<void> {
     const area = r.areas[Number(a) - 1];
     if (!area) { t.line('There is no area with that number.'); continue; }
     const detail = await s.api.get<{ area: FileAreaView; files: FileView[] }>(`/files/areas/${encodeURIComponent(area.slug)}`);
-    t.line(heading(detail.area.name));
+    t.line(heading(detail.area.name, t.cols));
     if (detail.area.description) t.line(dim(cut(detail.area.description, t.cols - 1)));
     if (!detail.files.length) { t.line('Nothing here yet.'); continue; }
     const lines: string[] = [];

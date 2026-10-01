@@ -214,6 +214,13 @@ class Object(ObjectParent, DefaultObject):
 
     """
 
+    def get_numbered_name(self, count, looker, **kwargs):
+        """People and named fittings read as "Marta", not "a Marta" (a thing with a proper name has `db.proper_name`)."""
+        if self.db.proper_name:
+            kwargs.setdefault("no_article", True)
+        return super().get_numbered_name(count, looker, **kwargs)
+
+
     pass
 
 

@@ -8,7 +8,7 @@ export async function doors(s: Session): Promise<void> {
   for (;;) {
     s.at('Door games');
     const list = s.ctx.doors.filter((d) => mayUse(d, s.user!.role));
-    t.line(heading('Door games'));
+    t.line(heading('Door games', t.cols));
     if (!list.length) { t.line('There are no door games on this BBS yet.'); return; }
     list.forEach((d, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(d.name, 28), 30)}${dim(cut(d.description, 30))}${inUse(d.id) >= d.max_nodes ? bold(' (full)') : ''}`));
     t.write(`\nDoor number, or ${bold('Q')} to go back: `);

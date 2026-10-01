@@ -22,10 +22,14 @@ def build_extras(rooms):
     for room, tag, typeclass, key, aliases, desc in FITTINGS:
         found = search_tag(tag, category=BUILD)
         if found:
+            if key[0].isupper():
+                found[0].db.proper_name = True  # towns built before this existed get it too
             continue
         obj = create_object(typeclass, key=key, aliases=aliases, location=rooms[room], attributes=[("desc", desc)])
         obj.locks.add("get:false()")
         obj.tags.add(tag, category=BUILD)
+        if key[0].isupper():
+            obj.db.proper_name = True  # "Marta", not "a Marta"
         if tag == "board:tavern":
             obj.db.notes = []
         made += 1

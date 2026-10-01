@@ -10,7 +10,7 @@ export async function mail(s: Session): Promise<void> {
   for (;;) {
     s.at('Mail');
     const r = await s.api.get<{ threads: MailThreadSummary[]; unread: number }>('/mail');
-    t.line(heading(`Mail${r.unread ? ` (${r.unread} new)` : ''}`));
+    t.line(heading(`Mail${r.unread ? ` (${r.unread} new)` : ''}`, t.cols));
     t.line(dim(`${pad('#', 4)}${pad('Subject', 36)}${pad('With', 24)}Last`));
     const shown = r.threads.slice(0, Math.max(5, t.rows - 7));
     shown.forEach((th, i) => {
@@ -34,7 +34,7 @@ async function conversation(s: Session, id: string): Promise<void> {
     const th = await s.api.get<MailThreadView>(`/mail/${id}`);
     s.at('Reading mail');
     const w = Math.min(79, t.cols - 1);
-    const lines = [heading(cut(th.subject, 60)), dim(`With ${th.people.map((p) => p.handle ?? 'a deleted account').join(', ') || 'nobody else'}`), ''];
+    const lines = [heading(cut(th.subject, 60), t.cols), dim(`With ${th.people.map((p) => p.handle ?? 'a deleted account').join(', ') || 'nobody else'}`), ''];
     for (const m of th.messages) {
       const name = m.author.handle ?? 'a deleted account';
       if (m.kind !== 'message') { lines.push(dim(`${name} ${m.kind === 'joined' ? 'joined' : 'left'} · ${when(m.at)}`), ''); continue; }

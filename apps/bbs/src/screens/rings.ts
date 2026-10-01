@@ -12,7 +12,7 @@ export async function rings(s: Session): Promise<void> {
     s.at('Rings');
     const per = Math.max(5, Math.min(20, t.rows - 6));
     const r = await s.api.get<{ rings: RingSummary[]; next: number | null }>(`/rings?sort=active&limit=${per}&offset=${offset}`);
-    t.line(heading('Rings'));
+    t.line(heading('Rings', t.cols));
     t.line(dim(`${pad('#', 4)}${pad('Ring', 30)}${pad('Members', 9)}You`));
     r.rings.forEach((g, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(g.name, 29), 30)}${pad(String(g.member_count), 9)}${g.me?.status === 'member' ? (g.me.is_op ? 'op' : 'member') : g.me?.status ?? ''}`));
     if (!r.rings.length) t.line('There are no rings yet. Start one on the web.');
@@ -33,7 +33,7 @@ async function ring(s: Session, slug: string): Promise<void> {
     const g = await s.api.get<RingDetail>(`/rings/${slug}`);
     s.at(`Ring: ${g.name}`);
     const w = Math.min(79, t.cols - 1);
-    const lines = [heading(g.name), dim(`Founded by ${g.founder.handle} · ${g.member_count} members${g.tags.length ? ` · ${g.tags.join(', ')}` : ''}`), ''];
+    const lines = [heading(g.name, t.cols), dim(`Founded by ${g.founder.handle} · ${g.member_count} members${g.tags.length ? ` · ${g.tags.join(', ')}` : ''}`), ''];
     lines.push(...wrap(g.about || g.description || 'No description yet.', w), '');
     if (g.latest_posts.length) {
       lines.push(bold('Latest on its board:'));

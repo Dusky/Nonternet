@@ -40,6 +40,23 @@ class WorldTest(BaseEvenniaCommandTest):
     def go(self, key):
         self.hero.move_to(room(key), quiet=True)
 
+    def test_a_new_character_can_afford_a_first_purchase_and_named_people_have_no_article(self):
+        from world.chargen import START_COINS
+
+        sheet = CharacterSheet()
+        sheet.name = "Fern"
+        fresh = sheet.apply(self.account2)
+        fresh.db_account = self.account2
+        self.assertEqual(fresh.coins, START_COINS)
+        fresh.move_to(room("market"), quiet=True)
+        self.says2 = lambda cmd, args, expected: self.assertIn(expected, self.call(cmd, args, caller=fresh) or "")
+        self.says2(CmdBuy(), "dagger", "You buy a dagger")  # 5 of the 10
+        self.go("tavern")
+        look = room("tavern").return_appearance(self.hero)
+        self.assertIn("Marta", look)
+        self.assertNotIn("a Marta", look)
+        self.assertNotIn("an Marta", look)
+
     # ---------------------------------------------------------------- areas
     def test_two_areas_of_nine_rooms_each_are_built_once(self):
         woods = [k for k in areas.ROOMS if k in ("woods_edge", "fern_path", "hollow_oak", "stream", "clearing", "ridge", "lookout", "camp", "tent")]

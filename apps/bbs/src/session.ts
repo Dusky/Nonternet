@@ -74,7 +74,7 @@ export class Session implements NodeHolder {
   private async loginPrompt(): Promise<boolean> {
     const t = this.term;
     t.clear();
-    t.write(this.ctx.art.render('login', { node: this.node }));
+    t.write(this.ctx.art.render('login', { node: this.node }, { cols: this.term.cols - 1 }));
     t.line();
     for (let tries = 0; tries < 3; tries++) {
       t.write('Handle: ');
@@ -100,12 +100,12 @@ export class Session implements NodeHolder {
   private async menuLoop(): Promise<void> {
     const t = this.term;
     t.clear();
-    t.write(this.ctx.art.render('motd', { handle: this.user!.handle, node: this.node, last_on: this.lastCall ? `${this.lastCall.slice(0, 16).replace('T', ' ')} UTC` : 'this is your first call' }));
+    t.write(this.ctx.art.render('motd', { handle: this.user!.handle, node: this.node, last_on: this.lastCall ? `${this.lastCall.slice(0, 16).replace('T', ' ')} UTC` : 'this is your first call' }, { cols: this.term.cols - 1 }));
     const motd = (await this.ctx.core.publicGet<{ motd: string }>('/bbs/motd').catch(() => ({ motd: '' }))).motd;
     if (motd.trim()) t.line(`\n${motd.trim()}`);
     const announcements = await this.ctx.core.publicGet<{ announcements: { id: string; title: string; body: string }[] }>('/announcements').catch(() => ({ announcements: [] }));
     for (const a of announcements.announcements) { this.seen.add(a.id); t.line(`\x1b[1;33m${a.title}\x1b[0m ${a.body}`); }
-    if (!this.lastCall && this.ctx.art.has('newuser')) t.write(this.ctx.art.render('newuser', { handle: this.user!.handle, node: this.node }));
+    if (!this.lastCall && this.ctx.art.has('newuser')) t.write(this.ctx.art.render('newuser', { handle: this.user!.handle, node: this.node }, { cols: this.term.cols - 1 }));
     // The newest bulletin if it is new to this caller, then the last few lines on the oneliners wall.
     const note = await newBulletinNote(this);
     if (note) t.line(`\n${note}`);
@@ -120,7 +120,7 @@ export class Session implements NodeHolder {
       this.at('Main menu');
       const menu = this.ctx.art.menus.main!;
       t.line();
-      t.write(this.ctx.art.render('main', { handle: this.user!.handle, node: this.node }));
+      t.write(this.ctx.art.render('main', { handle: this.user!.handle, node: this.node }, { cols: this.term.cols - 1 }));
       for (const item of menu.items) t.line(`  \x1b[1m${item.key.toUpperCase()}\x1b[0m  ${item.label}`);
       t.write(`\n${menu.title} [${menu.items.map((i) => i.key.toUpperCase()).join('')}]: `);
       const k = await t.choose(menu.items.map((i) => i.key).join(''));
@@ -170,9 +170,9 @@ export class Session implements NodeHolder {
     if (this.user && !this.term.closed && this.api && this.ctx.art.has('lastcall')) {
       const today = new Date().toISOString().slice(0, 10);
       const list = await this.api.get<{ callers: { at: string }[] }>('/bbs/last-callers').catch(() => ({ callers: [] }));
-      this.term.write(this.ctx.art.render('lastcall', { handle: this.user.handle, node: this.node, callers_today: list.callers.filter((c) => c.at.startsWith(today)).length }));
+      this.term.write(this.ctx.art.render('lastcall', { handle: this.user.handle, node: this.node, callers_today: list.callers.filter((c) => c.at.startsWith(today)).length }, { cols: this.term.cols - 1 }));
     }
-    if (this.user && !this.term.closed) this.term.write(this.ctx.art.render('goodbye', { handle: this.user.handle, node: this.node }));
+    if (this.user && !this.term.closed) this.term.write(this.ctx.art.render('goodbye', { handle: this.user.handle, node: this.node }, { cols: this.term.cols - 1 }));
     this.term.close();
     this.ctx.nodes.release(this.node, this.ip);
     if (this.token) await this.ctx.core.logout(this.token, this.callId).catch(() => undefined);

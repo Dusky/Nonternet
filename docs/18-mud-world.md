@@ -28,6 +28,7 @@ with our own tests, and pin the Evennia version.
   outside town. No looting other people.
 - **No permanent death.** At 0 HP you wake at the temple with a short "weakened" effect; you keep your
   gear. (Knave's real death is too harsh for a social site.)
+- New characters start with 10 coins (PROPOSED), enough for a first purchase at the market.
 - Levels and gear come from Knave; a small economy follows from it (coins from monsters and quests,
   a few shops). Balance is tuned by builders after launch.
 - Grief limits: no fighting in town, a cooldown after a duel, ops can freeze a character (`03`).

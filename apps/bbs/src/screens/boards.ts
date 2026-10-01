@@ -18,7 +18,7 @@ export async function boards(s: Session): Promise<void> {
   for (;;) {
     s.at('Boards');
     const list = await listBoards(s);
-    t.line(heading('Boards'));
+    t.line(heading('Boards', t.cols));
     t.line(dim(`${pad('#', 4)}${pad('Board', 34)}${pad('Unread', 8)}Threads`));
     list.forEach((b, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(b.name + (b.archived ? ' (archived)' : ''), 33), 34)}${pad(b.unread ? bold(String(b.unread)) + ' '.repeat(Math.max(0, 8 - String(b.unread).length)) : '-', 8)}${b.thread_count}`));
     if (!list.length) t.line('There are no boards you can read yet.');
@@ -39,7 +39,7 @@ export async function board(s: Session, b: BoardSummary): Promise<void> {
   for (;;) {
     s.at(`Reading ${b.name}`);
     const r = await s.api.get<{ threads: ThreadSummary[]; next: number | null }>(`/boards/${b.slug}/threads?limit=${Math.max(5, Math.min(20, t.rows - 6))}${before ? `&before=${before}` : ''}`);
-    t.line(heading(b.name));
+    t.line(heading(b.name, t.cols));
     if (b.description) t.line(dim(cut(b.description, t.cols - 1)));
     t.line(dim(`${pad('#', 4)}${pad('Subject', 40)}${pad('By', 16)}Replies`));
     r.threads.forEach((th, i) => {
@@ -165,7 +165,7 @@ export async function newscan(s: Session): Promise<void> {
     for (;;) {
       const r = await s.api.get<{ posts: NewPost[]; next: number | null }>(`/boards/${b.slug}/new?limit=50${after ? `&after=${after}` : ''}`);
       if (!r.posts.length) break;
-      t.line(heading(`${b.name}: new messages`));
+      t.line(heading(`${b.name}: new messages`, t.cols));
       for (let i = 0; i < r.posts.length; i++) {
         const p = r.posts[i]!;
         s.at(`New scan: ${b.name}`);

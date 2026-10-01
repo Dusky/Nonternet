@@ -9,7 +9,7 @@ export async function who(s: Session): Promise<void> {
   s.at("Who's online");
   const t = s.term;
   const { people } = await s.api.get<{ people: OnlinePerson[] }>('/online');
-  t.line(heading("Who's online"));
+  t.line(heading("Who's online", t.cols));
   t.line(dim(`${pad('Node', 6)}${pad('Handle', 20)}Where`));
   // Our own nodes come straight from the BBS (always current); the web and chat from core.
   const local = s.ctx.nodes.list().filter((n) => n.user);
@@ -27,7 +27,7 @@ export async function lastCallers(s: Session): Promise<void> {
   s.at('Last callers');
   const t = s.term;
   const { callers } = await s.api.get<{ callers: { handle: string; node: number; via: string; at: string; left_at: string | null }[] }>('/bbs/last-callers');
-  t.line(heading('Last callers'));
+  t.line(heading('Last callers', t.cols));
   t.line(dim(`${pad('When (UTC)', 18)}${pad('Handle', 20)}${pad('Node', 6)}Via`));
   await page(s, callers.map((c) => `${pad(when(c.at), 18)}${pad(c.handle, 20)}${pad(String(c.node), 6)}${c.via}${c.left_at ? '' : bold(' on now')}`));
   if (!callers.length) t.line('Nobody has called yet.');
@@ -37,7 +37,7 @@ export async function lastCallers(s: Session): Promise<void> {
 export async function settings(s: Session): Promise<void> {
   s.at('Settings');
   const t = s.term;
-  t.line(heading('Settings'));
+  t.line(heading('Settings', t.cols));
   t.line(`Your profile, passwords, SSH keys and everything else are on the web:`);
   t.line(`  ${s.ctx.siteUrl}/settings`);
   t.line(`This terminal: ${t.cols}x${t.rows}, ${t.encoding === 'cp437' ? 'CP437 (classic)' : 'UTF-8'}${t.ttype ? `, ${t.ttype}` : ''}.`);

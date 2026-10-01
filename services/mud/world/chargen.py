@@ -15,6 +15,9 @@ from evennia.utils.evmenu import EvMenu
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z'-]{1,19}$")
 
 
+START_COINS = 10
+
+
 def name_problem(name, account=None):
     """Why this can't be a character name, or None."""
     if not NAME_RE.match(name or ""):
@@ -52,6 +55,7 @@ class CharacterSheet(ev.TemporaryCharacterSheet):
                 ("intelligence", self.intelligence), ("wisdom", self.wisdom),
                 ("charisma", self.charisma),  # upstream copies wisdom here
                 ("hp", self.hp), ("hp_max", self.hp_max), ("desc", self.desc),
+                ("coins", START_COINS),  # enough for a first purchase at the market, so the shop is not a closed door
             ),
         )
         new.locks.add(f"puppet:id({new.id}) or pid({account.id}) or perm(Developer) or pperm(Developer);delete:id({account.id}) or perm(Admin)")

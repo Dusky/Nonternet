@@ -41,14 +41,35 @@ export class ArtPack {
   has(screen: string): boolean { return existsSync(join(this.dir, `${screen}.txt`)); }
 
   // A screen with its placeholders filled in. Unknown placeholders are left empty.
-  render(screen: string, values: Record<string, string | number> = {}, opts: { color?: boolean } = {}): string {
+  // `cols`: the caller's screen width. Lines wider than that are cut instead of wrapped, so a box drawn for 62 columns never turns into
+  // broken fragments on a phone.
+  render(screen: string, values: Record<string, string | number> = {}, opts: { color?: boolean; cols?: number } = {}): string {
     let text = this.cache.get(screen);
     if (text === undefined) {
       text = this.has(screen) ? readFileSync(join(this.dir, `${screen}.txt`), 'utf8') : '';
       this.cache.set(screen, text);
     }
-    return fill(text, { ...this.vars, ...Object.fromEntries(Object.entries(values).map(([k, v]) => [k, String(v)])) }, opts.color ?? true);
+    const out = fill(text, { ...this.vars, ...Object.fromEntries(Object.entries(values).map(([k, v]) => [k, String(v)])) }, opts.color ?? true);
+    return opts.cols ? out.split('\n').map((l) => clipLine(l, opts.cols!)).join('\n') : out;
   }
+}
+
+// Cuts a line to `cols` visible characters, counting only what is drawn (colour codes take no room) and closing any colour it cut inside.
+export function clipLine(line: string, cols: number): string {
+  let shown = 0;
+  let out = '';
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '\x1b') {
+      const m = /^\x1b\[[0-9;]*[A-Za-z]/.exec(line.slice(i));
+      if (m) { out += m[0]; i += m[0].length - 1; continue; }
+    }
+    const cp = line.codePointAt(i)!;
+    if (shown >= cols) return `${out}\x1b[0m`;
+    out += String.fromCodePoint(cp);
+    if (cp > 0xffff) i++;
+    shown++;
+  }
+  return out;
 }
 
 export function fill(text: string, vars: Record<string, string>, color = true): string {

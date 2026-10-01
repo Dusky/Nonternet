@@ -11,7 +11,7 @@ export async function homepages(s: Session): Promise<void> {
     s.at('Homepages');
     const per = Math.max(5, Math.min(15, Math.floor((t.rows - 6) / 2)));
     const r = await s.api.get<{ homepages: Entry[]; next: number | null }>(`/homepages?sort=recent&limit=${per}&offset=${offset}`);
-    t.line(heading('Homepages'));
+    t.line(heading('Homepages', t.cols));
     for (const h of r.homepages) {
       t.line(`${bold(pad(cut(h.title || h.handle, 40), 42))}${dim(h.handle)}`);
       t.line(`  ${h.url}${h.updated ? dim(`  updated ${h.updated.slice(0, 10)}`) : ''}`);
