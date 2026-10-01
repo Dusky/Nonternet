@@ -1,12 +1,13 @@
 import { useConfirm } from '../../components/feedback';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
-import { Alert, Avatar, BackLink, Loading, RelativeTime } from '../../components/ui';
+import { Alert, Avatar, BackLink, Loading, RelativeTime, useCopy } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
 import { useAppNav, useSubtitle } from '../../nav';
 import { Composer } from './Composer';
+import { canEditPost, EditedNote, EditPost, ReactionBar } from './PostExtras';
 import { useListKeys } from './keys';
 import { PostModTools, ReportPost } from './ModTools';
 import { CharacterBadge, PersonLink } from '../people/PersonLink';
@@ -40,6 +41,9 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const root = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<'flat' | 'threaded'>('flat');
   const [replyTo, setReplyTo] = useState<PostView | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const { copied, copy } = useCopy();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const q = useInfiniteQuery({
     queryKey: ['thread', slug, id, me?.id ?? null],
@@ -49,6 +53,23 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   });
   const posts = useMemo(() => q.data?.pages.flatMap((p) => p.posts) ?? [], [q.data]);
   const board = q.data?.pages[0]?.board;
+  const lastSeen = useRef<number | null>(null);
+  // "New since your last visit": remember, per thread on this device, how far you had read, and mark where it ends.
+  const seenKey = me ? `ui:seen:${me.id}:${id}` : null;
+  if (lastSeen.current === null && seenKey && posts.length) {
+    let v = 0;
+    try { v = Number(localStorage.getItem(seenKey) ?? 0) || 0; } catch { /* a convenience */ }
+    lastSeen.current = v;
+  }
+  useEffect(() => {
+    const top = posts.reduce((m, p) => Math.max(m, p.seq), 0);
+    if (seenKey && top && document.visibilityState === 'visible') { try { localStorage.setItem(seenKey, String(top)); } catch { /* a convenience */ } }
+  }, [posts, seenKey]);
+  // A link to one post (#p_…) scrolls to it once it has loaded.
+  useEffect(() => {
+    const h = window.location.hash.slice(1);
+    if (h.startsWith('p_') && posts.some((p) => p.id === h)) document.getElementById(`post-${h}`)?.scrollIntoView({ block: 'center' });
+  }, [posts.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const locked = q.data?.pages[0]?.locked ?? false;
 
   // Reading a thread moves your read pointer up to the last post you have loaded, but only while the tab is in
@@ -69,6 +90,10 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [posts, me, slug, qc, q.hasNextPage]);
 
+  const pin = useMutation({
+    mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/threads/${id}/pin`, {}) : api.del(`/boards/${slug}/threads/${id}/pin`)),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['thread', slug] }); void qc.invalidateQueries({ queryKey: ['threads', slug] }); },
+  });
   const del = useMutation({
     mutationFn: (postId: string) => api.del(`/posts/${postId}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['thread', slug] }),
@@ -99,31 +124,42 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   return (
     <div ref={root}>
       <BackLink to={slug}>{t('boards.back', { name: board.name })}</BackLink>
-      <h2>{subject} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
+      <h2>{subject} {posts[0]?.pinned && <span className="badge">{t('pin.badge')}</span>} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
       <div className="toolbar" role="group" aria-label={t('boards.view.label')}>
         <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
         <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>
+        {board.can_moderate && posts[0] && <button type="button" className="btn btn-quiet" disabled={pin.isPending} onClick={() => pin.mutate(!posts[0]!.pinned)}>{posts[0].pinned ? t('pin.unpin') : t('pin.pin')}</button>}
         {me && <button type="button" className="btn btn-quiet" onClick={goNextUnread} disabled={!unreadThreads.data?.threads.some((x) => x.unread && x.id !== id)}>{t('boards.nextUnread')}</button>}
       </div>
       <ol className="posts">
-        {ordered.map(({ post, depth }) => {
+        {ordered.map(({ post, depth }, idx) => {
+          const seen = lastSeen.current ?? 0;
+          const divider = seen > 0 && idx > 0 && post.seq > seen && ordered[idx - 1]!.post.seq <= seen;
+          const editable = canEditPost(post, me?.id, board);
           const parent = post.reply_to_id ? posts.find((p) => p.id === post.reply_to_id) : undefined;
           const name = post.author?.display_name || post.author?.handle;
           return (
-            <li key={post.id} style={depth ? { marginLeft: `${Math.min(depth, 6) * 1.25}rem` } : undefined}>
+            <Fragment key={post.id}>
+              {divider && <li className="new-divider"><div role="separator" aria-label={t('post.newSince')}>{t('post.newSince')}</div></li>}
+            <li id={`post-${post.id}`} style={depth ? { marginLeft: `${Math.min(depth, 6) * 1.25}rem` } : undefined}>
               <article className="post" tabIndex={-1} data-nav data-state={post.state} aria-label={name ? t('boards.by', { name }) : undefined}>
                 <header className="post-head">
                   {post.author ? <PersonLink app="people" to={post.author.handle} className="person"><Avatar id={post.author.id} name={post.author.display_name || post.author.handle} /><strong>{post.author.display_name || post.author.handle}</strong></PersonLink> : null}
                   {post.author?.display_name && <span className="muted"> @{post.author.handle}</span>}
                   {post.author?.character && <> <CharacterBadge character={post.author.character} /></>}
-                  <span className="muted">· <RelativeTime iso={post.posted_at} /></span>
+                  <span className="muted">· <RelativeTime iso={post.posted_at} /><EditedNote post={post} /></span>
                   {view === 'flat' && parent?.author && <span className="muted"> · {t('boards.inReplyTo', { name: parent.author.display_name || parent.author.handle })}</span>}
                 </header>
                 {post.state === 'deleted' && <p className="muted">{t('boards.deleted')}</p>}
                 {post.state === 'removed' && <p className="muted">{t('boards.removed')}</p>}
                 {post.state === 'hidden' && <p className="muted">{t('boards.hidden')}</p>}
-                {post.body !== null && <pre className="post-body">{post.body}</pre>}
+                {editing === post.id
+                  ? <EditPost post={post} slug={slug} isStart={post.id === id} asMod={editable.asMod} onDone={() => setEditing(null)} />
+                  : post.body !== null && <pre className="post-body">{post.body}</pre>}
+                {post.state === 'ok' && <ReactionBar post={post} slug={slug} signedIn={Boolean(me)} canReact={!board.archived} />}
                 <footer className="post-actions">
+                  {post.state === 'ok' && <button type="button" className="link" onClick={() => { void copy(`${window.location.origin}${nav.href(`${slug}/t/${id}`)}#${post.id}`); setCopiedId(post.id); }}>{copied && copiedId === post.id ? t('common.copied') : t('post.copyLink')}</button>}
+                  {editable.ok && editing !== post.id && <button type="button" className="link" onClick={() => setEditing(post.id)}>{t('edit.edit')}</button>}
                   {canReply && post.state === 'ok' && <button type="button" className="link" onClick={() => openReply(post)}>{t('boards.reply')}</button>}
                   {me && post.author && post.author.id !== me.id && post.state === 'ok' && <ReportPost post={post} />}
                   {me && post.author?.id === me.id && post.state === 'ok' && (
@@ -133,6 +169,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
                 {board.can_moderate && <PostModTools board={board} post={post} isThreadStart={post.id === id} locked={locked} />}
               </article>
             </li>
+            </Fragment>
           );
         })}
       </ol>

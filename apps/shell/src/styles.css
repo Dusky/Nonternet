@@ -697,3 +697,24 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 .wallpaper-swatch.wp-grid { background-image: linear-gradient(var(--desktop-dot) 1px, transparent 1px), linear-gradient(90deg, var(--desktop-dot) 1px, transparent 1px); background-size: 14px 14px; }
 .wallpaper-swatch.wp-stripes { background-image: repeating-linear-gradient(135deg, transparent 0 7px, var(--desktop-dot) 7px 8px); background-size: auto; }
 .wallpaper-swatch.wp-plain { background-image: none; }
+
+/* Writing box (M9-C) */
+.editor { position: relative; }
+.editor-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; margin-top: var(--space-1); }
+.editor .counter.near { color: var(--warn); font-weight: 600; }
+.mention-list { position: absolute; z-index: 20; left: 0; margin: 0; padding: var(--space-1); list-style: none; min-width: 14rem; max-width: 100%; background: var(--surface); border: 1px solid var(--border-strong, var(--border)); border-radius: var(--radius); box-shadow: var(--shadow-2, 0 4px 16px rgba(0,0,0,.2)); }
+.mention-list li { padding: var(--space-1) var(--space-2); border-radius: calc(var(--radius) - 2px); cursor: pointer; }
+.mention-list li[aria-selected=true] { background: var(--accent-soft); }
+
+/* Reactions, edit history, new-posts divider (M9-C) */
+.reactions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin: var(--space-2) 0; }
+.chip { font: inherit; font-size: var(--step--1); padding: 2px var(--space-3); border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.chip:hover:not(:disabled) { border-color: var(--accent); }
+.chip.is-on { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.chip .count { font-variant-numeric: tabular-nums; margin-left: 2px; }
+.reaction-picker { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.revisions { margin-top: var(--space-2); font-size: var(--step--1); }
+.revisions summary { cursor: pointer; }
+li.new-divider > div { display: flex; align-items: center; gap: var(--space-3); width: 100%; }
+li.new-divider { list-style: none; display: flex; align-items: center; gap: var(--space-3); color: var(--accent); font-size: var(--step--1); font-weight: 600; margin: var(--space-3) 0; }
+li.new-divider::before, li.new-divider::after { content: ''; flex: 1; border-top: 1px solid var(--accent); }

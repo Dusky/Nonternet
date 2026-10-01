@@ -163,3 +163,14 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **Alerts for a background tab** (Settings → Notifications, on this device, off until turned on): a desktop
   notification and/or a short chime made in the browser (no sound files). A notification says that something came,
   never what; nothing shows on a locked screen. A burst is one nudge.
+
+## As built (M9-C, in progress): writing and reading
+
+- **Editor** (`components/Editor.tsx`): the shared writing box. Counter from `maxLength`, Ctrl/Cmd+Enter sends, `@name`
+  suggestions from `GET /mentions`, a `beforeunload` guard while there are unsent words, and drafts.
+- **Drafts** (`drafts.ts`): kept in this browser only, key `ui:draft:<user>:<place>`, 30 days, newest 40, shown with
+  "Draft restored · Discard", cleared on send. Not sent anywhere, so not part of the export.
+- **Threads** (`apps/boards`): edit (author for 24 h, moderators any time with a reason) with "edited" and earlier
+  versions on click; six word reactions; pin/unpin for ops; "Copy link" per post (`#p_…` scrolls to it);
+  a "New since your last visit" divider, from a per-thread, per-device seen mark (`ui:seen:<user>:<thread>`).
+- Still to do in M9-C: hover cards, mail, chat, studio and files items.

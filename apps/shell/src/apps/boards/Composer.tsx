@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { SUBJECT_MAX, type PostPreview, type PostView } from '@app/shared';
+import { BODY_MAX, SUBJECT_MAX, type PostPreview, type PostView } from '@app/shared';
 import { api } from '../../api';
+import { Editor } from '../../components/Editor';
 import { Alert, TextField } from '../../components/ui';
-import { errorText, useT } from '../../hooks';
+import { clearDraft } from '../../drafts';
+import { errorText, useMe, useT } from '../../hooks';
 import { quoteReply } from '../../quote';
 
 interface Props {
@@ -18,6 +20,8 @@ interface Props {
 export function Composer({ slug, replyTo, onPosted, onCancel }: Props) {
   const t = useT();
   const qc = useQueryClient();
+  const me = useMe().data;
+  const draftKey = `board:${slug}:${replyTo?.id ?? 'new'}`;
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [preview, setPreview] = useState<PostPreview | null>(null);
@@ -37,6 +41,7 @@ export function Composer({ slug, replyTo, onPosted, onCancel }: Props) {
       void qc.invalidateQueries({ queryKey: ['board', slug] });
       void qc.invalidateQueries({ queryKey: ['threads', slug] });
       void qc.invalidateQueries({ queryKey: ['thread', slug] });
+      if (me) clearDraft(me.id, draftKey);
       onPosted(post);
     },
     onError: (e) => setError(errorText(e)),
@@ -50,13 +55,12 @@ export function Composer({ slug, replyTo, onPosted, onCancel }: Props) {
       {replyTo && <p className="muted">{t('boards.replyingTo', { name })}</p>}
       <TextField label={t('boards.compose.subject')} hint={replyTo ? undefined : t('boards.compose.subjectHint')} value={subject} onChange={setSubject}
         maxLength={SUBJECT_MAX} required={!replyTo} />
-      <div className="field">
-        <label htmlFor="compose-body">{t('boards.compose.body')}</label>
-        <textarea id="compose-body" className="mono" rows={8} value={body} onChange={(e) => { setBody(e.target.value); setPreview(null); }} required />
+      <Editor id="compose-body" label={t('boards.compose.body')} mono rows={8} mentions required maxLength={BODY_MAX} draftKey={draftKey} value={body}
+        onChange={(v) => { setBody(v); setPreview(null); }} onSubmit={() => { if (body.trim() && !send.isPending) { setError(null); send.mutate(); } }}>
         {replyTo?.body && (
           <button type="button" className="link" onClick={() => setBody((b) => quoteReply(name, replyTo.body!) + b)}>{t('boards.compose.quote')}</button>
         )}
-      </div>
+      </Editor>
       {error && <Alert kind="error">{error}</Alert>}
       {preview && (
         <div className="preview">
