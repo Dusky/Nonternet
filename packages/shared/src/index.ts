@@ -11,3 +11,4 @@ export * from './characters';
 export * from './mail';
 export * from './vouches';
 export * from './files';
+export * from './classics';

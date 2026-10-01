@@ -7,6 +7,7 @@ export type LiveEvent =
   | { type: 'mail'; thread?: string }
   | { type: 'board'; slug: string; thread: string }
   | { type: 'announcements' }
+  | { type: 'classics' }
   | { type: 'presence' };
 
 export interface LiveSub { userId: string; confirmed: boolean; send: (e: LiveEvent) => void; close: () => void }

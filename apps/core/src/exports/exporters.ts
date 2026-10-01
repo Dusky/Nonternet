@@ -24,7 +24,7 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 const profile: Exporter = {
   id: 'profile',
-  tables: ['users', 'handle_history', 'watches', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes'],
+  tables: ['users', 'oneliners', 'polls', 'poll_options', 'poll_votes', 'bulletin_seen', 'handle_history', 'watches', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes'],
   async run({ deps, user, add }) {
     const q = deps.db;
     const [names, domains, rings, boards, watching, ops, history] = await Promise.all([
@@ -52,6 +52,17 @@ const profile: Exporter = {
     if (me.rows[0]!.avatar_at) {
       try { add('avatar.webp', await fs.readFile(join(deps.filesDir, 'avatars', `${user.id}.webp`))); } catch { /* the picture is gone; nothing to add */ }
     }
+    // The BBS classics (M9-E): the lines they put on the wall, the votes they cast, and the polls they asked.
+    const [lines, votes, asked] = await Promise.all([
+      q.query<{ body: string; created_at: Date; hidden_at: Date | null }>(`SELECT body, created_at, hidden_at FROM oneliners WHERE author_id = $1 ORDER BY created_at`, [user.id]),
+      q.query<{ question: string; label: string; voted_at: Date }>(`SELECT p.question, o.label, v.voted_at FROM poll_votes v JOIN polls p ON p.id = v.poll_id JOIN poll_options o ON o.id = v.option_id WHERE v.user_id = $1 ORDER BY v.voted_at`, [user.id]),
+      q.query<{ id: string; question: string; created_at: Date; closes_at: Date | null }>(`SELECT id, question, created_at, closes_at FROM polls WHERE created_by = $1 ORDER BY created_at`, [user.id]),
+    ]);
+    add('classics.json', json({
+      oneliners: lines.rows.map((l) => ({ text: l.body, at: l.created_at.toISOString(), hidden_by_moderator: l.hidden_at !== null })),
+      poll_votes: votes.rows.map((x) => ({ poll: x.question, choice: x.label, at: x.voted_at.toISOString() })),
+      polls_asked: asked.rows.map((x) => ({ question: x.question, at: x.created_at.toISOString(), closes: iso(x.closes_at) })),
+    }));
     add('profile.json', json({
       id: user.id, handle: user.handle, display_name: user.display_name, bio: user.bio, email: user.email, joined_at: user.created_at.toISOString(),
       role: user.role, theme: user.theme, previous_handles: names.rows.map((n) => ({ handle: n.handle, until: n.changed_at.toISOString() })),
@@ -248,6 +259,7 @@ export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings
 // exporter fails the test in exports/exporters.test.ts.
 export const EXEMPT: Record<string, string> = {
   legal_pages: 'site documents written by admins',
+  bulletins: 'site notices written by admins, not a person\'s own content',
   legal_page_versions: 'site documents written by admins',
   legal_requests: 'takedown requests from the public, about content rather than by the account',
   sessions: 'security state, not content',

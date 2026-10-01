@@ -94,6 +94,9 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
          totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = NULL, public_key = NULL, private_key_enc = NULL, theme = NULL,
          status_line = NULL, away = false, avatar_at = NULL, email_digest = false,
          role = 'guest', role_rev = role_rev + 1, updated_at = now() WHERE id = $1`, [userId, gone, `${gone}@deleted.invalid`]);
+    await q.query(`DELETE FROM oneliners WHERE author_id = $1`, [userId]);
+    await q.query(`DELETE FROM poll_votes WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM bulletin_seen WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM notification_prefs WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM board_notification_prefs WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM mail_mutes WHERE user_id = $1`, [userId]);
