@@ -5,6 +5,7 @@ import { api, ApiError } from '../../api';
 import type { StringKey } from '@app/strings';
 import { backoffMs } from '../../reconnect';
 import { mentions } from './format';
+import { TYPING_SHOW_MS } from './helpers';
 
 // One connection to IRC for the whole shell (docs/08), shared by the Chat window and page. It opens
 // when the Chat app does and closes when the last view of it goes away.
@@ -12,12 +13,12 @@ import { mentions } from './format';
 export type MsgKind = 'message' | 'action' | 'notice' | 'join' | 'part' | 'quit' | 'kick' | 'nick' | 'topic' | 'info' | 'error';
 // `key` is a UI string shown instead of `text` (our own notes); `text` is what came from IRC.
 export interface Msg { id: string; time: number; kind: MsgKind; nick: string; text: string; self: boolean; mention: boolean; key?: StringKey }
-export interface Buffer { name: string; kind: 'channel' | 'query' | 'server'; messages: Msg[]; users: Map<string, string>; topic: string; unread: number; mentioned: boolean; joined: boolean }
+export interface Buffer { name: string; kind: 'channel' | 'query' | 'server'; messages: Msg[]; users: Map<string, string>; topic: string; unread: number; mentioned: boolean; joined: boolean; readUpTo: string | null; typing: Map<string, number> }
 export type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error';
 
 interface ChatState {
   status: Status; error: string | null; nick: string; active: string; buffers: Map<string, Buffer>; muted: Set<string>;
-  connect(): void; disconnect(): void; select(name: string): void; send(text: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void;
+  connect(): void; disconnect(): void; select(name: string): void; openQuery(nick: string): void; typing(): void; send(text: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void;
 }
 
 // irc-framework's browser build expects Node's global Buffer (for SASL); Kiwi IRC provides it the same way.
@@ -33,6 +34,7 @@ let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let client: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
 let users = 0;
 let seq = 0;
+let lastTyping = 0;
 const leaving = new Set<string>(); // channels closed here; the server's PART must not bring them back
 const key = (name: string) => name.toLowerCase();
 const isChannel = (name: string) => /^[#&]/.test(name);
@@ -52,7 +54,7 @@ function remember(channel: string, open: boolean) {
   saveChannels(open ? [...rest, channel] : rest);
 }
 
-const newBuffer = (name: string, kind: Buffer['kind']): Buffer => ({ name, kind, messages: [], users: new Map(), topic: '', unread: 0, mentioned: false, joined: false });
+const newBuffer = (name: string, kind: Buffer['kind']): Buffer => ({ name, kind, messages: [], users: new Map(), topic: '', unread: 0, mentioned: false, joined: false, readUpTo: null, typing: new Map() });
 
 export const useChat = create<ChatState>((set, get) => {
   // Every change makes new Map/Buffer objects so React sees it.
@@ -71,11 +73,12 @@ export const useChat = create<ChatState>((set, get) => {
     update(target, (b) => {
       const id = m.msgid ?? `l${++seq}`;
       if (m.msgid && b.messages.some((x) => x.id === id)) return b; // history and live can overlap
+      const typing = new Map(b.typing); typing.delete(m.nick);
       let messages = [...b.messages, { id, time: m.time, kind: m.kind, nick: m.nick, text: m.text, self, mention, ...(m.key ? { key: m.key } : {}) }];
       if (m.history) messages.sort((a, c) => a.time - c.time);
       if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
       const counts = !m.history && key(target) !== key(active) && (m.kind === 'message' || m.kind === 'action' || m.kind === 'notice');
-      return { ...b, messages, unread: counts ? b.unread + 1 : b.unread, mentioned: b.mentioned || (counts && mention && !muted.has(key(target))) };
+      return { ...b, messages, typing, unread: counts ? b.unread + 1 : b.unread, mentioned: b.mentioned || (counts && mention && !muted.has(key(target))) };
     });
   };
   const info = (text: string, kind: MsgKind = 'info', target = get().active) => add(target, { time: Date.now(), kind, nick: '', text });
@@ -100,7 +103,7 @@ export const useChat = create<ChatState>((set, get) => {
       if (users === 0) return;
       const c = new Client();
       client = c;
-      c.requestCap(['draft/chathistory', 'draft/event-playback']);
+      c.requestCap(['draft/chathistory', 'draft/event-playback', 'message-tags']);
       set({ nick: t.nick });
       c.on('registered', () => {
         attempt = 0;
@@ -170,6 +173,17 @@ export const useChat = create<ChatState>((set, get) => {
         const kind: MsgKind = e.type === 'action' ? 'action' : e.type === 'notice' ? 'notice' : 'message';
         add(target, { time: timeOf(e), kind, nick: e.nick, text: e.message, msgid: e.tags?.msgid, history: inHistory(e) });
       };
+      // Typing notices (IRCv3 +typing, relayed by Ergo as TAGMSG). They are a courtesy: a missing one costs nothing.
+      c.on('tagmsg', (e: any) => {
+        const state = e.tags?.['+typing'] ?? e.tags?.['+draft/typing'];
+        if (!state || !e.nick || key(e.nick) === key(get().nick)) return;
+        const target = isChannel(e.target) ? e.target : e.nick;
+        update(target, (b) => {
+          const typing = new Map(b.typing);
+          if (state === 'active' || state === 'paused') typing.set(e.nick, Date.now() + TYPING_SHOW_MS); else typing.delete(e.nick);
+          return { ...b, typing };
+        });
+      });
       c.on('privmsg', onMessage);
       c.on('action', onMessage);
       c.on('notice', onMessage);
@@ -214,7 +228,23 @@ export const useChat = create<ChatState>((set, get) => {
 
     select(name) {
       set({ active: key(name) });
-      update(name, (b) => ({ ...b, unread: 0, mentioned: false }));
+      // Remember the last line you had already seen, so the log can mark where the new ones begin.
+      update(name, (b) => ({ ...b, unread: 0, mentioned: false, readUpTo: b.unread > 0 ? b.messages[Math.max(0, b.messages.length - b.unread - 1)]?.id ?? null : null }));
+    },
+
+    openQuery(nick) {
+      if (!nick || key(nick) === key(get().nick)) return;
+      update(nick, (b) => b, 'query');
+      get().select(nick);
+    },
+
+    // Tell the other side we are typing, at most once every three seconds.
+    typing() {
+      const { active, buffers } = get();
+      const buf = buffers.get(active);
+      if (!client || !buf || buf.kind === 'server' || Date.now() - lastTyping < 3000) return;
+      lastTyping = Date.now();
+      try { client.tagmsg(buf.name, { '+typing': 'active' }); } catch { /* not supported: nobody sees it */ }
     },
 
     join(name) {
@@ -257,6 +287,20 @@ export const useChat = create<ChatState>((set, get) => {
           }
           case 'topic': if (target && isChannel(target)) client.setTopic(target, arg); return;
           case 'nick': return note('chat.note.nick', 'error');
+          case 'help': case '?': return note('chat.note.help');
+          case 'away': {
+            if (arg) { client.raw('AWAY', arg.slice(0, 160)); return note('chat.note.away'); }
+            client.raw('AWAY'); return note('chat.note.back');
+          }
+          case 'whois': {
+            const who = rest[0];
+            if (!who) return note('chat.note.msgWho', 'error');
+            client.whois(who, (e: any) => {
+              if (e.error) return note('chat.note.noSuchNick', 'error');
+              info(`${e.nick}${e.account ? ` (${e.account})` : ''} ${e.real_name ?? ''}${e.away ? ` — ${e.away}` : ''}`.trim());
+            });
+            return;
+          }
           default: return note('chat.note.unknown', 'error');
         }
       }

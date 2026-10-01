@@ -1,12 +1,16 @@
 import { useConfirm } from '../../components/feedback';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, type MailMessageView, type MailPerson, type MailThreadSummary, type MailThreadView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
-import { errorText, useT } from '../../hooks';
+import { errorText, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { PersonLink } from '../people/PersonLink';
+import { Editor } from '../../components/Editor';
+import { clearDraft } from '../../drafts';
+import { quoteReply } from '../../quote';
+import { useDebounced } from '../admin/useDebounced';
 
 const ROUTES = ['', 'new', 'new/:to', ':id'] as const;
 
@@ -29,15 +33,27 @@ const who = (t: ReturnType<typeof useT>, p: MailPerson) => p.display_name || p.h
 function Inbox() {
   const t = useT();
   const q = useQuery({ queryKey: ['mail', 'list'], queryFn: () => api.get<{ threads: MailThreadSummary[]; unread: number }>('/mail'), refetchInterval: 60_000 });
+  const [find, setFind] = useState('');
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const shown = useMemo(() => {
+    const needle = find.trim().toLowerCase();
+    return (q.data?.threads ?? []).filter((th) => (!unreadOnly || th.unread) && (!needle
+      || `${th.subject} ${th.people.map((p) => p.handle ?? '').join(' ')} ${th.people.map((p) => p.display_name ?? '').join(' ')} ${th.last?.excerpt ?? ''}`.toLowerCase().includes(needle)));
+  }, [q.data, find, unreadOnly]);
   return (
     <>
-      <div className="toolbar"><AppLink to="new" className="btn btn-primary">{t('mail.new')}</AppLink></div>
+      <div className="toolbar">
+        <AppLink to="new" className="btn btn-primary">{t('mail.new')}</AppLink>
+        <input type="search" aria-label={t('mail.search')} placeholder={t('mail.search')} value={find} onChange={(e) => setFind(e.target.value)} />
+        <button type="button" className={`btn btn-quiet${unreadOnly ? ' is-active' : ''}`} aria-pressed={unreadOnly} onClick={() => setUnreadOnly((u) => !u)}>{t('mail.unreadOnly')}</button>
+      </div>
       <p className="hint">{t('mail.private')}</p>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {q.data && q.data.threads.length === 0 && <EmptyState icon="inbox">{t('mail.none', { max: MAIL_MAX_PEOPLE })}</EmptyState>}
       {!q.data && !q.isError && <Loading rows={3} />}
+      {q.data && q.data.threads.length > 0 && shown.length === 0 && <EmptyState icon="inbox">{t('mail.noMatch')}</EmptyState>}
       <ul className="rows mail-rows">
-        {q.data?.threads.map((th) => (
+        {shown.map((th) => (
           <li key={th.id} className={`mail-row${th.unread ? ' is-unread' : ''}`}>
             <Avatar id={th.people[0]?.id} name={th.people[0] ? who(t, th.people[0]) : '?'} />
             <div>
@@ -64,12 +80,13 @@ function Compose({ to: initial }: { to: string }) {
   const t = useT();
   const nav = useAppNav();
   const qc = useQueryClient();
+  const me = useMe().data;
   const [to, setTo] = useState(initial);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const send = useMutation({
     mutationFn: () => api.post<{ id: string }>('/mail', { to: parseHandles(to), subject, body }),
-    onSuccess: (r) => { void qc.invalidateQueries({ queryKey: ['mail'] }); nav.go(r.id, { replace: true }); },
+    onSuccess: (r) => { if (me) clearDraft(me.id, 'mail:new'); void qc.invalidateQueries({ queryKey: ['mail'] }); nav.go(r.id, { replace: true }); },
   });
   const submit = (e: FormEvent) => { e.preventDefault(); send.mutate(); };
   return (
@@ -77,9 +94,10 @@ function Compose({ to: initial }: { to: string }) {
       <BackLink to="">{t('mail.inbox')}</BackLink>
       <h2>{t('mail.new')}</h2>
       <form onSubmit={submit} className="panel">
-        <TextField label={t('mail.to')} value={to} onChange={setTo} hint={t('mail.toHint', { max: MAIL_MAX_PEOPLE })} autoCapitalize="none" spellCheck={false} required />
+        <ToField value={to} onChange={setTo} />
         <TextField label={t('mail.subject')} value={subject} onChange={setSubject} maxLength={MAIL_SUBJECT_MAX} required />
-        <TextField label={t('mail.body')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} multiline required />
+        <Editor label={t('mail.body')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey="mail:new" mentions required
+          onSubmit={() => { if (to.trim() && subject.trim() && body.trim() && !send.isPending) send.mutate(); }} />
         {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
         <button type="submit" className="btn btn-primary" disabled={send.isPending}>{t('mail.send')}</button>
       </form>
@@ -96,18 +114,27 @@ function Conversation({ id }: { id: string }) {
   const q = useQuery({ queryKey: key, queryFn: () => api.get<MailThreadView>(`/mail/${id}`), refetchInterval: 30_000 });
   // Opening a conversation marks it read, so the counts elsewhere change.
   useEffect(() => { if (q.data) { void qc.invalidateQueries({ queryKey: ['mail', 'list'] }); void qc.invalidateQueries({ queryKey: ['mail', 'unread'] }); } }, [q.data, qc]);
+  const me = useMe().data;
   const refresh = () => qc.invalidateQueries({ queryKey: ['mail'] });
   const [body, setBody] = useState('');
   const [adding, setAdding] = useState('');
-  const send = useMutation({ mutationFn: () => api.post(`/mail/${id}/messages`, { body }), onSuccess: () => { setBody(''); void refresh(); } });
+  const send = useMutation({ mutationFn: () => api.post(`/mail/${id}/messages`, { body }), onSuccess: () => { setBody(''); if (me) clearDraft(me.id, `mail:${id}`); void refresh(); } });
   const add = useMutation({ mutationFn: () => api.post(`/mail/${id}/people`, { handle: adding.trim().replace(/^@/, '') }), onSuccess: () => { setAdding(''); void refresh(); } });
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
   const del = useMutation({ mutationFn: (mid: string) => api.del(`/mail/${id}/messages/${mid}`), onSuccess: () => void refresh() });
 
+  const end = useRef<HTMLOListElement>(null);
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (!q.data || scrolled.current) return;
+    scrolled.current = true;
+    end.current?.lastElementChild?.scrollIntoView({ block: 'nearest' });
+  }, [q.data]);
   useSubtitle(q.data?.subject);
   if (q.isError) return <><BackLink to="">{t('mail.inbox')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   const th = q.data;
   if (!th) return <Loading rows={4} />;
+  const lastTheirs = [...th.messages].reverse().find((m) => m.kind === 'message' && !m.mine && !m.deleted);
   return (
     <div>
       <BackLink to="">{t('mail.inbox')}</BackLink>
@@ -119,14 +146,17 @@ function Conversation({ id }: { id: string }) {
         ))}</p>
       </section>
       {th.left && <Alert kind="info">{t('mail.youLeft')}</Alert>}
-      <ol className="posts mail-messages">
+      <ol className="posts mail-messages" ref={end}>
         {th.messages.map((m) => <Message key={m.id} m={m} threadId={id} canAct={!th.left} onDelete={() => { void confirm({ message: t('mail.deleteConfirm'), confirmLabel: t('confirm.deleteMessage'), danger: true }).then((ok) => ok && del.mutate(m.id)); }} />)}
       </ol>
       {del.isError && <Alert kind="error">{errorText(del.error)}</Alert>}
       {!th.left && (
         <>
           <form className="panel" onSubmit={(e) => { e.preventDefault(); send.mutate(); }}>
-            <TextField label={t('mail.reply')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} multiline required />
+            <Editor label={t('mail.reply')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey={`mail:${id}`} mentions required
+              onSubmit={() => { if (body.trim() && !send.isPending) send.mutate(); }}>
+              {lastTheirs && lastTheirs.body && <button type="button" className="link" onClick={() => setBody((b) => quoteReply(who(t, lastTheirs.author), lastTheirs.body!) + b)}>{t('mail.quote')}</button>}
+            </Editor>
             {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
             <button type="submit" className="btn btn-primary" disabled={send.isPending || !body.trim()}>{t('mail.replySend')}</button>
           </form>
@@ -197,6 +227,25 @@ function ReportMessage({ threadId, messageId }: { threadId: string; messageId: s
           </div>
         </form>
       )}
+    </>
+  );
+}
+
+// "alice, bo" suggests handles that start with "bo" (a datalist, so it works with a keyboard and a screen reader).
+function ToField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useT();
+  const last = value.split(/[\s,;]+/).pop()?.replace(/^@/, '') ?? '';
+  const prefix = useDebounced(last, 150);
+  const people = useQuery({
+    queryKey: ['mentions', prefix], enabled: prefix.length > 0, staleTime: 60_000,
+    queryFn: () => api.get<{ people: { id: string; handle: string; display_name: string | null }[] }>(`/mentions?prefix=${encodeURIComponent(prefix)}`),
+  }).data?.people ?? [];
+  const head = value.slice(0, value.length - last.length);
+  const listId = 'mail-to-people';
+  return (
+    <>
+      <TextField label={t('mail.to')} value={value} onChange={onChange} hint={t('mail.toHint', { max: MAIL_MAX_PEOPLE })} autoCapitalize="none" spellCheck={false} list={listId} autoComplete="off" required />
+      <datalist id={listId}>{last && people.map((p) => <option key={p.id} value={`${head}${p.handle}`} label={p.display_name ?? undefined} />)}</datalist>
     </>
   );
 }

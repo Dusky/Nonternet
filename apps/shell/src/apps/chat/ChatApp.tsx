@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert } from '../../components/ui';
 import { errorText, useSite, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { parseFormatting, type Segment } from './format';
+import { completeNick, dayKey, dayLabel, typingNow, type Completion } from './helpers';
 import { sortedUsers, useChat, type Buffer, type Msg } from './store';
 
 interface ChannelInfo { name: string; kind: 'official' | 'ring' | 'user'; owner: string | null; ring: { slug: string; name: string } | null; users: number | null; topic: string | null }
@@ -104,13 +105,33 @@ function BufferHeader({ buf, showUsers, onToggleUsers }: { buf: Buffer; showUser
 function Log({ buf }: { buf: Buffer }) {
   const ref = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
-  useLayoutEffect(() => { const el = ref.current; if (el && stick.current) el.scrollTop = el.scrollHeight; }, [buf.messages, buf.name]);
+  const [away, setAway] = useState(false); // scrolled up from the newest lines
+  const [quiet, setQuiet] = useState(true); // while history loads, don't read it out line by line
   const t = useT();
+  const [now, setNow] = useState(Date.now());
+  useLayoutEffect(() => { const el = ref.current; if (el && stick.current) el.scrollTop = el.scrollHeight; }, [buf.messages, buf.name]);
+  useEffect(() => { setQuiet(true); const id = setTimeout(() => setQuiet(false), 1500); return () => clearTimeout(id); }, [buf.name]);
+  // Typing notices expire on their own, so look again every couple of seconds while someone is typing.
+  useEffect(() => { if (!buf.typing.size) return; const id = setInterval(() => setNow(Date.now()), 2000); return () => clearInterval(id); }, [buf.typing]);
+  const who = typingNow(buf.typing, now);
+  const words = { today: t('chat.today'), yesterday: t('chat.yesterday') };
+  const rows: JSX.Element[] = [];
+  let prevDay = '';
+  for (const m of buf.messages) {
+    const d = dayKey(m.time);
+    if (d !== prevDay) { rows.push(<li key={`d${d}`} className="chat-day"><span>{dayLabel(m.time, Date.now(), words)}</span></li>); prevDay = d; }
+    rows.push(<Line key={m.id} m={m} />);
+    if (buf.readUpTo === m.id && m !== buf.messages[buf.messages.length - 1]) rows.push(<li key="new" className="chat-new"><span>{t('chat.newMessages')}</span></li>);
+  }
   return (
-    // A log region is announced politely by screen readers as lines arrive. It scrolls, so it can take focus.
-    <div ref={ref} className="chat-log" role="log" aria-live="polite" aria-label={t('chat.messages', { name: buf.kind === 'server' ? t('chat.server') : buf.name })} tabIndex={0}
-      onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; }}>
-      <ol className="plain">{buf.messages.map((m) => <Line key={m.id} m={m} />)}</ol>
+    <div className="chat-log-wrap">
+      {/* A log region is announced politely by screen readers as lines arrive. It scrolls, so it can take focus. */}
+      <div ref={ref} className="chat-log" role="log" aria-live={quiet ? 'off' : 'polite'} aria-label={t('chat.messages', { name: buf.kind === 'server' ? t('chat.server') : buf.name })} tabIndex={0}
+        onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; setAway(!stick.current); }}>
+        <ol className="plain">{rows}</ol>
+      </div>
+      {away && <button type="button" className="btn chat-jump" onClick={() => { const el = ref.current; if (el) { el.scrollTop = el.scrollHeight; stick.current = true; setAway(false); } }}>{t('chat.jump')}</button>}
+      <p className="hint chat-typing" role="status" aria-live="polite">{who.length > 0 ? t('chat.typing', { names: who.join(', '), count: who.length }) : '\u00a0'}</p>
     </div>
   );
 }
@@ -119,11 +140,13 @@ const time = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digi
 
 function Line({ m }: { m: Msg }) {
   const t = useT();
+  const openQuery = useChat((st) => st.openQuery);
+  const Nick = ({ nick }: { nick: string }) => (m.self || !nick ? <span className="chat-nick">{nick}</span> : <button type="button" className="chat-nick link" title={t('chat.messageNick', { nick })} onClick={() => openQuery(nick)}>{nick}</button>);
   const cls = `chat-line chat-k-${m.kind}${m.mention ? ' is-mention' : ''}${m.self ? ' is-self' : ''}`;
   const when = <time className="chat-time" dateTime={new Date(m.time).toISOString()}>{time(m.time)}</time>;
   switch (m.kind) {
-    case 'message': return <li className={cls}>{when} <span className="chat-nick">{m.nick}</span> <IrcText text={m.text} /></li>;
-    case 'action': return <li className={cls}>{when} <span aria-hidden="true">* </span><span className="chat-nick">{m.nick}</span> <IrcText text={m.text} /></li>;
+    case 'message': return <li className={cls}>{when} <Nick nick={m.nick} /> <IrcText text={m.text} /></li>;
+    case 'action': return <li className={cls}>{when} <span aria-hidden="true">* </span><Nick nick={m.nick} /> <IrcText text={m.text} /></li>;
     case 'notice': return <li className={cls}>{when} <span className="chat-nick">-{m.nick || t('chat.server')}-</span> <IrcText text={m.text} /></li>;
     case 'info': case 'error': return <li className={cls}>{when} {m.key ? t(m.key) : <IrcText text={m.text} />}</li>;
     default: return <li className={cls}>{when} {t(`chat.event.${m.kind}` as never, { nick: m.nick, text: m.text })}</li>;
@@ -142,11 +165,26 @@ function Seg({ s }: { s: Segment }) {
 function Composer({ target }: { target: Buffer | undefined }) {
   const t = useT();
   const send = useChat((s) => s.send);
+  const me = useChat((s) => s.nick);
   const [text, setText] = useState('');
+  const typing = useChat((st) => st.typing);
+  const users = target?.users;
+  const nicks = useMemo(() => (target && target.kind === 'channel' && users ? [...users.keys()] : target && target.kind === 'query' ? [target.name] : []), [target?.kind, target?.name, users]); // eslint-disable-line react-hooks/exhaustive-deps
+  const input = useRef<HTMLInputElement>(null);
+  const comp = useRef<Completion | null>(null);
   const history = useRef<string[]>([]);
   const pos = useRef(-1);
   const submit = (e: FormEvent) => { e.preventDefault(); if (!text.trim()) return; send(text); history.current.unshift(text); pos.current = -1; setText(''); };
   const keys = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      const c = completeNick(text, e.currentTarget.selectionStart ?? text.length, nicks.filter((n) => n.toLowerCase() !== me.toLowerCase()), comp.current);
+      if (c) {
+        e.preventDefault(); comp.current = c; setText(c.text);
+        requestAnimationFrame(() => input.current?.setSelectionRange(c.caret, c.caret));
+      }
+      return;
+    }
+    comp.current = null;
     if (e.key === 'ArrowUp' && history.current.length) { pos.current = Math.min(pos.current + 1, history.current.length - 1); setText(history.current[pos.current]!); e.preventDefault(); }
     if (e.key === 'ArrowDown' && pos.current >= 0) { pos.current -= 1; setText(pos.current >= 0 ? history.current[pos.current]! : ''); e.preventDefault(); }
   };
@@ -154,7 +192,7 @@ function Composer({ target }: { target: Buffer | undefined }) {
   return (
     <form className="chat-compose" onSubmit={submit}>
       <label htmlFor="chat-input" className="sr-only">{label}</label>
-      <input id="chat-input" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={keys} placeholder={label} maxLength={400} autoComplete="off" spellCheck />
+      <input id="chat-input" ref={input} value={text} onChange={(e) => { setText(e.target.value); if (e.target.value && !e.target.value.startsWith('/')) typing(); }} onKeyDown={keys} placeholder={label} maxLength={400} autoComplete="off" spellCheck />
       <button className="btn btn-primary" type="submit">{t('chat.send')}</button>
     </form>
   );

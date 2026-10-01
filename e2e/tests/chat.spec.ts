@@ -44,6 +44,36 @@ test.describe('chat', () => {
     await other.close();
   });
 
+  test('Tab finishes a nick, typing shows to the other person, a nick opens a private chat, /help lists commands', async ({ page, browser }) => {
+    const a = await makeUser(page, { handle: uniq('ann') });
+    await signIn(page, a.handle, PASSWORD);
+    await page.goto('/chat');
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    const other = await browser.newContext();
+    const page2 = await other.newPage();
+    const b = await makeUser(page2, { handle: uniq('bob') });
+    await signIn(page2, b.handle, PASSWORD);
+    await page2.goto('/chat');
+    await expect(page2.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    const box = page.getByLabel('Message #lobby');
+    await expect(page.getByRole('complementary', { name: /here$/ }).or(page.getByRole('button', { name: /here$/ })).first()).toBeVisible();
+    await box.fill(b.handle.slice(0, 5));
+    await box.press('Tab');
+    await expect(box).toHaveValue(`${b.handle}: `);
+    // Typing is a courtesy: ann types, bob may see it.
+    await box.fill('typing something');
+    await expect(page2.getByText(`${a.handle} is typing…`)).toBeVisible({ timeout: 8000 });
+    await box.fill('/help');
+    await box.press('Enter');
+    await expect(log(page, '#lobby').getByText(/Commands: \/join/)).toBeVisible();
+    // Bob says something; ann clicks his name to talk privately.
+    await page2.getByLabel('Message #lobby').fill('over here');
+    await page2.getByLabel('Message #lobby').press('Enter');
+    await log(page, '#lobby').getByRole('button', { name: new RegExp(`^${b.handle}`) }).first().click();
+    await expect(page.getByRole('heading', { level: 2, name: b.handle })).toBeVisible();
+    await other.close();
+  });
+
   test('joins another channel, and says plainly when a command is not known', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
@@ -54,7 +84,7 @@ test.describe('chat', () => {
     await expect(page.getByRole('heading', { level: 2, name: '#help' })).toBeVisible();
     await page.getByLabel('Message #help').fill('/frobnicate');
     await page.getByLabel('Message #help').press('Enter');
-    await expect(log(page, '#help').getByText('Unknown command. Try /join, /part, /me, /msg or /topic.')).toBeVisible();
+    await expect(log(page, '#help').getByText('Unknown command. Type /help to see them.')).toBeVisible();
     await page.getByRole('button', { name: 'Leave' }).click();
     await expect(channels.getByRole('button', { name: '#help' })).toBeVisible(); // back in the site list
   });
