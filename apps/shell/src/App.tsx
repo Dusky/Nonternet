@@ -18,6 +18,7 @@ import { AppBoundary } from './components/Boundary';
 import { LegalPageRoute } from './pages/Legal';
 import { Landing } from './pages/Landing';
 import { SignupPage } from './pages/Signup';
+import { GuestbookSignPage } from './pages/GuestbookSign';
 
 // Sends anyone who is not signed in to the login page, and back here afterwards. An admin who
 // has not set up two-factor is held at that step (the server refuses their other calls anyway).
@@ -119,6 +120,7 @@ export function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/setup-2fa" element={<Setup2faRoute />} />
+      <Route path="/guestbook-sign" element={<RequireUser>{() => <GuestbookSignPage />}</RequireUser>} />
       <Route path="/report/homepage/:handle" element={<RequireUser>{() => <ReportHomepagePage />}</RequireUser>} />
       {APPS.map((app) => <Route key={app.id} path={`${app.path}/*`} element={<AppRoute app={app} />} />)}
       <Route path="*" element={<NotFound />} />

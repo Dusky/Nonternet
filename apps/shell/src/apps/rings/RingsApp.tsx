@@ -7,6 +7,7 @@ import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, TextField }
 import { errorText, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { OpenAppLink } from '../../shell/OpenAppLink';
+import { BannerManager, BannerStrip } from './RingBanners';
 
 const ROUTES = ['', 'new', ':slug'] as const;
 
@@ -153,6 +154,7 @@ function RingPage({ slug }: { slug: string }) {
         {t('rings.foundedBy', { name: r.founder.handle })} · {t('rings.members', { count: r.member_count })} · {t(`rings.policy.${r.join_policy}`)}
         {r.tags.length > 0 && ` · ${r.tags.join(', ')}`}
       </p>
+      <BannerStrip slug={slug} />
       {error && <Alert kind="error">{error}</Alert>}
       <div className="toolbar">
         {r.board && <OpenAppLink app="boards" to={r.board.slug} className="btn">{t('rings.board')}</OpenAppLink>}
@@ -187,6 +189,7 @@ function RingPage({ slug }: { slug: string }) {
       <Members ring={r} />
       <p className="hint">{t('rings.ops')}: {r.ops.map((o) => o.handle).join(', ')}</p>
       {status === 'member' && <NavBar slug={slug} />}
+      {r.me?.is_op && <BannerManager slug={slug} name={r.name} />}
       {r.me?.is_op && <Manage ring={r} onChange={refresh} />}
     </>
   );

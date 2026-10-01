@@ -139,3 +139,7 @@ muted boards). `PATCH /me` also takes `status_line`, `away`, `show_last_seen`, `
 (marks read), admin `POST /admin/bulletins`, `PATCH /admin/bulletins/:number`, `POST /admin/bulletins/:number/hide {reason}`. `GET|POST /polls`,
 `GET /polls/:id`, `POST /polls/:id/vote {option_id}`, admin `POST /admin/polls/:id/hide {reason}`. All need a signed-in, confirmed person.
 Live hint `classics`.
+
+## Homepage toys (M9-E2)
+Public: `GET /widgets/button.svg|png?text=&fg=&bg=`, `GET /rings/:slug/banners`, `GET /rings/:slug/banner/:kind`. Signed in: `POST /homes/:handle/guestbook-ticket {return_to}` → `{redirect}`;
+the widget guestbook `POST` also takes `ticket`. Ring ops/admins: `PUT|DELETE /rings/:slug/banner/:kind` (image bytes), `POST /rings/:slug/banner/:kind/hide|restore {reason}`.

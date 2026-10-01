@@ -77,3 +77,9 @@ board with `ring_id` set. Ring board visibility defaults: public read, members p
 - Another user joins (open ring) → can post in ring board; nav bar works on their homepage.
 - Ring op removes a member → member's nav bar shows "not a member" state, prev/next skip them.
 - User (non-trusted) cannot found a ring; trusted user blocked at quota.
+
+## As built (M9-E2): banners
+A ring can have a 468×60 and an 88×31 banner (PNG, JPEG, WebP or GIF up to 1 MB, drawn again as PNG at the exact size, a GIF becoming its first frame), uploaded by
+the ring's ops or an admin and kept in `FILES_DIR/ring-banners/`. Anyone can see ones that are showing (`GET /rings/:slug/banner/:kind`, public so member pages can
+embed them). Ops can remove one; an admin or op can take one down with a reason (audited `ring.banner_hidden` / `ring.banner_restored`), after which visitors see
+nothing and ops see it marked. They are in the export of the people who run the ring.

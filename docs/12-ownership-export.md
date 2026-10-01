@@ -86,3 +86,6 @@ the choices and the mutes.
 ## As built (M9-E1)
 `classics.json`: your oneliners, the votes you cast (poll and choice) and the polls you asked. Bulletins are site documents and not exported.
 Erasing an account deletes its oneliners, votes and bulletin read-marks; polls it asked and bulletins it wrote stay, without a name.
+
+## As built (M9-E2)
+Ring banners go in the export of the people who run the ring (`rings/<slug>/banner-468x60.png`, `banner-88x31.png`). Guestbook passes are security state, not content.

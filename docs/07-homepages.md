@@ -98,3 +98,15 @@ or SFTP with terminal password; git push deploys.
 - Homepage JS cannot read shell cookies or call the shell API as the viewer.
 - Rename handle → old subdomain redirects for 90 days.
 - Custom domain verifies and serves over HTTPS.
+
+## As built (M9-E2): toys
+- **Counter looks**: `data-style="odometer|lcd|amber|plain"` on the counter snippet (the studio's Widgets tab writes it); no attribute is the original green-on-black.
+- **88×31 button maker**: `GET /widgets/button.svg?text=TOP|BOTTOM&fg=ffffff&bg=37474f` and `.png` (drawn with `sharp`). Up to two lines of 14 characters,
+  two six-digit colours, everything else refused; the output is escaped SVG with no script. Nothing is stored. The studio has a maker with a live preview.
+- **Library**: 14 more in-house SVGs: five animated *blinkies* (the motion is SVG's own, no script), three dividers, three "best viewed" buttons, two signs.
+  The site's own screens respect reduced motion; on a person's homepage that is the owner's choice. Licence question V10 does not grow: all drawn here.
+- **Ring nav bars**: the Widgets tab lists the person's rings with a link to each ring's snippet generator (the nav script itself is unchanged).
+- **Sign with your account**: the guestbook widget offers a link to the site's `/guestbook-sign`; a signed-in, confirmed person gets a one-use, ten-minute pass
+  (`POST /homes/:handle/guestbook-ticket`, only the hash stored) and is sent back to *that homepage's own address* (its handle address or a verified custom
+  domain; anything else is refused, so it cannot be used as an open redirect). The widget takes the pass out of the address at once and sends it with the
+  message; the entry then carries the signer's handle. A pass works once, only for that homepage, and expires.
