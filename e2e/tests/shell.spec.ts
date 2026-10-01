@@ -50,7 +50,7 @@ test.describe('desktop windows', () => {
     await page.getByRole('button', { name: 'Open Settings' }).click();
     const win = page.getByRole('dialog', { name: 'Settings window' });
     const before = await box(win);
-    await dragBy(page, win.locator('header.window-title'), 200, 90);
+    await dragBy(page, win.locator('header.window-title'), 200, 90, { x: 140, y: 10 }); // on the title, not on the Back button
     const moved = await box(win);
     expect(Math.round(moved.x - before.x)).toBe(200);
     expect(Math.round(moved.y - before.y)).toBe(90);

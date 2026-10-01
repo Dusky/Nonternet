@@ -11,9 +11,10 @@ import { YourData } from './YourData';
 import { Blocks } from './Blocks';
 import { OfflineMail, SshKeys, TerminalPassword } from './Terminal';
 import { TotpSetup } from '../../pages/Setup2fa';
-import { applyTheme, clockPref, effectPrefs, saveClockPref, saveEffectPrefs } from '../../theme';
+import { alertPrefs, askDesktopPermission, desktopSupported, playChime, saveAlertPrefs, unlockAudio, type AlertPrefs } from '../../alerts';
+import { applyTheme, clockPref, effectPrefs, saveClockPref, saveEffectPrefs, saveWallpaperPref, wallpaperPref, WALLPAPERS } from '../../theme';
 
-const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance'] as const;
+const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance', 'notifications'] as const;
 
 export default function SettingsApp() {
   const t = useT();
@@ -28,6 +29,7 @@ export default function SettingsApp() {
     <SideNav label={t('app.settings')} groups={[{ items: [
       { to: 'profile', label: t('settings.tab.profile') },
       { to: 'appearance', label: t('settings.tab.appearance') },
+      { to: 'notifications', label: t('settings.tab.notifications') },
       { to: 'password', label: t('settings.tab.password') },
       { to: 'two-factor', label: t('settings.tab.twofa') },
       { to: 'terminal', label: t('settings.tab.terminal') },
@@ -41,6 +43,7 @@ export default function SettingsApp() {
       {route?.pattern === 'data' && <YourData me={me} />}
       {route?.pattern === 'blocked' && <Blocks />}
       {route?.pattern === 'appearance' && <Appearance me={me} />}
+      {route?.pattern === 'notifications' && <DeviceAlerts />}
     </SideNav>
   );
 }
@@ -181,6 +184,7 @@ function Appearance({ me }: { me: Me }) {
   const [theme, setTheme] = useState<ThemeName>(current);
   const [prefs, setPrefs] = useState(() => effectPrefs(theme));
   const [clock, setClock] = useState(clockPref);
+  const [paper, setPaper] = useState(wallpaperPref);
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
@@ -228,11 +232,63 @@ function Appearance({ me }: { me: Me }) {
         </fieldset>
       )}
       <fieldset>
+        <legend>{t('settings.appearance.wallpaper')}</legend>
+        <div className="theme-choices">
+          {WALLPAPERS.map((w) => (
+            <label key={w} className={`theme-choice${paper === w ? ' is-chosen' : ''}`}>
+              <input type="radio" name="wallpaper" value={w} checked={paper === w} onChange={() => { setPaper(w); saveWallpaperPref(w); }} />
+              <span className={`theme-swatch wallpaper-swatch wp-${w}`} aria-hidden="true" />
+              <span>{t(`settings.wallpaper.${w}`)}</span>
+            </label>
+          ))}
+        </div>
+        <p className="hint">{t('settings.appearance.thisDevice')}</p>
+      </fieldset>
+      <fieldset>
         <legend>{t('settings.appearance.taskbar')}</legend>
         <label className="check"><input type="checkbox" checked={clock} onChange={(e) => { setClock(e.target.checked); saveClockPref(e.target.checked); }} />{t('settings.appearance.clock')}</label>
         <p className="hint">{t('settings.appearance.thisDevice')}</p>
       </fieldset>
       {error && <Alert kind="error">{error}</Alert>}
     </>
+  );
+}
+
+// Alerts on this device (M9-B): a desktop notification and a chime when something arrives and the tab is in the
+// background. Off until turned on; the browser asks for permission when notifications are first switched on.
+function DeviceAlerts() {
+  const t = useT();
+  const [prefs, setPrefs] = useState(alertPrefs);
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => (desktopSupported() ? Notification.permission : 'unsupported'));
+  const toast = useToast();
+  const save = (next: AlertPrefs) => { setPrefs(next); saveAlertPrefs(next); };
+  const turnOnDesktop = async (on: boolean) => {
+    if (!on) return save({ ...prefs, desktop: false });
+    const p = await askDesktopPermission();
+    setPermission(p);
+    save({ ...prefs, desktop: p === 'granted' });
+  };
+  return (
+    <section aria-labelledby="alerts-h">
+      <h2 id="alerts-h">{t('settings.alerts.title')}</h2>
+      <p className="hint">{t('settings.alerts.intro')}</p>
+      <fieldset>
+        <legend>{t('settings.alerts.device')}</legend>
+        <label className="check">
+          <input type="checkbox" checked={prefs.desktop} disabled={permission === 'unsupported'} onChange={(e) => void turnOnDesktop(e.target.checked)} />
+          {t('settings.alerts.desktop')}
+        </label>
+        {permission === 'unsupported' && <p className="hint">{t('settings.alerts.unsupported')}</p>}
+        {permission === 'denied' && <p className="field-error">{t('settings.alerts.denied')}</p>}
+        <label className="check">
+          <input type="checkbox" checked={prefs.sound} onChange={(e) => { unlockAudio(); save({ ...prefs, sound: e.target.checked }); if (e.target.checked) playChime(); }} />
+          {t('settings.alerts.sound')}
+        </label>
+        <p className="hint">{t('settings.appearance.thisDevice')}</p>
+        <div className="actions">
+          <button type="button" className="btn" onClick={() => { unlockAudio(); if (prefs.sound) playChime(); toast(t('settings.alerts.tested')); }}>{t('settings.alerts.test')}</button>
+        </div>
+      </fieldset>
+    </section>
   );
 }

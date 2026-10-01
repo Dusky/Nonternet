@@ -4,6 +4,7 @@ import type { Me, PublicSite } from '@app/shared';
 import { en, makeT } from '@app/strings';
 import { api, ApiError } from './api';
 import { fetchSite } from './site';
+import { setFavicon, watchThemeForFavicon } from './shell/tabInfo';
 import { applyTheme, hasRememberedTheme } from './theme';
 
 type T = ReturnType<typeof makeT>;
@@ -18,6 +19,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     if (!value) return;
     document.title = value.t('landing.title');
     if (!hasRememberedTheme() && value.site.default_theme) applyTheme(value.site.default_theme, { remember: false });
+    setFavicon();
+    return watchThemeForFavicon();
   }, [value]);
   if (q.isError) {
     return (

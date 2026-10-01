@@ -65,6 +65,7 @@ export async function modAction(deps: AppDeps, v: SessionUser, input: ModInput, 
       case 'remove':
         if (post.deleted_at) throw gone();
         await q.query(`UPDATE posts SET deleted_at = now(), deleted_by = 'moderator', subject = '', body = '' WHERE id = $1`, [post.id]);
+        await q.query(`DELETE FROM post_revisions WHERE post_id = $1`, [post.id]); // the removed text is not kept in its history
         if (!post.hidden_at) await adjustReplies(q, post, -1);
         await closeReports(q, v, post.id, `Removed by a moderator: ${input.reason}`);
         break;

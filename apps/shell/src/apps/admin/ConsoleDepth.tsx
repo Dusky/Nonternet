@@ -19,7 +19,7 @@ export function AuditReplay({ type, id }: { type: string; id: string }) {
   const steps = useMemo(() => [...(q.data?.entries ?? [])].reverse(), [q.data]);
   const [at, setAt] = useState<number | null>(null);
   const i = at ?? steps.length - 1;
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading />;
   const back = <p><BackLink to="audit">{t('admin.replay.back')}</BackLink>{type === 'user' && <> · <AppLink to={`users/${id}`}>{t('admin.replay.dossier')}</AppLink></>}</p>;
   if (steps.length === 0) return <>{back}<EmptyState>{t('admin.replay.none')}</EmptyState></>;
@@ -90,7 +90,7 @@ export function StatsPanel() {
   const t = useT();
   const [days, setDays] = useState(90);
   const q = useQuery({ queryKey: ['admin', 'stats', days], queryFn: () => api.get<AdminStats>(`/admin/stats?days=${days}&weeks=12`) });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   const s = q.data;
   const csv = (kind: string) => `/api/v1/admin/stats.csv?kind=${kind}&days=${days}&weeks=12`;
   const heatMax = s ? Math.max(1, ...s.heatmap.flat()) : 1;

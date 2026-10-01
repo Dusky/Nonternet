@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clampGeometry, focusedWindow, MIN_H, MIN_W, TASKBAR_HEIGHT, useWindows } from './windows';
+import { clampGeometry, clearSession, resizeFrom, snapZone, focusedWindow, MIN_H, MIN_W, restoreSession, saveSession, TASKBAR_HEIGHT, useWindows } from './windows';
 
 const V = { w: 1200, h: 800 };
 const store = () => useWindows.getState();
@@ -202,5 +202,114 @@ describe('remembering positions', () => {
     try {
       expect(() => store().move('settings', 100, 100)).not.toThrow();
     } finally { Storage.prototype.setItem = original; }
+  });
+});
+
+describe('remembering what was open', () => {
+  const all = () => true;
+  it('reopens the same windows, in the same order, at the same place in each app', () => {
+    store().open('settings', 'appearance');
+    store().open('admin', 'users');
+    store().focus('settings');
+    saveSession('u_1');
+    useWindows.setState({ wins: [], zTop: 1 });
+    expect(restoreSession('u_1', all)).toBe(2);
+    expect(win('settings').path).toBe('appearance');
+    expect(win('admin').path).toBe('users');
+    expect(focusedWindow(store().wins)?.id).toBe('settings');
+  });
+
+  it('brings back maximized and minimized windows as they were', () => {
+    store().open('settings');
+    store().open('admin');
+    store().toggleMaximize('admin');
+    store().minimize('settings');
+    saveSession('u_1');
+    useWindows.setState({ wins: [], zTop: 1 });
+    restoreSession('u_1', all);
+    expect(win('admin').maximized).toBe(true);
+    expect(win('settings').minimized).toBe(true);
+  });
+
+  it('is for one person only, and logging out clears it', () => {
+    store().open('settings');
+    saveSession('u_1');
+    useWindows.setState({ wins: [], zTop: 1 });
+    expect(restoreSession('u_2', all)).toBe(0);
+    clearSession();
+    expect(restoreSession('u_1', all)).toBe(0);
+  });
+
+  it('skips apps that are no longer there, and does nothing when windows are already open', () => {
+    store().open('settings');
+    store().open('admin');
+    saveSession('u_1');
+    useWindows.setState({ wins: [], zTop: 1 });
+    expect(restoreSession('u_1', (id) => id !== 'admin')).toBe(1);
+    expect(store().wins.map((w) => w.id)).toEqual(['settings']);
+    expect(restoreSession('u_1', all)).toBe(0);
+  });
+
+  it('survives junk in storage', () => {
+    window.localStorage.setItem('ui:session:v1', '{not json');
+    expect(restoreSession('u_1', all)).toBe(0);
+    window.localStorage.setItem('ui:session:v1', JSON.stringify({ user: 'u_1', wins: [{ id: 5 }, null, { id: 'settings', path: 'x'.repeat(500), minimized: false, maximized: false }] }));
+    expect(restoreSession('u_1', all)).toBe(0);
+  });
+});
+
+describe('resizing from any edge', () => {
+  const g = { x: 100, y: 100, w: 600, h: 400 };
+  it('moves the opposite edge nowhere', () => {
+    expect(resizeFrom('e', g, 50, 0)).toEqual({ x: 100, y: 100, w: 650, h: 400 });
+    expect(resizeFrom('w', g, 50, 0)).toEqual({ x: 150, y: 100, w: 550, h: 400 });
+    expect(resizeFrom('n', g, 0, -30)).toEqual({ x: 100, y: 70, w: 600, h: 430 });
+    expect(resizeFrom('nw', g, -20, -20)).toEqual({ x: 80, y: 80, w: 620, h: 420 });
+    expect(resizeFrom('se', g, 10, 10)).toEqual({ x: 100, y: 100, w: 610, h: 410 });
+  });
+  it('stops at the minimum size without sliding the window', () => {
+    const r = resizeFrom('w', g, 500, 0);
+    expect(r.w).toBe(MIN_W);
+    expect(r.x + r.w).toBe(g.x + g.w); // the right edge did not move
+    const t = resizeFrom('n', g, 0, 500);
+    expect(t.h).toBe(MIN_H);
+    expect(t.y + t.h).toBe(g.y + g.h);
+  });
+});
+
+describe('snapping by dragging to an edge', () => {
+  it('knows the zones', () => {
+    expect(snapZone({ x: 0, y: 300 }, V)).toBe('left');
+    expect(snapZone({ x: V.w - 1, y: 300 }, V)).toBe('right');
+    expect(snapZone({ x: 400, y: 10 }, V)).toBe('max');
+    expect(snapZone({ x: 400, y: 300 }, V)).toBeNull();
+  });
+});
+
+describe("a window's own history", () => {
+  it('goes back and forward, and a new place drops the forward part', () => {
+    store().open('settings');
+    store().setPath('settings', 'a');
+    store().setPath('settings', 'b');
+    store().back('settings');
+    expect(win('settings').path).toBe('a');
+    store().forward('settings');
+    expect(win('settings').path).toBe('b');
+    store().back('settings');
+    store().setPath('settings', 'c');
+    expect(win('settings').history).toEqual(['', 'a', 'c']);
+    store().forward('settings'); // nothing ahead
+    expect(win('settings').path).toBe('c');
+  });
+  it('replacing the place does not add to the history, and staying put adds nothing', () => {
+    store().open('settings', 'x');
+    store().setPath('settings', 'y', true);
+    store().setPath('settings', 'y');
+    expect(win('settings').history).toEqual(['y']);
+  });
+  it('opening an app at a place from elsewhere adds that place', () => {
+    store().open('settings');
+    store().open('settings', 'appearance');
+    expect(win('settings').history).toEqual(['', 'appearance']);
   });
 });

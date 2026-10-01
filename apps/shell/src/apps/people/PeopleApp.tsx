@@ -9,7 +9,7 @@ import type { OnlinePerson } from '../../shell/HomePanel';
 import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { useBlocks } from '../settings/Blocks';
-import { AppLink, matchRoute, useAppNav } from '../../nav';
+import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { PersonLink } from './PersonLink';
 
 const ROUTES = ['', ':handle'] as const;
@@ -61,7 +61,8 @@ function Find() {
 function Profile({ handle }: { handle: string }) {
   const t = useT();
   const q = useQuery({ queryKey: ['profile', handle.toLowerCase()], queryFn: () => api.get<PublicProfile>(`/users/${encodeURIComponent(handle)}`) });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  useSubtitle(q.data ? q.data.display_name || q.data.handle : null);
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   const p = q.data;
   if (!p) return <Loading />;
   return (

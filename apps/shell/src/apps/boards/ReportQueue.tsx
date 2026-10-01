@@ -29,7 +29,7 @@ export function ReportQueue() {
           {(['open', 'actioned', 'dismissed', 'all'] as const).map((s) => <option key={s} value={s}>{t(`boards.reports.status.${s}`)}</option>)}
         </select>
       </div>
-      {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
+      {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {q.isSuccess && reports.length === 0 && <EmptyState>{t('boards.reports.none')}</EmptyState>}
       <ul className="rows report-rows">{reports.map((r) => <Report key={r.id} r={r} />)}</ul>
       {q.hasNextPage && <button className="btn" onClick={() => void q.fetchNextPage()} disabled={q.isFetchingNextPage}>{t('boards.more')}</button>}

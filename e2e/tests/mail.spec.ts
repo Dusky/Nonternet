@@ -31,7 +31,7 @@ test.describe('mail', () => {
     await page.getByLabel('Message').fill('Want to play on Friday?');
     await scan(page, 'the compose screen');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
-    await expect(page.getByRole('heading', { level: 2, name: 'Board games' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Board games', exact: true })).toBeVisible();
     await expect(page.getByText('Want to play on Friday?')).toBeVisible();
 
     // b sees it unread, in the taskbar and the inbox, and replies.

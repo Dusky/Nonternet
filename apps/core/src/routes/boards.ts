@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { notificationsReadSchema, boardCreateSchema, boardUpdateSchema, categoryCreateSchema, memberAddSchema, postCreateSchema, readPointerSchema, slugSchema } from '@app/shared';
+import { notificationsReadSchema, boardCreateSchema, postEditSchema, reactionSchema, boardUpdateSchema, categoryCreateSchema, memberAddSchema, postCreateSchema, readPointerSchema, slugSchema } from '@app/shared';
 import { z } from 'zod';
 import * as boards from '../boards';
 import * as notifications from '../notifications';
@@ -8,6 +8,7 @@ import { previewPost } from '../text';
 import type { AppDeps } from '../deps';
 
 const slugParam = z.object({ slug: slugSchema });
+const postId = z.object({ id: z.string().regex(/^p_[0-9A-Z]{26}$/, 'not a post ID') });
 const threadParams = slugParam.extend({ id: z.string().regex(/^p_[0-9A-Z]{26}$/, 'not a thread ID') });
 const memberParams = slugParam.extend({ userId: z.string().regex(/^u_[0-9A-Z]{26}$/) });
 const cursor = z.coerce.number().int().positive().optional();
@@ -41,6 +42,38 @@ export function boardRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.post('/api/v1/boards/:slug/posts', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) =>
     reply.code(201).send(await boards.createPost(deps, requireUser(req), slugParam.parse(req.params).slug, postCreateSchema.parse(req.body))));
+
+  // Edit a post: its author for 24 hours, a moderator at any time (with a reason). The old text is kept.
+  app.patch('/api/v1/posts/:id', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) =>
+    boards.editPost(deps, requireUser(req), postId.parse(req.params).id, postEditSchema.parse(req.body), ctxOf(deps, req)));
+  app.get('/api/v1/posts/:id/revisions', async (req) => boards.listRevisions(deps, viewer(req), postId.parse(req.params).id));
+
+  // Pin a thread to the top of its board, or let it go (for the people who run the board).
+  app.put('/api/v1/boards/:slug/threads/:id/pin', async (req, reply) => {
+    const p = threadParams.parse(req.params);
+    await boards.pinThread(deps, requireUser(req), p.slug, p.id, true, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+  app.delete('/api/v1/boards/:slug/threads/:id/pin', async (req, reply) => {
+    const p = threadParams.parse(req.params);
+    await boards.pinThread(deps, requireUser(req), p.slug, p.id, false, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+
+  // Reactions: a small fixed set, one of each per person per post.
+  const reactionParams = z.object({ id: z.string().regex(/^p_[0-9A-Z]{26}$/, 'not a post ID'), name: reactionSchema });
+  app.put('/api/v1/posts/:id/reactions/:name', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req) => {
+    const p = reactionParams.parse(req.params);
+    return boards.react(deps, requireUser(req), p.id, p.name, true);
+  });
+  app.delete('/api/v1/posts/:id/reactions/:name', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req) => {
+    const p = reactionParams.parse(req.params);
+    return boards.react(deps, requireUser(req), p.id, p.name, false);
+  });
+
+  // People whose handle starts with what was typed, for @mention suggestions. Confirmed people only.
+  app.get('/api/v1/mentions', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req) =>
+    boards.suggestPeople(deps, requireUser(req), z.object({ prefix: z.string().trim().min(1).max(40) }).parse(req.query).prefix));
 
   // The preview is computed by the server, so it is exactly what the terminal BBS will show.
   app.post('/api/v1/boards/:slug/posts/preview', async (req) => {

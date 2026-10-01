@@ -52,15 +52,22 @@ const profile: Exporter = {
 
 const posts: Exporter = {
   id: 'posts',
-  tables: ['posts'],
+  tables: ['posts', 'post_revisions', 'post_reactions'],
   async run({ deps, user, add }) {
-    const r = await deps.db.query<{ id: string; slug: string; thread_id: string; reply_to_id: string | null; subject: string; body: string; posted_at: Date; deleted_at: Date | null; hidden_at: Date | null }>(
-      `SELECT p.id, b.slug, COALESCE(p.thread_root_id, p.id) AS thread_id, p.reply_to_id, p.subject, p.body, p.posted_at, p.deleted_at, p.hidden_at
+    const r = await deps.db.query<{ id: string; slug: string; thread_id: string; reply_to_id: string | null; subject: string; body: string; posted_at: Date; edited_at: Date | null; deleted_at: Date | null; hidden_at: Date | null }>(
+      `SELECT p.id, b.slug, COALESCE(p.thread_root_id, p.id) AS thread_id, p.reply_to_id, p.subject, p.body, p.posted_at, p.edited_at, p.deleted_at, p.hidden_at
        FROM posts p JOIN boards b ON b.id = p.board_id WHERE p.author_id = $1 ORDER BY p.seq`, [user.id]);
     const rows = r.rows.map((p) => ({
       id: p.id, board: p.slug, thread_id: p.thread_id, reply_to: p.reply_to_id, subject: p.subject, body: p.body,
-      posted_at: p.posted_at.toISOString(), state: p.deleted_at ? 'deleted' : p.hidden_at ? 'hidden' : 'ok',
+      posted_at: p.posted_at.toISOString(), edited_at: iso(p.edited_at), state: p.deleted_at ? 'deleted' : p.hidden_at ? 'hidden' : 'ok',
     }));
+    // What your own posts said before each edit (your words), and the reactions you left on other people's posts.
+    const revisions = await deps.db.query<{ post_id: string; subject: string; body: string; edited_at: Date }>(
+      `SELECT r.post_id, r.subject, r.body, r.edited_at FROM post_revisions r JOIN posts p ON p.id = r.post_id WHERE p.author_id = $1 ORDER BY r.edited_at, r.id`, [user.id]);
+    add('posts/revisions.json', json(revisions.rows.map((x) => ({ post_id: x.post_id, subject: x.subject, body: x.body, replaced_at: x.edited_at.toISOString() }))));
+    const reactions = await deps.db.query<{ post_id: string; slug: string; reaction: string; created_at: Date }>(
+      `SELECT x.post_id, b.slug, x.reaction, x.created_at FROM post_reactions x JOIN posts p ON p.id = x.post_id JOIN boards b ON b.id = p.board_id WHERE x.user_id = $1 ORDER BY x.created_at, x.post_id`, [user.id]);
+    add('posts/reactions.json', json(reactions.rows.map((x) => ({ post_id: x.post_id, board: x.slug, reaction: x.reaction, at: x.created_at.toISOString() }))));
     add('posts/posts.json', json(rows));
     // The same posts as a mailbox, for mail and news readers (docs/12).
     add('posts/posts.mbox', formatMbox(rows.filter((p) => p.state !== 'deleted'), { handle: user.handle, domain: deps.config.site.domain }));

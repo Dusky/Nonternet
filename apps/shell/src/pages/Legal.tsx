@@ -29,7 +29,7 @@ export function LegalPageRoute() {
   const known = (LEGAL_SLUGS as readonly string[]).includes(slug);
   const q = useQuery({ queryKey: ['legal', slug], queryFn: () => api.get<LegalPage>(`/legal/${slug}`), enabled: known });
   if (!known) return <Centered title={t('error.notFound')}><p className="links"><Link to="/">{t('nav.home')}</Link></p></Centered>;
-  if (q.isError) return <Centered title={t(`legal.${slug}` as StringKey)}><Alert kind="error">{errorText(q.error)}</Alert></Centered>;
+  if (q.isError) return <Centered title={t(`legal.${slug}` as StringKey)}><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></Centered>;
   if (!q.data) return null;
   const p = q.data;
   return (

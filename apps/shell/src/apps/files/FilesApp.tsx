@@ -26,7 +26,7 @@ function Areas() {
   return (
     <>
       <h2>{t('files.areas')}</h2>
-      {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
+      {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {q.data && q.data.areas.length === 0 && <EmptyState>{t('files.noAreas')}</EmptyState>}
       {q.isPending && <Loading rows={3} />}
       <ul className="rows">
@@ -93,7 +93,7 @@ function Area({ slug }: { slug: string }) {
     mutationFn: (archived: boolean) => api.patch(`/admin/files/areas/${slug}`, { archived }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['files'] }),
   });
-  if (q.isError) return <><BackLink to="">{t('files.back')}</BackLink><Alert kind="error">{errorText(q.error)}</Alert></>;
+  if (q.isError) return <><BackLink to="">{t('files.back')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   if (!q.data) return <Loading rows={4} />;
   const { area, files } = q.data;
   return (

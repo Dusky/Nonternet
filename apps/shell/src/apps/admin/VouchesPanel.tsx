@@ -12,7 +12,7 @@ interface Queue { candidates: AdminVouchCandidate[]; needed: number; hints: { mi
 export function VouchesPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'vouches'], queryFn: () => api.get<Queue>('/admin/vouches') });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading />;
   return (
     <section aria-labelledby="vouches-h">

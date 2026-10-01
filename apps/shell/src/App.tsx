@@ -14,6 +14,7 @@ import { LoginPage } from './pages/Login';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
 import { Setup2faPage } from './pages/Setup2fa';
 import { ReportHomepagePage } from './pages/ReportHomepage';
+import { AppBoundary } from './components/Boundary';
 import { LegalPageRoute } from './pages/Legal';
 import { Landing } from './pages/Landing';
 import { SignupPage } from './pages/Signup';
@@ -45,8 +46,8 @@ function AppPage({ app, me }: { app: AppDef; me: Me }) {
     <Shell me={me}>
       <section className="app-page" aria-labelledby="app-title">
         <h1 id="app-title">{t(app.title)}</h1>
-        <PageNav base={app.path}>
-          <Suspense fallback={<Loading />}><app.Component /></Suspense>
+        <PageNav base={app.path} id={app.id}>
+          <AppBoundary><Suspense fallback={<Loading />}><app.Component /></Suspense></AppBoundary>
         </PageNav>
       </section>
     </Shell>
@@ -74,8 +75,8 @@ function PublicFrame({ app }: { app: AppDef }) {
       <main className="stage" id="main">
         <section className="app-page" aria-labelledby="app-title">
           <h1 id="app-title">{t(app.title)}</h1>
-          <PageNav base={app.path}>
-            <Suspense fallback={<Loading />}><app.Component /></Suspense>
+          <PageNav base={app.path} id={app.id}>
+            <AppBoundary><Suspense fallback={<Loading />}><app.Component /></Suspense></AppBoundary>
           </PageNav>
         </section>
       </main>

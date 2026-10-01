@@ -1,4 +1,4 @@
-import type { BoardSummary, BoardVisibility, PostView, ThreadSummary } from '@app/shared';
+import { MAX_PINNED_THREADS, POST_EDIT_WINDOW_MINUTES, REACTIONS, type BoardSummary, type BoardVisibility, type PostEdit, type PostRevisionView, type PostView, type ReactionName, type ThreadSummary } from '@app/shared';
 import { audit } from './audit';
 import { newId } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
@@ -6,6 +6,7 @@ import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { emit } from './events';
 import { liveAll, liveTo } from './live';
+import { dropLandingCache } from './routes/landing';
 import { notifyForPost } from './notifications';
 import { normalizeBody, normalizeSubject, replySubject } from './text';
 import type { Ctx, SessionUser } from './accounts';
@@ -243,12 +244,12 @@ export async function setReadPointer(deps: AppDeps, v: SessionUser, slug: string
 
 interface PostRow {
   id: string; seq: string; board_id: string; thread_id: string; reply_to_id: string | null; subject: string; body: string;
-  posted_at: Date; edited_at: Date | null; hidden_at: Date | null; deleted_at: Date | null; deleted_by: string | null; locked_at: Date | null;
+  posted_at: Date; edited_at: Date | null; hidden_at: Date | null; deleted_at: Date | null; deleted_by: string | null; locked_at: Date | null; pinned_at: Date | null;
   author_id: string | null; handle: string | null; display_name: string | null;
   char_id: string | null; char_name: string | null; char_level: number | null;
 }
 const POST_COLUMNS = `p.id, p.seq, p.board_id, COALESCE(p.thread_root_id, p.id) AS thread_id, p.reply_to_id, p.subject, p.body,
-  p.posted_at, p.edited_at, p.hidden_at, p.deleted_at, p.deleted_by, p.locked_at, u.id AS author_id, u.handle, u.display_name,
+  p.posted_at, p.edited_at, p.hidden_at, p.deleted_at, p.deleted_by, p.locked_at, p.pinned_at, u.id AS author_id, u.handle, u.display_name,
   fc.id AS char_id, fc.name AS char_name, fc.level AS char_level`;
 // The author's featured MUD character rides along with each post (docs/09).
 const POST_FROM = `posts p LEFT JOIN users u ON u.id = p.author_id LEFT JOIN mud_characters fc ON fc.id = u.featured_character_id AND fc.user_id = u.id`;
@@ -264,6 +265,7 @@ function toPostView(r: PostRow, mod: boolean): PostView {
       ? { id: r.author_id, handle: r.handle!, display_name: r.display_name, character: r.char_id ? { id: r.char_id, name: r.char_name!, level: r.char_level! } : null }
       : null,
     posted_at: r.posted_at.toISOString(), edited_at: r.edited_at ? r.edited_at.toISOString() : null,
+    pinned: r.pinned_at !== null && r.reply_to_id === null,
   };
 }
 
@@ -271,22 +273,26 @@ export async function listThreads(deps: AppDeps, v: Viewer, slug: string, opts: 
   const b = await loadBoard(deps.db, slug, v);
   const mod = canModerate(v, b);
   const limit = Math.min(opts.limit ?? 30, 100);
-  const r = await deps.db.query<PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean }>(
+  type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean };
+  const select = (where: string, order: string, extra: unknown[]) => deps.db.query<Row>(
     `SELECT ${POST_COLUMNS}, p.reply_count, p.last_seq,
        (SELECT max(x.posted_at) FROM posts x WHERE x.id = p.id OR x.thread_root_id = p.id) AS last_at,
        CASE WHEN $2::text IS NULL THEN false ELSE EXISTS (SELECT 1 FROM posts x
          WHERE (x.id = p.id OR x.thread_root_id = p.id) AND x.deleted_at IS NULL AND x.hidden_at IS NULL AND x.author_id IS DISTINCT FROM $2
            AND x.seq > COALESCE((SELECT s.last_read_seq FROM read_state s WHERE s.user_id = $2 AND s.board_id = p.board_id), 0)) END AS unread
      FROM ${POST_FROM}
-     WHERE p.board_id = $1 AND p.thread_root_id IS NULL AND ($3::bigint IS NULL OR p.last_seq < $3)
-       AND (p.hidden_at IS NULL OR $4::boolean) -- hidden threads are listed for moderators only
-     ORDER BY p.last_seq DESC LIMIT $5`,
-    [b.id, v?.userId ?? null, opts.before ?? null, mod, limit + 1]);
+     WHERE p.board_id = $1 AND p.thread_root_id IS NULL AND ${where}
+       AND (p.hidden_at IS NULL OR $3::boolean) -- hidden threads are listed for moderators only
+     ORDER BY ${order} LIMIT $4`,
+    [b.id, v?.userId ?? null, mod, ...extra]);
+  // Pinned threads head the first page only; the rest go by the latest activity, a page at a time.
+  const pinned = opts.before === undefined ? await select('p.pinned_at IS NOT NULL', 'p.pinned_at DESC', [MAX_PINNED_THREADS]) : { rows: [] as Row[] };
+  const r = await select('p.pinned_at IS NULL AND ($5::bigint IS NULL OR p.last_seq < $5)', 'p.last_seq DESC', [limit + 1, opts.before ?? null]);
   const page = r.rows.slice(0, limit);
-  const threads = page.map((row): ThreadSummary => {
+  const threads = [...pinned.rows, ...page].map((row): ThreadSummary => {
     const post = toPostView(row, mod);
     return { id: row.id, subject: post.subject, author: post.author, posted_at: post.posted_at, reply_count: row.reply_count,
-      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, locked: row.locked_at !== null, state: post.state };
+      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, locked: row.locked_at !== null, pinned: row.pinned_at !== null, state: post.state };
   });
   return { threads, next: r.rows.length > limit ? Number(page[page.length - 1]!.last_seq) : null };
 }
@@ -319,7 +325,22 @@ export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId
      WHERE (p.id = $1 OR p.thread_root_id = $1) AND ($2::bigint IS NULL OR p.seq > $2) ORDER BY p.seq LIMIT $3`,
     [threadId, opts.after ?? null, limit + 1]);
   const page = r.rows.slice(0, limit);
-  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, posts: page.map((row) => toPostView(row, mod)), next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
+  const posts = page.map((row) => toPostView(row, mod));
+  await attachReactions(deps, v, posts);
+  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, posts, next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
+}
+
+// Reactions on the posts shown (not on ones that are deleted, removed or hidden): counts in a fixed order, and
+// which the viewer left themselves.
+async function attachReactions(deps: AppDeps, v: Viewer, posts: PostView[]): Promise<void> {
+  const ids = posts.filter((p) => p.state === 'ok').map((p) => p.id);
+  if (ids.length === 0) return;
+  const r = await deps.db.query<{ post_id: string; reaction: ReactionName; n: number; mine: boolean }>(
+    `SELECT post_id, reaction, count(*)::int AS n, bool_or(user_id = $2) AS mine FROM post_reactions WHERE post_id = ANY($1) GROUP BY post_id, reaction`,
+    [ids, v?.userId ?? '']);
+  const by = new Map<string, { name: ReactionName; count: number; mine: boolean }[]>();
+  for (const row of r.rows) (by.get(row.post_id) ?? by.set(row.post_id, []).get(row.post_id)!).push({ name: row.reaction, count: row.n, mine: row.mine });
+  for (const p of posts) p.reactions = (by.get(p.id) ?? []).sort((a, b) => REACTIONS.indexOf(a.name) - REACTIONS.indexOf(b.name));
 }
 
 export async function createPost(
@@ -369,6 +390,7 @@ export async function createPost(
     notified = await notifyForPost(q, { id, boardId: b.id, visibility: b.visibility, authorId: v.userId, body, isThread: rootId === null, replyToAuthorId: replyToAuthor });
     placed = { boardId: b.id, slug: b.slug, visibility: b.visibility, thread: rootId ?? id };
   });
+  if (placed && (placed as { visibility: string }).visibility === 'public') dropLandingCache();
   await tellTabs(deps, placed, notified);
   const r = await deps.db.query<PostRow>(`SELECT ${POST_COLUMNS} FROM ${POST_FROM} WHERE p.id = $1`, [id]);
   return toPostView(r.rows[0]!, false);
@@ -397,10 +419,133 @@ export async function deletePost(deps: AppDeps, v: SessionUser, postId: string, 
     if (post.author_id !== v.userId) throw new ApiError(403, 'forbidden', 'You can only delete your own posts.');
     if (post.deleted_at) throw new ApiError(409, 'no_change', 'That post is already deleted.');
     await q.query(`UPDATE posts SET deleted_at = now(), deleted_by = 'author', subject = '', body = '' WHERE id = $1`, [postId]);
+    await q.query(`DELETE FROM post_revisions WHERE post_id = $1`, [postId]); // what it said before is erased with it
     if (post.thread_root_id && !post.hidden_at) await q.query(`UPDATE posts SET reply_count = GREATEST(reply_count - 1, 0) WHERE id = $1`, [post.thread_root_id]);
     await audit(q, { actorId: v.userId, actorKind: 'user', action: 'post.deleted', targetType: 'post', targetId: postId, after: { by: 'author' }, origin: 'web', ipHash: ctx.ipHash });
     await emit(q, 'post.deleted', { post_id: postId, board_id: post.board_id });
   });
+  dropLandingCache(); // it may have been on the front page
+}
+
+// ---------------------------------------------------------------- editing, pinning, reacting (M9-C)
+
+const gone = () => new ApiError(404, 'not_found', 'No such post.');
+
+// Edit a post. Its author can for 24 hours (not once it is hidden, locked or removed); a moderator of the board
+// can at any time, with a reason that is kept and shown with the history. What it said before is kept as a
+// revision, visible to anyone who can read the post.
+export async function editPost(deps: AppDeps, v: SessionUser, postId: string, input: PostEdit, ctx: Ctx): Promise<PostView> {
+  const body = normalizeBody(input.body);
+  let where: { slug: string; thread: string; visibility: string; boardId: string } | null = null as { slug: string; thread: string; visibility: string; boardId: string } | null;
+  await deps.db.tx(async (q) => {
+    const p = await q.query<{ id: string; board_id: string; author_id: string | null; thread_root_id: string | null; subject: string; body: string; posted_at: Date; deleted_at: Date | null; hidden_at: Date | null; slug: string; root_locked: Date | null; past_window: boolean }>(
+      `SELECT p.id, p.board_id, p.author_id, p.thread_root_id, p.subject, p.body, p.posted_at, p.deleted_at, p.hidden_at, b.slug, r.locked_at AS root_locked,
+              (now() - p.posted_at) > make_interval(mins => $2) AS past_window
+         FROM posts p JOIN boards b ON b.id = p.board_id JOIN posts r ON r.id = COALESCE(p.thread_root_id, p.id)
+        WHERE p.id = $1 FOR UPDATE OF p`, [postId, POST_EDIT_WINDOW_MINUTES]);
+    const post = p.rows[0];
+    if (!post) throw gone();
+    const b = await loadBoard(q, post.slug, v); // a post on a board you cannot read does not exist for you
+    if (post.deleted_at) throw new ApiError(409, 'gone', 'That post was deleted. It cannot be edited.');
+    const mod = canModerate(v, b);
+    const mine = post.author_id === v.userId;
+    if (!mine && !mod) throw new ApiError(403, 'forbidden', 'You can only edit your own posts.');
+    if (b.archived_at) throw new ApiError(409, 'archived', 'This board is archived. It is read-only.');
+    if (!mod) {
+      if (post.hidden_at) throw new ApiError(409, 'hidden', 'A moderator hid this post, so it cannot be edited.');
+      if (post.root_locked) throw new ApiError(409, 'locked', 'This thread is locked. Nobody can edit in it.');
+      if (post.past_window) {
+        throw new ApiError(403, 'edit_window', 'You can edit a post for 24 hours after writing it. Ask a moderator if it needs changing now.');
+      }
+    }
+    const reason = input.reason?.trim() ?? '';
+    if (!mine && reason.length < 3) throw new ApiError(400, 'reason_required', 'Give a reason (at least 3 characters) for editing someone else’s post.');
+    const subject = post.thread_root_id === null && input.subject !== undefined ? normalizeSubject(input.subject) : post.subject;
+    if (post.thread_root_id === null && !subject) throw new ApiError(400, 'empty_subject', 'Give the thread a subject.');
+    if (subject === post.subject && body === post.body) throw new ApiError(409, 'no_change', 'Nothing changed.');
+    await q.query(`INSERT INTO post_revisions (id, post_id, editor_id, subject, body, reason, edited_at) VALUES ($1, $2, $3, $4, $5, $6, now())`,
+      [newId('pr'), postId, v.userId, post.subject, post.body, mine ? null : reason]);
+    await q.query(`UPDATE posts SET subject = $2, body = $3, edited_at = now() WHERE id = $1`, [postId, subject, body]);
+    if (!mine) {
+      await audit(q, { actorId: v.userId, actorKind: 'user', action: 'post.edited_by_moderator', targetType: 'post', targetId: postId, after: { reason }, origin: 'web', ipHash: ctx.ipHash });
+    }
+    where = { slug: post.slug, thread: post.thread_root_id ?? post.id, visibility: b.visibility, boardId: post.board_id };
+  });
+  await tellTabs(deps, where, []);
+  const r = await deps.db.query<PostRow>(`SELECT ${POST_COLUMNS} FROM ${POST_FROM} WHERE p.id = $1`, [postId]);
+  return toPostView(r.rows[0]!, true);
+}
+
+// What a post said before each edit, oldest first. Anyone who can read the post can read this; a hidden post's
+// history is for its moderators only.
+export async function listRevisions(deps: AppDeps, v: Viewer, postId: string): Promise<{ revisions: PostRevisionView[] }> {
+  const p = await deps.db.query<{ slug: string; hidden_at: Date | null; deleted_at: Date | null }>(
+    `SELECT b.slug, p.hidden_at, p.deleted_at FROM posts p JOIN boards b ON b.id = p.board_id WHERE p.id = $1`, [postId]);
+  const post = p.rows[0];
+  if (!post) throw gone();
+  const b = await loadBoard(deps.db, post.slug, v);
+  if (post.deleted_at || (post.hidden_at && !canModerate(v, b))) throw gone();
+  const r = await deps.db.query<{ id: string; edited_at: Date; subject: string; body: string; reason: string | null; editor_id: string | null; handle: string | null }>(
+    `SELECT r.id, r.edited_at, r.subject, r.body, r.reason, r.editor_id, u.handle FROM post_revisions r LEFT JOIN users u ON u.id = r.editor_id WHERE r.post_id = $1 ORDER BY r.edited_at, r.id`, [postId]);
+  return { revisions: r.rows.map((x) => ({ id: x.id, at: x.edited_at.toISOString(), subject: x.subject, body: x.body, reason: x.reason, editor: x.editor_id && x.handle ? { id: x.editor_id, handle: x.handle } : null })) };
+}
+
+// Pin a thread to the top of its board (up to 3), or let it go. For the people who run the board.
+export async function pinThread(deps: AppDeps, v: SessionUser, slug: string, threadId: string, on: boolean, ctx: Ctx): Promise<void> {
+  let placed: { boardId: string; slug: string; visibility: string; thread: string } | null = null;
+  await deps.db.tx(async (q) => {
+    const b = await loadBoard(q, slug, v);
+    if (!canModerate(v, b)) throw new ApiError(403, 'forbidden', 'Only the people who run this board can pin threads.');
+    const t = await q.query<{ pinned_at: Date | null; deleted_at: Date | null; hidden_at: Date | null }>(
+      `SELECT pinned_at, deleted_at, hidden_at FROM posts WHERE id = $1 AND board_id = $2 AND thread_root_id IS NULL FOR UPDATE`, [threadId, b.id]);
+    const root = t.rows[0];
+    if (!root || root.deleted_at) throw new ApiError(404, 'not_found', 'No such thread.');
+    if (on) {
+      if (root.pinned_at) throw new ApiError(409, 'no_change', 'That thread is already pinned.');
+      if (root.hidden_at) throw new ApiError(409, 'hidden', 'Unhide the thread before pinning it.');
+      const n = Number((await q.query<{ n: string }>(`SELECT count(*) AS n FROM posts WHERE board_id = $1 AND pinned_at IS NOT NULL AND thread_root_id IS NULL`, [b.id])).rows[0]!.n);
+      if (n >= MAX_PINNED_THREADS) throw new ApiError(409, 'too_many_pins', `A board can have ${MAX_PINNED_THREADS} pinned threads. Unpin one first.`);
+      await q.query(`UPDATE posts SET pinned_at = now() WHERE id = $1`, [threadId]);
+    } else {
+      if (!root.pinned_at) throw new ApiError(409, 'no_change', 'That thread is not pinned.');
+      await q.query(`UPDATE posts SET pinned_at = NULL WHERE id = $1`, [threadId]);
+    }
+    await audit(q, { actorId: v.userId, actorKind: 'user', action: on ? 'thread.pinned' : 'thread.unpinned', targetType: 'post', targetId: threadId, origin: 'web', ipHash: ctx.ipHash });
+    placed = { boardId: b.id, slug: b.slug, visibility: b.visibility, thread: threadId };
+  });
+  await tellTabs(deps, placed, []);
+}
+
+// Leave a reaction on a post, or take it back. Confirmed people only; a post that is deleted, removed or hidden
+// takes none. Returns the post's reactions as they now stand.
+export async function react(deps: AppDeps, v: SessionUser, postId: string, reaction: ReactionName, on: boolean): Promise<{ reactions: NonNullable<PostView['reactions']> }> {
+  if (!isMember(v)) throw new ApiError(403, 'email_not_verified', 'Confirm your email address to react.');
+  let placed: { boardId: string; slug: string; visibility: string; thread: string } | null = null;
+  await deps.db.tx(async (q) => {
+    const p = await q.query<{ board_id: string; thread_root_id: string | null; deleted_at: Date | null; hidden_at: Date | null; slug: string }>(
+      `SELECT p.board_id, p.thread_root_id, p.deleted_at, p.hidden_at, b.slug FROM posts p JOIN boards b ON b.id = p.board_id WHERE p.id = $1`, [postId]);
+    const post = p.rows[0];
+    if (!post) throw gone();
+    const b = await loadBoard(q, post.slug, v);
+    if (post.deleted_at || post.hidden_at) throw new ApiError(409, 'gone', 'That post is not showing, so it cannot take a reaction.');
+    if (b.archived_at) throw new ApiError(409, 'archived', 'This board is archived. It is read-only.');
+    if (on) await q.query(`INSERT INTO post_reactions (post_id, user_id, reaction) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [postId, v.userId, reaction]);
+    else await q.query(`DELETE FROM post_reactions WHERE post_id = $1 AND user_id = $2 AND reaction = $3`, [postId, v.userId, reaction]);
+    placed = { boardId: post.board_id, slug: post.slug, visibility: b.visibility, thread: post.thread_root_id ?? postId };
+  });
+  await tellTabs(deps, placed, []);
+  const view = { state: 'ok' as const, id: postId } as PostView;
+  await attachReactions(deps, v, [view]);
+  return { reactions: view.reactions ?? [] };
+}
+
+// Handles that start with what was typed, for @mention suggestions: active, confirmed people, a few at a time.
+export async function suggestPeople(deps: AppDeps, v: SessionUser, prefix: string): Promise<{ people: { id: string; handle: string; display_name: string | null }[] }> {
+  if (!isMember(v)) throw new ApiError(403, 'email_not_verified', 'Confirm your email address first.');
+  const like = `${prefix.replace(/^@/, '').replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const r = await deps.db.query<{ id: string; handle: string; display_name: string | null }>(
+    `SELECT id, handle, display_name FROM users WHERE status = 'active' AND role <> 'guest' AND handle ILIKE $1 ESCAPE '\\' ORDER BY lower(handle) LIMIT 8`, [like]);
+  return { people: r.rows };
 }
 
 // ---------------------------------------------------------------- search

@@ -1,13 +1,22 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import type { BoardSummary, Me } from '@app/shared';
+import type { BoardSummary, MailThreadSummary, Me, RingSummary } from '@app/shared';
 import { api } from '../api';
 import { Icon } from '../components/Icon';
 import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById, visibleApps } from './apps';
 import { AppIcon } from './icons';
 import { useWindows, type AppId } from './windows';
+
+const RECENT_KEY = 'ui:palette:recent';
+type Recent = { key: string; label: string; kind: string; app: AppId; path: string };
+function loadRecent(): Recent[] {
+  try { return (JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as Recent[]).filter((r) => r && typeof r.key === 'string' && typeof r.label === 'string').slice(0, 6); } catch { return []; }
+}
+function remember(r: Recent) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify([r, ...loadRecent().filter((x) => x.key !== r.key)].slice(0, 6))); } catch { /* a convenience */ }
+}
 
 interface Item { key: string; label: string; kind: string; icon: ReactNode; run: () => void }
 
@@ -30,6 +39,25 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
     enabled: open, staleTime: 60_000,
   }).data?.boards ?? [];
 
+  // Searches the server for threads and rings once there are a couple of letters, and filters mail subjects here.
+  const term = q.trim().toLowerCase().replace(/^@/, '');
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => { const id = setTimeout(() => setDebounced(term), 250); return () => clearTimeout(id); }, [term]);
+  const searching = open && debounced.length >= 2;
+  const threads = useQuery({
+    queryKey: ['palette', 'threads', debounced], enabled: searching, staleTime: 30_000,
+    queryFn: () => api.get<{ hits: { post: { thread_id: string; subject: string }; board: { slug: string; name: string } }[] }>(`/search?q=${encodeURIComponent(debounced)}&limit=5`),
+  }).data?.hits ?? [];
+  const rings = useQuery({
+    queryKey: ['palette', 'rings', debounced], enabled: searching, staleTime: 30_000,
+    queryFn: () => api.get<{ rings: RingSummary[] }>(`/rings?q=${encodeURIComponent(debounced)}&limit=4`),
+  }).data?.rings ?? [];
+  const mail = useQuery({
+    queryKey: ['mail', 'list'], enabled: open && me.role !== 'guest', staleTime: 60_000,
+    queryFn: () => api.get<{ threads: MailThreadSummary[] }>('/mail'),
+  }).data?.threads ?? [];
+  const [recent, setRecent] = useState<{ key: string; label: string; kind: string; app: AppId; path: string }[]>(() => loadRecent());
+
   const go = (app: AppId, path = '') => {
     onClose();
     if (desktop) { openWin(app, path); navigate('/'); } else navigate(`${appById(app).path}${path ? `/${path}` : ''}`);
@@ -43,13 +71,19 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
         key: `settings:${s}`, label: t(`settings.tab.${s === 'two-factor' ? 'twofa' : s}`), kind: t('app.settings'), icon: <AppIcon id="settings" size={20} />, run: () => go('settings', s),
       })),
     ];
-    const term = q.trim().toLowerCase().replace(/^@/, '');
-    const found = term ? all.filter((i) => i.label.toLowerCase().includes(term)) : all.slice(0, 12);
+    const remembered = (r: (typeof recent)[number]): Item => ({ key: `recent:${r.key}`, label: r.label, kind: r.kind, icon: <AppIcon id={r.app} size={20} />, run: () => { remember(r); go(r.app, r.path); } });
+    const found = term ? all.filter((i) => i.label.toLowerCase().includes(term)) : [...recent.map(remembered), ...all.filter((i) => !recent.some((r) => `recent:${r.key}` === i.key || r.key === i.key)).slice(0, Math.max(4, 12 - recent.length))];
+    const pick = (key: string, label: string, kind: string, app: AppId, path: string): Item => ({ key, label, kind, icon: <AppIcon id={app} size={20} />, run: () => { const r = { key, label, kind, app, path }; remember(r); setRecent(loadRecent()); go(app, path); } });
+    if (term) {
+      for (const h of threads) found.push(pick(`thread:${h.post.thread_id}`, h.post.subject || '…', `${t('palette.kind.thread')} · ${h.board.name}`, 'boards', `${h.board.slug}/t/${h.post.thread_id}`));
+      for (const r of rings) found.push(pick(`ring:${r.slug}`, r.name, t('palette.kind.ring'), 'rings', r.slug));
+      for (const m of mail) if (m.subject.toLowerCase().includes(term)) found.push(pick(`mail:${m.id}`, m.subject, t('palette.kind.mail'), 'mail', m.id));
+    }
     if (term && /^[a-z0-9_-]{2,40}$/i.test(term)) {
       found.push({ key: `person:${term}`, label: t('palette.person', { handle: term }), kind: t('palette.kind.person'), icon: <Icon name="user" size={20} />, run: () => go('people', term) });
     }
     return found.slice(0, 30);
-  }, [q, boards, me, site, desktop]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, boards, threads, rings, mail, recent, me, site, desktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setSel(0); }, [q]);
   useEffect(() => {

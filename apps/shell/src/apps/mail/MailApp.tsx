@@ -5,7 +5,7 @@ import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, ty
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
 import { errorText, useT } from '../../hooks';
-import { AppLink, matchRoute, useAppNav } from '../../nav';
+import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { PersonLink } from '../people/PersonLink';
 
 const ROUTES = ['', 'new', 'new/:to', ':id'] as const;
@@ -33,7 +33,7 @@ function Inbox() {
     <>
       <div className="toolbar"><AppLink to="new" className="btn btn-primary">{t('mail.new')}</AppLink></div>
       <p className="hint">{t('mail.private')}</p>
-      {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
+      {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {q.data && q.data.threads.length === 0 && <EmptyState icon="inbox">{t('mail.none', { max: MAIL_MAX_PEOPLE })}</EmptyState>}
       {!q.data && !q.isError && <Loading rows={3} />}
       <ul className="rows mail-rows">
@@ -104,7 +104,8 @@ function Conversation({ id }: { id: string }) {
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
   const del = useMutation({ mutationFn: (mid: string) => api.del(`/mail/${id}/messages/${mid}`), onSuccess: () => void refresh() });
 
-  if (q.isError) return <><BackLink to="">{t('mail.inbox')}</BackLink><Alert kind="error">{errorText(q.error)}</Alert></>;
+  useSubtitle(q.data?.subject);
+  if (q.isError) return <><BackLink to="">{t('mail.inbox')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   const th = q.data;
   if (!th) return <Loading rows={4} />;
   return (

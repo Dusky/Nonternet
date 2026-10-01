@@ -43,8 +43,10 @@ function Where() { return <p data-testid="url">{useLocation().pathname}</p>; }
 describe('in a window', () => {
   it('moves between screens without touching the address bar', async () => {
     openWindows('settings');
-    render(<MemoryRouter initialEntries={['/']}><Where /><WindowNav id="settings"><Screen /></WindowNav></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/']}><Where /><WindowNav id="settings" base="/settings"><Screen /></WindowNav></MemoryRouter>);
     expect(screen.getByTestId('path').textContent).toBe('(start)');
+    // The link has the app's real address, so "copy link" and "open in a new tab" work.
+    expect(screen.getByRole('link', { name: 'One user' }).getAttribute('href')).toBe('/settings/users/u_1');
     await userEvent.click(screen.getByRole('link', { name: 'One user' }));
     expect(screen.getByTestId('path').textContent).toBe('users/u_1');
     expect(screen.getByTestId('url').textContent).toBe('/'); // the address bar did not change
@@ -53,7 +55,7 @@ describe('in a window', () => {
 
   it('two windows keep their own place', async () => {
     openWindows('settings', 'admin');
-    render(<><WindowNav id="settings"><Screen /></WindowNav><WindowNav id="admin"><Screen /></WindowNav></>);
+    render(<><WindowNav id="settings" base="/settings"><Screen /></WindowNav><WindowNav id="admin" base="/admin"><Screen /></WindowNav></>);
     await userEvent.click(screen.getAllByRole('link', { name: 'Users' })[0]!);
     expect(screen.getAllByTestId('path').map((n) => n.textContent)).toEqual(['users', '(start)']);
   });
@@ -63,17 +65,17 @@ describe('a window opened at a place', () => {
   it('starts there, and moves when another app opens it somewhere else', () => {
     useWindows.setState({ wins: [], zTop: 1 });
     useWindows.getState().open('admin', 'users/u_7');
-    const { rerender } = render(<WindowNav id="admin"><Screen /></WindowNav>);
+    const { rerender } = render(<WindowNav id="admin" base="/admin"><Screen /></WindowNav>);
     expect(screen.getByTestId('path').textContent).toBe('users/u_7');
     act(() => useWindows.getState().open('admin', 'audit'));
-    rerender(<WindowNav id="admin"><Screen /></WindowNav>);
+    rerender(<WindowNav id="admin" base="/admin"><Screen /></WindowNav>);
     expect(screen.getByTestId('path').textContent).toBe('audit');
   });
 });
 
 describe('on a page of its own', () => {
   it('follows the address bar under its base, and moves it', async () => {
-    render(<MemoryRouter initialEntries={['/admin/users/u_9']}><Where /><PageNav base="/admin"><Screen /></PageNav></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/admin/users/u_9']}><Where /><PageNav base="/admin" id="admin"><Screen /></PageNav></MemoryRouter>);
     expect(screen.getByTestId('path').textContent).toBe('users/u_9');
     await userEvent.click(screen.getByRole('link', { name: 'Users' }));
     expect(screen.getByTestId('url').textContent).toBe('/admin/users');
@@ -81,12 +83,12 @@ describe('on a page of its own', () => {
   });
 
   it('gives links real addresses, so they can be opened in a new tab', () => {
-    render(<MemoryRouter initialEntries={['/admin']}><PageNav base="/admin"><Screen /></PageNav></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/admin']}><PageNav base="/admin" id="admin"><Screen /></PageNav></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'One user' }).getAttribute('href')).toBe('/admin/users/u_1');
   });
 
   it('leaves modified clicks to the browser (new tab, new window)', () => {
-    render(<MemoryRouter initialEntries={['/admin']}><Where /><PageNav base="/admin"><Screen /></PageNav></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/admin']}><Where /><PageNav base="/admin" id="admin"><Screen /></PageNav></MemoryRouter>);
     const link = screen.getByRole('link', { name: 'Users' });
     for (const mod of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) fireEvent.click(link, mod);
     expect(screen.getByTestId('url').textContent).toBe('/admin'); // we did not intercept any of them

@@ -21,7 +21,7 @@ const shown = (t: ReturnType<typeof useT>, key: string, v: unknown): string =>
 export function SettingsPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'settings'], queryFn: () => api.get<{ settings: SettingRow[]; readonly: { name: string; domain: string; homes_domain: string } }>('/admin/settings') });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading />;
   const r = q.data.readonly;
   return (
@@ -249,7 +249,7 @@ export function LegalPanel() {
   const t = useT();
   const pages = useQuery({ queryKey: ['admin', 'legal', 'pages'], queryFn: () => api.get<{ pages: LegalPageRow[] }>('/admin/legal/pages') });
   const reqs = useQuery({ queryKey: ['admin', 'legal', 'requests'], queryFn: () => api.get<{ requests: LegalRequestRow[] }>('/admin/legal/requests'), refetchInterval: 60_000 });
-  if (pages.isError) return <Alert kind="error">{errorText(pages.error)}</Alert>;
+  if (pages.isError) return <Alert kind="error" retry={() => void pages.refetch()}>{errorText(pages.error)}</Alert>;
   return (
     <>
       <h2>{t('admin.legal.requests')}</h2>

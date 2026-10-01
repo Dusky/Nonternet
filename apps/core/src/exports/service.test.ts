@@ -101,7 +101,7 @@ describe.skipIf(!dbAvailable)('export', () => {
     it('holds what she made, and nothing that is not hers', () => {
       expect(Object.keys(files).sort()).toEqual([
         'README.txt', 'boards/club.json', 'boards/general.json', 'boards/mine.json', 'files.json', 'files/tools/readme.txt', 'guestbook.json', 'homepage.json', 'homepage/img/pixel.gif', 'homepage/index.html',
-        'keys/public.key', 'mail/blocked.json', 'mail/conversations.json', 'manifest.json', 'manifest.sig', 'posts/posts.json', 'posts/posts.mbox', 'profile.json', 'rings/synths/members.json', 'rings/synths/ring.json',
+        'keys/public.key', 'mail/blocked.json', 'mail/conversations.json', 'manifest.json', 'manifest.sig', 'posts/posts.json', 'posts/posts.mbox', 'posts/reactions.json', 'posts/revisions.json', 'profile.json', 'rings/synths/members.json', 'rings/synths/ring.json',
       ].sort());
       const posts = JSON.parse(text(files, 'posts/posts.json')) as { subject: string; body: string; board: string; state: string; reply_to: string | null }[];
       expect(posts.map((p) => p.subject)).toEqual(['Café hours', 'Re: Café hours', 'Private thoughts', '']);
@@ -109,6 +109,8 @@ describe.skipIf(!dbAvailable)('export', () => {
       expect(posts.at(-1)).toMatchObject({ state: 'deleted', body: '' }); // the tombstone, with nothing inside
       expect(JSON.stringify(posts)).not.toContain('Bob replying');
       expect(JSON.stringify(posts)).not.toContain('deleted words');
+      expect(JSON.parse(text(files, 'posts/revisions.json'))).toEqual([]); // nothing edited yet
+      expect(JSON.parse(text(files, 'posts/reactions.json'))).toEqual([]);
       expect(text(files, 'posts/posts.mbox')).toContain('Subject: =?UTF-8?B?'); // café
       expect(text(files, 'posts/posts.mbox')).toContain('>From me to you, always.');
       expect(text(files, 'posts/posts.mbox').match(/^From alice@example\.test /gm)).toHaveLength(3); // deleted post left out

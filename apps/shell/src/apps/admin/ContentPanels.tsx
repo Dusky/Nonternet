@@ -13,7 +13,7 @@ import { useDebounced } from './useDebounced';
 export function BoardsTable() {
   const t = useT();
   const q = useQuery({ queryKey: ['boards', 'admin'], queryFn: () => api.get<{ boards: BoardSummary[] }>('/boards') });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading />;
   const boards = q.data.boards;
   return (
@@ -65,7 +65,7 @@ export function HomepagesTable() {
     mutationFn: (reason: string) => api.post(`/admin/homepages/${acting!.user_id}/${acting!.hidden ? 'restore' : 'hide'}`, { reason }),
     onSuccess: () => { setActing(null); setError(null); void qc.invalidateQueries({ queryKey: ['admin'] }); }, onError: (e) => setError(errorText(e)),
   });
-  if (list.isError) return <Alert kind="error">{errorText(list.error)}</Alert>;
+  if (list.isError) return <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>;
   const d = list.data;
   return (
     <>
@@ -120,7 +120,7 @@ export function RingsTable() {
     mutationFn: (reason: string) => api.post(`/admin/rings/${acting!.id}/${acting!.hidden ? 'restore' : 'hide'}`, { reason }),
     onSuccess: () => { setActing(null); setError(null); void qc.invalidateQueries({ queryKey: ['admin'] }); }, onError: (e) => setError(errorText(e)),
   });
-  if (list.isError) return <Alert kind="error">{errorText(list.error)}</Alert>;
+  if (list.isError) return <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>;
   const rings = list.data?.rings ?? [];
   return (
     <>

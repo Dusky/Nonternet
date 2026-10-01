@@ -8,6 +8,14 @@ export class ApiError extends Error {
   }
 }
 
+// Told when a request is refused because the session is gone (a 401 anywhere once signed in), so the shell can
+// say so and offer the way back in without throwing away what someone was writing. The login calls themselves
+// answer 401 for a wrong password; those are not "expired".
+const expiredListeners = new Set<() => void>();
+export const onSessionExpired = (fn: () => void): (() => void) => { expiredListeners.add(fn); return () => { expiredListeners.delete(fn); }; };
+const notAboutSession = /^\/(auth\/|me$)/;
+function expired(path: string, status: number) { if (status === 401 && !notAboutSession.test(path)) for (const fn of expiredListeners) fn(); }
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
@@ -22,7 +30,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   if (res.status === 204) return undefined as T;
   const data = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
-  if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic']);
+  if (!res.ok) { expired(path, res.status); throw new ApiError(res.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic']); }
   return data as T;
 }
 
@@ -37,6 +45,7 @@ async function upload<T = void>(path: string, file: Blob | string, method: 'PUT'
   if (res.status === 204) return undefined as T;
   if (res.ok) return (await res.json().catch(() => undefined)) as T;
   const data = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
+  expired(path, res.status);
   throw new ApiError(res.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic']);
 }
 

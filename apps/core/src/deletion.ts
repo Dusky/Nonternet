@@ -40,8 +40,11 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
         `UPDATE posts r SET reply_count = GREATEST(r.reply_count - x.n, 0)
          FROM (SELECT thread_root_id, count(*) AS n FROM posts WHERE author_id = $1 AND thread_root_id IS NOT NULL AND deleted_at IS NULL AND hidden_at IS NULL GROUP BY 1) x WHERE r.id = x.thread_root_id`, [userId]);
       await q.query(`UPDATE posts SET deleted_at = now(), deleted_by = 'author', subject = '', body = '' WHERE author_id = $1 AND deleted_at IS NULL`, [userId]);
+      await q.query(`DELETE FROM post_revisions WHERE post_id IN (SELECT id FROM posts WHERE author_id = $1)`, [userId]);
     }
     await q.query(`UPDATE posts SET author_id = NULL WHERE author_id = $1`, [userId]);
+    await q.query(`UPDATE post_revisions SET editor_id = NULL WHERE editor_id = $1`, [userId]); // edits made as a moderator stay, unsigned
+    await q.query(`DELETE FROM post_reactions WHERE user_id = $1`, [userId]);
     if (opts.posts === 'erase') await q.query(`UPDATE guestbook_entries SET message = '', name = $2, url = NULL, status = 'hidden', author_id = NULL WHERE author_id = $1`, [userId, en['account.deletedName']]);
     else await q.query(`UPDATE guestbook_entries SET name = $2, url = NULL, author_id = NULL WHERE author_id = $1`, [userId, en['account.deletedName']]);
 

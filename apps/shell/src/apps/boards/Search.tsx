@@ -37,7 +37,7 @@ export function Search({ board }: { board?: string }) {
         <TextField label={t('boards.search.label')} value={input} onChange={setInput} type="search" minLength={2} required />
         <button className="btn btn-primary" type="submit">{t('boards.search.go')}</button>
       </form>
-      {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
+      {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {q.isSuccess && hits.length === 0 && <EmptyState>{t('boards.search.none')}</EmptyState>}
       <ul className="rows">
         {hits.map((h) => (

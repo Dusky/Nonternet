@@ -21,7 +21,7 @@ export default function StudioApp() {
   const route = matchRoute(nav.path, ROUTES);
   useEffect(() => { if (!route) nav.go('files', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
   const q = useQuery({ queryKey: ['studio'], queryFn: () => api.get<Mine>('/homes/me') });
-  if (q.isError) return <div className="app-content"><Alert kind="error">{errorText(q.error)}</Alert></div>;
+  if (q.isError) return <div className="app-content"><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></div>;
   if (!q.data) return <Loading />;
   const { homepage } = q.data;
   return (

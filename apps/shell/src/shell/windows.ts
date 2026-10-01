@@ -11,6 +11,9 @@ export interface Win {
   z: number;
   // Where the app inside the window is ("general/t/p_…"). Kept here so another app can open a window at a place.
   path: string;
+  // Where this window has been, so it has its own Back and Forward (M9-B). `cursor` is the entry shown now.
+  history: string[];
+  cursor: number;
   minimized: boolean;
   maximized: boolean;
   // Where the window sits when it is not maximized, so un-maximizing puts it back.
@@ -40,6 +43,42 @@ export function clampGeometry(g: Geometry, v: Viewport): Geometry {
   return { w, h, x: Math.min(Math.max(g.x, grab - w), a.w - grab), y: Math.min(Math.max(g.y, 0), a.h - 40) };
 }
 
+// ---------------------------------------------------------------- resizing and snapping (pure)
+export type Edge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
+// The window's new place when one edge or corner is dragged by (dx, dy). The opposite edge stays put: when
+// the window hits its minimum size the dragged edge stops rather than the window sliding away.
+export function resizeFrom(edge: Edge, start: Geometry, dx: number, dy: number): Geometry {
+  let { x, y, w, h } = start;
+  if (edge.includes('e')) w = start.w + dx;
+  if (edge.includes('s')) h = start.h + dy;
+  if (edge.includes('w')) { w = start.w - dx; x = start.x + dx; }
+  if (edge.includes('n')) { h = start.h - dy; y = start.y + dy; }
+  if (w < MIN_W) { if (edge.includes('w')) x = start.x + start.w - MIN_W; w = MIN_W; }
+  if (h < MIN_H) { if (edge.includes('n')) y = start.y + start.h - MIN_H; h = MIN_H; }
+  return { x, y, w, h };
+}
+
+export type SnapZone = 'left' | 'right' | 'max';
+const SNAP_MARGIN = 6;
+
+// Where a window being dragged will land if let go with the pointer here: against the left or right edge of
+// the screen it takes that half, against the top edge it fills the desktop. Null elsewhere.
+export function snapZone(pointer: { x: number; y: number }, v: Viewport): SnapZone | null {
+  if (pointer.y <= TASKBAR_HEIGHT + SNAP_MARGIN) return 'max';
+  if (pointer.x <= SNAP_MARGIN) return 'left';
+  if (pointer.x >= v.w - SNAP_MARGIN) return 'right';
+  return null;
+}
+
+// The place a snap zone gives a window: half the desktop, or all of it.
+export function snapGeometry(zone: SnapZone, v: Viewport): Geometry {
+  const a = area(v);
+  if (zone === 'max') return { x: 0, y: 0, w: a.w, h: a.h };
+  const half = Math.max(Math.floor(a.w / 2), Math.min(MIN_W, a.w));
+  return { x: zone === 'left' ? 0 : a.w - half, y: 0, w: half, h: a.h };
+}
+
 const safeStorage = () => {
   try { return window.localStorage; } catch { return null; }
 };
@@ -63,7 +102,13 @@ interface State {
   viewport: Viewport;
   setViewport(v: Viewport): void;
   open(id: AppId, path?: string): void;
-  setPath(id: AppId, path: string): void;
+  setPath(id: AppId, path: string, replace?: boolean): void;
+  back(id: AppId): void;
+  forward(id: AppId): void;
+  setSnapPreview(zone: SnapZone | null): void;
+  snapPreview: SnapZone | null;
+  subtitles: Partial<Record<AppId, string>>;
+  setSubtitle(id: AppId, text: string | null): void;
   close(id: AppId): void;
   focus(id: AppId): void;
   minimize(id: AppId): void;
@@ -75,12 +120,33 @@ interface State {
   reset(): void;
 }
 
+const MAX_HISTORY = 50;
+const goTo = (w: Win, path: string): Pick<Win, 'path' | 'history' | 'cursor'> => {
+  if (path === w.path) return { path, history: w.history, cursor: w.cursor };
+  const history = [...w.history.slice(0, w.cursor + 1), path].slice(-MAX_HISTORY);
+  return { path, history, cursor: history.length - 1 };
+};
+const replaceCurrent = (w: Win, path: string): Pick<Win, 'path' | 'history' | 'cursor'> => {
+  const history = [...w.history];
+  history[w.cursor] = path;
+  return { path, history, cursor: w.cursor };
+};
+
 const topVisible = (wins: Win[]) => [...wins].filter((w) => !w.minimized).sort((a, b) => b.z - a.z)[0];
 
 export const useWindows = create<State>((set, get) => ({
   wins: [],
   zTop: 1,
   viewport: { w: 1280, h: 800 },
+  snapPreview: null,
+  subtitles: {},
+  setSnapPreview: (snapPreview) => set({ snapPreview }),
+  setSubtitle: (id, text) => set((s) => {
+    if ((s.subtitles[id] ?? null) === text) return s;
+    const subtitles = { ...s.subtitles };
+    if (text) subtitles[id] = text; else delete subtitles[id];
+    return { subtitles };
+  }),
 
   setViewport: (viewport) => set((s) => ({
     viewport,
@@ -92,15 +158,20 @@ export const useWindows = create<State>((set, get) => ({
     const existing = s.wins.find((w) => w.id === id);
     const z = s.zTop + 1;
     // One window per app: opening it again brings it back and to the front. Given a place, it goes there.
-    if (existing) return { zTop: z, wins: s.wins.map((w) => (w.id === id ? { ...w, minimized: false, z, path: path ?? w.path } : w)) };
+    if (existing) return { zTop: z, wins: s.wins.map((w) => (w.id === id ? { ...w, minimized: false, z, ...(path !== undefined && path !== w.path ? goTo(w, path) : {}) } : w)) };
     const cascade = s.wins.length * 28;
     const saved = loadSaved()[id];
     // New windows open to the right of the desktop icons, so the icons stay in reach.
     const g = clampGeometry(saved ?? { x: ICONS_W + cascade, y: 24 + cascade, ...DEFAULT }, s.viewport);
-    return { zTop: z, wins: [...s.wins, { id, ...g, z, path: path ?? '', minimized: false, maximized: false, restore: null }] };
+    return { zTop: z, wins: [...s.wins, { id, ...g, z, path: path ?? '', history: [path ?? ''], cursor: 0, minimized: false, maximized: false, restore: null }] };
   }),
 
-  setPath: (id, path) => set((s) => ({ wins: s.wins.map((w) => (w.id === id ? { ...w, path } : w)) })),
+  // Moving to a new place adds to the window's history (dropping any "forward" part), unless it replaces
+  // the current place (a redirect, the first screen of an app).
+  setPath: (id, path, replace = false) => set((s) => ({ wins: s.wins.map((w) => (w.id === id ? { ...w, ...(replace ? replaceCurrent(w, path) : goTo(w, path)) } : w)) })),
+
+  back: (id) => set((s) => ({ wins: s.wins.map((w) => (w.id === id && w.cursor > 0 ? { ...w, cursor: w.cursor - 1, path: w.history[w.cursor - 1]! } : w)) })),
+  forward: (id) => set((s) => ({ wins: s.wins.map((w) => (w.id === id && w.cursor < w.history.length - 1 ? { ...w, cursor: w.cursor + 1, path: w.history[w.cursor + 1]! } : w)) })),
 
   close: (id) => set((s) => ({ wins: s.wins.filter((w) => w.id !== id) })),
 
@@ -127,15 +198,11 @@ export const useWindows = create<State>((set, get) => ({
 
   // Fill the left or right half of the desktop. Un-maximizing (or snapping again) puts it back.
   snap: (id, side) => set((s) => {
-    const a = area(s.viewport);
     const z = s.zTop + 1;
-    const half = Math.max(Math.floor(a.w / 2), Math.min(MIN_W, a.w));
+    const g = snapGeometry(side, s.viewport);
     return {
       zTop: z,
-      wins: s.wins.map((w) => (w.id !== id ? w : {
-        ...w, x: side === 'left' ? 0 : a.w - half, y: 0, w: half, h: a.h, maximized: false, minimized: false, z,
-        restore: w.restore ?? { x: w.x, y: w.y, w: w.w, h: w.h },
-      })),
+      wins: s.wins.map((w) => (w.id !== id ? w : { ...w, ...g, maximized: false, minimized: false, z, restore: w.restore ?? { x: w.x, y: w.y, w: w.w, h: w.h } })),
     };
   }),
 
@@ -165,3 +232,41 @@ export const useWindows = create<State>((set, get) => ({
 
 // The window that has focus: the topmost one that is not minimized.
 export const focusedWindow = (wins: Win[]): Win | undefined => topVisible(wins);
+
+// ---------------------------------------------------------------- remembering what was open (M9-B)
+// Reloading the page, or coming back tomorrow, reopens the same windows in the same order, each at the place
+// it was in its app. Kept per person, and cleared at logout so the next person at a shared screen starts clean.
+const SESSION_KEY = 'ui:session:v1';
+interface SavedWindow { id: AppId; path: string; minimized: boolean; maximized: boolean }
+interface SavedSession { user: string; wins: SavedWindow[] }
+
+export function saveSession(userId: string): void {
+  try {
+    const wins = [...useWindows.getState().wins].sort((a, b) => a.z - b.z).map((w): SavedWindow => ({ id: w.id, path: w.path, minimized: w.minimized, maximized: w.maximized }));
+    const session: SavedSession = { user: userId, wins };
+    safeStorage()?.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch { /* a convenience, never an error */ }
+}
+
+export function clearSession(): void {
+  try { safeStorage()?.removeItem(SESSION_KEY); } catch { /* nothing to clear */ }
+}
+
+// Reopens the saved windows for this person. `valid` says which apps still exist and may be shown to them
+// (an app can be switched off, or be admin-only); anything else is skipped. Does nothing if windows are open.
+export function restoreSession(userId: string, valid: (id: AppId) => boolean): number {
+  if (useWindows.getState().wins.length > 0) return 0;
+  let saved: SavedSession | null = null;
+  try { saved = JSON.parse(safeStorage()?.getItem(SESSION_KEY) ?? 'null') as SavedSession | null; } catch { return 0; }
+  if (!saved || saved.user !== userId || !Array.isArray(saved.wins)) return 0;
+  const s = useWindows.getState();
+  let n = 0;
+  for (const w of saved.wins.slice(0, 13)) {
+    if (!w || typeof w.id !== 'string' || !valid(w.id) || typeof w.path !== 'string' || w.path.length > 300) continue;
+    s.open(w.id, w.path);
+    if (w.maximized) s.toggleMaximize(w.id);
+    if (w.minimized) s.minimize(w.id);
+    n++;
+  }
+  return n;
+}

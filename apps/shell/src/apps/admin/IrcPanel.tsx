@@ -16,7 +16,7 @@ interface Overview {
 export function IrcPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'irc'], queryFn: () => api.get<Overview>('/admin/irc'), refetchInterval: 15_000 });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   const o = q.data;
   if (!o) return <Loading />;
   if (!o.configured) return <Alert kind="info">{t('admin.irc.off')}</Alert>;
@@ -118,7 +118,7 @@ function Bans() {
     <section className="panel" aria-labelledby="irc-bans-h">
       <h3 id="irc-bans-h">{t('admin.irc.bans')}</h3>
       <p className="hint">{t('admin.irc.bansHint')}</p>
-      {list.isError && <Alert kind="error">{errorText(list.error)}</Alert>}
+      {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
       {list.data && (list.data.bans.length === 0 ? <p>{t('admin.irc.noBans')}</p> : <ul>{list.data.bans.map((b) => <li key={b}><code>{b}</code></li>)}</ul>)}
       <form onSubmit={(e: FormEvent) => { e.preventDefault(); setMsg(null); add.mutate(); }}>
         <TextField label={t('admin.irc.banTarget')} value={target} onChange={setTarget} hint={t('admin.irc.banTargetHint')} maxLength={50} autoComplete="off" required />

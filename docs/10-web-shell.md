@@ -138,3 +138,28 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **Chat, the MUD and the Terminal reconnect by themselves** after a lost connection (1 s, 2 s, 4 s … 30 s, with jitter).
   A goodbye (quitting the MUD, the BBS's own Goodbye) stays closed. Chat rejoins the channels that were open; each
   reconnect gets a fresh one-use ticket.
+
+## As built (M9-B): desktop feel
+- **The browser tab** says where you are and what is waiting: "(3) Boards — Synths and modular · Site name" (the
+  count is mail plus notifications, "99+" at most). The icon is the site mark in the theme's accent colour, with a
+  red dot when something is unread; it is drawn in the page (`shell/tabInfo.ts`), so no image files and the colours
+  follow the theme.
+- **Windows come back.** The open windows, their order, where each app was, and maximized/minimized are kept per
+  person (`ui:session:v1`) and restored on the desktop. Logging out clears them.
+- **Real links from windows.** A link inside a window has the app's own address, so "copy link" and "open in new
+  tab" work; a plain click stays in the window. Each window has its own **Back and Forward** (title-bar buttons;
+  Alt+Left and Alt+Right inside the window). A window's title and the tab show where you are inside the app
+  (`useSubtitle`): a board's name, a thread's subject, a profile, a conversation.
+- **Window handling:** resize from any edge or corner; drag to the left or right edge to take half the screen,
+  to the top to fill it (a preview shows where it will land); a short open animation (off for reduced motion).
+  Right-click, or Shift+F10 / the Menu key, opens a menu on desktop icons, taskbar buttons and title bars.
+- **`?` lists every shortcut.** Ctrl+K also finds threads (by their words), rings and mail subjects, and remembers
+  the last few things opened.
+- **Wallpaper**: dots, grid, stripes or plain, drawn in the theme's colours; kept on the device.
+- **When things go wrong:** a banner when the browser is offline; a banner when the session has ended (a link to
+  log in in a new tab, so what you were writing stays; it goes by itself when you are back). One app crashing shows
+  "Reload this app" and leaves the rest of the shell alone. Failed loads offer "Try again" and are retried once
+  (never a 4xx).
+- **Alerts for a background tab** (Settings → Notifications, on this device, off until turned on): a desktop
+  notification and/or a short chime made in the browser (no sound files). A notification says that something came,
+  never what; nothing shows on a locked screen. A burst is one nudge.

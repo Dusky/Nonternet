@@ -49,7 +49,7 @@ function Spark({ metric }: { metric: 'posts' | 'signups' }) {
 export function StatusPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'status'], queryFn: () => api.get<Status>('/admin/status'), refetchInterval: 15_000 });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   const s = q.data;
   if (!s) return <Loading />;
   const free = (d: { free_bytes: number } | null) => (d ? size(d.free_bytes) : '?');
@@ -87,7 +87,7 @@ interface Run { id: string; kind: 'backup' | 'restore_test'; status: 'running' |
 export function BackupsPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'backups'], queryFn: () => api.get<{ runs: Run[]; summary: Status['backups'] }>('/admin/backups'), refetchInterval: 60_000 });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading />;
   const { runs, summary } = q.data;
   return (

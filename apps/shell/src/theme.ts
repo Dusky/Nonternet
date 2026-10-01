@@ -50,6 +50,7 @@ export function applyTheme(theme: ThemeName, opts: { remember?: boolean } = {}):
   root.dataset.theme = theme;
   root.dataset.scanlines = prefs.scanlines ? 'on' : 'off';
   root.dataset.glow = prefs.glow ? 'on' : 'off';
+  root.dataset.wallpaper = wallpaperPref();
   if (opts.remember === false) return;
   try { store()?.setItem(THEME_KEY, theme); } catch { /* a convenience only */ }
 }
@@ -62,4 +63,16 @@ export function clockPref(): boolean {
 export function saveClockPref(on: boolean): void {
   try { store()?.setItem(CLOCK_KEY, on ? 'on' : 'off'); } catch { /* a convenience only */ }
   window.dispatchEvent(new Event('ui:clock'));
+}
+
+// The desktop wallpaper: one of a few patterns, kept on this device (like the clock).
+export const WALLPAPERS = ['dots', 'grid', 'stripes', 'plain'] as const;
+export type Wallpaper = (typeof WALLPAPERS)[number];
+const WALLPAPER_KEY = 'ui:wallpaper';
+export function wallpaperPref(): Wallpaper {
+  try { const v = store()?.getItem(WALLPAPER_KEY); return (WALLPAPERS as readonly string[]).includes(v ?? '') ? (v as Wallpaper) : 'dots'; } catch { return 'dots'; }
+}
+export function saveWallpaperPref(w: Wallpaper): void {
+  try { store()?.setItem(WALLPAPER_KEY, w); } catch { /* a convenience only */ }
+  document.documentElement.dataset.wallpaper = w;
 }

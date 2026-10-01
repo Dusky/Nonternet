@@ -3,9 +3,15 @@ import { useT } from '../hooks';
 import { AppLink, AppNavLink } from '../nav';
 import { Icon, type IconName } from './Icon';
 
-export function Alert({ kind, children }: { kind: 'error' | 'success' | 'info' | 'warning'; children: ReactNode }) {
-  // Errors interrupt a screen reader; the rest wait their turn.
-  return <div className={`alert alert-${kind}`} role={kind === 'error' ? 'alert' : 'status'}>{children}</div>;
+export function Alert({ kind, children, retry }: { kind: 'error' | 'success' | 'info' | 'warning'; children: ReactNode; retry?: () => void }) {
+  const t = useT();
+  // Errors interrupt a screen reader; the rest wait their turn. A failed load can offer to try again.
+  return (
+    <div className={`alert alert-${kind}`} role={kind === 'error' ? 'alert' : 'status'}>
+      <div>{children}</div>
+      {retry && <button type="button" className="btn btn-small" onClick={retry}>{t('common.retry')}</button>}
+    </div>
+  );
 }
 
 interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {

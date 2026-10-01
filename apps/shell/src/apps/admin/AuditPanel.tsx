@@ -46,7 +46,7 @@ export function Audit() {
   return (
     <>
       <TextField label={t('admin.audit.filter')} value={action} onChange={setAction} hint={t('admin.audit.filterHint')} autoCapitalize="none" spellCheck={false} />
-      {query.isError && <Alert kind="error">{errorText(query.error)}</Alert>}
+      {query.isError && <Alert kind="error" retry={() => void query.refetch()}>{errorText(query.error)}</Alert>}
       {query.isSuccess && entries.length === 0 && <EmptyState>{t('admin.audit.none')}</EmptyState>}
       {entries.length > 0 && <ol className="timeline">{entries.map((e) => <AuditItem key={e.id} entry={e} />)}</ol>}
       {query.hasNextPage && <button className="btn" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>{t('admin.audit.more')}</button>}

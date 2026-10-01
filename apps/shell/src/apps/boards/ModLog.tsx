@@ -22,7 +22,7 @@ export function ModLog({ slug, canUndo }: { slug: string; canUndo: boolean }) {
     <>
       <BackLink to={slug}>{slug}</BackLink>
       <h2>{t('boards.modlog')}</h2>
-      {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
+      {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {undo.isError && <Alert kind="error">{errorText(undo.error)}</Alert>}
       {q.isSuccess && entries.length === 0 && <EmptyState>{t('boards.modlog.none')}</EmptyState>}
       <ul className="rows">

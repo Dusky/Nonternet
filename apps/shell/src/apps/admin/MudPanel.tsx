@@ -14,7 +14,7 @@ interface Builder { op_id: string; user_id: string; handle: string; since: strin
 export function MudPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'mud'], queryFn: () => api.get<Overview>('/admin/mud'), refetchInterval: 15_000 });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   const o = q.data;
   if (!o) return <Loading />;
   if (!o.configured) return <Alert kind="info">{t('admin.mud.off')}</Alert>;

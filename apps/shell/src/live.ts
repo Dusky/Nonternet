@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 
@@ -34,9 +34,11 @@ export function applyHint(qc: QueryClient, h: Hint): void {
 
 const TYPES: Hint['type'][] = ['notifications', 'mail', 'board', 'announcements', 'presence'];
 
-export function useLiveEvents(userId: string | null): void {
+export function useLiveEvents(userId: string | null, onArrive?: (type: 'notifications' | 'mail') => void): void {
   const qc = useQueryClient();
   const set = useLive((s) => s.set);
+  const arrived = useRef(onArrive);
+  arrived.current = onArrive;
   useEffect(() => {
     if (!userId || typeof EventSource === 'undefined') { set('polling'); return; }
     let source: EventSource | null = null;
@@ -51,7 +53,11 @@ export function useLiveEvents(userId: string | null): void {
       source.onopen = () => { failures = 0; set('live'); void qc.invalidateQueries(); }; // catch up on anything missed
       for (const type of TYPES) {
         source.addEventListener(type, (e) => {
-          try { applyHint(qc, JSON.parse((e as MessageEvent<string>).data) as Hint); } catch { /* a malformed hint is ignored */ }
+          try {
+            const hint = JSON.parse((e as MessageEvent<string>).data) as Hint;
+            applyHint(qc, hint);
+            if (hint.type === 'notifications' || hint.type === 'mail') arrived.current?.(hint.type);
+          } catch { /* a malformed hint is ignored */ }
         });
       }
       source.onerror = () => {

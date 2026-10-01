@@ -5,7 +5,7 @@ import { JOIN_POLICIES, type RingDetail, type RingMemberView, type RingSummary }
 import { api } from '../../api';
 import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
-import { AppLink, matchRoute, useAppNav } from '../../nav';
+import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
 const ROUTES = ['', 'new', ':slug'] as const;
@@ -70,7 +70,7 @@ function Directory() {
         <button className="btn" type="button" onClick={() => random.mutate()}>{t('rings.random')}</button>
       </div>
       {error && <Alert kind="error">{error}</Alert>}
-      {list.isError && <Alert kind="error">{errorText(list.error)}</Alert>}
+      {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
       {list.isSuccess && items.length === 0 && <EmptyState>{t('rings.none')}</EmptyState>}
       {list.isPending && <Loading rows={3} />}
       <ul className="cards">
@@ -139,7 +139,8 @@ function RingPage({ slug }: { slug: string }) {
   const refresh = () => { for (const k of ['ring', 'rings', 'boards', 'me']) void qc.invalidateQueries({ queryKey: [k] }); };
   const join = useMutation({ mutationFn: () => api.post<{ status: string }>(`/rings/${slug}/join`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
   const leave = useMutation({ mutationFn: () => api.post(`/rings/${slug}/leave`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  useSubtitle(q.data?.name);
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   const r = q.data;
   if (!r) return <Loading />;
   const status = r.me?.status ?? null;

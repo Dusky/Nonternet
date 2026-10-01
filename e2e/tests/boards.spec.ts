@@ -30,7 +30,7 @@ test.describe('boards', () => {
     await page.getByLabel('Name').fill(name);
     await page.getByLabel('Description').fill('Chat about anything.');
     await page.getByRole('button', { name: 'Create board' }).click();
-    await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name, exact: true })).toBeVisible();
 
     await page.getByRole('link', { name: 'New thread' }).click();
     await page.getByLabel('Subject').fill('Hello there');
@@ -38,10 +38,11 @@ test.describe('boards', () => {
     await page.getByRole('button', { name: 'Preview' }).click();
     await expect(page.getByTestId('preview')).toHaveText('First post.\n\nA second paragraph with café.');
     await page.getByRole('button', { name: 'Post', exact: true }).click();
-    await expect(page.getByRole('heading', { level: 2, name: 'Hello there' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Hello there', exact: true })).toBeVisible();
     await expect(page.getByText('A second paragraph with café.')).toBeVisible();
 
-    // Someone else finds the board, sees it unread, and replies.
+    // The owner goes and does something else; someone else finds the board, sees it unread, and replies.
+    await page.goto('/');
     const other = await makeUser(page);
     const op = await signedInPage(browser, other.handle);
     await op.goto('/boards');
@@ -60,7 +61,7 @@ test.describe('boards', () => {
     await expect(row(op)).toBeVisible();
     await expect(row(op).getByText(/unread/)).toHaveCount(0);
 
-    // The owner sees the reply as new activity.
+    // The owner, who is no longer looking at the thread, sees the reply as new activity.
     await page.goto('/boards');
     await expect(row(page).getByText('1 unread')).toBeVisible();
     await op.context().close();
@@ -158,7 +159,7 @@ test.describe('boards', () => {
     await op.getByRole('button', { name: 'Notifications, 1 unread' }).click();
     await expect(op.getByText(`${other.handle} replied to you`)).toBeVisible();
     await op.getByRole('link', { name: `${other.handle} replied to you` }).click();
-    await expect(op.getByRole('heading', { level: 2, name: subject })).toBeVisible();
+    await expect(op.getByRole('heading', { level: 2, name: subject, exact: true })).toBeVisible();
     await expect(op.getByText(`Yes, hello @${owner.handle}`)).toBeVisible();
     await expect(op.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible(); // no count once it is read
     await op.context().close();

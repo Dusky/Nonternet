@@ -63,17 +63,38 @@ export interface BoardSummary {
   unread: number | null; watching: boolean; can_post: boolean; can_moderate: boolean;
 }
 
+// Reactions (M9-C): a small fixed set, always shown with their word so nobody has to read an emoji.
+export const REACTIONS = ['agree', 'thanks', 'funny', 'interesting', 'sad', 'love'] as const;
+export type ReactionName = (typeof REACTIONS)[number];
+export const reactionSchema = z.enum(REACTIONS);
+
+// How long the author may edit their own post. Moderators can always edit, with a reason.
+export const POST_EDIT_WINDOW_MINUTES = 24 * 60;
+export const MAX_PINNED_THREADS = 3;
+export const postEditSchema = z.object({
+  subject: z.string().max(SUBJECT_MAX * 4).optional(),
+  body: z.string().max(BODY_MAX * 2),
+  reason: z.string().trim().max(300).optional(),
+});
+export type PostEdit = z.infer<typeof postEditSchema>;
+
+export interface PostRevisionView { id: string; at: string; subject: string; body: string; editor: { id: string; handle: string } | null; reason: string | null }
+
 export interface PostView {
   id: string; seq: number; board_id: string; thread_id: string; reply_to_id: string | null;
   subject: string; body: string | null; state: 'ok' | 'deleted' | 'removed' | 'hidden';
   // `character` is the MUD character the author features, if any (docs/09).
   author: { id: string; handle: string; display_name: string | null; character: { id: string; name: string; level: number } | null } | null;
   posted_at: string; edited_at: string | null;
+  // Who reacted how (counts, and whether the viewer did); only on posts shown in a thread. Empty for a visitor's 'mine'.
+  reactions?: { name: ReactionName; count: number; mine: boolean }[];
+  // A pinned thread's first post.
+  pinned?: boolean;
 }
 
 export interface ThreadSummary {
   id: string; subject: string; author: PostView['author']; posted_at: string;
-  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; locked: boolean; state: PostView['state'];
+  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; locked: boolean; pinned: boolean; state: PostView['state'];
 }
 
 export interface PostPreview {

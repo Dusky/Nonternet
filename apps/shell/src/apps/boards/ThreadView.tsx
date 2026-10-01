@@ -5,7 +5,7 @@ import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, Loading, RelativeTime } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
-import { useAppNav } from '../../nav';
+import { useAppNav, useSubtitle } from '../../nav';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
 import { PostModTools, ReportPost } from './ModTools';
@@ -51,15 +51,22 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const board = q.data?.pages[0]?.board;
   const locked = q.data?.pages[0]?.locked ?? false;
 
-  // Reading a thread moves your read pointer up to the last post you have loaded.
+  // Reading a thread moves your read pointer up to the last post you have loaded, but only while the tab is in
+  // front: a reply that arrives while it is in the background is not read until you come back to it.
   const sent = useRef<string | null>(null);
   useEffect(() => {
     const last = posts[posts.length - 1];
     if (!me || !last || sent.current === last.id || q.hasNextPage) return;
-    sent.current = last.id;
-    api.put(`/boards/${slug}/read-pointer`, { post_id: last.id })
-      .then(() => { void qc.invalidateQueries({ queryKey: ['boards'] }); void qc.invalidateQueries({ queryKey: ['board', slug] }); void qc.invalidateQueries({ queryKey: ['threads', slug] }); })
-      .catch(() => { sent.current = null; });
+    const mark = () => {
+      sent.current = last.id;
+      api.put(`/boards/${slug}/read-pointer`, { post_id: last.id })
+        .then(() => { void qc.invalidateQueries({ queryKey: ['boards'] }); void qc.invalidateQueries({ queryKey: ['board', slug] }); void qc.invalidateQueries({ queryKey: ['threads', slug] }); })
+        .catch(() => { sent.current = null; });
+    };
+    if (document.visibilityState === 'visible') { mark(); return; }
+    const onVisible = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', onVisible); mark(); } };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [posts, me, slug, qc, q.hasNextPage]);
 
   const del = useMutation({
@@ -84,7 +91,8 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const openReply = (p?: PostView) => { setReplyTo(p ?? target ?? null); setTimeout(() => document.getElementById('compose-body')?.focus(), 0); };
   useListKeys(root, { r: () => canReply && openReply(), n: goNextUnread });
 
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  useSubtitle(posts[0]?.subject);
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!board) return <Loading rows={4} />;
   const subject = posts[0]?.subject || '';
 

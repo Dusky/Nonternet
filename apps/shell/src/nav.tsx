@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWindows, type AppId } from './shell/windows';
 
@@ -7,6 +7,7 @@ import { useWindows, type AppId } from './shell/windows';
 // address bar). React Router won't nest one router in another, so apps use this instead, with one
 // implementation for each way of being shown.
 export interface Nav {
+  id: AppId;                                      // which app this is
   path: string;                                   // the app's current screen, e.g. "users/u_123" (no leading slash)
   go(to: string, opts?: { replace?: boolean }): void;
   href(to: string): string;
@@ -22,25 +23,28 @@ export function useAppNav(): Nav {
 const trim = (s: string) => s.replace(/^\/+|\/+$/g, '');
 
 // On a page of its own: the app lives under `base` (e.g. /admin) and follows the address bar.
-export function PageNav({ base, children }: { base: string; children: ReactNode }) {
+export function PageNav({ base, id, children }: { base: string; id: AppId; children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const nav = useMemo<Nav>(() => {
     const inside = location.pathname === base || location.pathname.startsWith(`${base}/`);
     return {
+      id,
       path: inside ? trim(location.pathname.slice(base.length)) : '',
       go: (to, opts) => navigate(`${base}/${trim(to)}`, opts),
       href: (to) => `${base}/${trim(to)}`,
     };
-  }, [base, location.pathname, navigate]);
+  }, [base, id, location.pathname, navigate]);
   return <NavContext.Provider value={nav}>{children}</NavContext.Provider>;
 }
 
 // In a window: the screen is held in the window's state, so the address bar never changes.
-export function WindowNav({ id, children }: { id: AppId; children: ReactNode }) {
+// Links inside it still have real addresses (the app's own page), so "copy link" and "open in new tab" work;
+// a plain click stays in the window.
+export function WindowNav({ id, base, children }: { id: AppId; base: string; children: ReactNode }) {
   const path = useWindows((s) => s.wins.find((w) => w.id === id)?.path ?? '');
   const setPath = useWindows((s) => s.setPath);
-  const nav = useMemo<Nav>(() => ({ path: trim(path), go: (to) => setPath(id, trim(to)), href: (to) => `#${trim(to)}` }), [id, path, setPath]);
+  const nav = useMemo<Nav>(() => ({ id, path: trim(path), go: (to, opts) => setPath(id, trim(to), opts?.replace), href: (to) => (trim(to) ? `${base}/${trim(to)}` : base) }), [id, base, path, setPath]);
   return <NavContext.Provider value={nav}>{children}</NavContext.Provider>;
 }
 
@@ -83,4 +87,15 @@ export function AppNavLink({ to, ...rest }: LinkProps) {
   const nav = useAppNav();
   const current = nav.path === to || nav.path.startsWith(`${to}/`);
   return <AppLink to={to} aria-current={current ? 'page' : undefined} {...rest} />;
+}
+
+// Says where in the app you are, for the window title and the browser tab: "Boards — Synths and modular".
+// Pass null (or nothing yet) when it isn't known; it is cleared when the screen goes away.
+export function useSubtitle(text: string | null | undefined): void {
+  const { id } = useAppNav();
+  const set = useWindows((s) => s.setSubtitle);
+  useEffect(() => {
+    set(id, text || null);
+    return () => set(id, null);
+  }, [id, text, set]);
 }

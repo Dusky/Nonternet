@@ -43,7 +43,7 @@ README.txt               # human explanation of the archive
   the file. One export a day; a failed one does not use up the day. Download is only for the owner, `no-store`, audited.
 - **Format** is `export-v1`: `manifest.json` (every file with size and SHA-256), `manifest.sig` (base64 Ed25519 over the exact
   manifest bytes), `keys/public.key` (PEM), `profile.json`, `homepage/` and `homepage.json`, `guestbook.json` (entries on the
-  page, and entries the person signed elsewhere), `posts/posts.json` and `posts/posts.mbox` (mboxrd, one `Newsgroups:` per board),
+  page, and entries the person signed elsewhere), `posts/posts.json` (with `edited_at`) and `posts/posts.mbox` (mboxrd, one `Newsgroups:` per board), `posts/revisions.json` (what your own posts said before each edit; erased with the post) and `posts/reactions.json` (reactions you left),
   `rings/{slug}/` for rings founded or run, `boards/{slug}.json` for boards owned, `README.txt` with the OpenSSL check.
   A deleted post appears in `posts.json` as an empty tombstone and not in the mbox. The private key file is JSON:
   scrypt (N=2^15) then AES-256-GCM.

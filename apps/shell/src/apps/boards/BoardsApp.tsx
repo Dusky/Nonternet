@@ -5,7 +5,7 @@ import { api } from '../../api';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime } from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import { errorText, useMe, useT } from '../../hooks';
-import { AppLink, matchRoute, useAppNav } from '../../nav';
+import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { BoardSettings, NewBoard } from './BoardForms';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
@@ -63,7 +63,7 @@ function BoardList() {
     queryFn: () => api.get<{ categories: { id: string; name: string }[]; boards: BoardSummary[] }>('/boards'),
   });
   useListKeys(root);
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading rows={4} />;
   const { categories, boards } = q.data;
   const ringNames = [...new Set(boards.filter((b) => b.ring).map((b) => b.ring!.name))].sort();
@@ -133,7 +133,8 @@ function BoardPage({ slug }: { slug: string }) {
   // A new thread or anything read elsewhere should show up when the window comes back into view.
   useEffect(() => { refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (board.isError) return <Alert kind="error">{errorText(board.error)}</Alert>;
+  useSubtitle(board.data?.name);
+  if (board.isError) return <Alert kind="error" retry={() => void board.refetch()}>{errorText(board.error)}</Alert>;
   const b = board.data;
   if (!b) return <Loading rows={4} />;
   return (
@@ -152,7 +153,7 @@ function BoardPage({ slug }: { slug: string }) {
         {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
       </div>
       {!b.can_post && <p className="muted">{postNote(t, b, Boolean(me))}</p>}
-      {threads.isError && <Alert kind="error">{errorText(threads.error)}</Alert>}
+      {threads.isError && <Alert kind="error" retry={() => void threads.refetch()}>{errorText(threads.error)}</Alert>}
       {threads.isSuccess && list.length === 0 && <EmptyState>{t('boards.noThreads')}</EmptyState>}
       <ul className="rows thread-rows" aria-label={t('boards.threadList')}>
         {list.map((th) => (
@@ -178,7 +179,7 @@ function NewThread({ slug }: { slug: string }) {
   const t = useT();
   const nav = useAppNav();
   const board = useBoard(slug);
-  if (board.isError) return <Alert kind="error">{errorText(board.error)}</Alert>;
+  if (board.isError) return <Alert kind="error" retry={() => void board.refetch()}>{errorText(board.error)}</Alert>;
   if (!board.data) return <Loading />;
   return (
     <>
@@ -209,7 +210,7 @@ function ModLogPage({ slug }: { slug: string }) {
 
 function SettingsPage({ slug }: { slug: string }) {
   const board = useBoard(slug);
-  if (board.isError) return <Alert kind="error">{errorText(board.error)}</Alert>;
+  if (board.isError) return <Alert kind="error" retry={() => void board.refetch()}>{errorText(board.error)}</Alert>;
   if (!board.data) return <Loading />;
   return <BoardSettings board={board.data} key={board.data.id + String(board.dataUpdatedAt)} />;
 }

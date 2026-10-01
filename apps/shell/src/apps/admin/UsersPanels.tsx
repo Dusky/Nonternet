@@ -60,7 +60,7 @@ export function Users() {
           </select>
         </div>
       </div>
-      {query.isError && <Alert kind="error">{errorText(query.error)}</Alert>}
+      {query.isError && <Alert kind="error" retry={() => void query.refetch()}>{errorText(query.error)}</Alert>}
       {query.isSuccess && users.length === 0 && <EmptyState>{t('admin.users.none')}</EmptyState>}
       {users.length > 0 && (
         <table className="table">
@@ -91,7 +91,7 @@ export function UserPage({ myId, id }: { myId: string; id: string }) {
   const q = useQuery({ queryKey: ['admin', 'user', id], queryFn: () => api.get<Dossier>(`/admin/users/${id}`) });
   const refresh = () => qc.invalidateQueries({ queryKey: ['admin'] });
 
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading />;
   const { user, ops, invite, history, vouching } = q.data;
   const own = user.id === myId;
@@ -291,7 +291,7 @@ export function Invites() {
           <CopyButton text={signupLink(create.data.code)} />
         </Alert>
       )}
-      {list.isError && <Alert kind="error">{errorText(list.error)}</Alert>}
+      {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
       {list.data && list.data.invites.length === 0 && <EmptyState>{t('admin.invites.none')}</EmptyState>}
       {list.data && list.data.invites.length > 0 && (
         <ul className="rows">

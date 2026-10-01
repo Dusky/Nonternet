@@ -21,7 +21,7 @@ export function BbsPanel() {
     mutationFn: () => api.post('/admin/bbs/disconnect', { handle: who, reason }),
     onSuccess: () => { setWho(null); setReason(''); void qc.invalidateQueries({ queryKey: ['admin', 'bbs'] }); },
   });
-  if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
+  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   const s = q.data;
   if (!s) return <Loading />;
   return (

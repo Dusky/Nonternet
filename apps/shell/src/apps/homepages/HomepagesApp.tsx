@@ -49,7 +49,7 @@ function Directory() {
         <button className="btn" type="button" onClick={() => random.mutate()}>{t('homepages.random')}</button>
       </form>
       {error && <Alert kind="error">{error}</Alert>}
-      {list.isError && <Alert kind="error">{errorText(list.error)}</Alert>}
+      {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
       {list.isSuccess && items.length === 0 && <EmptyState>{t('homepages.none')}</EmptyState>}
       <ul className="rows">
         {items.map((h) => (
@@ -97,7 +97,7 @@ function Guestbook({ handle }: { handle: string }) {
     mutationFn: (id: string) => api.post('/reports', { guestbook_entry: id, category: 'abuse', note: '' }),
     onSuccess: (_r, id) => setReported(id), onError: (e) => setError(errorText(e)),
   });
-  if (list.isError) return <Alert kind="error">{errorText(list.error)}</Alert>;
+  if (list.isError) return <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>;
   const entries = list.data?.pages.flatMap((p) => p.entries) ?? [];
   const mode = list.data?.pages[0]?.mode;
   return (
