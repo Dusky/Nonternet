@@ -16,7 +16,7 @@ export const mailStartSchema = z.object({
 export interface MailPerson { id: string | null; handle: string | null; display_name: string | null }
 export interface MailThreadSummary {
   id: string; subject: string; people: MailPerson[]; last_message_at: string; unread: boolean;
-  last: { author: string | null; excerpt: string } | null; left: boolean;
+  last: { author: string | null; excerpt: string } | null; left: boolean; muted: boolean;
 }
 export interface MailMessageView { id: string; kind: 'message' | 'joined' | 'left'; author: MailPerson; body: string; deleted: boolean; at: string; mine: boolean }
 export interface MailThreadView { id: string; subject: string; people: MailPerson[]; left: boolean; messages: MailMessageView[] }

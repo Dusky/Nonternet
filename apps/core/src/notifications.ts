@@ -37,6 +37,26 @@ export async function notifyForPost(q: Queryable, post: {
     `SELECT u.id FROM users u WHERE u.id = ANY($1) AND u.status = 'active' AND u.role <> 'guest'
        AND ($2 IN ('public', 'members', 'ring') OR EXISTS (SELECT 1 FROM board_members m WHERE m.board_id = $3 AND m.user_id = u.id))`,
     [ids, post.visibility, post.boardId]);
+  // What people switched off: a kind they don't want on the site, or a board they muted (a mention still gets through).
+  const off = await q.query<{ user_id: string; kind: string }>(
+    `SELECT user_id, kind FROM notification_prefs WHERE user_id = ANY($1) AND NOT site
+     UNION ALL SELECT user_id, 'board' FROM board_notification_prefs WHERE user_id = ANY($1) AND board_id = $2`, [ids, post.boardId]);
+  const offKinds = new Map<string, Set<string>>();
+  const muted = new Set<string>();
+  for (const o of off.rows) {
+    if (o.kind === 'board') muted.add(o.user_id);
+    else offKinds.set(o.user_id, (offKinds.get(o.user_id) ?? new Set()).add(o.kind));
+  }
+  const mentionedIds = new Set(mentioned.map((u) => u.id));
+  const skip = new Set<string>();
+  for (const id of ids) {
+    const switchedOff = offKinds.get(id);
+    // Someone mentioned in a reply to them is both: they hear about it unless they switched off both.
+    const kinds = [chosen.get(id)!, ...(mentionedIds.has(id) ? ['mention'] : [])];
+    const wantsMention = mentionedIds.has(id) && !switchedOff?.has('mention');
+    if (kinds.every((k) => switchedOff?.has(k)) || (muted.has(id) && !wantsMention)) skip.add(id);
+  }
+  ok.rows = ok.rows.filter((r) => !skip.has(r.id));
   for (const { id } of ok.rows) {
     await q.query(
       `INSERT INTO notifications (id, user_id, kind, post_id, board_id, actor_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (user_id, post_id) DO NOTHING`,

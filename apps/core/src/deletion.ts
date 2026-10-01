@@ -92,7 +92,11 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(
       `UPDATE users SET status = 'deleted', handle = $2, display_name = NULL, bio = NULL, email = $3, email_verified_at = NULL, password_hash = 'deleted',
          totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = NULL, public_key = NULL, private_key_enc = NULL, theme = NULL,
+         status_line = NULL, away = false, avatar_at = NULL, email_digest = false,
          role = 'guest', role_rev = role_rev + 1, updated_at = now() WHERE id = $1`, [userId, gone, `${gone}@deleted.invalid`]);
+    await q.query(`DELETE FROM notification_prefs WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM board_notification_prefs WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM mail_mutes WHERE user_id = $1`, [userId]);
     await revokeAllSessions(q, userId, 'account_deleted');
     await audit(q, {
       actorId: opts.actor?.userId ?? userId, actorKind: 'user', action: 'user.deleted', targetType: 'user', targetId: userId,
@@ -102,6 +106,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
   });
   // Files last, outside the transaction: if this fails, the account is already gone and a leftover folder can be cleaned up.
   await deps.homes.removeAll(userId).catch(() => undefined);
+  await fs.rm(join(deps.filesDir, 'avatars', `${userId}.webp`), { force: true });
   for (const id of exportIds) await fs.rm(join(deps.exportsDir, `${id}.zip`), { force: true });
   for (const id of fileIds) await fs.rm(join(deps.filesDir, id), { force: true });
 }

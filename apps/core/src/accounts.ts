@@ -220,9 +220,19 @@ export async function resolveSession(deps: AppDeps, rawToken: string): Promise<S
   const row = r.rows[0];
   if (!row) return null;
   // BBS sessions count as the BBS when it signs in (bbs/service.ts), not as web visits.
-  if (!row.limited && row.kind === 'web') { noteActive(deps, row.id, 'web'); noteWebSeen(row.id); }
+  if (!row.limited && row.kind === 'web') { noteActive(deps, row.id, 'web'); noteWebSeen(row.id); touchLastSeen(deps, row.id); }
   return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, email: row.email, role: row.role,
     emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
+}
+
+// "Last seen" is for the profile's coarse "today / this week", so once every ten minutes is plenty.
+const lastTouched = new Map<string, number>();
+function touchLastSeen(deps: AppDeps, userId: string): void {
+  const now = Date.now();
+  if (now - (lastTouched.get(userId) ?? 0) < 600_000) return;
+  lastTouched.set(userId, now);
+  if (lastTouched.size > 100_000) lastTouched.clear();
+  deps.db.query(`UPDATE users SET last_seen_at = now() WHERE id = $1`, [userId]).catch(() => lastTouched.delete(userId));
 }
 
 export async function logout(deps: AppDeps, user: SessionUser): Promise<void> {
@@ -242,6 +252,10 @@ export async function updateProfile(deps: AppDeps, user: SessionUser, changes: P
   if (changes.display_name !== undefined) add('display_name', changes.display_name || null);
   if (changes.bio !== undefined) add('bio', changes.bio || null);
   if (changes.theme !== undefined) add('theme', changes.theme);
+  if (changes.status_line !== undefined) add('status_line', changes.status_line || null);
+  if (changes.away !== undefined) add('away', changes.away);
+  if (changes.show_last_seen !== undefined) add('show_last_seen', changes.show_last_seen);
+  if (changes.email_digest !== undefined) add('email_digest', changes.email_digest);
   await deps.db.query(`UPDATE users SET ${sets.join(', ')}, updated_at = now() WHERE id = $1`, params);
 }
 

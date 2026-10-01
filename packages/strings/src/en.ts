@@ -33,6 +33,8 @@ export const en = {
   'email.reset.subject': 'Reset your {site.name} password',
   'email.reset.body':
     'Someone asked to reset the password for {handle} on {site.name}.\n\nTo choose a new password, open this link:\n{link}\n\nThis link works for 1 hour and can be used once. If this was not you, you can ignore this message; your password has not changed.',
+  'email.digest.subject': '{count} thing to catch up on at {site.name}|{count} things to catch up on at {site.name}',
+  'email.digest.body': 'Hello {handle},\n\nSince your last summary: {notes} new notifications and {mail} conversations with unread mail.\n\nOpen the site to read them: {url}\n\nYou get this because you turned on the daily summary in Settings. You can turn it off there at any time.',
   'email.passwordChanged.subject': 'Your {site.name} password was changed',
   'email.passwordChanged.body':
     'The password for {handle} on {site.name} was just changed, and you were signed out everywhere.\n\nIf this was not you, reset your password now and contact the admins.',

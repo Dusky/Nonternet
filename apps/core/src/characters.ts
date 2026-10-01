@@ -1,3 +1,4 @@
+import { coarseLastSeen } from './personal';
 import type { CharacterView, PublicProfile } from '@app/shared';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
@@ -46,9 +47,11 @@ export async function charactersOf(deps: AppDeps, userId: string): Promise<Chara
 // Anyone may see a person's profile, signed in or not, as they can see their homepage (docs/07).
 // Suspended and deleted people, and guests, have none.
 export async function publicProfile(deps: AppDeps, handle: string): Promise<PublicProfile> {
-  const r = await deps.db.query<{ id: string; handle: string; display_name: string | null; bio: string | null; role: PublicProfile['role']; created_at: Date; featured_character_id: string | null; has_page: boolean }>(
+  const r = await deps.db.query<{ id: string; handle: string; display_name: string | null; bio: string | null; role: PublicProfile['role']; created_at: Date; featured_character_id: string | null; has_page: boolean;
+    status_line: string | null; away: boolean; last_seen_at: Date | null; show_last_seen: boolean; hp_title: string | null; hp_updated: Date | null }>(
     `SELECT u.id, u.handle, u.display_name, u.bio, u.role, u.created_at, u.featured_character_id,
-            (h.has_index AND h.hidden_at IS NULL) AS has_page
+            (h.has_index AND h.hidden_at IS NULL) AS has_page,
+            u.status_line, u.away, u.last_seen_at, u.show_last_seen, h.title AS hp_title, h.last_updated_at AS hp_updated
      FROM users u LEFT JOIN homepages h ON h.user_id = u.id
      WHERE lower(u.handle) = lower($1) AND u.status = 'active' AND u.role <> 'guest'`, [handle]);
   const u = r.rows[0];
@@ -56,9 +59,18 @@ export async function publicProfile(deps: AppDeps, handle: string): Promise<Publ
   const rings = await deps.db.query<{ slug: string; name: string }>(
     `SELECT r.slug, r.name FROM ring_members m JOIN rings r ON r.id = m.ring_id
      WHERE m.user_id = $1 AND m.status = 'member' AND r.archived_at IS NULL AND r.hidden_at IS NULL ORDER BY r.name`, [u.id]);
+  // Their latest posts on boards anyone can read: a profile is public, so it never shows more than that.
+  const recent = await deps.db.query<{ id: string; thread_id: string; subject: string; posted_at: Date; slug: string; board_name: string }>(
+    `SELECT p.id, COALESCE(p.thread_root_id, p.id) AS thread_id, COALESCE(NULLIF(p.subject, ''), t.subject, '') AS subject, p.posted_at AS posted_at, b.slug, b.name AS board_name
+       FROM posts p JOIN boards b ON b.id = p.board_id LEFT JOIN posts t ON t.id = p.thread_root_id
+      WHERE p.author_id = $1 AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND b.visibility = 'public' AND b.hidden_at IS NULL
+      ORDER BY p.seq DESC LIMIT 5`, [u.id]);
   return {
     id: u.id, handle: u.handle, display_name: u.display_name, bio: u.bio, role: u.role, joined_at: u.created_at.toISOString(),
     homepage_url: u.has_page ? deps.homesUrl(u.handle) : null, rings: rings.rows,
+    status_line: u.status_line, away: u.away, last_seen: coarseLastSeen(u.last_seen_at, u.show_last_seen),
+    homepage: u.has_page ? { title: u.hp_title || u.handle, updated_at: u.hp_updated?.toISOString() ?? null } : null,
+    recent_posts: recent.rows.map((p) => ({ id: p.id, thread_id: p.thread_id, subject: p.subject, posted_at: p.posted_at.toISOString(), board: { slug: p.slug, name: p.board_name } })),
     characters: await charactersOf(deps, u.id), featured_character_id: u.featured_character_id,
   };
 }

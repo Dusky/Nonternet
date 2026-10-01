@@ -28,6 +28,7 @@ import { consoleRoutes } from './routes/console';
 import { bbsRoutes } from './routes/bbs';
 import { landingRoutes } from './routes/landing';
 import { eventRoutes } from './routes/events';
+import { personalRoutes } from './routes/personal';
 import { isPublicRoute } from './public-routes';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -119,5 +120,6 @@ export async function buildApp(deps: AppDeps) {
   bbsRoutes(app, deps);
   landingRoutes(app, deps);
   eventRoutes(app, deps);
+  personalRoutes(app, deps);
   return app;
 }

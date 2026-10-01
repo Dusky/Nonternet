@@ -30,4 +30,10 @@ export interface PublicProfile {
   rings: { slug: string; name: string }[];
   characters: CharacterView[];
   featured_character_id: string | null;
+  status_line: string | null; away: boolean;
+  // Coarse, and absent when the person has turned it off.
+  last_seen: 'today' | 'this_week' | 'a_while' | null;
+  homepage: { title: string; updated_at: string | null } | null;
+  // Recent threads and replies on public boards only.
+  recent_posts: { id: string; thread_id: string; subject: string; posted_at: string; board: { slug: string; name: string } }[];
 }

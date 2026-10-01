@@ -8,6 +8,7 @@ import { loadSettings } from './settings';
 import { startMetricsCollector } from './metrics';
 import { startIrcSync, type IrcSync } from './irc/sync';
 import { startMudSync } from './mud/sync';
+import { sendDigests } from './personal';
 
 // Events that change what IRC should look like (docs/02 provisioning table).
 const MUD_EVENTS = new Set(['user.role_changed', 'user.ops_changed', 'user.renamed', 'user.deleted', 'user.suspended', 'user.unsuspended']);
@@ -47,6 +48,8 @@ async function start() {
     app.log.warn('REDIS_URL is not set: events are kept in the outbox and not published');
   }
 
+  // The daily digest for people who asked for one: checked hourly, at most one email each per day.
+  const digests = setInterval(() => sendDigests(deps).catch((e) => app.log.warn(`digests: ${e}`)), 3_600_000);
   const exportWorker = startExportWorker(deps, (m) => app.log.warn(m));
   const metrics = startMetricsCollector(deps, (m) => app.log.warn(m));
   const stopEvents = new AbortController();
@@ -81,6 +84,7 @@ async function start() {
     closing = true;
     app.log.info(`${signal} received, shutting down`);
     if (prune) clearInterval(prune);
+    clearInterval(digests);
     await app.close();
     metrics.stop();
     stopEvents.abort();

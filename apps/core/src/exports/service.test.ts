@@ -101,7 +101,7 @@ describe.skipIf(!dbAvailable)('export', () => {
     it('holds what she made, and nothing that is not hers', () => {
       expect(Object.keys(files).sort()).toEqual([
         'README.txt', 'boards/club.json', 'boards/general.json', 'boards/mine.json', 'files.json', 'files/tools/readme.txt', 'guestbook.json', 'homepage.json', 'homepage/img/pixel.gif', 'homepage/index.html',
-        'keys/public.key', 'mail/blocked.json', 'mail/conversations.json', 'manifest.json', 'manifest.sig', 'posts/posts.json', 'posts/posts.mbox', 'posts/reactions.json', 'posts/revisions.json', 'profile.json', 'rings/synths/members.json', 'rings/synths/ring.json',
+        'keys/public.key', 'mail/blocked.json', 'mail/conversations.json', 'manifest.json', 'manifest.sig', 'posts/posts.json', 'posts/posts.mbox', 'posts/reactions.json', 'posts/revisions.json', 'profile.json', 'rings/synths/members.json', 'rings/synths/ring.json', 'settings.json',
       ].sort());
       const posts = JSON.parse(text(files, 'posts/posts.json')) as { subject: string; body: string; board: string; state: string; reply_to: string | null }[];
       expect(posts.map((p) => p.subject)).toEqual(['Café hours', 'Re: Café hours', 'Private thoughts', '']);

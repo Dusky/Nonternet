@@ -24,7 +24,7 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 const profile: Exporter = {
   id: 'profile',
-  tables: ['users', 'handle_history', 'watches', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles'],
+  tables: ['users', 'handle_history', 'watches', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes'],
   async run({ deps, user, add }) {
     const q = deps.db;
     const [names, domains, rings, boards, watching, ops, history] = await Promise.all([
@@ -37,6 +37,21 @@ const profile: Exporter = {
       q.query<{ created_at: Date; action: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null }>(
         `SELECT created_at, action, before, after FROM audit_log WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.role_changed', 'user.ops_changed', 'user.renamed') ORDER BY id`, [user.id]),
     ]);
+    // What they chose about how the site treats them (M9-D), and their avatar picture if they have one.
+    const [me, prefs, mutedBoards, mutedMail] = await Promise.all([
+      q.query<{ status_line: string | null; away: boolean; show_last_seen: boolean; email_digest: boolean; avatar_at: Date | null }>(`SELECT status_line, away, show_last_seen, email_digest, avatar_at FROM users WHERE id = $1`, [user.id]),
+      q.query<{ kind: string; site: boolean; desktop: boolean }>(`SELECT kind, site, desktop FROM notification_prefs WHERE user_id = $1 ORDER BY kind`, [user.id]),
+      q.query<{ slug: string }>(`SELECT b.slug FROM board_notification_prefs p JOIN boards b ON b.id = p.board_id WHERE p.user_id = $1 ORDER BY b.slug`, [user.id]),
+      q.query<{ thread_id: string }>(`SELECT thread_id FROM mail_mutes WHERE user_id = $1 ORDER BY thread_id`, [user.id]),
+    ]);
+    add('settings.json', json({
+      status_line: me.rows[0]!.status_line, away: me.rows[0]!.away, show_last_seen: me.rows[0]!.show_last_seen, email_digest: me.rows[0]!.email_digest,
+      notifications: Object.fromEntries(prefs.rows.map((p) => [p.kind, { site: p.site, desktop: p.desktop }])),
+      muted_boards: mutedBoards.rows.map((b) => b.slug), muted_mail_conversations: mutedMail.rows.map((m) => m.thread_id),
+    }));
+    if (me.rows[0]!.avatar_at) {
+      try { add('avatar.webp', await fs.readFile(join(deps.filesDir, 'avatars', `${user.id}.webp`))); } catch { /* the picture is gone; nothing to add */ }
+    }
     add('profile.json', json({
       id: user.id, handle: user.handle, display_name: user.display_name, bio: user.bio, email: user.email, joined_at: user.created_at.toISOString(),
       role: user.role, theme: user.theme, previous_handles: names.rows.map((n) => ({ handle: n.handle, until: n.changed_at.toISOString() })),
