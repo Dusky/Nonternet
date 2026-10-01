@@ -99,7 +99,7 @@ test('an admin invites someone, they sign up, and the admin promotes them', asyn
   await shot(page, '07-settings', project);
   await scope.getByLabel('Display name (optional)').fill('Zero Cool');
   await scope.getByRole('button', { name: 'Save' }).click();
-  await expect(scope.getByText('Profile saved.')).toBeVisible();
+  await expect(page.getByText('Profile saved.')).toBeVisible(); // a toast, outside the window
   await noSidewaysScroll(page);
   await logout(page, handle);
 
