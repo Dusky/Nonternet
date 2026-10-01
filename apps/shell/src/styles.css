@@ -24,7 +24,7 @@
   --ease: cubic-bezier(.2, .7, .3, 1);
 }
 /* Fingers need bigger targets than mice. */
-@media (pointer: coarse) { :root { --control-h: 44px; } }
+@media (pointer: coarse), (max-width: 899px) { :root { --control-h: 44px; } }
 
 /* ---- base */
 *, *::before, *::after { box-sizing: border-box; }
@@ -239,12 +239,13 @@ button.badge.tag:hover { border-color: var(--accent); color: var(--accent); }
   background: var(--taskbar-bg); color: var(--taskbar-text); border-bottom: 1px solid var(--border); position: relative; z-index: 5000;
 }
 .taskbar .btn { color: inherit; min-height: 36px; padding: 0 var(--space-3); }
+@media (max-width: 899px) { .taskbar .btn { min-height: var(--control-h); min-width: var(--control-h); } }
 .taskbar .btn-primary { color: var(--accent-text); }
 .taskbar .btn-quiet:hover { background: var(--surface2); }
 .brand { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; color: inherit; text-decoration: none; padding: 0 var(--space-2); min-height: 36px; white-space: nowrap; }
 .brand-mark { display: inline-block; width: .6em; height: 1.05em; background: var(--accent); border-radius: 1px; }
 html[data-glow="on"] .brand-mark { box-shadow: var(--glow); }
-.back { color: inherit; text-decoration: none; min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
+.back { color: inherit; text-decoration: none; min-width: var(--control-h); min-height: var(--control-h); display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
 .back svg { width: 22px; height: 22px; }
 .taskbar-apps { display: flex; align-items: center; gap: var(--space-1); flex: 1; position: relative; min-width: 0; }
 .taskbar-windows { display: flex; gap: var(--space-1); list-style: none; margin: 0; padding: 0 0 0 var(--space-2); border-left: 1px solid var(--border); min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -371,7 +372,7 @@ html[data-glow="on"] .brand-mark { box-shadow: var(--glow); }
   .side-nav, .side-nav-group { position: static; display: flex; gap: var(--space-1); }
   .side-nav { overflow-x: auto; padding-bottom: var(--space-2); border-bottom: 1px solid var(--border); scrollbar-width: thin; }
   .side-nav-label { display: none; }
-  .side-nav a { white-space: nowrap; border: 1px solid var(--border); border-radius: 999px; min-height: 36px; }
+  .side-nav a { white-space: nowrap; border: 1px solid var(--border); border-radius: 999px; min-height: var(--control-h); }
   .side-nav a[aria-current=page] { box-shadow: none; border-color: var(--accent); }
 }
 .app-frame, .app-content { container-type: inline-size; }
