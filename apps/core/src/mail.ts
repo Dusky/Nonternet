@@ -4,6 +4,7 @@ import { newId } from './crypto';
 import type { Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
+import { liveTo } from './live';
 import type { Ctx, SessionUser } from './accounts';
 
 // Private mail (docs/10, Q11 decided 2026-09-30): conversations between two people or small groups, on this
@@ -58,7 +59,14 @@ export async function startThread(deps: AppDeps, me: SessionUser, input: { to: s
     }
     await q.query(`INSERT INTO mail_messages (id, thread_id, author_id, body) VALUES ($1, $2, $3, $4)`, [newId('mm'), id, me.userId, input.body]);
   });
+  await tellThread(deps, id, me.userId);
   return { id };
+}
+
+// Tell the people in a conversation (not the sender) that there is something new in it.
+async function tellThread(deps: AppDeps, threadId: string, exceptUserId: string): Promise<void> {
+  const r = await deps.db.query<{ user_id: string }>(`SELECT user_id FROM mail_participants WHERE thread_id = $1 AND left_at IS NULL AND user_id <> $2`, [threadId, exceptUserId]);
+  liveTo(r.rows.map((x) => x.user_id), { type: 'mail', thread: threadId });
 }
 
 async function requireParticipant(q: Queryable, threadId: string, userId: string): Promise<{ joined_at: Date; left_at: Date | null }> {
@@ -78,6 +86,7 @@ export async function reply(deps: AppDeps, me: SessionUser, threadId: string, bo
     await q.query(`UPDATE mail_threads SET last_message_at = now() WHERE id = $1`, [threadId]);
     await q.query(`UPDATE mail_participants SET last_read_at = now() WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId]);
   });
+  await tellThread(deps, threadId, me.userId);
   return { id };
 }
 
@@ -101,6 +110,7 @@ export async function addPerson(deps: AppDeps, me: SessionUser, threadId: string
     await q.query(`INSERT INTO mail_messages (id, thread_id, author_id, kind, body) VALUES ($1, $2, $3, 'joined', $4)`, [newId('mm'), threadId, person!.id, me.handle]);
     await q.query(`UPDATE mail_threads SET last_message_at = now() WHERE id = $1`, [threadId]);
   });
+  await tellThread(deps, threadId, me.userId);
 }
 
 export async function leave(deps: AppDeps, me: SessionUser, threadId: string): Promise<void> {

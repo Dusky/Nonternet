@@ -128,3 +128,13 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **Windows** open to the right of the desktop icons so the icons stay reachable.
 - **Screenshots** for reviewing design changes: `SCREENSHOTS=<folder> pnpm --filter @app/e2e test
   screens` captures every main screen on desktop and phone in modern light, modern dark and amber.
+
+## As built (M9-A): live updates
+- **One event stream per tab** (`GET /api/v1/events`, `live.ts`): core says "something changed" and the tab refetches
+  that query. Wired to new notifications, mail, posts (on boards the person may read) and announcements. The
+  counters poll only every 5 minutes while the stream is up and every minute when it is not.
+- **If the stream is lost** (proxy that buffers, restart, no network) the shell says nothing and falls back to polling,
+  reopening the stream with growing pauses. When it comes back, everything is refetched once to catch up.
+- **Chat, the MUD and the Terminal reconnect by themselves** after a lost connection (1 s, 2 s, 4 s … 30 s, with jitter).
+  A goodbye (quitting the MUD, the BBS's own Goodbye) stays closed. Chat rejoins the channels that were open; each
+  reconnect gets a fresh one-use ticket.

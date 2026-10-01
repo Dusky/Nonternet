@@ -21,6 +21,7 @@ export default function ChatApp() {
         <Alert kind="info">{t('chat.closed')} <button type="button" className="link" onClick={() => { disconnect(); connect(); }}>{t('chat.reconnect')}</button></Alert>
       )}
       {status === 'connecting' && <p className="hint" role="status">{t('chat.connecting')}</p>}
+      {status === 'reconnecting' && <p className="hint" role="status">{t('chat.reconnecting')}</p>}
       {status !== 'error' && <Chat />}
       <button type="button" className="link" aria-expanded={showHelp} onClick={() => setShowHelp(!showHelp)}>{t('chat.nativeTitle')}</button>
       {showHelp && <NativeHelp />}

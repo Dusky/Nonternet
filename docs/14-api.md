@@ -70,6 +70,8 @@ IRC (`08`): `POST /irc/ticket` · `GET|POST /irc/channels` · `POST /irc/channel
 are exempt from the browser Origin check because services call them with their own credentials.
 Details and guarantees are in `02`.
 
+Live (`10`, M9): `GET /events` is a server-sent event stream for the signed-in person (private; a visitor gets 401). Events are hints with no content: `notifications`, `mail {thread?}`, `board {slug, thread}`, `announcements`, `presence`. The tab refetches what a hint names, so the usual access checks run then. A hint that names a board goes only to people who may read it (a private board's only to its members, a members-only board's only to confirmed people). A heartbeat comment goes out every 25 s and the stream ends when the session does. At most 5 streams per person; the oldest is closed. One core process holds the connections, like presence.
+
 ## Realtime
 `GET /events` (SSE or WebSocket): presence, notifications, new posts in watched boards,
 admin status/metric updates for admins.

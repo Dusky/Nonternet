@@ -7,6 +7,7 @@ import { AnnouncementBanner } from '../components/Announcements';
 import { Icon } from '../components/Icon';
 import { Avatar } from '../components/ui';
 import { useIsDesktop, useSite, useT } from '../hooks';
+import { pollMs, useLive, useLiveEvents } from '../live';
 import { clockPref } from '../theme';
 import { appById, visibleApps } from './apps';
 import { CommandPalette } from './CommandPalette';
@@ -37,9 +38,12 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const appsMenu = useRef<HTMLUListElement>(null);
   const accountMenu = useRef<HTMLUListElement>(null);
   const confirmed = me.role !== 'guest';
-  // Numbers on the mail and notification buttons. Checked once a minute; there is no live push yet.
-  const unreadMail = useQuery({ queryKey: ['mail', 'unread', me.id], queryFn: () => api.get<{ unread: number }>('/mail/unread'), refetchInterval: 60_000, staleTime: 15_000, enabled: confirmed }).data?.unread ?? 0;
-  const unread = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), refetchInterval: 60_000, staleTime: 15_000 }).data?.unread ?? 0;
+  useLiveEvents(me.id);
+  const poll = pollMs(useLive((l) => l.status));
+  // Numbers on the mail and notification buttons: pushed by the live stream, with a slow check as a safety net
+  // (every minute when the stream is down).
+  const unreadMail = useQuery({ queryKey: ['mail', 'unread', me.id], queryFn: () => api.get<{ unread: number }>('/mail/unread'), refetchInterval: poll, staleTime: 15_000, enabled: confirmed }).data?.unread ?? 0;
+  const unread = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), refetchInterval: poll, staleTime: 15_000 }).data?.unread ?? 0;
   const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), refetchInterval: 60_000, enabled: confirmed && desktop }).data?.people;
 
   useMenuKeys(appsMenu, menu === 'apps', () => setMenu(null), appsButton);

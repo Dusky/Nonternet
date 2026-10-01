@@ -12,7 +12,7 @@ import type { SessionUser } from './accounts';
 // post, and nobody is told about a board they cannot read.
 export async function notifyForPost(q: Queryable, post: {
   id: string; boardId: string; visibility: string; authorId: string; body: string; isThread: boolean; replyToAuthorId: string | null;
-}): Promise<void> {
+}): Promise<string[]> {
   const chosen = new Map<string, NotificationKind>();
   if (post.replyToAuthorId) chosen.set(post.replyToAuthorId, 'reply');
 
@@ -29,7 +29,7 @@ export async function notifyForPost(q: Queryable, post: {
     for (const w of watchers.rows) if (!chosen.has(w.user_id)) chosen.set(w.user_id, 'watch');
   }
   chosen.delete(post.authorId);
-  if (chosen.size === 0) return;
+  if (chosen.size === 0) return [];
 
   // Keep only people who can read this board and are in good standing.
   const ids = [...chosen.keys()];
@@ -42,6 +42,7 @@ export async function notifyForPost(q: Queryable, post: {
       `INSERT INTO notifications (id, user_id, kind, post_id, board_id, actor_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (user_id, post_id) DO NOTHING`,
       [newId('n'), id, chosen.get(id), post.id, post.boardId, post.authorId]);
   }
+  return ok.rows.map((r) => r.id);
 }
 
 interface Row {

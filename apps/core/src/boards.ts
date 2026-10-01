@@ -5,6 +5,7 @@ import { isUniqueViolation, type Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { emit } from './events';
+import { liveAll, liveTo } from './live';
 import { notifyForPost } from './notifications';
 import { normalizeBody, normalizeSubject, replySubject } from './text';
 import type { Ctx, SessionUser } from './accounts';
@@ -326,6 +327,8 @@ export async function createPost(
 ): Promise<PostView> {
   const body = normalizeBody(input.body);
   const id = newId('p');
+  let notified: string[] = [];
+  let placed: { boardId: string; slug: string; visibility: string; thread: string } | null = null;
   await deps.db.tx(async (q) => {
     const b = await loadBoard(q, slug, v);
     if (!isMember(v)) throw new ApiError(403, 'email_not_verified', 'Confirm your email address to post.');
@@ -363,10 +366,24 @@ export async function createPost(
     if (rootId) await q.query(`UPDATE posts SET reply_count = reply_count + 1, last_seq = $2 WHERE id = $1`, [rootId, seq]);
     else await q.query(`UPDATE posts SET last_seq = $2 WHERE id = $1`, [id, seq]);
     await emit(q, 'post.created', { post_id: id, board_id: b.id, thread_id: rootId ?? id, author_id: v.userId, visibility: b.visibility });
-    await notifyForPost(q, { id, boardId: b.id, visibility: b.visibility, authorId: v.userId, body, isThread: rootId === null, replyToAuthorId: replyToAuthor });
+    notified = await notifyForPost(q, { id, boardId: b.id, visibility: b.visibility, authorId: v.userId, body, isThread: rootId === null, replyToAuthorId: replyToAuthor });
+    placed = { boardId: b.id, slug: b.slug, visibility: b.visibility, thread: rootId ?? id };
   });
+  await tellTabs(deps, placed, notified);
   const r = await deps.db.query<PostRow>(`SELECT ${POST_COLUMNS} FROM ${POST_FROM} WHERE p.id = $1`, [id]);
   return toPostView(r.rows[0]!, false);
+}
+
+// After a post is saved: tell open tabs. A private board's hint goes only to its members, a members-only
+// board's only to confirmed people, so a hint never names a place someone could not read.
+async function tellTabs(deps: AppDeps, placed: { boardId: string; slug: string; visibility: string; thread: string } | null, notified: string[]): Promise<void> {
+  if (notified.length) liveTo(notified, { type: 'notifications' });
+  if (!placed) return;
+  const hint = { type: 'board', slug: placed.slug, thread: placed.thread } as const;
+  if (placed.visibility === 'private') {
+    const m = await deps.db.query<{ user_id: string }>(`SELECT user_id FROM board_members WHERE board_id = $1`, [placed.boardId]);
+    liveTo(m.rows.map((r) => r.user_id), hint);
+  } else liveAll(hint, { confirmedOnly: placed.visibility === 'members' });
 }
 
 // Authors can delete their own posts. The text is erased and a tombstone stays so replies keep their place.

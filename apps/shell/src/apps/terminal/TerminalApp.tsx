@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { api } from '../../api';
+import { api, ApiError } from '../../api';
 import { Alert } from '../../components/ui';
 import { errorText, useSite, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
+import { backoffMs, wasDropped } from '../../reconnect';
 
-type Status = 'connecting' | 'connected' | 'closed' | 'error';
+type Status = 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error';
 
 // Keys a phone keyboard doesn't have (docs/10), sent as the bytes a terminal would.
 const KEYS: { label: string; seq: string; name: string }[] = [
@@ -35,6 +36,15 @@ export default function TerminalApp() {
 
   const send = useCallback((m: object) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(m)); }, []);
 
+  const attempt = useRef(0);
+  const retry = useRef<ReturnType<typeof setTimeout>>();
+  const connectRef = useRef<() => Promise<void>>(async () => undefined);
+  const retryLater = useCallback(() => {
+    setStatus('reconnecting');
+    clearTimeout(retry.current);
+    retry.current = setTimeout(() => void connectRef.current(), backoffMs(attempt.current++));
+  }, []);
+
   const connect = useCallback(async () => {
     const x = term.current;
     if (!x) return;
@@ -45,15 +55,22 @@ export default function TerminalApp() {
       const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/bbs`;
       const sock = new WebSocket(url);
       ws.current = sock;
-      sock.onopen = () => { setStatus('connected'); sock.send(JSON.stringify({ t: 'hello', handle: nick, ticket, cols: x.cols, rows: x.rows })); x.focus(); };
+      sock.onopen = () => { attempt.current = 0; setStatus('connected'); sock.send(JSON.stringify({ t: 'hello', handle: nick, ticket, cols: x.cols, rows: x.rows })); x.focus(); };
       sock.onmessage = (e) => x.write(typeof e.data === 'string' ? e.data : '');
-      sock.onclose = () => { if (ws.current === sock) setStatus('closed'); };
+      sock.onclose = (ev) => {
+        if (ws.current !== sock) return;
+        // A lost connection comes back by itself; a goodbye (or the BBS hanging up) stays closed.
+        if (wasDropped(ev.code)) { x.write(`\r\n\x1b[2m-- ${t('terminal.dropped')} --\x1b[0m\r\n`); retryLater(); } else setStatus('closed');
+      };
       sock.onerror = () => setError(t('terminal.failed'));
     } catch (e) {
+      if (e instanceof ApiError && e.status === 0) return retryLater(); // no network: keep trying
       setStatus('error');
       setError(errorText(e));
     }
-  }, [t]);
+  }, [t, retryLater]);
+
+  connectRef.current = connect;
 
   useEffect(() => {
     const x = new Terminal({ convertEol: false, cursorBlink: true, fontFamily: '"Px437 IBM VGA 8x16", "Web437 IBM VGA 8x16", ui-monospace, monospace', fontSize: 16, scrollback: 2000, allowProposedApi: false });
@@ -67,7 +84,7 @@ export default function TerminalApp() {
     const ro = new ResizeObserver(doFit);
     ro.observe(host.current!);
     void connect();
-    return () => { ro.disconnect(); data.dispose(); ws.current?.close(); ws.current = null; x.dispose(); term.current = null; };
+    return () => { clearTimeout(retry.current); ro.disconnect(); data.dispose(); const sock = ws.current; ws.current = null; sock?.close(); x.dispose(); term.current = null; };
   }, [connect, send]);
 
   useEffect(() => { if (term.current) term.current.options.screenReaderMode = reader; }, [reader]);
@@ -76,6 +93,7 @@ export default function TerminalApp() {
     <div className="app-content terminal-app">
       {error && <Alert kind="error">{error}</Alert>}
       {status === 'connecting' && <p className="hint" role="status">{t('terminal.connecting')}</p>}
+      {status === 'reconnecting' && <p className="hint" role="status">{t('terminal.reconnecting')}</p>}
       {status === 'closed' && <Alert kind="info">{t('terminal.closed')} <button type="button" className="link" onClick={() => void connect()}>{t('terminal.reconnect')}</button></Alert>}
       <div className="terminal-screen" ref={host} aria-label={t('terminal.screen')} />
       <div className="terminal-keys" role="group" aria-label={t('terminal.keys')}>

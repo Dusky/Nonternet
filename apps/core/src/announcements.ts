@@ -1,3 +1,4 @@
+import { liveAll } from './live';
 import { audit } from './audit';
 import { newId } from './crypto';
 import type { AppDeps } from './deps';
@@ -39,6 +40,7 @@ export async function createAnnouncement(deps: AppDeps, admin: SessionUser, inpu
     if (input.mud) mudSyncSoon();
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'announcement.created', targetType: 'announcement', targetId: id, after: { title: input.title, level: input.level, starts_at: start.toISOString(), ends_at: end?.toISOString() ?? null }, origin: 'web', ipHash: ctx.ipHash });
   });
+  liveAll({ type: 'announcements' });
   return (await listAnnouncements(deps)).find((a) => a.id === id)!;
 }
 
@@ -49,4 +51,5 @@ export async function archiveAnnouncement(deps: AppDeps, admin: SessionUser, id:
     if (r.rowCount === 0) throw new ApiError(404, 'not_found', 'No such announcement, or it is already ended.');
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'announcement.archived', targetType: 'announcement', targetId: id, origin: 'web', ipHash: ctx.ipHash });
   });
+  liveAll({ type: 'announcements' });
 }
