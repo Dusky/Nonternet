@@ -69,8 +69,7 @@ board with `ring_id` set. Ring board visibility defaults: public read, members p
   when it has not been seen for 30 days. Nobody is removed automatically.
 - **Directory:** newest, most active this week (posts plus new members), name; tag and search; random ring.
   Admins hide and restore rings (the board goes with them), audited.
-- Not built yet: banner image upload (the column does not exist yet),  a user's
-  profile page listing their rings.
+- Banner upload was built in M9-E2 (below) and profiles list a person's rings since M5.
 
 ## Acceptance tests
 - Trusted user founds a ring → ring page, board and nav script exist.

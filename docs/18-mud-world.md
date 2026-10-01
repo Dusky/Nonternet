@@ -73,9 +73,24 @@ action audited in core (`03`). Suspension drops MUD sessions within 5 s (`02`).
 - Starting town built by `world/build_town.py` on first start (square, tavern, temple, market, training
   yard, the old road, a cellar and a goblin den with three monsters that come back 3 minutes after they
   are beaten). A developer can rerun it with `buildtown`.
-- Not built yet: duels between players, working shops in the market, the tavern guestbook and noticeboard,
-  quests, the weakened effect changing rolls.
+- Built in M9-E3: two adventure areas, the first quest, working shops, a tavern noticeboard, and the weakened effect
+  changing rolls (below). Not built yet: duels between players and the tavern guestbook.
+
+### As built (M9-E3)
+- **Areas** (`world/areas.py`): the **Bandit Woods** (9 rooms, from the old road: `woods`) and the **Flooded Mine** (9 rooms, from the old
+  road: `mine`), with readable notes (`read <thing>`), wolves, bandits and a bandit chief, rats, spiders, a rubble crawler and a drowned miner.
+  One way in each is hidden: `search` finds it for the person who searched (stored on the character), and until then the exit
+  is not listed and cannot be used by name. Built idempotently by `buildtown`.
+- **Quest: the lost ledger** (`world/quests.py`, `quests` shows progress): `ask marta` in the tavern, find the bandit camp and `search` it
+  (a scrap of paper in the hollow oak says where), bring the ledger back for 25 coins and 25 xp. Paid once; a lost ledger just sends you
+  back to find another. State is a small record on the character, not EvAdventure's quest classes.
+- **Shop** (`world/shop.py`; `shop`, `buy`, `sell` in the market): prices are item values; Odo pays half (at least 1) and the things he buys are
+  destroyed. Quest items are worth nothing to him.
+- **Noticeboard** (`world/noticeboard.py`; `board`, `post`, `unpost` in the tavern): notes up to 200 characters, one a minute, newest 30 kept;
+  the author, a builder or an admin can take one down; colour codes in a note are shown, not run. In the export (`noticeboard_notes`,
+  with each character's `quests`) and removed when the account is erased.
+- **Weakened** (`world/rules_patch.py`): for five minutes after a defeat every roll, attack or save, is one lower.
 
 ## Still open
-1. How many areas at launch (suggest: the town plus two adventure areas)?
+1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas** (the Bandit Woods and the Flooded Mine, nine rooms each). Logged in `17`.
 2. Who builds the first areas?

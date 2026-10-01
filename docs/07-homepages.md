@@ -78,8 +78,7 @@ or SFTP with terminal password; git push deploys.
 - **Reporting:** the footer's link goes to `/report/homepage/{handle}` (login first). Reports about pages and
   guestbook entries go to admins only; hiding a page or entry closes them. Admins hide and restore pages
   from the console (Homepages tab) with a reason, audited as `homepage.hidden` and `homepage.restored`.
-- Not built yet: a "sign with your account" autofill inside the widget itself (it is on the site page),
-  and the ring nav bar widget (with rings).
+- The widget's "sign with your account" (M9-E2, below) and the ring nav bar (M5) are built.
 - **Custom domains** (`Domains` tab in the studio): add a name (up to `homes.max_domains`, 3), put a TXT record at
   `_home-verify.{name}` with `home-verify={token}` in DNS, and point the name at the homes server (a CNAME to
   `{handle}.{homes_domain}`, or an A record to `homes.public_ip` for a bare domain). "Check now" looks the TXT up. Only a

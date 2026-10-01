@@ -89,3 +89,6 @@ Erasing an account deletes its oneliners, votes and bulletin read-marks; polls i
 
 ## As built (M9-E2)
 Ring banners go in the export of the people who run the ring (`rings/<slug>/banner-468x60.png`, `banner-88x31.png`). Guestbook passes are security state, not content.
+
+## As built (M9-E3)
+`mud/characters.json` also holds each character's quest progress and `noticeboard_notes` (the text, when it was pinned and the name it was pinned under). Erasing the account removes the notes from the board.
