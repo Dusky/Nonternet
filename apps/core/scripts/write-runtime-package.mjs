@@ -2,7 +2,7 @@
 // so the runtime image can `npm install` exactly the version this workspace was tested with.
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const EXTERNAL = ['@node-rs/argon2'];
+const EXTERNAL = ['@node-rs/argon2', 'sharp'];
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const dependencies = {};
 for (const name of EXTERNAL) {

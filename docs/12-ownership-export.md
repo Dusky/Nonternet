@@ -76,3 +76,9 @@ README.txt               # human explanation of the archive
 - **Points / self-hosting / federation**: hub-and-spoke with this site as hub, desktop
   "point" apps, or full self-hosted nodes. Boards stay plain-text so FTN federation remains
   possible. See `17-decisions.md` future items.
+
+## As built (M9-D)
+`settings.json` holds the status line, away flag, last-seen and digest choices, per-kind notification choices, muted boards and
+muted mail conversations. `avatar.webp` is the stored picture, if there is one. Device-only preferences (chat, boards,
+terminal, drafts) live in the browser, are not on the site, and so are not exported. Erasing an account deletes the picture,
+the choices and the mutes.

@@ -1,5 +1,7 @@
 import { useEffect, useId, useState, type CSSProperties, type InputHTMLAttributes, type ReactNode } from 'react';
-import { useT } from '../hooks';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../api';
+import { useMe, useT } from '../hooks';
 import { AppLink, AppNavLink } from '../nav';
 import { Icon, type IconName } from './Icon';
 
@@ -140,11 +142,27 @@ export function SideNav({ label, groups, children }: { label: string; groups: { 
 }
 
 // Initials on a colour picked from the person's stable id (not their handle, which can change).
+// Signed-in people see a person's picture when they have set one; everyone else sees the initials. One small list
+// says who has a picture, so no one asks for a picture that is not there.
+export function useAvatars(): Record<string, number> {
+  const me = useMe().data;
+  return useQuery({
+    queryKey: ['avatars'], enabled: Boolean(me && me.role !== 'guest'), staleTime: 60_000,
+    queryFn: () => api.get<{ avatars: Record<string, number> }>('/avatars'),
+  }).data?.avatars ?? NO_AVATARS;
+}
+const NO_AVATARS: Record<string, number> = {};
+
 export function Avatar({ id, name, size }: { id: string | null | undefined; name: string; size?: 'sm' | 'lg' }) {
+  const version = useAvatars()[id ?? ''];
   let h = 0;
   for (const c of id ?? name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   const initials = name.replace(/^@/, '').split(/[\s_.-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('') || '?';
-  return <span className={`avatar${size ? ` avatar-${size}` : ''}`} style={{ '--hue': h % 360 } as CSSProperties} aria-hidden="true">{initials}</span>;
+  return (
+    <span className={`avatar${size ? ` avatar-${size}` : ''}`} style={{ '--hue': h % 360 } as CSSProperties} aria-hidden="true">
+      {version ? <img src={`/api/v1/avatars/${id}?v=${version}`} alt="" loading="lazy" decoding="async" /> : initials}
+    </span>
+  );
 }
 
 const RTF_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];

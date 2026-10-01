@@ -40,13 +40,13 @@ const profile: Exporter = {
     // What they chose about how the site treats them (M9-D), and their avatar picture if they have one.
     const [me, prefs, mutedBoards, mutedMail] = await Promise.all([
       q.query<{ status_line: string | null; away: boolean; show_last_seen: boolean; email_digest: boolean; avatar_at: Date | null }>(`SELECT status_line, away, show_last_seen, email_digest, avatar_at FROM users WHERE id = $1`, [user.id]),
-      q.query<{ kind: string; site: boolean; desktop: boolean }>(`SELECT kind, site, desktop FROM notification_prefs WHERE user_id = $1 ORDER BY kind`, [user.id]),
+      q.query<{ kind: string; enabled: boolean }>(`SELECT kind, enabled FROM notification_prefs WHERE user_id = $1 ORDER BY kind`, [user.id]),
       q.query<{ slug: string }>(`SELECT b.slug FROM board_notification_prefs p JOIN boards b ON b.id = p.board_id WHERE p.user_id = $1 ORDER BY b.slug`, [user.id]),
       q.query<{ thread_id: string }>(`SELECT thread_id FROM mail_mutes WHERE user_id = $1 ORDER BY thread_id`, [user.id]),
     ]);
     add('settings.json', json({
       status_line: me.rows[0]!.status_line, away: me.rows[0]!.away, show_last_seen: me.rows[0]!.show_last_seen, email_digest: me.rows[0]!.email_digest,
-      notifications: Object.fromEntries(prefs.rows.map((p) => [p.kind, { site: p.site, desktop: p.desktop }])),
+      notifications: Object.fromEntries(prefs.rows.map((p) => [p.kind, p.enabled])),
       muted_boards: mutedBoards.rows.map((b) => b.slug), muted_mail_conversations: mutedMail.rows.map((m) => m.thread_id),
     }));
     if (me.rows[0]!.avatar_at) {

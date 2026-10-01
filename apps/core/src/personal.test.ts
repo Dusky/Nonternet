@@ -116,12 +116,12 @@ describe.skipIf(!dbAvailable)('personal touches', () => {
     await x.post(`/api/v1/boards/${slug}/posts`, { body: 'reply one', reply_to: th.id });
     expect(await unread()).toBe(1);
     // Switch replies off on the site: the next one doesn't.
-    expect((await o.put('/api/v1/me/notification-prefs', { kind: 'reply', site: false })).status).toBe(204);
+    expect((await o.put('/api/v1/me/notification-prefs', { kind: 'reply', enabled: false })).status).toBe(204);
     await x.post(`/api/v1/boards/${slug}/posts`, { body: 'reply two', reply_to: th.id });
     expect(await unread()).toBe(1);
-    expect((await o.get('/api/v1/me/personal')).body.prefs.reply).toEqual({ site: false, desktop: true });
+    expect((await o.get('/api/v1/me/personal')).body.prefs.reply).toBe(false);
     // Back on, but the board muted: replies are quiet, a mention still gets through.
-    await o.put('/api/v1/me/notification-prefs', { kind: 'reply', site: true });
+    await o.put('/api/v1/me/notification-prefs', { kind: 'reply', enabled: true });
     expect((await o.put(`/api/v1/boards/${slug}/mute`)).status).toBe(204);
     await x.post(`/api/v1/boards/${slug}/posts`, { body: 'reply three', reply_to: th.id });
     expect(await unread()).toBe(1);
@@ -169,7 +169,7 @@ describe.skipIf(!dbAvailable)('personal touches', () => {
     const u = await makeUser(ctx, { handle: 'exporty' });
     const c = await loginAs(ctx, u.handle);
     await c.patch('/api/v1/me', { status_line: 'Around', email_digest: true });
-    await c.put('/api/v1/me/notification-prefs', { kind: 'watch', site: false });
+    await c.put('/api/v1/me/notification-prefs', { kind: 'watch', enabled: false });
     await upload(c, await png());
     const r = await c.post('/api/v1/me/export', { password: TEST_PASSWORD });
     expect(r.status).toBe(202);
@@ -177,7 +177,7 @@ describe.skipIf(!dbAvailable)('personal touches', () => {
     const dl = await ctx.app.inject({ method: 'GET', url: `/api/v1/me/exports/${r.body.id}/download`, headers: { cookie: `sid=${c.sid}` } });
     const files = unzipSync(new Uint8Array(dl.rawPayload));
     const settings = JSON.parse(strFromU8(files['settings.json']!));
-    expect(settings).toMatchObject({ status_line: 'Around', email_digest: true, notifications: { watch: { site: false, desktop: true } } });
+    expect(settings).toMatchObject({ status_line: 'Around', email_digest: true, notifications: { watch: false } });
     expect(files['avatar.webp']!.length).toBeGreaterThan(100);
     await deleteAccount(ctx.deps, u.id, { posts: 'keep', actor: null }, {});
     const left = await ctx.deps.db.query(`SELECT (SELECT count(*) FROM notification_prefs WHERE user_id = $1) AS prefs, (SELECT avatar_at FROM users WHERE id = $1) AS avatar, (SELECT status_line FROM users WHERE id = $1) AS line`, [u.id]);

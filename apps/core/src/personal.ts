@@ -73,15 +73,15 @@ export async function avatarVersions(deps: AppDeps, v: SessionUser): Promise<Rec
 export const canEmail = (deps: AppDeps): boolean => deps.mailer.real === true;
 
 export function defaultPrefs(): NotificationPrefs {
-  return Object.fromEntries(PREF_KINDS.map((k) => [k, { site: true, desktop: true }])) as NotificationPrefs;
+  return Object.fromEntries(PREF_KINDS.map((k) => [k, true])) as NotificationPrefs;
 }
 
 export async function getSettings(deps: AppDeps, v: SessionUser): Promise<PersonalSettings> {
   const u = await deps.db.query<{ status_line: string | null; away: boolean; avatar_at: Date | null; show_last_seen: boolean; email_digest: boolean }>(
     `SELECT status_line, away, avatar_at, show_last_seen, email_digest FROM users WHERE id = $1`, [v.userId]);
   const prefs = defaultPrefs();
-  for (const r of (await deps.db.query<{ kind: keyof NotificationPrefs; site: boolean; desktop: boolean }>(`SELECT kind, site, desktop FROM notification_prefs WHERE user_id = $1`, [v.userId])).rows) {
-    if (prefs[r.kind]) prefs[r.kind] = { site: r.site, desktop: r.desktop };
+  for (const r of (await deps.db.query<{ kind: keyof NotificationPrefs; enabled: boolean }>(`SELECT kind, enabled FROM notification_prefs WHERE user_id = $1`, [v.userId])).rows) {
+    if (r.kind in prefs) prefs[r.kind] = r.enabled;
   }
   const muted = await deps.db.query<{ slug: string; name: string }>(
     `SELECT b.slug, b.name FROM board_notification_prefs p JOIN boards b ON b.id = p.board_id WHERE p.user_id = $1 ORDER BY b.name`, [v.userId]);
@@ -92,11 +92,10 @@ export async function getSettings(deps: AppDeps, v: SessionUser): Promise<Person
   };
 }
 
-export async function setPref(deps: AppDeps, v: SessionUser, kind: string, change: { site?: boolean; desktop?: boolean }): Promise<void> {
+export async function setPref(deps: AppDeps, v: SessionUser, kind: string, enabled: boolean): Promise<void> {
   await deps.db.query(
-    `INSERT INTO notification_prefs (user_id, kind, site, desktop) VALUES ($1, $2, COALESCE($3, true), COALESCE($4, true))
-     ON CONFLICT (user_id, kind) DO UPDATE SET site = COALESCE($3, notification_prefs.site), desktop = COALESCE($4, notification_prefs.desktop)`,
-    [v.userId, kind, change.site ?? null, change.desktop ?? null]);
+    `INSERT INTO notification_prefs (user_id, kind, enabled) VALUES ($1, $2, $3) ON CONFLICT (user_id, kind) DO UPDATE SET enabled = EXCLUDED.enabled`,
+    [v.userId, kind, enabled]);
 }
 
 export async function muteBoard(deps: AppDeps, v: SessionUser, slug: string, on: boolean): Promise<void> {

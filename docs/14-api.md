@@ -125,3 +125,11 @@ private, core → MUD (control token): `GET /internal/status`, `POST /internal/a
 
 Built since: `user.renamed`, `user.deleted`, `board.created`, `ring.created`, `ring.member_changed`. Planned, not built yet: `bbs.*`, `irc.*`, `mud.*`,
 `presence.changed`, `export.*`, `settings.changed`.
+
+## Personal touches (M9-D)
+All need a signed-in, confirmed person. `GET /me/personal` (status, away, avatar?, last-seen switch, digest, per-kind choices,
+muted boards). `PATCH /me` also takes `status_line`, `away`, `show_last_seen`, `email_digest`. `PUT /me/notification-prefs`
+`{kind, enabled}`. `PUT|DELETE /boards/:slug/mute`, `PUT|DELETE /mail/:id/mute`. `PUT /me/avatar` (image bytes),
+`DELETE /me/avatar`, `GET /avatars`, `GET /avatars/:id`, admin `DELETE /admin/users/:id/avatar` `{reason}` (audited as
+`user.avatar_removed`). `GET /people?q=&role=&offset=`. `GET /users/:handle` gains `status_line`, `away`, `last_seen`,
+`homepage`, `recent_posts`. `GET /mail` threads gain `muted`.

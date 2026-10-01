@@ -36,6 +36,7 @@ export function HoverCard({ handle, meId, children }: { handle: string; meId?: s
             <Avatar id={p.id} name={p.display_name || p.handle} />
             <span><strong>{p.display_name || p.handle}</strong><br /><span className="muted">@{p.handle} · {t(`role.${p.role}`)}</span></span>
           </span>
+          {(p.status_line || p.away) && <span className="hover-bio">{p.away ? `${t('people.away')} · ` : ''}{p.status_line}</span>}
           {p.bio && <span className="hover-bio">{p.bio.length > 140 ? `${p.bio.slice(0, 140)}…` : p.bio}</span>}
           {p.rings.length > 0 && <span className="muted">{t('hover.rings', { count: p.rings.length })}</span>}
           {meId && meId !== p.id && <OpenAppLink app="mail" to={`new/${p.handle}`} className="link">{t('hover.mail')}</OpenAppLink>}

@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { api, ApiError } from '../../api';
+import { readPrefs, usePrefs } from '../../devicePrefs';
 import { Alert } from '../../components/ui';
 import { errorText, useSite, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
@@ -31,7 +32,9 @@ export default function TerminalApp() {
   const ws = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState<Status>('connecting');
   const [error, setError] = useState<string | null>(null);
-  const [reader, setReader] = useState(false);
+  const refit = useRef<(() => void) | null>(null);
+  const [prefs, setPrefs] = usePrefs('terminal');
+  const reader = prefs.reader;
   const [help, setHelp] = useState(false);
 
   const send = useCallback((m: object) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(m)); }, []);
@@ -73,21 +76,29 @@ export default function TerminalApp() {
   connectRef.current = connect;
 
   useEffect(() => {
-    const x = new Terminal({ convertEol: false, cursorBlink: true, fontFamily: '"Px437 IBM VGA 8x16", "Web437 IBM VGA 8x16", ui-monospace, monospace', fontSize: 16, scrollback: 2000, allowProposedApi: false });
+    const x = new Terminal({ convertEol: false, cursorBlink: true, fontFamily: '"Px437 IBM VGA 8x16", "Web437 IBM VGA 8x16", ui-monospace, monospace', fontSize: readPrefs('terminal').fontSize, scrollback: 2000, allowProposedApi: false });
     const fit = new FitAddon();
     x.loadAddon(fit);
     x.open(host.current!);
     term.current = x;
     const doFit = () => { try { fit.fit(); send({ t: 'size', cols: x.cols, rows: x.rows }); } catch { /* not visible yet */ } };
     doFit();
+    refit.current = doFit;
     const data = x.onData((d) => send({ t: 'in', d }));
     const ro = new ResizeObserver(doFit);
     ro.observe(host.current!);
     void connect();
-    return () => { clearTimeout(retry.current); ro.disconnect(); data.dispose(); const sock = ws.current; ws.current = null; sock?.close(); x.dispose(); term.current = null; };
+    return () => { clearTimeout(retry.current); ro.disconnect(); data.dispose(); const sock = ws.current; ws.current = null; sock?.close(); x.dispose(); term.current = null; refit.current = null; };
   }, [connect, send]);
 
   useEffect(() => { if (term.current) term.current.options.screenReaderMode = reader; }, [reader]);
+  // A new text size is applied at once and the screen is re-fitted, so the BBS gets the new column count.
+  useEffect(() => {
+    const x = term.current;
+    if (!x || x.options.fontSize === prefs.fontSize) return;
+    x.options.fontSize = prefs.fontSize;
+    refit.current?.();
+  }, [prefs.fontSize]);
 
   return (
     <div className="app-content terminal-app">
@@ -101,7 +112,7 @@ export default function TerminalApp() {
           <button key={k.label} type="button" className="btn btn-quiet" aria-label={t(k.name as never)} onClick={() => { send({ t: 'in', d: k.seq }); term.current?.focus(); }}>{k.label}</button>
         ))}
       </div>
-      <label className="check"><input type="checkbox" checked={reader} onChange={(e) => setReader(e.target.checked)} /> {t('terminal.reader')}</label>
+      <label className="check"><input type="checkbox" checked={reader} onChange={(e) => setPrefs({ reader: e.target.checked })} /> {t('terminal.reader')}</label>
       <button type="button" className="link" aria-expanded={help} onClick={() => setHelp(!help)}>{t('terminal.nativeTitle')}</button>
       {help && <NativeHelp />}
     </div>

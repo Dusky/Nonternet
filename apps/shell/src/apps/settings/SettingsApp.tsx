@@ -11,10 +11,11 @@ import { YourData } from './YourData';
 import { Blocks } from './Blocks';
 import { OfflineMail, SshKeys, TerminalPassword } from './Terminal';
 import { TotpSetup } from '../../pages/Setup2fa';
+import { BoardSettings, ChatSettings, NotificationChoices, PersonalProfile, TerminalDisplay } from './PersonalSettings';
 import { alertPrefs, askDesktopPermission, desktopSupported, playChime, saveAlertPrefs, unlockAudio, type AlertPrefs } from '../../alerts';
 import { applyTheme, clockPref, effectPrefs, saveClockPref, saveEffectPrefs, saveWallpaperPref, wallpaperPref, WALLPAPERS } from '../../theme';
 
-const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance', 'notifications'] as const;
+const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards'] as const;
 
 export default function SettingsApp() {
   const t = useT();
@@ -30,20 +31,24 @@ export default function SettingsApp() {
       { to: 'profile', label: t('settings.tab.profile') },
       { to: 'appearance', label: t('settings.tab.appearance') },
       { to: 'notifications', label: t('settings.tab.notifications') },
+      ...(site.services.irc && me.role !== 'guest' ? [{ to: 'chat', label: t('settings.tab.chat') }] : []),
+      ...(me.role !== 'guest' ? [{ to: 'boards', label: t('settings.tab.boards') }] : []),
       { to: 'password', label: t('settings.tab.password') },
       { to: 'two-factor', label: t('settings.tab.twofa') },
       { to: 'terminal', label: t('settings.tab.terminal') },
       ...(me.role !== 'guest' ? [{ to: 'blocked', label: t('settings.tab.blocked') }] : []),
       { to: 'data', label: t('settings.tab.data') },
     ] }]}>
-      {route?.pattern === 'profile' && <><Profile me={me} />{site.services.mud && <FeaturedCharacter />}</>}
+      {route?.pattern === 'profile' && <><Profile me={me} />{me.role !== 'guest' && <PersonalProfile me={me} />}{site.services.mud && <FeaturedCharacter />}</>}
       {route?.pattern === 'password' && <Password />}
       {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
-      {route?.pattern === 'terminal' && <><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <><SshKeys /><OfflineMail /></>}</>}
+      {route?.pattern === 'terminal' && <><TerminalDisplay /><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <><SshKeys /><OfflineMail /></>}</>}
       {route?.pattern === 'data' && <YourData me={me} />}
       {route?.pattern === 'blocked' && <Blocks />}
       {route?.pattern === 'appearance' && <Appearance me={me} />}
-      {route?.pattern === 'notifications' && <DeviceAlerts />}
+      {route?.pattern === 'notifications' && <>{me.role !== 'guest' && <NotificationChoices />}<DeviceAlerts /></>}
+      {route?.pattern === 'chat' && <ChatSettings />}
+      {route?.pattern === 'boards' && <BoardSettings />}
     </SideNav>
   );
 }

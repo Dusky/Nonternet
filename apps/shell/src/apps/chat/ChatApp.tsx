@@ -5,6 +5,7 @@ import { Alert } from '../../components/ui';
 import { errorText, useSite, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { parseFormatting, type Segment } from './format';
+import { usePrefs } from '../../devicePrefs';
 import { completeNick, dayKey, dayLabel, typingNow, type Completion } from './helpers';
 import { sortedUsers, useChat, type Buffer, type Msg } from './store';
 
@@ -114,13 +115,15 @@ function Log({ buf }: { buf: Buffer }) {
   // Typing notices expire on their own, so look again every couple of seconds while someone is typing.
   useEffect(() => { if (!buf.typing.size) return; const id = setInterval(() => setNow(Date.now()), 2000); return () => clearInterval(id); }, [buf.typing]);
   const who = typingNow(buf.typing, now);
+  const [prefs] = usePrefs('chat');
   const words = { today: t('chat.today'), yesterday: t('chat.yesterday') };
   const rows: JSX.Element[] = [];
   let prevDay = '';
   for (const m of buf.messages) {
+    if (!prefs.joinPart && (m.kind === 'join' || m.kind === 'part' || m.kind === 'quit')) continue;
     const d = dayKey(m.time);
     if (d !== prevDay) { rows.push(<li key={`d${d}`} className="chat-day"><span>{dayLabel(m.time, Date.now(), words)}</span></li>); prevDay = d; }
-    rows.push(<Line key={m.id} m={m} />);
+    rows.push(<Line key={m.id} m={m} stamps={prefs.timestamps} />);
     if (buf.readUpTo === m.id && m !== buf.messages[buf.messages.length - 1]) rows.push(<li key="new" className="chat-new"><span>{t('chat.newMessages')}</span></li>);
   }
   return (
@@ -138,12 +141,12 @@ function Log({ buf }: { buf: Buffer }) {
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-function Line({ m }: { m: Msg }) {
+function Line({ m, stamps }: { m: Msg; stamps: boolean }) {
   const t = useT();
   const openQuery = useChat((st) => st.openQuery);
   const Nick = ({ nick }: { nick: string }) => (m.self || !nick ? <span className="chat-nick">{nick}</span> : <button type="button" className="chat-nick link" title={t('chat.messageNick', { nick })} onClick={() => openQuery(nick)}>{nick}</button>);
   const cls = `chat-line chat-k-${m.kind}${m.mention ? ' is-mention' : ''}${m.self ? ' is-self' : ''}`;
-  const when = <time className="chat-time" dateTime={new Date(m.time).toISOString()}>{time(m.time)}</time>;
+  const when = stamps ? <time className="chat-time" dateTime={new Date(m.time).toISOString()}>{time(m.time)}</time> : null;
   switch (m.kind) {
     case 'message': return <li className={cls}>{when} <Nick nick={m.nick} /> <IrcText text={m.text} /></li>;
     case 'action': return <li className={cls}>{when} <span aria-hidden="true">* </span><Nick nick={m.nick} /> <IrcText text={m.text} /></li>;

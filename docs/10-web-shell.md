@@ -189,3 +189,23 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **Studio**: upload progress, asks before replacing a file, leave guard and autosaved drafts in the editor, and a
   copy button for the asset snippet.
 - **BBS** shows "(edited)", "[pinned]" and reaction counts (counts only; reacting is on the web).
+
+## As built (M9-D): personal touches
+
+- **Avatars**: one picture per person (PNG, JPEG or WebP up to 2 MB). Core decodes it with `sharp`, crops to 256×256 and
+  stores a WebP under `FILES_DIR/avatars/<user id>.webp`; metadata is dropped and a non-image is refused. Served only to
+  signed-in, confirmed people, by stable id (`GET /avatars/:id`). `GET /avatars` lists who has one (id → version) so the
+  shell asks for pictures only where they exist; initials remain the fallback everywhere, and the BBS stays text.
+- **Status line** (80 characters, no control characters) and an **away** flag: Settings → Profile, shown on the profile, the
+  hover card, the directory and who's online. Not yet sent to IRC as AWAY (see `17`).
+- **Profile page**: recent posts (public boards only), the homepage card (title and last update), rings, characters,
+  copy link, and a coarse "here today / this week / a while ago" that the person can switch off. `users.last_seen_at` is
+  now kept current while someone uses the site (written at most every ten minutes).
+- **People directory** (`GET /people?q=&role=&offset=`): confirmed active people, most recent first; someone who hides
+  their last-seen time is ordered by join date so the order does not give the time away.
+- **What you are told about** (Settings → Notifications): replies, mentions and new threads on watched boards can each be
+  turned off (nothing is made at all: not in the list, the badge or a browser alert); boards can be muted from their page
+  (a mention still gets through); mail conversations can be muted (kept in the inbox, not counted as unread); an optional
+  daily email summary appears only when the site has SMTP. Defaults are everything on.
+- **On this device** (localStorage, not exported): Chat (timestamps, join/leave lines), Boards (default view, reactions),
+  Terminal (text size, reader mode).

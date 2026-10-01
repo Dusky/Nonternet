@@ -22,11 +22,10 @@ export const profileUpdateSchema = z
   .refine((v) => Object.keys(v).length > 0, 'nothing to change');
 export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 
-// Notifications you can switch off, by kind. "site" is the bell and the list; "desktop" is the browser alert.
+// Notifications you can switch off, by kind. Off means none is made: not in the list, not in the badge, not as a browser alert.
 export const PREF_KINDS = ['reply', 'mention', 'watch'] as const;
-export const notificationPrefSchema = z.object({ kind: z.enum(PREF_KINDS), site: z.boolean().optional(), desktop: z.boolean().optional() })
-  .refine((v) => v.site !== undefined || v.desktop !== undefined, 'nothing to change');
-export type NotificationPrefs = Record<(typeof PREF_KINDS)[number], { site: boolean; desktop: boolean }>;
+export const notificationPrefSchema = z.object({ kind: z.enum(PREF_KINDS), enabled: z.boolean() });
+export type NotificationPrefs = Record<(typeof PREF_KINDS)[number], boolean>;
 
 // Everything the Settings pages need that is not on `Me`.
 export interface PersonalSettings {

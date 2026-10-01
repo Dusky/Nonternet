@@ -9,13 +9,12 @@ ALTER TABLE users
   ADD COLUMN email_digest boolean NOT NULL DEFAULT false,       -- a daily summary of what you missed, if the site can send mail
   ADD COLUMN digest_sent_at timestamptz;
 
--- One row per kind the person has changed from the default (everything on). `site`: a notification appears on the
--- site. `desktop`: a browser alert may be raised for it (the browser still has to be allowed to).
+-- One row per kind the person has changed from the default (everything on). Off means no notification is made for
+-- it at all: no entry in the list, no badge, no browser alert (those all follow from there being a notification).
 CREATE TABLE notification_prefs (
   user_id text NOT NULL REFERENCES users (id),
   kind text NOT NULL,
-  site boolean NOT NULL DEFAULT true,
-  desktop boolean NOT NULL DEFAULT true,
+  enabled boolean NOT NULL DEFAULT true,
   PRIMARY KEY (user_id, kind)
 );
 

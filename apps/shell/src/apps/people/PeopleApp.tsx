@@ -1,11 +1,13 @@
 import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ABILITIES, type CharacterView, type MyVouch, type PublicProfile } from '@app/shared';
+import { ABILITIES, type CharacterView, type DirectoryEntry, type LastSeen, type MyVouch, type PublicProfile } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
-import { Alert, Avatar, EmptyState, Loading, NotFound, TextField } from '../../components/ui';
+import { Alert, Avatar, CopyButton, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
 import type { OnlinePerson } from '../../shell/HomePanel';
+import { useDebounced } from '../admin/useDebounced';
 import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { useBlocks } from '../settings/Blocks';
@@ -39,6 +41,7 @@ function Find() {
         <TextField label={t('people.find')} value={handle} onChange={setHandle} hint={t('people.findHint')} maxLength={40} autoCapitalize="none" spellCheck={false} />
         <button className="btn btn-primary" type="submit">{t('people.go')}</button>
       </form>
+      {me && me.role !== 'guest' && <Directory />}
       {online.data && (
         <section aria-labelledby="people-online">
           <h2 id="people-online">{t('people.online', { count: online.data.people.length })}</h2>
@@ -47,6 +50,7 @@ function Find() {
               {online.data.people.map((p) => (
                 <li key={p.id} className="person-card">
                   <AppLink to={encodeURIComponent(p.handle)} className="person"><Avatar id={p.id} name={p.display_name || p.handle} /><span><strong>{p.display_name || p.handle}</strong><br /><span className="row-meta">@{p.handle}</span></span></AppLink>
+                  {p.status_line && <p className="row-meta">{p.away ? `${t('people.away')} · ` : ''}{p.status_line}</p>}
                   <p className="row-meta">{[p.web && t('home.online.web'), p.chat && t('home.online.chat'), p.bbs && t('people.onBbs', { node: p.bbs.node, where: p.bbs.where })].filter(Boolean).join(' · ')}</p>
                 </li>
               ))}
@@ -55,6 +59,50 @@ function Find() {
         </section>
       )}
     </>
+  );
+}
+
+const lastSeenKey = (l: LastSeen) => `people.lastSeen.${l}` as StringKey;
+
+// Everyone on the site, newest activity first, with a search box and a role filter.
+function Directory() {
+  const t = useT();
+  const [q, setQ] = useState('');
+  const [role, setRole] = useState('');
+  const term = useDebounced(q.trim(), 250);
+  const list = useInfiniteQuery({
+    queryKey: ['people', 'directory', term, role],
+    queryFn: ({ pageParam }) => api.get<{ people: DirectoryEntry[]; next: number | null }>(`/people?${new URLSearchParams({ ...(term ? { q: term } : {}), ...(role ? { role } : {}), offset: String(pageParam) })}`),
+    initialPageParam: 0,
+    getNextPageParam: (last) => last.next ?? undefined,
+  });
+  const people = list.data?.pages.flatMap((p) => p.people) ?? [];
+  return (
+    <section aria-labelledby="people-all">
+      <h2 id="people-all">{t('people.directory')}</h2>
+      <div className="toolbar">
+        <input type="search" aria-label={t('people.search')} placeholder={t('people.search')} value={q} onChange={(e) => setQ(e.target.value)} maxLength={40} />
+        <label className="inline">{t('people.role')}{' '}
+          <select value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="">{t('people.anyRole')}</option>
+            {(['user', 'trusted', 'admin'] as const).map((r) => <option key={r} value={r}>{t(`people.role.${r}` as StringKey)}</option>)}
+          </select>
+        </label>
+      </div>
+      {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
+      {list.isPending && <Loading rows={3} />}
+      {list.isSuccess && people.length === 0 && <EmptyState icon="user">{t('people.noMatch')}</EmptyState>}
+      <ul className="cards">
+        {people.map((p) => (
+          <li key={p.id} className="person-card">
+            <AppLink to={encodeURIComponent(p.handle)} className="person"><Avatar id={p.id} name={p.display_name || p.handle} /><span><strong>{p.display_name || p.handle}</strong><br /><span className="row-meta">@{p.handle}{p.role !== 'user' && <> · {t(`people.role.${p.role}` as StringKey)}</>}</span></span></AppLink>
+            {(p.status_line || p.away) && <p className="row-meta">{p.away ? `${t('people.away')}${p.status_line ? ' · ' : ''}` : ''}{p.status_line}</p>}
+            {p.last_seen && <p className="row-meta">{t(lastSeenKey(p.last_seen))}</p>}
+          </li>
+        ))}
+      </ul>
+      {list.hasNextPage && <button type="button" className="btn" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>{t('boards.more')}</button>}
+    </section>
   );
 }
 
@@ -71,12 +119,29 @@ function Profile({ handle }: { handle: string }) {
         <Avatar id={p.id} name={p.display_name || p.handle} size="lg" />
         <div>
         <h2 id="profile-name">{p.display_name || p.handle}</h2>
-        <p className="muted">@{p.handle}{p.role !== 'user' && <> · <span className="badge">{t(`people.role.${p.role}` as StringKey)}</span></>} · {t('people.joined', { when: formatWhen(p.joined_at) ?? '' })}</p>
+        <p className="muted">@{p.handle}{p.role !== 'user' && <> · <span className="badge">{t(`people.role.${p.role}` as StringKey)}</span></>} · {t('people.joined', { when: formatWhen(p.joined_at) ?? '' })}{p.last_seen && <> · {t(lastSeenKey(p.last_seen))}</>}</p>
+        {(p.status_line || p.away) && <p className="profile-status">{p.away && <span className="badge">{t('people.away')}</span>} {p.status_line}</p>}
         </div>
       </header>
       {p.bio && <p className="profile-bio">{p.bio}</p>}
       <PersonActions p={p} />
-      {p.homepage_url && <p><a href={p.homepage_url} rel="noopener">{t('people.homepage')}</a></p>}
+      <p className="toolbar"><CopyButton text={`${window.location.origin}/people/${encodeURIComponent(p.handle)}`} label={t('people.copyLink')} /></p>
+      {p.homepage_url && (
+        <p className="panel homepage-card">
+          <a href={p.homepage_url} rel="noopener"><strong>{p.homepage?.title || t('people.homepage')}</strong></a>
+          {p.homepage?.updated_at && <span className="muted"> · {t('people.homepageUpdated')} <RelativeTime iso={p.homepage.updated_at} /></span>}
+        </p>
+      )}
+      {p.recent_posts.length > 0 && (
+        <section aria-labelledby="profile-posts">
+          <h3 id="profile-posts">{t('people.recentPosts')}</h3>
+          <ul className="rows">
+            {p.recent_posts.map((x) => (
+              <li key={x.id}><PersonLink app="boards" to={`${x.board.slug}/t/${x.thread_id}`}>{x.subject || t('people.untitled')}</PersonLink> <span className="muted">· {x.board.name} · <RelativeTime iso={x.posted_at} /></span></li>
+            ))}
+          </ul>
+        </section>
+      )}
       {p.rings.length > 0 && (
         <section aria-labelledby="profile-rings">
           <h3 id="profile-rings">{t('people.rings')}</h3>

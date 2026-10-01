@@ -10,6 +10,7 @@ import { BoardSettings, NewBoard } from './BoardForms';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
 import { Search } from './Search';
+import { usePersonal } from '../settings/PersonalSettings';
 import { ModLog } from './ModLog';
 import { ReportQueue } from './ReportQueue';
 import { postNote, ThreadView } from './ThreadView';
@@ -123,6 +124,12 @@ function BoardPage({ slug }: { slug: string }) {
     void qc.invalidateQueries({ queryKey: ['board', slug] });
     void qc.invalidateQueries({ queryKey: ['threads', slug] });
   };
+  const personal = usePersonal();
+  const muted = Boolean(personal.data?.muted_boards.some((m) => m.slug === slug));
+  const mute = useMutation({
+    mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/mute`, {}) : api.del(`/boards/${slug}/mute`)),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['me', 'personal'] }),
+  });
   const watch = useMutation({
     mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/watch`, {}) : api.del(`/boards/${slug}/watch`)),
     onSuccess: refresh,
@@ -147,6 +154,7 @@ function BoardPage({ slug }: { slug: string }) {
       <div className="toolbar">
         {b.can_post && <AppLink className="btn btn-primary" to={`${slug}/new`}>{t('boards.newThread')}</AppLink>}
         {me && <button className="btn" onClick={() => watch.mutate(!b.watching)} aria-pressed={b.watching} disabled={watch.isPending}>{b.watching ? t('boards.unwatch') : t('boards.watch')}</button>}
+        {me && me.role !== 'guest' && personal.data && <button className="btn" onClick={() => mute.mutate(!muted)} aria-pressed={muted} disabled={mute.isPending}>{muted ? t('boards.unmute') : t('boards.mute')}</button>}
         {me && <button className="btn" onClick={() => markRead.mutate()} disabled={markRead.isPending || !b.unread}>{t('boards.markRead')}</button>}
         {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
         <span className="spacer" />

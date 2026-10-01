@@ -743,3 +743,12 @@ button.chat-nick:hover { text-decoration: underline; }
 .upload-queue progress { width: 8rem; }
 .file-preview { display: block; max-width: 12rem; max-height: 8rem; border-radius: var(--radius-sm); border: 1px solid var(--border); margin: var(--space-2) 0; }
 .new-pill { position: sticky; top: var(--space-2); z-index: 5; text-align: center; margin: var(--space-2) 0; }
+
+/* Avatars with pictures (M9-D) */
+.avatar { overflow: hidden; }
+.avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Personal touches (M9-D) */
+.avatar-edit { display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-4); }
+.profile-status { margin: var(--space-1) 0 0; }
+.homepage-card { display: inline-block; }

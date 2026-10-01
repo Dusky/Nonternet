@@ -5,6 +5,7 @@ import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, Loading, RelativeTime, useCopy } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
+import { usePrefs } from '../../devicePrefs';
 import { useAppNav, useSubtitle } from '../../nav';
 import { Composer } from './Composer';
 import { canEditPost, EditedNote, EditPost, ReactionBar } from './PostExtras';
@@ -39,7 +40,8 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const nav = useAppNav();
   const qc = useQueryClient();
   const root = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<'flat' | 'threaded'>('flat');
+  const [boardPrefs] = usePrefs('boards');
+  const [view, setView] = useState<'flat' | 'threaded'>(boardPrefs.view);
   const [replyTo, setReplyTo] = useState<PostView | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const { copied, copy } = useCopy();
@@ -174,7 +176,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
                 {editing === post.id
                   ? <EditPost post={post} slug={slug} isStart={post.id === id} asMod={editable.asMod} onDone={() => setEditing(null)} />
                   : post.body !== null && <pre className="post-body">{post.body}</pre>}
-                {post.state === 'ok' && <ReactionBar post={post} slug={slug} signedIn={Boolean(me)} canReact={!board.archived} />}
+                {post.state === 'ok' && boardPrefs.reactions && <ReactionBar post={post} slug={slug} signedIn={Boolean(me)} canReact={!board.archived} />}
                 <footer className="post-actions">
                   {post.state === 'ok' && <button type="button" className="link" onClick={() => { void copy(`${window.location.origin}${nav.href(`${slug}/t/${id}`)}#${post.id}`); setCopiedId(post.id); }}>{copied && copiedId === post.id ? t('common.copied') : t('post.copyLink')}</button>}
                   {editable.ok && editing !== post.id && <button type="button" className="link" onClick={() => setEditing(post.id)}>{t('edit.edit')}</button>}

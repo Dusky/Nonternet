@@ -60,7 +60,8 @@ function Inbox() {
               <div className="row-head">
                 <span><AppLink to={th.id}><strong>{th.subject}</strong></AppLink>{' '}
                   {th.unread && <span className="badge badge-accent">{t('mail.unreadBadge')}</span>}{' '}
-                  {th.left && <span className="badge">{t('mail.leftBadge')}</span>}</span>
+                  {th.left && <span className="badge">{t('mail.leftBadge')}</span>}{' '}
+                  {th.muted && <span className="badge">{t('mail.mutedBadge')}</span>}</span>
                 <span className="row-meta"><RelativeTime iso={th.last_message_at} /></span>
               </div>
               <p className="row-meta">{t('mail.with', { names: th.people.length ? th.people.map((p) => who(t, p)).join(', ') : t('mail.nobody') })}</p>
@@ -122,6 +123,8 @@ function Conversation({ id }: { id: string }) {
   const add = useMutation({ mutationFn: () => api.post(`/mail/${id}/people`, { handle: adding.trim().replace(/^@/, '') }), onSuccess: () => { setAdding(''); void refresh(); } });
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
   const del = useMutation({ mutationFn: (mid: string) => api.del(`/mail/${id}/messages/${mid}`), onSuccess: () => void refresh() });
+  const inboxMuted = useQuery({ queryKey: ['mail', 'list'], queryFn: () => api.get<{ threads: MailThreadSummary[]; unread: number }>('/mail'), refetchInterval: 60_000 }).data?.threads.find((x) => x.id === id)?.muted ?? false;
+  const mute = useMutation({ mutationFn: (on: boolean) => (on ? api.put(`/mail/${id}/mute`, {}) : api.del(`/mail/${id}/mute`)), onSuccess: () => void refresh() });
 
   const end = useRef<HTMLOListElement>(null);
   const scrolled = useRef(false);
@@ -169,6 +172,7 @@ function Conversation({ id }: { id: string }) {
               <button type="submit" className="btn" disabled={add.isPending}>{t('mail.addButton')}</button>
             </form>
           )}
+          <p><button type="button" className="btn" aria-pressed={inboxMuted} disabled={mute.isPending} onClick={() => mute.mutate(!inboxMuted)}>{inboxMuted ? t('mail.unmute') : t('mail.mute')}</button> <span className="hint">{t('mail.muteHint')}</span></p>
           <p><button type="button" className="btn btn-danger" onClick={() => { void confirm({ message: t('mail.leaveConfirm'), confirmLabel: t('confirm.leave'), danger: true }).then((ok) => ok && leave.mutate()); }} disabled={leave.isPending}>{t('mail.leave')}</button></p>
           {leave.isError && <Alert kind="error">{errorText(leave.error)}</Alert>}
           </details>

@@ -15,7 +15,7 @@ export function personalRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.put('/api/v1/me/notification-prefs', async (req, reply) => {
     const b = notificationPrefSchema.parse(req.body);
-    await personal.setPref(deps, requireUser(req), b.kind, b);
+    await personal.setPref(deps, requireUser(req), b.kind, b.enabled);
     return reply.code(204).send();
   });
   app.put('/api/v1/boards/:slug/mute', async (req, reply) => {

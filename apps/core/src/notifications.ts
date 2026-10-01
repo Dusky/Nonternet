@@ -39,7 +39,7 @@ export async function notifyForPost(q: Queryable, post: {
     [ids, post.visibility, post.boardId]);
   // What people switched off: a kind they don't want on the site, or a board they muted (a mention still gets through).
   const off = await q.query<{ user_id: string; kind: string }>(
-    `SELECT user_id, kind FROM notification_prefs WHERE user_id = ANY($1) AND NOT site
+    `SELECT user_id, kind FROM notification_prefs WHERE user_id = ANY($1) AND NOT enabled
      UNION ALL SELECT user_id, 'board' FROM board_notification_prefs WHERE user_id = ANY($1) AND board_id = $2`, [ids, post.boardId]);
   const offKinds = new Map<string, Set<string>>();
   const muted = new Set<string>();

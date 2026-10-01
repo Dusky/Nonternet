@@ -9,7 +9,7 @@ import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById } from './apps';
 import { useWindows, type AppId } from './windows';
 
-export interface OnlinePerson { id: string; handle: string; display_name: string | null; web: boolean; chat: boolean; bbs: { node: number; where: string; via: string } | null }
+export interface OnlinePerson { id: string; handle: string; display_name: string | null; status_line: string | null; away: boolean; web: boolean; chat: boolean; bbs: { node: number; where: string; via: string } | null }
 interface HomeSummary { homepage: { url: string; last_updated_at: string | null } }
 
 // What a person can do next, worked out from what they have already done. Pure, so it is tested
