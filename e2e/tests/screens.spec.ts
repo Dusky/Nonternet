@@ -41,6 +41,9 @@ test('every main screen, in every theme', async ({ page, browser, isMobile }, in
   const t = await (await api.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'What was your first synth?', body: 'Mine was a battered Juno-106 from a pawn shop.\nThe voice chips died a year later, but I learned everything on it.' }, headers: h })).json();
   await api.post(`/api/v1/boards/${slug}/posts`, { data: { body: 'A Volca Keys. Small, cheap, and it taught me what a filter does.', reply_to: t.id }, headers: h });
   await api.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'Patch notes thread', body: 'Post your favourite patches here, with a photo of the cables if you can.' }, headers: h });
+  await api.put(`/api/v1/posts/${t.id}/reactions/thanks`, { data: {}, headers: h });
+  await api.put(`/api/v1/posts/${t.id}/reactions/interesting`, { data: {}, headers: h });
+  await api.patch(`/api/v1/posts/${t.id}`, { data: { body: 'Mine was a battered Juno-106 from a pawn shop.\nThe voice chips died a year later, but I learned everything on it.\nEdit: it was the 106, not the 60.' }, headers: h });
   await api.post('/api/v1/rings', { data: { slug: uniq('lofi'), name: 'Lo-fi homepages', description: 'Hand-made pages with no trackers.', tags: ['handmade', 'music'] }, headers: h });
   await api.post('/api/v1/mail', { data: { to: [reader.handle], subject: 'Welcome aboard', body: 'Glad you made it. The synth board is the busy one.' }, headers: h });
   await api.post('/api/v1/auth/logout', { data: {}, headers: h });
