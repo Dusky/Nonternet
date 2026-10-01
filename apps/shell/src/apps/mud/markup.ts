@@ -6,11 +6,16 @@ export interface MudSeg { text: string; fg?: string; bright?: boolean; rgb?: [nu
 
 const COLOURS: Record<string, string> = { r: 'red', g: 'green', y: 'yellow', b: 'blue', m: 'magenta', c: 'cyan', w: 'white', x: 'black' };
 
+// Evennia's web output escapes < > & and quotes as HTML entities even in raw mode, so "<text>" would show as "&lt;text&gt;". They are
+// turned back into the characters (as text: nothing here ever becomes HTML), once, after the markup is read.
+const ENTITIES: Record<string, string> = { '&lt;': '<', '&gt;': '>', '&amp;': '&', '&quot;': '"', '&#x27;': "'", '&#39;': "'", '&nbsp;': ' ' };
+export const decodeEntities = (s: string): string => s.replace(/&(?:lt|gt|amp|quot|nbsp|#x27|#39);/g, (e) => ENTITIES[e] ?? e);
+
 export function parseMarkup(input: string): MudSeg[][] {
   const lines: MudSeg[][] = [[]];
   let style: Omit<MudSeg, 'text'> = {};
   let buf = '';
-  const flush = () => { if (buf) { lines[lines.length - 1]!.push({ text: buf, ...style }); buf = ''; } };
+  const flush = () => { if (buf) { lines[lines.length - 1]!.push({ text: decodeEntities(buf), ...style }); buf = ''; } };
   const newline = () => { flush(); lines.push([]); };
   const s = input.replace(/\r\n?/g, '\n');
   for (let i = 0; i < s.length; i++) {

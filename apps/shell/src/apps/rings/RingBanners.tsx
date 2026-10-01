@@ -17,7 +17,7 @@ export function BannerStrip({ slug }: { slug: string }) {
   const q = useBanners(slug);
   const big = q.data?.banners.find((b) => b.kind === '468x60' && !b.hidden);
   if (!big) return null;
-  return <p><img src={`/api/v1/rings/${slug}/banner/468x60?v=${big.version}`} width={468} height={60} alt={t('rings.banners.alt')} style={{ maxWidth: '100%', height: 'auto' }} /></p>;
+  return <p className="ring-banner"><img src={`/api/v1/rings/${slug}/banner/468x60?v=${big.version}`} width={468} height={60} alt={t('rings.banners.alt')} style={{ maxWidth: '100%', height: 'auto' }} /></p>;
 }
 
 // For the people who run the ring: upload, replace, remove, and (admins) take down with a reason.

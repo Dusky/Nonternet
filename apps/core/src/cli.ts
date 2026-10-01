@@ -8,6 +8,7 @@ import { parseBackupKey, restoreTest, runBackup } from './backup';
 import { writeFileSync } from 'node:fs';
 import pg from 'pg';
 import { loadSiteConfig } from './config';
+import { seedDemo } from './demo';
 import { renderErgoConfig } from './irc/render';
 import { ircSecrets } from './irc/secrets';
 
@@ -55,6 +56,7 @@ async function writeIrcConfig() {
 //   cli reset-totp --handle <handle>                       (an admin who lost their authenticator)
 //   cli backup --dir <dir>                                 (encrypted database, homepage files and config; needs BACKUP_KEY)
 //   cli restore-test --dir <dir>                           (brings the newest backup back into a scratch database and checks it)
+//   cli seed-demo [--url http://127.0.0.1:3000]           (a small demo community to look at; not in production; core must be running)
 //   cli backup-key                                         (prints a new BACKUP_KEY)
 //   cli irc-config --out <file>                            (writes Ergo's config from the site config; needs IRC_SECRET)
 function arg(name: string): string | undefined {
@@ -78,6 +80,10 @@ async function main() {
       console.log(`Created admin ${handle} (${id}).`);
       if (!supplied) console.log(`Password (shown once): ${password}`);
       console.log('On first login the admin is asked to set up two-factor authentication.');
+    } else if (command === 'seed-demo') {
+      // A small community to look at (docs/19): needs a running core to talk to (--url, default http://127.0.0.1:3000).
+      const r = await seedDemo(deps, arg('url') ?? 'http://127.0.0.1:3000');
+      console.log(r.created.length ? `Made ${r.created.join(', ')}. Everyone signs in with the password "${r.password}".` : 'The demo people already exist; nothing was added.');
     } else if (command === 'reset-totp') {
       const handle = arg('handle');
       if (!handle) throw new Error('--handle is required');
@@ -99,7 +105,7 @@ async function main() {
         if (!r.ok) process.exitCode = 1;
       }
     } else {
-      throw new Error('Usage: cli create-admin --handle <h> --email <e> | reset-totp --handle <h> | backup --dir <d> | restore-test --dir <d> | backup-key');
+      throw new Error('Usage: cli create-admin --handle <h> --email <e> | reset-totp --handle <h> | backup --dir <d> | restore-test --dir <d> | seed-demo | backup-key');
     }
   } finally {
     await deps.db.end();

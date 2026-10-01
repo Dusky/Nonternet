@@ -26,6 +26,11 @@ describe('Evennia markup', () => {
     expect(parseMarkup('\x1b[31mred\x1b[0m plain')).toEqual([[{ text: 'red', fg: 'red' }, { text: ' plain' }]]);
   });
 
+  it('turns Evennia\'s HTML entities back into the characters, as plain text', () => {
+    expect(plainText('public &lt;text&gt; - talk. You don&#x27;t have one &amp; that&#39;s fine &quot;ok&quot;')).toBe('public <text> - talk. You don\'t have one & that\'s fine "ok"');
+    expect(plainText('&lt;script&gt;alert(1)&lt;/script&gt;')).toBe('<script>alert(1)</script>'); // still only ever text
+  });
+
   it('never produces markup from what people type', () => {
     expect(plainText('<script>alert(1)</script>')).toBe('<script>alert(1)</script>');
   });

@@ -973,6 +973,7 @@ export const en = {
   'notifications.more': 'Show older notifications',
   'boards.list.none': 'There are no boards yet.',
   'boards.list.other': 'Other boards',
+  'boards.list.boards': 'Boards',
   'boards.new': 'New board',
   'boards.search': 'Search',
   'boards.unread': '{count} unread',

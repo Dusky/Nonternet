@@ -170,7 +170,7 @@ dialog.dialog[open] { animation: rise .16s var(--ease); }
 .cards > li > :last-child { margin-bottom: 0; }
 
 /* ---- lists: rows, timelines and facts share one look */
-.rows, .timeline, .facts, .ops, ul.plain { list-style: none; padding: 0; margin: 0 0 var(--space-4); }
+.rows, .timeline, .facts, .ops, ul.plain, ol.plain { list-style: none; padding: 0; margin: 0 0 var(--space-4); }
 .facts li, .ops li { padding: var(--space-1) 0; }
 .rows > li, .timeline > li { border-bottom: 1px solid var(--border); padding: var(--space-3) 0; }
 .rows > li:last-child, .timeline > li:last-child { border-bottom: 0; }
@@ -185,7 +185,7 @@ dialog.dialog[open] { animation: rise .16s var(--ease); }
 .row-head > :first-child { margin-right: auto; }
 .row-meta { color: var(--muted); font-size: var(--step--1); }
 .inline-list { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
-ul.plain li { padding: 2px 0; }
+ul.plain li, ol.plain li { padding: 2px 0; }
 
 .badge {
   display: inline-flex; align-items: center; gap: .25em; padding: 0 .5rem; min-height: 1.35rem; font-size: var(--step--2); font-weight: 650; line-height: 1;
@@ -513,7 +513,7 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 .chat-users-toggle { display: none; }
 @media (max-width: 899px) {
   .chat-grid { grid-template-columns: 1fr; height: auto; }
-  .chat-buffers { max-height: 9rem; }
+  .chat-buffers { max-height: none; } /* a clipped, scrolling list of channels looked broken on a phone */
   .chat-log { height: 58dvh; flex: none; }
   .chat-users { display: none; }
   .chat-users.is-open { display: block; }
@@ -757,3 +757,11 @@ button.chat-nick:hover { text-decoration: underline; }
 ul.wall li { padding: var(--space-1) 0; border-bottom: 1px dotted var(--border); }
 .poll-results li { display: grid; grid-template-columns: minmax(8rem, 1fr) 10rem auto; gap: var(--space-3); align-items: center; padding: var(--space-1) 0; }
 .poll-results meter { width: 100%; }
+
+/* First-look fixes */
+.ring-banner { margin: var(--space-3) 0; }
+ul.wall li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+ul.wall li .link { font-size: var(--step--1); }
+.chat-join input { min-width: 0; }
+.chat-join .row { display: flex; gap: var(--space-2); }
+.chat-join .row input { flex: 1; min-width: 0; }

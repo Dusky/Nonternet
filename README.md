@@ -96,3 +96,11 @@ cp deploy/.env.example deploy/.env      # set POSTGRES_PASSWORD and APP_SECRET_K
 docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
 # then open http://localhost:8080
 ```
+
+### See it without setting anything up (a demo community)
+```sh
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/postgres scripts/demo.sh
+```
+Builds if needed, boots a throwaway copy of the whole site (core, shell, homepages, the BBS, and chat and the MUD if `ergo` and `evennia` are on your `PATH`),
+fills it with a small believable community, and prints the address and the logins. Ctrl+C throws it all away. The seed is `pnpm --filter @app/core cli seed-demo`
+(it refuses to run in production).

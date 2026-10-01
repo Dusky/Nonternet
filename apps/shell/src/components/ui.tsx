@@ -157,7 +157,7 @@ export function Avatar({ id, name, size }: { id: string | null | undefined; name
   const version = useAvatars()[id ?? ''];
   let h = 0;
   for (const c of id ?? name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  const initials = name.replace(/^@/, '').split(/[\s_.-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('') || '?';
+  const initials = name.replace(/^@/, '').split(/[\s_.-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
   return (
     <span className={`avatar${size ? ` avatar-${size}` : ''}`} style={{ '--hue': h % 360 } as CSSProperties} aria-hidden="true">
       {version ? <img src={`/api/v1/avatars/${id}?v=${version}`} alt="" loading="lazy" decoding="async" /> : initials}
