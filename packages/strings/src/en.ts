@@ -426,6 +426,8 @@ export const en = {
   'widgets.guestbook.thanks': 'Thanks for signing.',
   'widgets.guestbook.pending': 'Thanks. The owner will read your message before it shows up.',
   'widgets.guestbook.closed': 'This guestbook is closed.',
+  'widgets.guestbook.account': 'You are signing with your account on this site.',
+  'widgets.guestbook.useAccount': 'Sign with your account instead',
   'widgets.guestbook.error': 'That did not work. Try again in a moment.',
   'widgets.counter.label': 'Visitors: {count}',
   'widgets.updated.label': 'Last updated {date}',

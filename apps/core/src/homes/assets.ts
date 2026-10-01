@@ -1,7 +1,7 @@
 // The asset library (docs/07): dividers, 88x31 buttons, backgrounds and signs in the spirit of the
 // early web. Every one is drawn here as SVG, written for this project, so there is nothing to
 // license and nothing that names the site. Someone who adds one gets their own copy in their files.
-export interface Asset { id: string; title: string; category: 'divider' | 'button' | 'background' | 'sign'; width: number; height: number; svg: string }
+export interface Asset { id: string; title: string; category: 'divider' | 'button' | 'background' | 'sign' | 'blinkie'; width: number; height: number; svg: string }
 
 const svg = (w: number, h: number, body: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>\n`;
@@ -15,6 +15,15 @@ const button = (id: string, title: string, top: string, bottom: string, bg: stri
     `<path d="M1 30.5h86.5V1" fill="none" stroke="#000" stroke-opacity=".5"/>` +
     `<text x="44" y="13" text-anchor="middle" ${FONT} font-size="9" font-weight="bold" fill="${fg}">${top}</text>` +
     `<text x="44" y="24" text-anchor="middle" ${FONT} font-size="9" fill="${fg}">${bottom}</text>`),
+});
+
+// A blinkie: a 150x20 strip whose text blinks. The motion is SVG's own (SMIL), so nothing runs as script; a browser that
+// is asked to reduce motion may still play it on someone's own homepage, which is the owner's choice (docs/07).
+const blinkie = (id: string, title: string, text: string, bg: string, fg: string, edge: string): Asset => ({
+  id, title, category: 'blinkie', width: 150, height: 20,
+  svg: svg(150, 20,
+    `<rect width="150" height="20" fill="${bg}"/><rect x=".5" y=".5" width="149" height="19" fill="none" stroke="${edge}"/>` +
+    `<text x="75" y="14" text-anchor="middle" ${FONT} font-size="10" font-weight="bold" fill="${fg}">${text}<animate attributeName="opacity" values="1;1;.2;1" keyTimes="0;.55;.75;1" dur="1.4s" repeatCount="indefinite"/></text>`),
 });
 
 const stars = (n: number, w: number, h: number, seed: number): string => {
@@ -67,4 +76,34 @@ export const ASSETS: Asset[] = [
       `<text x="60" y="40" text-anchor="middle" ${FONT} font-size="9" font-weight="bold" fill="#212121">CONSTRUCTION</text>`),
   },
 ];
+ASSETS.push(
+  blinkie('blinkie-welcome', 'Welcome blinkie', 'WELCOME!', '#1a237e', '#ffee58', '#ffee58'),
+  blinkie('blinkie-new', 'New blinkie', 'NEW! NEW! NEW!', '#b71c1c', '#fff', '#ffcdd2'),
+  blinkie('blinkie-handcoded', 'Hand-coded blinkie', 'HAND-CODED', '#004d40', '#b9f6ca', '#b9f6ca'),
+  blinkie('blinkie-noads', 'No ads blinkie', 'NO ADS HERE', '#311b92', '#ea80fc', '#ea80fc'),
+  blinkie('blinkie-guestbook', 'Guestbook blinkie', 'SIGN MY BOOK', '#e65100', '#fff3e0', '#ffe0b2'),
+  button('button-eyes', 'Best viewed with eyes', 'BEST VIEWED', 'WITH EYES', '#263238', '#cfd8dc'),
+  button('button-anyscreen', 'Any screen', 'ANY SCREEN', 'ANY SIZE', '#006064', '#e0f7fa'),
+  button('button-textmode', 'Text mode', 'BEST VIEWED', 'IN TEXT MODE', '#212121', '#76ff03'),
+  {
+    id: 'divider-dots', title: 'Dotted line', category: 'divider', width: 480, height: 10,
+    svg: svg(480, 10, Array.from({ length: 40 }, (_, i) => `<circle cx="${6 + i * 12}" cy="5" r="2.5" fill="${i % 2 ? '#e91e63' : '#3f51b5'}"/>`).join('')),
+  },
+  {
+    id: 'divider-zigzag', title: 'Zigzag', category: 'divider', width: 480, height: 14,
+    svg: svg(480, 14, `<path d="M0 12 ${Array.from({ length: 48 }, (_, i) => `l10 ${i % 2 ? 10 : -10}`).join(' ')}" fill="none" stroke="#ff7043" stroke-width="3" stroke-linejoin="round"/>`),
+  },
+  {
+    id: 'divider-dashes', title: 'Dashes', category: 'divider', width: 480, height: 6,
+    svg: svg(480, 6, Array.from({ length: 20 }, (_, i) => `<rect x="${i * 24 + 2}" y="1" width="16" height="4" rx="2" fill="#607d8b"/>`).join('')),
+  },
+  {
+    id: 'sign-wip', title: 'Work in progress sign', category: 'sign', width: 140, height: 40,
+    svg: svg(140, 40, `<rect x="2" y="2" width="136" height="36" rx="5" fill="#ffd600" stroke="#212121" stroke-width="3"/><text x="70" y="26" text-anchor="middle" ${FONT} font-size="12" font-weight="bold" fill="#212121">WORK IN PROGRESS</text>`),
+  },
+  {
+    id: 'sign-backsoon', title: 'Back soon sign', category: 'sign', width: 120, height: 40,
+    svg: svg(120, 40, `<rect x="2" y="2" width="116" height="36" rx="5" fill="#fff" stroke="#c62828" stroke-width="3"/><text x="60" y="26" text-anchor="middle" ${FONT} font-size="13" font-weight="bold" fill="#c62828">BACK SOON</text>`),
+  },
+);
 export const assetById = (id: string): Asset | undefined => ASSETS.find((a) => a.id === id);

@@ -3,6 +3,7 @@ import { ringCreateSchema, ringHandleSchema, ringMemberActionSchema, ringOrderSc
 import { z } from 'zod';
 import { ctxOf, requireAdmin, requireUser } from '../http';
 import type { AppDeps } from '../deps';
+import * as banners from '../ring-banners';
 import { ApiError } from '../errors';
 import { ringNavScript } from '../homes/ring-script';
 import * as rings from '../rings';
@@ -77,6 +78,33 @@ export function ringRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (me?.status !== 'member') throw new ApiError(403, 'not_a_member', 'Join the ring to get its nav bar.');
     return { html: rings.navSnippet(deps, slug, v.userId, style) };
   });
+
+  // ---- banners (M9-E): the 468x60 and 88x31 pictures. Anyone may see the ones that are showing, so member pages can embed them.
+  const kindParam = z.object({ kind: z.enum(['468x60', '88x31']) });
+  app.get('/api/v1/rings/:slug/banners', async (req) => banners.listBanners(deps, viewer(req), slugParam.parse(req.params).slug));
+  app.get('/api/v1/rings/:slug/banner/:kind', async (req, reply) => {
+    const { slug } = slugParam.parse(req.params);
+    const data = await banners.readBanner(deps, slug, kindParam.parse(req.params).kind);
+    if (!data) return reply.code(404).send({ error: { code: 'not_found', message: 'No banner.' } });
+    return reply.type('image/png').header('cache-control', 'public, max-age=300').header('x-content-type-options', 'nosniff').send(data);
+  });
+  app.register(async (scope) => {
+    scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: banners.BANNER_MAX_BYTES + 1 }, (_req, body, done) => done(null, body));
+    scope.put('/api/v1/rings/:slug/banner/:kind', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req, reply) => {
+      await banners.setBanner(deps, requireUser(req), slugParam.parse(req.params).slug, kindParam.parse(req.params).kind, Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+      return reply.code(204).send();
+    });
+  });
+  app.delete('/api/v1/rings/:slug/banner/:kind', async (req, reply) => {
+    await banners.removeBanner(deps, requireUser(req), slugParam.parse(req.params).slug, kindParam.parse(req.params).kind);
+    return reply.code(204).send();
+  });
+  for (const hide of [true, false]) {
+    app.post(`/api/v1/rings/:slug/banner/:kind/${hide ? 'hide' : 'restore'}`, async (req, reply) => {
+      await banners.hideBanner(deps, requireUser(req), slugParam.parse(req.params).slug, kindParam.parse(req.params).kind, hide, z.object({ reason: z.string().trim().min(3).max(300) }).parse(req.body).reason, ctxOf(deps, req).ipHash ?? undefined);
+      return reply.code(204).send();
+    });
+  }
 
   // ---- the nav bar itself: public, no login, answers any site
   app.get(`${WIDGET_API}ring/:slug/nav`, async (req) => {

@@ -1,5 +1,5 @@
 import { audit } from '../audit';
-import { newId, sha256 } from '../crypto';
+import { newId, randomToken, sha256 } from '../crypto';
 import type { Queryable } from '../db';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
@@ -52,16 +52,49 @@ export async function listGuestbook(deps: AppDeps, handle: string, opts: { befor
 }
 
 // Signing. Anyone can, without an account; a signed-in person's name is their own and cannot be faked.
+// "Sign with your account" (M9-E). A signed-in person asks for a pass for one homepage and gets the address to go back to,
+// with the pass in its fragment. The return address must be that homepage's own (its handle address or a verified custom
+// domain), so this can never be used to send someone somewhere else. The pass lasts ten minutes and works once.
+export async function guestbookTicket(deps: AppDeps, v: SessionUser, handle: string, returnTo: string): Promise<{ redirect: string }> {
+  if (v.role === 'guest') throw new ApiError(403, 'email_unconfirmed', 'Confirm your email address first.');
+  const o = await ownerOf(deps.db, handle);
+  let target: URL;
+  try { target = new URL(returnTo); } catch { throw new ApiError(400, 'bad_return', 'That is not an address on this homepage.'); }
+  const domains = await deps.db.query<{ domain: string }>(`SELECT domain FROM custom_domains WHERE user_id = $1 AND status = 'verified'`, [o.id]);
+  const allowed = [new URL(deps.homesUrl(o.handle)).host, ...domains.rows.map((d) => d.domain)];
+  if (!['http:', 'https:'].includes(target.protocol) || !allowed.includes(target.host.toLowerCase())) throw new ApiError(400, 'bad_return', 'That is not an address on this homepage.');
+  const token = randomToken();
+  await deps.db.query(`INSERT INTO guestbook_tickets (token_hash, user_id, home_user_id, expires_at) VALUES ($1, $2, $3, now() + interval '10 minutes')`, [sha256(token), v.userId, o.id]);
+  target.hash = `gbticket=${token}`;
+  return { redirect: target.toString() };
+}
+
+// Redeems a pass: it must be unused, unexpired and for this homepage. Marking it used is the atomic step.
+async function redeemTicket(deps: AppDeps, ticket: string, homeUserId: string): Promise<SessionUser['userId'] & string> {
+  const r = await deps.db.query<{ user_id: string }>(
+    `UPDATE guestbook_tickets t SET used_at = now() FROM users u
+      WHERE t.token_hash = $1 AND t.home_user_id = $2 AND t.used_at IS NULL AND t.expires_at > now() AND u.id = t.user_id AND u.status = 'active' AND u.role <> 'guest'
+      RETURNING t.user_id`, [sha256(ticket), homeUserId]);
+  if (!r.rows[0]) throw new ApiError(400, 'bad_ticket', 'That sign-in has expired. Go back and choose "Sign with your account" again.');
+  return r.rows[0].user_id;
+}
+
 export async function sign(
-  deps: AppDeps, handle: string, input: { name?: string; url?: string; message: string; website?: string }, who: SessionUser | null, ctx: Ctx,
+  deps: AppDeps, handle: string, input: { name?: string; url?: string; message: string; website?: string; ticket?: string }, who: SessionUser | null, ctx: Ctx,
 ): Promise<{ status: 'visible' | 'pending' }> {
   const o = await ownerOf(deps.db, handle);
+  let signer: { id: string; name: string } | null = who ? { id: who.userId, name: who.displayName || who.handle } : null;
+  if (!signer && input.ticket && !input.website) {
+    const id = await redeemTicket(deps, input.ticket, o.id);
+    const u = await deps.db.query<{ handle: string; display_name: string | null }>(`SELECT handle, display_name FROM users WHERE id = $1`, [id]);
+    signer = { id, name: u.rows[0]!.display_name || u.rows[0]!.handle };
+  }
   if (o.guestbook_mode === 'off') throw new ApiError(403, 'guestbook_closed', 'This guestbook is closed.');
   const message = normalizeBody(input.message);
   if ([...message].length > 500) throw new ApiError(400, 'message_too_long', 'A guestbook message can be up to 500 characters.');
-  const name = who ? (who.displayName || who.handle) : cleanName(input.name ?? '');
+  const name = signer ? signer.name : cleanName(input.name ?? '');
   const url = cleanUrl(input.url);
-  const status = o.guestbook_mode === 'approval' && who?.userId !== o.id ? 'pending' : 'visible';
+  const status = o.guestbook_mode === 'approval' && signer?.id !== o.id ? 'pending' : 'visible';
   // Bots fill in every field. A hidden field a person never sees gets a fake "thanks" and nothing is stored.
   if (input.website) return { status };
   if (deps.rateLimit) {
@@ -70,7 +103,7 @@ export async function sign(
   }
   await deps.db.query(
     `INSERT INTO guestbook_entries (id, home_user_id, author_id, name, url, message, status, ip_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [newId('g'), o.id, who?.userId ?? null, name, url, message, status, ctx.ipHash]);
+    [newId('g'), o.id, signer?.id ?? null, name, url, message, status, ctx.ipHash]);
   return { status };
 }
 

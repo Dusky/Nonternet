@@ -133,7 +133,7 @@ const guestbook: Exporter = {
 // Not the members' own content (docs/12).
 const rings: Exporter = {
   id: 'rings',
-  tables: ['rings'],
+  tables: ['rings', 'ring_banners'],
   async run({ deps, user, add }) {
     const r = await deps.db.query<{ id: string; slug: string; name: string; description: string; about: string; tags: string[]; join_policy: string; founder: string; created_at: Date; archived_at: Date | null }>(
       `SELECT r.id, r.slug, r.name, r.description, r.about, r.tags, r.join_policy, f.handle AS founder, r.created_at, r.archived_at FROM rings r JOIN users f ON f.id = r.founder_id
@@ -141,6 +141,10 @@ const rings: Exporter = {
     for (const ring of r.rows) {
       const m = await deps.db.query<{ handle: string; joined_at: Date }>(`SELECT u.handle, m.joined_at FROM ring_members m JOIN users u ON u.id = m.user_id WHERE m.ring_id = $1 AND m.status = 'member' ORDER BY m.position`, [ring.id]);
       add(`rings/${ring.slug}/ring.json`, json({ slug: ring.slug, name: ring.name, description: ring.description, about: ring.about, tags: ring.tags, join_policy: ring.join_policy, founder: ring.founder, created_at: ring.created_at.toISOString(), archived: ring.archived_at !== null }));
+      for (const kind of ['468x60', '88x31']) {
+        const has = await deps.db.query(`SELECT 1 FROM ring_banners WHERE ring_id = $1 AND kind = $2`, [ring.id, kind]);
+        if (has.rowCount) { try { add(`rings/${ring.slug}/banner-${kind}.png`, await fs.readFile(join(deps.filesDir, 'ring-banners', `${ring.id}-${kind}.png`))); } catch { /* the picture is gone */ } }
+      }
       add(`rings/${ring.slug}/members.json`, json(m.rows.map((x) => ({ handle: x.handle, joined_at: x.joined_at.toISOString() }))));
     }
   },
@@ -259,6 +263,7 @@ export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings
 // exporter fails the test in exports/exporters.test.ts.
 export const EXEMPT: Record<string, string> = {
   legal_pages: 'site documents written by admins',
+  guestbook_tickets: 'one-use sign-in passes, security state rather than content',
   bulletins: 'site notices written by admins, not a person\'s own content',
   legal_page_versions: 'site documents written by admins',
   legal_requests: 'takedown requests from the public, about content rather than by the account',

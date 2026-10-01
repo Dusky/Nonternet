@@ -8,7 +8,7 @@ const SITE_NAMES = new RegExp(['test site', ['non', 'ternet'].join('')].join('|'
 describe('the asset library', () => {
   it('has unique ids and every category', () => {
     expect(new Set(ASSETS.map((a) => a.id)).size).toBe(ASSETS.length);
-    expect(new Set(ASSETS.map((a) => a.category))).toEqual(new Set(['divider', 'button', 'background', 'sign']));
+    expect(new Set(ASSETS.map((a) => a.category))).toEqual(new Set(['divider', 'button', 'background', 'sign', 'blinkie']));
   });
   it('is plain, well-formed SVG with no script, links or event handlers', () => {
     for (const a of ASSETS) {

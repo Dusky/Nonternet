@@ -15,6 +15,7 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['GET', /^\/api\/v1\/boards(\/:slug(\/threads(\/:id)?)?)?$/, 'public boards read without logging in (docs/05)'],
   ['GET', /^\/api\/v1\/modlog$/, 'the public mod log (docs/03)'],
   ['GET', /^\/api\/v1\/rings(\/random|\/:slug(\/members)?)?$/, 'the ring directory'],
+  ['GET', /^\/api\/v1\/rings\/:slug\/(banners|banner\/:kind)$/, 'ring banners are shown on member pages and in the directory'],
   ['GET', /^\/api\/v1\/homepages(\/random)?$/, 'the homepage directory'],
   ['GET', /^\/api\/v1\/homes\/(templates|assets(\/:id)?)$/, 'the studio’s templates and assets'],
   ['POST', /^\/api\/v1\/homes\/:handle\/guestbook$/, 'guestbooks take signatures from visitors'],

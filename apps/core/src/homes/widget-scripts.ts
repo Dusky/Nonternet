@@ -32,7 +32,15 @@ const SCRIPTS: Record<string, string> = {
   request.then(function (d) {
     try { sessionStorage.setItem(seen, '1'); } catch (e) {}
     var shown = String(d.count).padStart(6, '0');
-    mount(el('span', { text: shown, 'aria-label': t('widgets.counter.label', { count: d.count }), style: 'display:inline-block;font:bold 16px monospace;letter-spacing:3px;background:#000;color:#3f3;padding:2px 8px;border:2px inset #888' }));
+    // data-style picks the look: odometer, lcd, amber or plain (the default is the green-on-black one).
+    var looks = {
+      odometer: 'display:inline-block;font:bold 18px/1 Georgia,serif;letter-spacing:2px;background:linear-gradient(#222,#555 50%,#222);color:#fff;padding:3px 8px;border:2px solid #999;border-radius:3px',
+      lcd: 'display:inline-block;font:bold 18px/1 monospace;letter-spacing:3px;background:#b7c79a;color:#2b3a1c;padding:3px 8px;border:2px inset #8a9a70;text-shadow:1px 1px 0 rgba(255,255,255,.35)',
+      amber: 'display:inline-block;font:bold 16px monospace;letter-spacing:3px;background:#1a0f00;color:#ffb000;padding:2px 8px;border:2px inset #6b4500',
+      plain: 'display:inline-block;font:inherit;letter-spacing:1px'
+    };
+    var look = looks[script.getAttribute('data-style') || ''] || 'display:inline-block;font:bold 16px monospace;letter-spacing:3px;background:#000;color:#3f3;padding:2px 8px;border:2px inset #888';
+    mount(el('span', { text: shown, 'aria-label': t('widgets.counter.label', { count: d.count }), style: look }));
   }).catch(function () {});
 })();`,
 
@@ -49,7 +57,7 @@ const SCRIPTS: Record<string, string> = {
   }).catch(function () {});
 })();`,
 
-  guestbook: PRELUDE(['widgets.guestbook.title', 'widgets.guestbook.none', 'widgets.guestbook.name', 'widgets.guestbook.url', 'widgets.guestbook.message', 'widgets.guestbook.sign', 'widgets.guestbook.thanks', 'widgets.guestbook.pending', 'widgets.guestbook.closed', 'widgets.guestbook.error']) + `
+  guestbook: PRELUDE(['widgets.guestbook.title', 'widgets.guestbook.none', 'widgets.guestbook.name', 'widgets.guestbook.url', 'widgets.guestbook.message', 'widgets.guestbook.sign', 'widgets.guestbook.thanks', 'widgets.guestbook.pending', 'widgets.guestbook.closed', 'widgets.guestbook.error', 'widgets.guestbook.account', 'widgets.guestbook.useAccount']) + `
   var box = el('section', { 'aria-label': t('widgets.guestbook.title'), style: 'border:1px solid #888;padding:8px;max-width:32rem' });
   var list = el('div', {});
   var form = el('form', { style: 'margin-top:8px' });
@@ -67,10 +75,21 @@ const SCRIPTS: Record<string, string> = {
   var status = el('p', { role: 'status', style: 'margin:6px 0 0' });
   form.appendChild(el('button', { type: 'submit', text: t('widgets.guestbook.sign') }));
   form.appendChild(status);
+  // "Sign with your account": the site sends a signed-in visitor back here with a one-use pass in the address.
+  var ticket = '';
+  try { var m = /[#&]gbticket=([A-Za-z0-9_-]{20,80})/.exec(location.hash); if (m) { ticket = m[1]; history.replaceState(null, '', location.pathname + location.search); } } catch (e) {}
+  if (ticket) {
+    var nm = form.querySelector('[name=name]'); nm.required = false; nm.style.display = 'none'; var nl = nm.previousSibling; if (nl) nl.style.display = 'none';
+    form.appendChild(el('p', { text: t('widgets.guestbook.account'), style: 'margin:6px 0 0;font-size:.85em' }));
+  }
+  else {
+    var back = location.href.split('#')[0];
+    form.appendChild(el('a', { href: new URL(script.src).origin + '/guestbook-sign?to=' + encodeURIComponent(user) + '&return=' + encodeURIComponent(back), text: t('widgets.guestbook.useAccount'), style: 'display:block;margin:6px 0;font-size:.85em' }));
+  }
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var f = new FormData(form);
-    fetch(api + '/guestbook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: f.get('name'), url: f.get('url'), message: f.get('message'), website: f.get('website') }) })
+    fetch(api + '/guestbook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: f.get('name'), url: f.get('url'), message: f.get('message'), ticket: ticket || undefined, website: f.get('website') }) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (x) {
         if (!x.ok) { status.textContent = (x.j && x.j.error && x.j.error.message) || t('widgets.guestbook.error'); return; }
