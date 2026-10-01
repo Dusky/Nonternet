@@ -47,6 +47,8 @@ test('every main screen, in every theme', async ({ page, browser, isMobile }, in
   await api.put(`/api/v1/posts/${t.id}/reactions/interesting`, { data: {}, headers: h });
   await api.patch(`/api/v1/posts/${t.id}`, { data: { body: 'Mine was a battered Juno-106 from a pawn shop.\nThe voice chips died a year later, but I learned everything on it.\nEdit: it was the 106, not the 60.' }, headers: h });
   await api.post('/api/v1/rings', { data: { slug: uniq('lofi'), name: 'Lo-fi homepages', description: 'Hand-made pages with no trackers.', tags: ['handmade', 'music'] }, headers: h });
+  await api.post('/api/v1/oneliners', { data: { body: 'Just found the synth board. Hello!' }, headers: h });
+  await api.post('/api/v1/polls', { data: { question: 'Best first synth?', options: ['Juno-106', 'Volca Keys', 'Something else'] }, headers: h });
   await api.post('/api/v1/mail', { data: { to: [reader.handle], subject: 'Welcome aboard', body: 'Glad you made it. The synth board is the busy one.' }, headers: h });
   await api.post('/api/v1/auth/logout', { data: {}, headers: h });
   for (const v of VARIANTS) {
@@ -68,7 +70,7 @@ test('every main screen, in every theme', async ({ page, browser, isMobile }, in
       ['rings', '/rings'], ['people', `/people/${owner.handle}`], ['mail', '/mail'], ['files', '/files'],
       ['homepages', '/homepages'], ['studio', '/studio'], ['notifications', '/notifications'],
       ['settings', '/settings/profile'], ['settings-appearance', '/settings/appearance'],
-      ['chat', '/chat'], ['terminal', '/terminal'], ['mud', '/mud'], ['people-find', '/people'], ['settings-notifications', '/settings/notifications'],
+      ['chat', '/chat'], ['terminal', '/terminal'], ['mud', '/mud'], ['people-find', '/people'], ['settings-notifications', '/settings/notifications'], ['bulletins', '/boards/bulletins'], ['polls', '/boards/polls'],
     ];
     for (const [name, path] of pages) {
       try {
