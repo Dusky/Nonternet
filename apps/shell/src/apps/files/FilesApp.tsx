@@ -1,10 +1,10 @@
 import { useConfirm } from '../../components/feedback';
-import { useRef, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FILE_AREA_VISIBILITIES, FILE_UPLOAD_ROLES, REPORT_CATEGORIES, type FileAreaView, type FileUsage, type FileView } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
-import { Alert, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
+import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
 import { errorText, formatBytes, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav } from '../../nav';
 import { PersonLink } from '../people/PersonLink';
@@ -93,6 +93,14 @@ function Area({ slug }: { slug: string }) {
     mutationFn: (archived: boolean) => api.patch(`/admin/files/areas/${slug}`, { archived }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['files'] }),
   });
+  const [find, setFind] = useState('');
+  const [sort, setSort] = useState<'new' | 'name' | 'size' | 'downloads'>('new');
+  const shown = useMemo(() => {
+    const needle = find.trim().toLowerCase();
+    const list = (q.data?.files ?? []).filter((f) => !needle || `${f.name} ${f.title} ${f.description}`.toLowerCase().includes(needle));
+    return list.sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      : sort === 'size' ? b.size_bytes - a.size_bytes : sort === 'downloads' ? b.downloads - a.downloads : Date.parse(b.uploaded_at) - Date.parse(a.uploaded_at));
+  }, [q.data, find, sort]);
   if (q.isError) return <><BackLink to="">{t('files.back')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   if (!q.data) return <Loading rows={4} />;
   const { area, files } = q.data;
@@ -102,8 +110,18 @@ function Area({ slug }: { slug: string }) {
       <h2>{area.name} {area.archived && <span className="badge">{t('files.archived')}</span>}</h2>
       {area.description && <p>{area.description}</p>}
       <p className="hint">{t(`files.uploadRole.${area.upload_role}.who` as StringKey)}</p>
-      {files.length === 0 ? <EmptyState>{t('files.empty')}</EmptyState> : (
-        <ul className="rows file-rows">{files.map((f) => <FileRow key={f.id} f={f} />)}</ul>
+      {files.length > 3 && (
+        <div className="toolbar">
+          <input type="search" aria-label={t('files.search')} placeholder={t('files.search')} value={find} onChange={(e) => setFind(e.target.value)} />
+          <label className="inline">{t('files.sort')}{' '}
+            <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+              {(['new', 'name', 'size', 'downloads'] as const).map((k) => <option key={k} value={k}>{t(`files.sort.${k}`)}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
+      {files.length === 0 ? <EmptyState>{t('files.empty')}</EmptyState> : shown.length === 0 ? <EmptyState>{t('files.noMatch')}</EmptyState> : (
+        <ul className="rows file-rows">{shown.map((f) => <FileRow key={f.id} f={f} />)}</ul>
       )}
       {area.can_upload && <Upload slug={slug} />}
       {me?.role === 'admin' && (
@@ -120,6 +138,8 @@ function FileRow({ f }: { f: FileView }) {
   const me = useMe().data;
   const qc = useQueryClient();
   const [tool, setTool] = useState<'report' | 'hide' | 'remove' | null>(null);
+  const [editing, setEditing] = useState(false);
+  const preview = /\.(png|jpe?g|gif|webp)$/i.test(f.name) && f.size_bytes <= 2_000_000 && !f.hidden;
   const refresh = () => { setTool(null); void qc.invalidateQueries({ queryKey: ['files'] }); };
   const del = useMutation({ mutationFn: (reason?: string) => api.del(`/files/${f.id}`, reason ? { reason } : {}), onSuccess: refresh });
   const hide = useMutation({ mutationFn: (reason: string) => api.post(`/admin/files/${f.id}/${f.hidden ? 'unhide' : 'hide'}`, { reason }), onSuccess: refresh });
@@ -131,6 +151,7 @@ function FileRow({ f }: { f: FileView }) {
         <span className="muted">{formatBytes(f.size_bytes)}</span>{' '}
         {f.hidden && <span className="badge badge-warn">{t('files.hidden')}</span>}
       </p>
+      {preview && <img className="file-preview" src={f.download_url} alt={f.title || f.name} loading="lazy" />}
       {f.title && <p>{f.title}</p>}
       {f.description && <p className="muted file-description">{f.description}</p>}
       <p className="hint">
@@ -140,12 +161,15 @@ function FileRow({ f }: { f: FileView }) {
       <details className="hint"><summary>{t('files.checksum')}</summary><code className="checksum">{f.sha256}</code></details>
       {me && (
         <div className="mod-tools">
+          <CopyButton text={new URL(f.download_url, window.location.origin).href} label={t('files.copyLink')} />
+          {f.mine && <button type="button" className="link" onClick={() => setEditing((e) => !e)} aria-expanded={editing}>{t('files.edit')}</button>}
           {f.mine && <button type="button" className="link" onClick={() => { void confirm({ message: t('files.deleteConfirm', { name: f.name }), confirmLabel: t('confirm.delete'), danger: true }).then((ok) => ok && del.mutate(undefined)); }}>{t('files.delete')}</button>}
           {!f.mine && me.role !== 'guest' && <button type="button" className="link" aria-expanded={tool === 'report'} onClick={() => setTool(tool === 'report' ? null : 'report')}>{t('files.report')}</button>}
           {admin && <button type="button" className="link" onClick={() => setTool('hide')}>{f.hidden ? t('files.unhide') : t('files.hide')}</button>}
           {admin && !f.mine && <button type="button" className="link" onClick={() => setTool('remove')}>{t('files.remove')}</button>}
         </div>
       )}
+      {editing && <EditFile f={f} onDone={() => setEditing(false)} />}
       {tool === 'report' && <ReportFile id={f.id} onDone={() => setTool(null)} />}
       {(tool === 'hide' || tool === 'remove') && (
         <ReasonOnly label={tool === 'remove' ? t('files.remove') : f.hidden ? t('files.unhide') : t('files.hide')} pending={hide.isPending || del.isPending}
@@ -195,44 +219,101 @@ function ReportFile({ id, onDone }: { id: string; onDone: () => void }) {
   );
 }
 
+function EditFile({ f, onDone }: { f: FileView; onDone: () => void }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [title, setTitle] = useState(f.title);
+  const [description, setDescription] = useState(f.description);
+  const save = useMutation({
+    mutationFn: () => api.patch(`/files/${f.id}`, { title, description }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['files'] }); onDone(); },
+  });
+  return (
+    <form className="panel" aria-label={t('files.edit')} onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+      <TextField label={t('files.title')} value={title} onChange={setTitle} maxLength={120} />
+      <TextField label={t('files.description')} value={description} onChange={setDescription} maxLength={2000} multiline />
+      {save.isError && <Alert kind="error">{errorText(save.error)}</Alert>}
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={save.isPending}>{t('edit.save')}</button>
+        <button type="button" className="btn btn-quiet" onClick={onDone}>{t('common.cancel')}</button>
+      </div>
+    </form>
+  );
+}
+
+interface QueueItem { file: File; state: 'waiting' | 'sending' | 'done' | 'failed'; progress: number; error?: string }
+
+// Choose or drop one or several files. They go up one at a time, each with its own progress bar.
+// Title and description are asked for only when there is a single file.
 function Upload({ slug }: { slug: string }) {
   const t = useT();
   const qc = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [name, setName] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [over, setOver] = useState(false);
+  const [busy, setBusy] = useState(false);
   const usage = useQuery({ queryKey: ['files', 'usage'], queryFn: () => api.get<FileUsage>('/me/files') });
-  const send = useMutation({
-    mutationFn: () => {
-      const p = new URLSearchParams({ name: name || file!.name, title, description });
-      return api.upload<FileView>(`/files/areas/${encodeURIComponent(slug)}/files?${p}`, file!, 'POST');
-    },
-    onSuccess: () => {
-      setFile(null); setName(''); setTitle(''); setDescription('');
-      if (input.current) input.current.value = '';
-      void qc.invalidateQueries({ queryKey: ['files'] });
-    },
-  });
   const u = usage.data;
-  const tooBig = Boolean(file && u && file.size > u.max_file_bytes);
-  const submit = (e: FormEvent) => { e.preventDefault(); if (file && !tooBig) send.mutate(); };
+  const tooBig = (f: File) => Boolean(u && f.size > u.max_file_bytes);
+  const pick = (list: FileList | File[] | null) => {
+    const files = [...(list ?? [])].slice(0, 20);
+    setQueue(files.map((file) => ({ file, state: 'waiting', progress: 0 })));
+    setName(files.length === 1 ? files[0]!.name.replace(/\s+/g, '_') : '');
+  };
+  const patch = (i: number, p: Partial<QueueItem>) => setQueue((q) => q.map((x, n) => (n === i ? { ...x, ...p } : x)));
+  const run = async () => {
+    setBusy(true);
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i]!;
+      if (item.state === 'done' || tooBig(item.file)) continue;
+      patch(i, { state: 'sending', progress: 0, error: undefined });
+      try {
+        const single = queue.length === 1;
+        const p = new URLSearchParams({ name: (single && name) || item.file.name.replace(/\s+/g, '_'), title: single ? title : '', description: single ? description : '' });
+        await api.uploadWithProgress<FileView>(`/files/areas/${encodeURIComponent(slug)}/files?${p}`, item.file, (progress) => patch(i, { progress }));
+        patch(i, { state: 'done', progress: 1 });
+      } catch (e) { patch(i, { state: 'failed', error: errorText(e) }); }
+    }
+    setBusy(false);
+    setTitle(''); setDescription('');
+    if (input.current) input.current.value = '';
+    void qc.invalidateQueries({ queryKey: ['files'] });
+  };
+  const onDrop = (e: DragEvent) => { e.preventDefault(); setOver(false); if (!busy) pick(e.dataTransfer.files); };
+  const sendable = queue.some((x) => x.state !== 'done' && !tooBig(x.file));
   return (
-    <form className="panel" aria-labelledby="upload-h" onSubmit={submit}>
+    <form className="panel" aria-labelledby="upload-h" onSubmit={(e: FormEvent) => { e.preventDefault(); if (sendable && !busy) void run(); }}>
       <h3 id="upload-h">{t('files.upload')}</h3>
       {u && <p className="hint">{u.quota_bytes === null ? t('files.usageNoQuota', { used: formatBytes(u.used_bytes), max: formatBytes(u.max_file_bytes) }) : t('files.usage', { used: formatBytes(u.used_bytes), quota: formatBytes(u.quota_bytes), max: formatBytes(u.max_file_bytes) })}</p>}
-      <div className="field">
+      <div className={`file-drop${over ? ' is-over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
         <label htmlFor="upload-file">{t('files.chooseFile')}</label>
-        <input id="upload-file" ref={input} type="file" onChange={(e) => { const f = e.target.files?.[0] ?? null; setFile(f); setName(f ? f.name.replace(/\s+/g, '_') : ''); }} />
+        <input id="upload-file" ref={input} type="file" multiple disabled={busy} onChange={(e) => pick(e.target.files)} />
+        <p className="hint">{t('files.dropHint')}</p>
       </div>
-      {tooBig && <Alert kind="error">{t('files.tooBig', { max: formatBytes(u!.max_file_bytes) })}</Alert>}
-      <TextField label={t('files.name')} value={name} onChange={setName} maxLength={100} hint={t('files.nameHint')} autoCapitalize="none" spellCheck={false} />
-      <TextField label={t('files.title')} value={title} onChange={setTitle} maxLength={120} />
-      <TextField label={t('files.description')} value={description} onChange={setDescription} maxLength={2000} multiline />
-      {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
-      {send.isSuccess && <p role="status" className="hint">{t('files.uploaded')}</p>}
-      <button type="submit" className="btn btn-primary" disabled={!file || tooBig || send.isPending}>{send.isPending ? t('files.uploading') : t('files.uploadGo')}</button>
+      {queue.length > 0 && (
+        <ul className="plain upload-queue" aria-label={t('files.queue')}>
+          {queue.map((x, i) => (
+            <li key={`${x.file.name}-${i}`}>
+              <span>{x.file.name} <span className="muted">{formatBytes(x.file.size)}</span></span>{' '}
+              {tooBig(x.file) ? <span className="badge badge-warn">{t('files.tooBig', { max: formatBytes(u!.max_file_bytes) })}</span>
+                : x.state === 'done' ? <span className="badge">{t('files.uploaded')}</span>
+                : x.state === 'failed' ? <span className="badge badge-warn">{x.error}</span>
+                : x.state === 'sending' ? <progress max={1} value={x.progress} aria-label={t('files.sending', { name: x.file.name })} /> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {queue.length === 1 && (
+        <>
+          <TextField label={t('files.name')} value={name} onChange={setName} maxLength={100} hint={t('files.nameHint')} autoCapitalize="none" spellCheck={false} />
+          <TextField label={t('files.title')} value={title} onChange={setTitle} maxLength={120} />
+          <TextField label={t('files.description')} value={description} onChange={setDescription} maxLength={2000} multiline />
+        </>
+      )}
+      <button type="submit" className="btn btn-primary" disabled={!sendable || busy}>{busy ? t('files.uploading') : t('files.uploadGo')}</button>
     </form>
   );
 }

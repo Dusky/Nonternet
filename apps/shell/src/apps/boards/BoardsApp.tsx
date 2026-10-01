@@ -14,7 +14,7 @@ import { ModLog } from './ModLog';
 import { ReportQueue } from './ReportQueue';
 import { postNote, ThreadView } from './ThreadView';
 
-const ROUTES = ['', 'new', 'search', 'reports', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
+const ROUTES = ['', 'new', 'search', 'search/:q', 'reports', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
 
 export default function BoardsApp() {
   const nav = useAppNav();
@@ -26,6 +26,7 @@ export default function BoardsApp() {
       {route.pattern === '' && <BoardList />}
       {route.pattern === 'new' && <NewBoard />}
       {route.pattern === 'search' && <Search />}
+      {route.pattern === 'search/:q' && <Search key={route.params.q} initial={route.params.q ?? ''} />}
       {route.pattern === 'reports' && <ReportsPage />}
       {route.pattern === ':slug' && <BoardPage slug={slug!} />}
       {route.pattern === ':slug/new' && <NewThread slug={slug!} />}

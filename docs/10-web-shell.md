@@ -164,13 +164,28 @@ plain, a "what's new" home, and the full landing page. No new themes.
   notification and/or a short chime made in the browser (no sound files). A notification says that something came,
   never what; nothing shows on a locked screen. A burst is one nudge.
 
-## As built (M9-C, in progress): writing and reading
+## As built (M9-C): writing and reading
 
 - **Editor** (`components/Editor.tsx`): the shared writing box. Counter from `maxLength`, Ctrl/Cmd+Enter sends, `@name`
-  suggestions from `GET /mentions`, a `beforeunload` guard while there are unsent words, and drafts.
+  suggestions from `GET /mentions`, a `beforeunload` guard while there are unsent words, and drafts. Used by the board
+  composer, post editing, and mail (new message and reply).
 - **Drafts** (`drafts.ts`): kept in this browser only, key `ui:draft:<user>:<place>`, 30 days, newest 40, shown with
-  "Draft restored · Discard", cleared on send. Not sent anywhere, so not part of the export.
+  "Draft restored · Discard", cleared on send and at logout. Never sent anywhere, so not part of the export. The
+  homepage studio's code editor uses the same store for unsaved file changes.
 - **Threads** (`apps/boards`): edit (author for 24 h, moderators any time with a reason) with "edited" and earlier
   versions on click; six word reactions; pin/unpin for ops; "Copy link" per post (`#p_…` scrolls to it);
-  a "New since your last visit" divider, from a per-thread, per-device seen mark (`ui:seen:<user>:<thread>`).
-- Still to do in M9-C: hover cards, mail, chat, studio and files items.
+  a "New since your last visit" divider, from a per-thread, per-device seen mark (`ui:seen:<user>:<thread>`);
+  a "N new replies" pill when replies arrive over the live channel while the thread is open.
+- **Boards search** lives in the address (`search/<words>`), with a board filter and relative times.
+- **People hover card** (`components/HoverCard.tsx`): avatar, name, role, short bio, rings and "Send mail", after a
+  short hover or on focus; Escape closes it. Shown on `PersonLink` to signed-in people only.
+- **Mail**: search and an unread-only filter over the 200 newest conversations (done in the browser), handle
+  suggestions in the To field, quote-reply, drafts, and the conversation opens at its newest message.
+- **Chat**: Tab finishes a nick (again to cycle), typing notices (IRCv3 `+typing`, below), a "New messages" divider,
+  day separators, "jump to newest", click a nick for a private chat, `/help`, `/away`, `/whois`, and replayed history
+  is not read out line by line (the log is not live for the first 1.5 s of a buffer).
+- **Files**: choose or drop up to 20 files with a progress bar each, search and sort, image previews (png, jpeg,
+  gif, webp up to 2 MB), copy link, and the uploader can edit title and description.
+- **Studio**: upload progress, asks before replacing a file, leave guard and autosaved drafts in the editor, and a
+  copy button for the asset snippet.
+- **BBS** shows "(edited)", "[pinned]" and reaction counts (counts only; reacting is on the web).

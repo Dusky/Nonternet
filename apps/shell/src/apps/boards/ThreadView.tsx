@@ -53,6 +53,17 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   });
   const posts = useMemo(() => q.data?.pages.flatMap((p) => p.posts) ?? [], [q.data]);
   const board = q.data?.pages[0]?.board;
+  // Replies that arrive while this is open (pushed over the live channel) are counted in a pill, so they aren't missed.
+  const shownCount = useRef<number | null>(null);
+  const [fresh, setFresh] = useState(0);
+  useEffect(() => {
+    if (!posts.length) return;
+    if (shownCount.current !== null && posts.length > shownCount.current) {
+      const added = posts.slice(shownCount.current).filter((p) => p.author?.id !== me?.id).length;
+      if (added) setFresh((n) => n + added);
+    }
+    shownCount.current = posts.length;
+  }, [posts, me?.id]);
   const lastSeen = useRef<number | null>(null);
   // "New since your last visit": remember, per thread on this device, how far you had read, and mark where it ends.
   const seenKey = me ? `ui:seen:${me.id}:${id}` : null;
@@ -131,6 +142,13 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
         {board.can_moderate && posts[0] && <button type="button" className="btn btn-quiet" disabled={pin.isPending} onClick={() => pin.mutate(!posts[0]!.pinned)}>{posts[0].pinned ? t('pin.unpin') : t('pin.pin')}</button>}
         {me && <button type="button" className="btn btn-quiet" onClick={goNextUnread} disabled={!unreadThreads.data?.threads.some((x) => x.unread && x.id !== id)}>{t('boards.nextUnread')}</button>}
       </div>
+      {fresh > 0 && (
+        <p className="new-pill" role="status">
+          <button type="button" className="btn btn-primary" onClick={() => { setFresh(0); document.getElementById(`post-${posts[posts.length - 1]!.id}`)?.scrollIntoView({ block: 'center' }); }}>
+            {t('post.newReplies', { count: fresh })}
+          </button>
+        </p>
+      )}
       <ol className="posts">
         {ordered.map(({ post, depth }, idx) => {
           const seen = lastSeen.current ?? 0;

@@ -15,14 +15,20 @@ export function HoverCard({ handle, meId, children }: { handle: string; meId?: s
   const show = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(true), 350); };
   const hide = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 120); };
   useEffect(() => () => clearTimeout(timer.current), []);
+  // Escape closes it wherever focus is (a hover leaves focus where it was).
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [open]);
   const q = useQuery({
     queryKey: ['profile', handle.toLowerCase()], enabled: open, staleTime: 60_000,
     queryFn: () => api.get<PublicProfile>(`/users/${encodeURIComponent(handle)}`),
   });
   const p = q.data;
   return (
-    <span className="hover-host" onPointerEnter={show} onPointerLeave={hide} onFocus={show} onBlur={hide}
-      onKeyDown={(e) => { if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false); } }}>
+    <span className="hover-host" onPointerEnter={show} onPointerLeave={hide} onFocus={show} onBlur={hide}>
       {children}
       {open && p && (
         <span className="hover-card" role="group" aria-label={t('hover.label', { name: p.display_name || p.handle })} onPointerEnter={show} onPointerLeave={hide}>

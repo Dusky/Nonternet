@@ -45,7 +45,7 @@ export async function board(s: Session, b: BoardSummary): Promise<void> {
     r.threads.forEach((th, i) => {
       const mark = th.unread ? bold('*') : ' ';
       const subject = th.state === 'ok' || th.state === 'hidden' ? th.subject : `[${th.state}]`;
-      t.line(`${pad(String(i + 1), 3)}${mark}${pad(cut(subject + (th.locked ? ' [locked]' : ''), 39), 40)}${pad(cut(th.author?.handle ?? '-', 15), 16)}${th.reply_count}`);
+      t.line(`${pad(String(i + 1), 3)}${mark}${pad(cut(subject + (th.pinned ? ' [pinned]' : '') + (th.locked ? ' [locked]' : ''), 39), 40)}${pad(cut(th.author?.handle ?? '-', 15), 16)}${th.reply_count}`);
     });
     if (!r.threads.length) t.line('No threads yet.');
     const keys = [`number to read`, b.can_post && !b.archived ? `${bold('P')}ost` : '', r.next ? `${bold('M')}ore` : '', stack.length ? `${bold('B')}ack a page` : '', `${bold('A')}ll read`, `${bold('Q')}uit`].filter(Boolean);
@@ -77,11 +77,17 @@ function threadOrder(posts: PostView[]): { post: PostView; depth: number }[] {
   return out;
 }
 
+// "  [Agree 2, Thanks 1]": counts only. Reacting happens on the web.
+function reactionLine(p: PostView): string {
+  const r = (p.reactions ?? []).filter((x) => x.count > 0);
+  return r.length ? `  [${r.map((x) => `${x.name[0]!.toUpperCase()}${x.name.slice(1)} ${x.count}`).join(', ')}]` : '';
+}
+
 function renderPost(s: Session, p: PostView, n: number, total: number, depth = 0): string[] {
   const w = Math.min(79, s.term.cols - 1) - Math.min(depth, 6) * 2;
   const indent = ' '.repeat(Math.min(depth, 6) * 2);
   const who = p.author ? `${p.author.display_name ? `${p.author.display_name} (${p.author.handle})` : p.author.handle}${p.author.character ? `, as ${p.author.character.name}` : ''}` : 'a deleted account';
-  const head = [`${indent}${bold(`[${n}/${total}]`)} ${bold(cut(p.subject || '', w - 10))}`, `${indent}${dim(`From ${who} · ${when(p.posted_at)} UTC`)}`];
+  const head = [`${indent}${bold(`[${n}/${total}]`)} ${bold(cut(p.subject || '', w - 10))}`, `${indent}${dim(`From ${who} · ${when(p.posted_at)} UTC${p.edited_at ? ' (edited)' : ''}${reactionLine(p)}`)}`];
   const body = p.state === 'deleted' ? ['[deleted by its author]'] : p.state === 'removed' ? ['[removed by a moderator]'] : p.body === null ? ['[hidden by a moderator]'] : wrap(p.body, w);
   return [...head, '', ...body.map((l) => indent + l), ''];
 }

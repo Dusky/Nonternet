@@ -71,3 +71,30 @@ test('editing keeps the old text, reactions toggle, ops can pin', async ({ page 
   await page.getByRole('button', { name: 'Unpin' }).click();
   await expect(page.getByRole('button', { name: 'Pin to top' })).toBeVisible();
 });
+
+test('search keeps its words in the address, and a person card shows on hover', async ({ page, isMobile }) => {
+  const u = await makeUser(page);
+  const { slug, thread } = await board(page, u);
+  const word = uniq('zork').replace(/[^a-z]/g, 'q');
+  const api = page.context().request;
+  await api.post('/api/v1/auth/login', { data: { identifier: u.handle, password: PASSWORD }, headers: h });
+  await api.post(`/api/v1/boards/${slug}/posts`, { data: { subject: `Findable ${word}`, body: `All about ${word}.` }, headers: h });
+  await api.post('/api/v1/auth/logout', { data: {}, headers: h });
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/boards/search');
+  await page.getByLabel('Search for').fill(word);
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/boards/search/${word}$`));
+  await expect(page.getByRole('link', { name: `Findable ${word}` })).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Search for')).toHaveValue(word);
+  await expect(page.getByRole('link', { name: `Findable ${word}` })).toBeVisible();
+
+  test.skip(isMobile, 'hover cards are for a pointer');
+  await page.goto(`/boards/${slug}/t/${thread}`);
+  const who = page.getByRole('link', { name: new RegExp(u.handle) }).first();
+  await who.hover();
+  await expect(page.getByRole('group', { name: /^About / })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('group', { name: /^About / })).toHaveCount(0);
+});

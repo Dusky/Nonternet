@@ -1,3 +1,4 @@
+import { clearAllDrafts } from '../drafts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -94,7 +95,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   }, [desktop, cycle]);
 
   const logout = async () => {
-    clearSession(); // the next person at this screen starts with a clean desktop
+    clearSession(); clearAllDrafts(); // the next person at this screen starts with a clean desktop
     await api.post('/auth/logout').catch(() => undefined);
     // A full page load, not a client-side hop: nothing from this person's session (an admin's cached
     // user list, open windows) stays in memory for the next person at this screen.

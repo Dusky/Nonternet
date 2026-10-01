@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { HomeFileEntry, HomepageSummary, HomeTemplateInfo } from '@app/shared';
 import { api } from '../../api';
 import { Alert, TextField, Loading, EmptyState, Tabs } from '../../components/ui';
-import { errorText, formatWhen, useT } from '../../hooks';
+import { clearDraft, loadDraft, saveDraft } from '../../drafts';
+import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { matchRoute, useAppNav } from '../../nav';
 import { CopyButton } from '../../components/ui';
 
@@ -76,12 +77,23 @@ function Files({ mine }: { mine: Mine }) {
   const [dragging, setDragging] = useState(false);
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['studio'] }), [qc]);
 
+  const [sending, setSending] = useState<{ name: string; n: number; of: number; fraction: number } | null>(null);
   const uploadAll = async (files: File[]) => {
     setError(null); setNote(null);
+    let done = 0;
     try {
-      for (const f of files) await api.upload(`/homes/me/file?path=${encodeURIComponent(folder ? `${folder}/${f.name}` : f.name)}`, f);
-      setNote(t('studio.files.uploaded', { count: files.length }));
+      for (const [i, f] of files.entries()) {
+        const path = folder ? `${folder}/${f.name}` : f.name;
+        // Ask before replacing something that is already there.
+        if (mine.files.some((x) => x.path === path && x.type === 'file')
+          && !(await confirm({ message: t('studio.files.overwriteConfirm', { name: path }), confirmLabel: t('studio.files.replace') }))) continue;
+        setSending({ name: f.name, n: i + 1, of: files.length, fraction: 0 });
+        await api.uploadWithProgress(`/homes/me/file?path=${encodeURIComponent(path)}`, f, (fraction) => setSending((s) => (s ? { ...s, fraction } : s)), 'PUT');
+        done++;
+      }
+      if (done) setNote(t('studio.files.uploaded', { count: done }));
     } catch (e) { setError(errorText(e)); }
+    setSending(null);
     void refresh();
   };
   const onDrop = (e: DragEvent) => { e.preventDefault(); setDragging(false); void uploadAll([...e.dataTransfer.files]); };
@@ -134,6 +146,7 @@ function Files({ mine }: { mine: Mine }) {
           }} />
       )}
       {error && <Alert kind="error">{error}</Alert>}
+      {sending && <p role="status">{t('studio.files.sending', { name: sending.name, n: sending.n, of: sending.of })} <progress max={1} value={sending.fraction} aria-label={t('studio.files.sending', { name: sending.name, n: sending.n, of: sending.of })} /></p>}
       {note && <Alert kind="success">{note}</Alert>}
       {inFolder.length === 0 && <EmptyState>{t('studio.files.none')}</EmptyState>}
       <ul className="rows files">
@@ -217,11 +230,31 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
   const [status, setStatus] = useState<string | null>(null);
   const [stamp, setStamp] = useState(() => Date.now());
   const latest = useRef('');
+  const me = useMe().data;
+  const [restored, setRestored] = useState(false);
+  const draftKey = `studio:${path}`;
+
+  // Unsaved changes: ask the browser before the tab goes.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   useEffect(() => {
     let live = true;
     api.get<{ content: string }>(`/homes/me/file?path=${encodeURIComponent(path)}`)
-      .then((r) => { if (live) { setText(r.content); saved.current = r.content; latest.current = r.content; } })
+      .then((r) => {
+        if (!live) return;
+        saved.current = r.content;
+        // A draft from an earlier session (a closed tab, a dropped connection) comes back, marked unsaved.
+        const draft = me ? loadDraft(me.id, draftKey) : '';
+        const use = draft && draft !== r.content ? draft : r.content;
+        latest.current = use;
+        setText(use);
+        if (use !== r.content) { setDirty(true); setRestored(true); } else if (me) clearDraft(me.id, draftKey);
+      })
       .catch((e) => live && setError(errorText(e)));
     return () => { live = false; };
   }, [path]);
@@ -230,9 +263,9 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
     setError(null);
     try {
       await api.upload(`/homes/me/file?path=${encodeURIComponent(path)}`, latest.current);
-      saved.current = latest.current; setDirty(false); setStatus(t('studio.edit.saved')); setStamp(Date.now());
+      saved.current = latest.current; setDirty(false); setRestored(false); if (me) clearDraft(me.id, draftKey); setStatus(t('studio.edit.saved')); setStamp(Date.now());
     } catch (e) { setError(errorText(e)); }
-  }, [path, t]);
+  }, [path, t, me, draftKey]);
 
   const close = () => { if (!dirty) onClose(); else void confirm({ message: t('studio.edit.leave'), confirmLabel: t('confirm.discard'), danger: true }).then((ok) => ok && onClose()); };
   const previewable = /\.(html?|svg|txt|css)$/i.test(path);
@@ -245,12 +278,13 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
         {dirty && <span className="muted" role="status">{t('studio.edit.unsaved')}</span>}
       </div>
       {error && <Alert kind="error">{error}</Alert>}
+      {restored && dirty && <p role="status" className="hint">{t('studio.edit.restored')}</p>}
       {status && !dirty && <p role="status" className="muted">{status}</p>}
       <div className="editor-split">
         {text !== null && (
           <Suspense fallback={<Loading />}>
             <CodeEditor path={path} value={text} label={t('studio.edit.editor', { name: path })}
-              onChange={(v) => { latest.current = v; setDirty(v !== saved.current); }} onSave={() => void save()} />
+              onChange={(v) => { latest.current = v; setDirty(v !== saved.current); if (me) saveDraft(me.id, draftKey, v === saved.current ? '' : v); }} onSave={() => void save()} />
           </Suspense>
         )}
         {previewable && <iframe className="preview-frame" title={t('studio.edit.preview', { name: path })} src={`${url}${path}?v=${stamp}`} />}
@@ -275,7 +309,7 @@ function Assets() {
     <>
       <p>{t('studio.assets.hint')}</p>
       {error && <Alert kind="error">{error}</Alert>}
-      {added && <Alert kind="success">{t('studio.assets.added', { snippet: `<img src="${added}" alt="">` })}</Alert>}
+      {added && <Alert kind="success">{t('studio.assets.added', { snippet: `<img src="${added}" alt="">` })} <CopyButton text={`<img src="${added}" alt="">`} label={t('studio.assets.copy')} /></Alert>}
       <ul className="cards asset-grid">
         {list.data?.assets.map((a) => (
           <li key={a.id} className="panel">

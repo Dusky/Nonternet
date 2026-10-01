@@ -49,8 +49,31 @@ async function upload<T = void>(path: string, file: Blob | string, method: 'PUT'
   throw new ApiError(res.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic']);
 }
 
+// The same, but reports how much has gone (fetch can't), so a big file shows a bar instead of a frozen button.
+function uploadWithProgress<T = void>(path: string, file: Blob, onProgress: (fraction: number) => void, method: 'PUT' | 'POST' = 'POST'): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open(method, `/api/v1${path}`);
+    x.withCredentials = true;
+    x.setRequestHeader('content-type', 'application/octet-stream');
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onerror = () => reject(new ApiError(0, 'network', en['error.network']));
+    x.onload = () => {
+      if (x.status === 204) return resolve(undefined as T);
+      type Body = { error?: { code?: string; message?: string } } | null;
+      let data = null as Body;
+      try { data = JSON.parse(x.responseText) as Body; } catch { /* not JSON */ }
+      if (x.status >= 200 && x.status < 300) return resolve(data as T);
+      expired(path, x.status);
+      reject(new ApiError(x.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic']));
+    };
+    x.send(file);
+  });
+}
+
 export const api = {
   upload,
+  uploadWithProgress,
   get: <T>(path: string) => request<T>('GET', path),
   post: <T = void>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),

@@ -735,3 +735,11 @@ li.chat-new { color: var(--accent); font-weight: 600; }
 li.chat-day::before, li.chat-day::after, li.chat-new::before, li.chat-new::after { content: ''; flex: 1; border-top: 1px solid currentColor; opacity: .4; }
 button.chat-nick { font: inherit; font-weight: 600; padding: 0; background: none; border: 0; color: inherit; cursor: pointer; }
 button.chat-nick:hover { text-decoration: underline; }
+
+/* Files (M9-C) */
+.file-drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: var(--space-4); margin-bottom: var(--space-3); }
+.file-drop.is-over { border-color: var(--accent); background: var(--accent-soft); }
+.upload-queue li { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; margin: var(--space-1) 0; }
+.upload-queue progress { width: 8rem; }
+.file-preview { display: block; max-width: 12rem; max-height: 8rem; border-radius: var(--radius-sm); border: 1px solid var(--border); margin: var(--space-2) 0; }
+.new-pill { position: sticky; top: var(--space-2); z-index: 5; text-align: center; margin: var(--space-2) 0; }

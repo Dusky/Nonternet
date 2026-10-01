@@ -134,3 +134,7 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   real readers (MultiMail, OLX) before announcing it.
 - Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.
+
+
+## As built (M9-C)
+Thread lists mark pinned threads `[pinned]`; posts show `(edited)` and reaction counts after the date line. Reacting, editing and pinning stay on the web.
