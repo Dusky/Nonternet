@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // A load test (docs/19): signed-in people reading boards, threads and mail and now and then posting, as a
 // busy evening would look. No dependencies: Node's own fetch, with a fixed number of concurrent callers.
+//   node scripts/load-test.mjs --streams 100 …  also holds 100 live streams open (use at least 20 people: five streams each)
 //   node scripts/load-test.mjs --url http://127.0.0.1:3373 --users user1:pass,user2:pass --seconds 30 --concurrency 20 --board lobby
 // The people must exist and be confirmed; the board must exist and they must be able to post there.
 // Point it at a test copy of the site, never production: it really posts.
+import { holdStreams, p95 } from "./sse-load.mjs";
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, all) => (v.startsWith('--') ? [...a, [v.slice(2), all[i + 1]]] : a), []));
 const base = (args.url ?? 'http://127.0.0.1:3000').replace(/\/$/, '');
 const seconds = Number(args.seconds ?? 20);
@@ -12,6 +14,7 @@ const board = args.board ?? 'lobby';
 const people = (args.users ?? '').split(',').filter(Boolean).map((u) => { const [h, ...p] = u.split(':'); return { handle: h, password: p.join(':') }; });
 if (!people.length) { console.error('Give --users handle:password,…'); process.exit(2); }
 const origin = new URL(args.origin ?? base).origin;
+const streamCount = Number(args.streams ?? 0); // live (SSE) streams to hold open during the run; needs at least streams/5 people
 
 async function login(p) {
   const r = await fetch(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify({ identifier: p.handle, password: p.password }) });
@@ -58,11 +61,18 @@ async function caller(sid, until) {
 const pct = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))] ?? 0; };
 const sids = [];
 for (const p of people) sids.push(await login(p));
+const live = streamCount ? await holdStreams({ base, origin, sids, count: streamCount, signal: AbortSignal.timeout(seconds * 1000 + 5000) }) : null;
+if (live) await live.ready();
 console.log(`Load test: ${concurrency} callers for ${seconds}s against ${base} as ${people.length} people`);
 const until = Date.now() + seconds * 1000;
 const t0 = Date.now();
 await Promise.all(Array.from({ length: concurrency }, (_, i) => caller(sids[i % sids.length], until)));
 const elapsed = (Date.now() - t0) / 1000;
+if (live) {
+  const st = live.state;
+  console.log(`\nLive streams: ${st.opened} of ${streamCount} opened (${st.failed} failed), first byte p95 ${p95(st.firstByteMs).toFixed(0)} ms, ${st.hints} hints received, ${st.ended} ended early`);
+  if (args['min-streams'] && st.opened - st.ended < Number(args['min-streams'])) { console.log(`Fewer than ${args['min-streams']} streams stayed open.`); process.exitCode = 1; }
+}
 let total = 0, errors = 0;
 console.log(`\n${'what'.padEnd(16)}${'count'.padStart(8)}${'errors'.padStart(8)}${'p50 ms'.padStart(9)}${'p95 ms'.padStart(9)}${'p99 ms'.padStart(9)}`);
 for (const [name, s] of [...stats].sort()) {
