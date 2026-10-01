@@ -24,3 +24,18 @@ class Exit(ObjectParent, DefaultExit):
     """
 
     pass
+
+
+class HiddenExit(Exit):
+    """
+    An exit nobody sees until they have searched the room (docs/18). Not seen, not listed, and not usable by name either,
+    until that person has found it: finding is remembered on the character, so it is theirs and not everyone's.
+    """
+
+    def found_by(self, who):
+        return bool(who) and self.id in (who.db.found_exits or [])
+
+    def access(self, accessing_obj, access_type="read", default=False, no_superuser_bypass=False, **kwargs):
+        if access_type in ("view", "traverse", "cmd") and not self.found_by(accessing_obj):
+            return False
+        return super().access(accessing_obj, access_type, default=default, no_superuser_bypass=no_superuser_bypass, **kwargs)

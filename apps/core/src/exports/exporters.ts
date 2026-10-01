@@ -199,7 +199,7 @@ const mud: Exporter = {
   async run({ deps, user, add }) {
     if (!deps.mud) return;
     const out = await mudExport(deps, user.id);
-    if (out.characters.length) add('mud/characters.json', json(out));
+    if (out.characters.length || out.noticeboard_notes?.length) add('mud/characters.json', json(out));
   },
 };
 

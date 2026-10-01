@@ -7,7 +7,11 @@ import time
 from evennia import search_tag
 from evennia.contrib.tutorials.evadventure.characters import EvAdventureCharacter
 
+from world import rules_patch
+
 from .objects import ObjectParent
+
+rules_patch.apply()  # a weakened character rolls one lower (docs/18)
 
 WEAKENED_SECONDS = 5 * 60
 

@@ -62,10 +62,23 @@ class InternalApiTest(BaseEvenniaTest):
         self.assertEqual(out["characters"][0]["location"], "Town square")
         self.assertTrue(out["characters"][0]["carrying"])
         self.assertEqual(self.post("/internal/export", {"core_id": "u_NOBODY"}).json(), {"account": None, "characters": []})
+        # What they pinned to the noticeboard and how far they got on a quest are theirs too, and leave with the account.
+        from evennia import search_tag
+
+        from world import noticeboard
+
+        board = search_tag("board:tavern", category="build")[0]
+        noticeboard.post(board, "u_CAT", "Tansy", "Looking for a group", now=1000)
+        noticeboard.post(board, "u_OTHER", "Someone", "Not hers", now=1000)
+        cat.characters.all()[0].db.quests = {"ledger": {"step": 2}}
+        out = self.post("/internal/export", {"core_id": "u_CAT"}).json()
+        self.assertEqual([n["text"] for n in out["noticeboard_notes"]], ["Looking for a group"])
+        self.assertEqual(out["characters"][0]["quests"], {"ledger": {"step": 2}})
         with patch("web.internal._disconnect", return_value=0):
             res = self.post("/internal/accounts/sync", {"accounts": [{"core_id": "u_CAT", "handle": "deleted-1", "status": "deleted", "role": "user", "builder": False}]}).json()
         self.assertEqual(res["deleted"], 1)
         self.assertEqual(self.post("/internal/export", {"core_id": "u_CAT"}).json()["characters"], [])
+        self.assertEqual([n["text"] for n in noticeboard.notes(board)], ["Not hers"])
         from evennia.objects.models import ObjectDB
         self.assertFalse(ObjectDB.objects.filter(db_key="Tansy").exists())
 

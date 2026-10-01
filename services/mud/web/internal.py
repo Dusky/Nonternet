@@ -5,8 +5,10 @@ on the reactor thread, because Django views run in a thread pool.
 """
 import hmac
 import json
+from datetime import datetime, timezone
 
 from django.conf import settings
+from evennia.utils.dbserialize import deserialize
 from django.http import HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -110,6 +112,7 @@ def sync_accounts(request):
         if p["status"] == "deleted":
             # A deleted account takes its characters with it (docs/12); it can't sign in again anyway.
             on_reactor(_disconnect, account, "Your account was deleted.")
+            _forget_notes(p["core_id"])
             for char in account.characters.all():
                 char.delete()
             account.delete()
@@ -127,6 +130,21 @@ def sync_accounts(request):
         if sorted(account.permissions.all()) != before:
             report["roles"] += 1
     return JsonResponse(report)
+
+
+def _tavern_board():
+    from evennia import search_tag
+
+    found = search_tag("board:tavern", category="build")
+    return found[0] if found else None
+
+
+def _forget_notes(core_id):
+    """An erased account's pinned notes go with it (docs/12)."""
+    from world import noticeboard
+
+    board = _tavern_board()
+    return noticeboard.remove_all_of(board, core_id) if board else 0
 
 
 def _sheet(c):
@@ -183,8 +201,12 @@ def export(request):
             "level": a.get("level", 1), "xp": a.get("xp", 0), "coins": a.get("coins", 0),
             "location": c.location.key if c.location else None,
             "carrying": [_item(o) for o in c.contents],
+            "quests": deserialize(a.get("quests") or {}),  # Evennia hands back its own dict type; send a plain one
         })
-    return JsonResponse({"account": account.username, "created": account.date_joined.isoformat(), "characters": chars})
+    board = _tavern_board()
+    notes = [{"text": n["text"], "pinned": datetime.fromtimestamp(n["at"], timezone.utc).isoformat(), "as": n["author"]}
+             for n in (board.db.notes or []) if n["core_id"] == core_id] if board else []
+    return JsonResponse({"account": account.username, "created": account.date_joined.isoformat(), "characters": chars, "noticeboard_notes": notes})
 
 
 @require_http_methods(["POST"])

@@ -98,5 +98,10 @@ def build_town(caller=None):
             mob.db.weapon.location = None
         mob.tags.add(tag, category=BUILD)
         made += 1
+    from world.areas import build_areas
+    from world.town_extras import build_extras
+
+    made += build_areas(rooms)
+    made += build_extras(rooms)
     say(f"Town built: {made} new things.")
     return made

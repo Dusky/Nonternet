@@ -215,3 +215,7 @@ class Object(ObjectParent, DefaultObject):
     """
 
     pass
+
+
+class Readable(Object):
+    """A note, sign or page you can `read` (docs/18). Its words are in `db.text`."""
