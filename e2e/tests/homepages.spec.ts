@@ -124,8 +124,9 @@ test.describe('widgets and directory', () => {
     expect(gone!.status()).toBe(410);
 
     await ap.goto('/admin/homepages');
-    await expect(ap.getByRole('row', { name: new RegExp(owner.handle) }).getByText('Hidden')).toBeVisible();
+    // Search first: other tests make many homepages, so this one may not be on the first page.
     await ap.getByLabel('Search by handle or title').fill(owner.handle);
+    await expect(ap.getByRole('row', { name: new RegExp(owner.handle) }).getByText('Hidden')).toBeVisible();
     await ap.getByRole('button', { name: `Hide the homepage of ${owner.handle}` }).or(ap.getByRole('button', { name: 'Restore' })).first().click();
     await ap.getByLabel('Reason').fill('Checked, it is fine');
     await ap.getByRole('button', { name: 'Confirm' }).click();

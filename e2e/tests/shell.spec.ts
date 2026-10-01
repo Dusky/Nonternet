@@ -172,7 +172,7 @@ test.describe('themes', () => {
     await win.getByRole('link', { name: 'Appearance' }).click();
     await win.getByLabel('Amber screen').check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'amber');
-    await expect(win.getByText('Theme saved.')).toBeVisible();
+    await expect(page.getByText('Theme saved.')).toBeVisible(); // a toast, outside the window
     await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'on');
     await expect(page.locator('html')).toHaveAttribute('data-glow', 'on');
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
