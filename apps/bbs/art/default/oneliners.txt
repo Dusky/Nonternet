@@ -1,0 +1,5 @@
+
+{{c:magenta}}╔══════════════════════════════════════════════════════════════╗{{c:reset}}
+{{c:magenta}}║{{c:reset}}{{center:62:site.name}}{{c:magenta}}║{{c:reset}}
+{{c:magenta}}║{{c:reset}}                      The oneliners wall                      {{c:magenta}}║{{c:reset}}
+{{c:magenta}}╚══════════════════════════════════════════════════════════════╝{{c:reset}}

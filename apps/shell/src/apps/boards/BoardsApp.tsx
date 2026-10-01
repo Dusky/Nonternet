@@ -10,12 +10,13 @@ import { BoardSettings, NewBoard } from './BoardForms';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
 import { Search } from './Search';
+import { BulletinList, BulletinPage, PollList, PollPage } from './Classics';
 import { usePersonal } from '../settings/PersonalSettings';
 import { ModLog } from './ModLog';
 import { ReportQueue } from './ReportQueue';
 import { postNote, ThreadView } from './ThreadView';
 
-const ROUTES = ['', 'new', 'search', 'search/:q', 'reports', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
+const ROUTES = ['', 'new', 'search', 'search/:q', 'reports', 'bulletins', 'bulletins/:n', 'polls', 'polls/:pid', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
 
 export default function BoardsApp() {
   const nav = useAppNav();
@@ -29,6 +30,10 @@ export default function BoardsApp() {
       {route.pattern === 'search' && <Search />}
       {route.pattern === 'search/:q' && <Search key={route.params.q} initial={route.params.q ?? ''} />}
       {route.pattern === 'reports' && <ReportsPage />}
+      {route.pattern === 'bulletins' && <BulletinList />}
+      {route.pattern === 'bulletins/:n' && <BulletinPage number={Number(route.params.n)} />}
+      {route.pattern === 'polls' && <PollList />}
+      {route.pattern === 'polls/:pid' && <PollPage id={route.params.pid!} />}
       {route.pattern === ':slug' && <BoardPage slug={slug!} />}
       {route.pattern === ':slug/new' && <NewThread slug={slug!} />}
       {route.pattern === ':slug/settings' && <SettingsPage slug={slug!} />}
@@ -79,6 +84,8 @@ function BoardList() {
       <div className="toolbar">
         {(me?.role === 'trusted' || me?.role === 'admin') && <AppLink className="btn btn-primary" to="new">{t('boards.new')}</AppLink>}
         <AppLink className="btn" to="search"><Icon name="search" />{t('boards.search')}</AppLink>
+        {me && me.role !== 'guest' && <AppLink className="btn" to="bulletins">{t('classics.bulletins')}</AppLink>}
+        {me && me.role !== 'guest' && <AppLink className="btn" to="polls">{t('classics.polls')}</AppLink>}
         {(me?.role === 'admin' || me?.ops.some((o) => o.startsWith('board:')) || boards.some((b) => b.can_moderate)) && <AppLink className="btn" to="reports">{t('boards.reports')}</AppLink>}
       </div>
       {boards.length === 0 && <EmptyState>{t('boards.list.none')}</EmptyState>}

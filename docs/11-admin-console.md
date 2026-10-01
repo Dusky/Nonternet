@@ -127,3 +127,7 @@ their mod log, their settings.
 v1: status board, users + dossier, moderation queue, boards & rings, config (versioned),
 announcements, audit timeline (list form). Later: replay diffs, stats cohorts, heatmaps,
 command console. The console should grow continuously; plan for it.
+
+## As built (M9-E1)
+Bulletins, polls and oneliners are managed where they appear (Boards → Bulletins and Voting booth, and the wall on Home) rather than in a console
+panel: admins see Write, Edit and Take down there. Each of those actions is in the audit log.

@@ -138,3 +138,14 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
 
 ## As built (M9-C)
 Thread lists mark pinned threads `[pinned]`; posts show `(edited)` and reaction counts after the date line. Reacting, editing and pinning stay on the web.
+
+## As built (M9-E1): classics
+- **Oneliners** (`O`): 60 characters, one per person per hour, shown at login (the last five) and on the web Home panel. Admins can
+  take a line down (audited as `oneliner.hidden`); you can remove your own. People you have blocked do not appear for you.
+- **Bulletins** (`I`, "Information bulletins"): numbered notices written by admins. The newest unread one is announced at login; reading
+  one counts the older ones as read. (`B` stays Boards.)
+- **Voting booth** (`V`): admins and trusted people ask (2–8 choices, optional closing time); everyone confirmed votes once; the tally
+  shows after you have voted or when the poll is closed. The web has the same polls under Boards.
+- **File areas** (`F`): list areas and files, read a description, and get the download address; the download itself is on the web.
+- New art screens in the pack: `newuser` (first call), `oneliners`, `bulletins`, `polls`, `files` and `lastcall` (today's callers, before
+  the goodbye). All use `{{site.name}}` and friends; none hard-codes a name.

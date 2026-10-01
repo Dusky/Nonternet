@@ -1,0 +1,5 @@
+
+{{c:yellow}}┌──────────────────────────────────────────────────────────────┐{{c:reset}}
+{{c:yellow}}│{{c:reset}}                    Information bulletins                     {{c:yellow}}│{{c:reset}}
+{{c:yellow}}│{{c:reset}}          notices from the people who run this site           {{c:yellow}}│{{c:reset}}
+{{c:yellow}}└──────────────────────────────────────────────────────────────┘{{c:reset}}

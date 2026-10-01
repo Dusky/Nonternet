@@ -82,3 +82,7 @@ README.txt               # human explanation of the archive
 muted mail conversations. `avatar.webp` is the stored picture, if there is one. Device-only preferences (chat, boards,
 terminal, drafts) live in the browser, are not on the site, and so are not exported. Erasing an account deletes the picture,
 the choices and the mutes.
+
+## As built (M9-E1)
+`classics.json`: your oneliners, the votes you cast (poll and choice) and the polls you asked. Bulletins are site documents and not exported.
+Erasing an account deletes its oneliners, votes and bulletin read-marks; polls it asked and bulletins it wrote stay, without a name.

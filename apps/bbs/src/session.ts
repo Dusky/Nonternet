@@ -5,6 +5,7 @@ import { CoreError, type Core, type LoginResult, type UserApi } from './core';
 import type { NodeHolder, Nodes } from './nodes';
 import type { Term } from './term';
 import { SCREENS } from './screens';
+import { newBulletinNote, recentOneliners } from './screens/classics';
 
 export interface BbsContext {
   core: Core;
@@ -104,6 +105,16 @@ export class Session implements NodeHolder {
     if (motd.trim()) t.line(`\n${motd.trim()}`);
     const announcements = await this.ctx.core.publicGet<{ announcements: { id: string; title: string; body: string }[] }>('/announcements').catch(() => ({ announcements: [] }));
     for (const a of announcements.announcements) { this.seen.add(a.id); t.line(`\x1b[1;33m${a.title}\x1b[0m ${a.body}`); }
+    if (!this.lastCall && this.ctx.art.has('newuser')) t.write(this.ctx.art.render('newuser', { handle: this.user!.handle, node: this.node }));
+    // The newest bulletin if it is new to this caller, then the last few lines on the oneliners wall.
+    const note = await newBulletinNote(this);
+    if (note) t.line(`\n${note}`);
+    const wall = await recentOneliners(this, 5).catch(() => []);
+    if (wall.length) {
+      t.line('\n\x1b[2mOn the wall:\x1b[0m');
+      for (const o of [...wall].reverse()) t.line(`  ${(o.author?.handle ?? '-').padEnd(16)} ${o.body}`);
+      t.line('\x1b[2mPress O at the menu to add yours.\x1b[0m');
+    }
     for (;;) {
       if (this.ended) return;
       this.at('Main menu');
@@ -155,6 +166,12 @@ export class Session implements NodeHolder {
   private async end(): Promise<void> {
     if (this.ended) return;
     this.ended = true;
+    // A "last call" screen with today's numbers, from the same list the Last callers screen uses.
+    if (this.user && !this.term.closed && this.api && this.ctx.art.has('lastcall')) {
+      const today = new Date().toISOString().slice(0, 10);
+      const list = await this.api.get<{ callers: { at: string }[] }>('/bbs/last-callers').catch(() => ({ callers: [] }));
+      this.term.write(this.ctx.art.render('lastcall', { handle: this.user.handle, node: this.node, callers_today: list.callers.filter((c) => c.at.startsWith(today)).length }));
+    }
     if (this.user && !this.term.closed) this.term.write(this.ctx.art.render('goodbye', { handle: this.user.handle, node: this.node }));
     this.term.close();
     this.ctx.nodes.release(this.node, this.ip);

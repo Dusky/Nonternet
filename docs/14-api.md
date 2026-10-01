@@ -133,3 +133,9 @@ muted boards). `PATCH /me` also takes `status_line`, `away`, `show_last_seen`, `
 `DELETE /me/avatar`, `GET /avatars`, `GET /avatars/:id`, admin `DELETE /admin/users/:id/avatar` `{reason}` (audited as
 `user.avatar_removed`). `GET /people?q=&role=&offset=`. `GET /users/:handle` gains `status_line`, `away`, `last_seen`,
 `homepage`, `recent_posts`. `GET /mail` threads gain `muted`.
+
+## BBS classics (M9-E)
+`GET|POST /oneliners`, `DELETE /oneliners/:id`, admin `POST /admin/oneliners/:id/hide|unhide {reason}`. `GET /bulletins`, `GET /bulletins/:number`
+(marks read), admin `POST /admin/bulletins`, `PATCH /admin/bulletins/:number`, `POST /admin/bulletins/:number/hide {reason}`. `GET|POST /polls`,
+`GET /polls/:id`, `POST /polls/:id/vote {option_id}`, admin `POST /admin/polls/:id/hide {reason}`. All need a signed-in, confirmed person.
+Live hint `classics`.

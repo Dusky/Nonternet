@@ -1,0 +1,5 @@
+
+{{c:green}}┌──────────────────────────────────────────────────────────────┐{{c:reset}}
+{{c:green}}│{{c:reset}}                       The voting booth                       {{c:green}}│{{c:reset}}
+{{c:green}}│{{c:reset}}      one vote each; the tally shows once you have voted      {{c:green}}│{{c:reset}}
+{{c:green}}└──────────────────────────────────────────────────────────────┘{{c:reset}}

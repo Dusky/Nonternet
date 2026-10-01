@@ -365,6 +365,53 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     }
   });
 
+  it('shows the oneliners wall and bulletins at login, takes a line and a vote from the terminal, and the web sees both', async () => {
+    const poster = await person();
+    await poster.c.post('/api/v1/oneliners', { body: 'hello from the web' });
+    const bull = (await admin.client.post('/api/v1/admin/bulletins', { title: 'Server moves Sunday', body: 'Short downtime.\nBack by noon.' })).body;
+    const asker = await makeUser(ctx, { role: 'trusted' });
+    const ac = await loginAs(ctx, asker.handle);
+    const poll = (await ac.post('/api/v1/polls', { question: 'Favourite door game?', options: ['Echo Chamber', 'Something else'] })).body;
+
+    const u = await person();
+    const { s, screen, type } = telnet();
+    await screen.until(/Handle:/);
+    type(`${u.handle}\rterminal pass 1\r`);
+    await screen.until(/On the wall:[\s\S]*hello from the web/);
+    await screen.until(new RegExp(`Bulletin #${bull.number}: Server moves Sunday`));
+    await screen.until(/Main menu \[/);
+    // Put a line on the wall.
+    type('o');
+    await screen.until(/Add a line/);
+    type('a');
+    await screen.until(/Your line/);
+    type('hi from the terminal\r');
+    await screen.until(/Up on the wall\./);
+    expect((await poster.c.get('/api/v1/oneliners')).body.oneliners.map((o: { body: string }) => o.body)).toContain('hi from the terminal');
+    type('q');
+    await screen.until(/Main menu \[[\s\S]*Oneliners[\s\S]*Main menu \[/);
+    // Read the bulletin: it stops being new.
+    type('i');
+    await screen.until(/Bulletin number to read/);
+    type(`${bull.number}\r`);
+    await screen.until(/Back by noon\./);
+    expect((await u.c.get('/api/v1/bulletins')).body.unread).toBe(0);
+    type('q\r');
+    // Vote in the booth; the tally appears after voting, and the web agrees.
+    await screen.until(/Main menu \[[\s\S]*Bulletins[\s\S]*Main menu \[/);
+    type('v');
+    await screen.until(/Favourite door game\?/);
+    type('1\r');
+    await screen.until(/Your choice/);
+    type('1\r');
+    await screen.until(/Vote counted/);
+    await screen.until(/<- your vote/);
+    const web = (await u.c.get(`/api/v1/polls/${poll.id}`)).body;
+    expect(web).toMatchObject({ voted: true, total: 1 });
+    expect(web.options.find((o: { label: string }) => o.label === 'Echo Chamber').votes).toBe(1);
+    s.destroy();
+  });
+
   it('limits callers per address', async () => {
     for (let i = 0; i < 50 && bbs.nodes.list().length; i++) await new Promise((r) => setTimeout(r, 100)); // earlier callers have hung up
     const callers = [telnet(), telnet(), telnet()];

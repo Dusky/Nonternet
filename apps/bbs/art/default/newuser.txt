@@ -1,0 +1,5 @@
+
+{{c:cyan}}── {{c:bold}}Welcome to {{site.name}}{{c:reset}}{{c:cyan}} ─────────────────────────────{{c:reset}}
+This looks like your first call, {{handle}}. A few things to try:
+  {{c:bold}}B{{c:reset}} Boards   {{c:bold}}M{{c:reset}} Mail   {{c:bold}}O{{c:reset}} the oneliners wall   {{c:bold}}V{{c:reset}} the voting booth
+Everything here is also on the web at {{site.url}}.

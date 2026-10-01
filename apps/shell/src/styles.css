@@ -752,3 +752,8 @@ button.chat-nick:hover { text-decoration: underline; }
 .avatar-edit { display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-4); }
 .profile-status { margin: var(--space-1) 0 0; }
 .homepage-card { display: inline-block; }
+
+/* BBS classics (M9-E) */
+ul.wall li { padding: var(--space-1) 0; border-bottom: 1px dotted var(--border); }
+.poll-results li { display: grid; grid-template-columns: minmax(8rem, 1fr) 10rem auto; gap: var(--space-3); align-items: center; padding: var(--space-1) 0; }
+.poll-results meter { width: 100%; }

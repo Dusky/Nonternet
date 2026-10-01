@@ -1,0 +1,3 @@
+
+{{c:cyan}}── Last call ─────────────────────────────────────────────────{{c:reset}}
+{{callers_today}} caller(s) on {{site.name}} today, counting you on node {{node}}.

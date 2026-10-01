@@ -12,5 +12,9 @@ main:
     - { key: L, label: Last callers, action: lastcallers }
     - { key: D, label: Door games, action: doors }
     - { key: Q, label: QWK offline mail, action: qwk }
+    - { key: O, label: Oneliners wall, action: oneliners }
+    - { key: I, label: Information bulletins, action: bulletins }
+    - { key: V, label: Voting booth, action: polls }
+    - { key: F, label: File areas, action: files }
     - { key: S, label: Settings, action: settings }
     - { key: G, label: Goodbye, action: goodbye }

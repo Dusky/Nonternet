@@ -1,0 +1,5 @@
+
+{{c:blue}}┌──────────────────────────────────────────────────────────────┐{{c:reset}}
+{{c:blue}}│{{c:reset}}                          File areas                          {{c:blue}}│{{c:reset}}
+{{c:blue}}│{{c:reset}}                look here, download on the web                {{c:blue}}│{{c:reset}}
+{{c:blue}}└──────────────────────────────────────────────────────────────┘{{c:reset}}

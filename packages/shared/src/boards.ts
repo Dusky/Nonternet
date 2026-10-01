@@ -10,7 +10,7 @@ export const SUBJECT_MAX = 71;      // what a classic terminal can show on one l
 export const BODY_MAX = 20000;
 export const TERMINAL_COLUMNS = 79;
 
-const RESERVED_SLUGS = ['new', 'settings', 'search'];
+const RESERVED_SLUGS = ['new', 'settings', 'search', 'reports', 'bulletins', 'polls']; // the board app's own pages
 export const slugSchema = z
   .string()
   .trim()

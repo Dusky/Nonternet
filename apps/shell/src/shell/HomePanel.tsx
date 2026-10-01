@@ -7,6 +7,7 @@ import { Icon } from '../components/Icon';
 import { Avatar } from '../components/ui';
 import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById } from './apps';
+import { Oneliners } from './Oneliners';
 import { useWindows, type AppId } from './windows';
 
 export interface OnlinePerson { id: string; handle: string; display_name: string | null; status_line: string | null; away: boolean; web: boolean; chat: boolean; bbs: { node: number; where: string; via: string } | null }
@@ -89,6 +90,8 @@ export function HomePanel({ me }: { me: Me }) {
           </ul>
         </section>
       )}
+
+      {confirmed && <Oneliners />}
 
       {withNew.length > 0 && (
         <section className="panel" aria-labelledby="home-new">

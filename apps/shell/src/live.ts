@@ -15,7 +15,7 @@ export const POLL_SLOW = 300_000;  // a safety net while there is one
 // How often a counter should check by itself.
 export const pollMs = (status: LiveStatus): number => (status === 'live' ? POLL_SLOW : POLL_FAST);
 
-interface Hint { type: 'notifications' | 'mail' | 'board' | 'announcements' | 'presence'; slug?: string; thread?: string }
+interface Hint { type: 'notifications' | 'mail' | 'board' | 'announcements' | 'presence' | 'classics'; slug?: string; thread?: string }
 
 export function applyHint(qc: QueryClient, h: Hint): void {
   const inv = (queryKey: unknown[]) => void qc.invalidateQueries({ queryKey });
@@ -24,6 +24,7 @@ export function applyHint(qc: QueryClient, h: Hint): void {
     case 'mail': inv(['mail']); break;
     case 'announcements': inv(['announcements']); break;
     case 'presence': inv(['online']); break;
+    case 'classics': inv(['classics']); break;
     case 'board':
       inv(['boards']);
       if (h.slug) { inv(['board', h.slug]); inv(['threads', h.slug]); }
@@ -32,7 +33,7 @@ export function applyHint(qc: QueryClient, h: Hint): void {
   }
 }
 
-const TYPES: Hint['type'][] = ['notifications', 'mail', 'board', 'announcements', 'presence'];
+const TYPES: Hint['type'][] = ['notifications', 'mail', 'board', 'announcements', 'presence', 'classics'];
 
 export function useLiveEvents(userId: string | null, onArrive?: (type: 'notifications' | 'mail') => void): void {
   const qc = useQueryClient();
