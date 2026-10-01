@@ -35,7 +35,9 @@ test('every main screen, in every theme', async ({ page, browser, isMobile }, in
   const reader = await makeUser(page, { handle: uniq('lin') });
   const api = page.context().request;
   await api.post('/api/v1/auth/login', { data: { identifier: owner.handle, password: PASSWORD }, headers: h });
-  await api.patch('/api/v1/me', { data: { display_name: 'Ada', bio: 'Keeps the synth board tidy. Ask me about modular patches.' }, headers: h });
+  await api.patch('/api/v1/me', { data: { display_name: 'Ada', bio: 'Keeps the synth board tidy. Ask me about modular patches.', status_line: 'Patching a Eurorack rig' }, headers: h });
+  const blue = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAF0lEQVR4nGO4UxGFFTHcqdDAihgGpQ4ABQBlQZgHAqwAAAAASUVORK5CYII=', 'base64');
+  await api.put('/api/v1/me/avatar', { data: blue, headers: { ...h, 'content-type': 'application/octet-stream' } });
   const slug = uniq('synths');
   await api.post('/api/v1/boards', { data: { slug, name: 'Synths and modular', visibility: 'public', description: 'Patches, gear, and help with both.' }, headers: h });
   const t = await (await api.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'What was your first synth?', body: 'Mine was a battered Juno-106 from a pawn shop.\nThe voice chips died a year later, but I learned everything on it.' }, headers: h })).json();
@@ -66,7 +68,7 @@ test('every main screen, in every theme', async ({ page, browser, isMobile }, in
       ['rings', '/rings'], ['people', `/people/${owner.handle}`], ['mail', '/mail'], ['files', '/files'],
       ['homepages', '/homepages'], ['studio', '/studio'], ['notifications', '/notifications'],
       ['settings', '/settings/profile'], ['settings-appearance', '/settings/appearance'],
-      ['chat', '/chat'], ['terminal', '/terminal'], ['mud', '/mud'], ['people-find', '/people'],
+      ['chat', '/chat'], ['terminal', '/terminal'], ['mud', '/mud'], ['people-find', '/people'], ['settings-notifications', '/settings/notifications'],
     ];
     for (const [name, path] of pages) {
       try {
