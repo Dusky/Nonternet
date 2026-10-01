@@ -1,4 +1,5 @@
 import type { Session } from '../session';
+import { page } from './pager';
 import { bold, cut, dim, heading, pad, when } from './util';
 
 interface OnlinePerson { handle: string; display_name: string | null; web: boolean; chat: boolean; bbs: { node: number; where: string; via: string } | null }
@@ -12,11 +13,14 @@ export async function who(s: Session): Promise<void> {
   t.line(dim(`${pad('Node', 6)}${pad('Handle', 20)}Where`));
   // Our own nodes come straight from the BBS (always current); the web and chat from core.
   const local = s.ctx.nodes.list().filter((n) => n.user);
-  for (const n of local) t.line(`${pad(String(n.node), 6)}${pad(n.user!.handle, 20)}${cut(`${n.where} (${n.via})`, 50)}`);
   const here = new Set(local.map((n) => n.user!.handle.toLowerCase()));
   const elsewhere = people.filter((p) => !here.has(p.handle.toLowerCase()) && (p.web || p.chat));
-  for (const p of elsewhere) t.line(`${pad('-', 6)}${pad(p.handle, 20)}${[p.web && 'on the web', p.chat && 'in chat'].filter(Boolean).join(', ')}`);
-  t.line(dim(`${local.length + elsewhere.length} online`));
+  // A screenful at a time, so a busy evening doesn't scroll the BBS's own callers off the top.
+  await page(s, [
+    ...local.map((n) => `${pad(String(n.node), 6)}${pad(n.user!.handle, 20)}${cut(`${n.where} (${n.via})`, 50)}`),
+    ...elsewhere.map((p) => `${pad('-', 6)}${pad(p.handle, 20)}${[p.web && 'on the web', p.chat && 'in chat'].filter(Boolean).join(', ')}`),
+    dim(`${local.length + elsewhere.length} online`),
+  ]);
 }
 
 export async function lastCallers(s: Session): Promise<void> {
@@ -25,7 +29,7 @@ export async function lastCallers(s: Session): Promise<void> {
   const { callers } = await s.api.get<{ callers: { handle: string; node: number; via: string; at: string; left_at: string | null }[] }>('/bbs/last-callers');
   t.line(heading('Last callers'));
   t.line(dim(`${pad('When (UTC)', 18)}${pad('Handle', 20)}${pad('Node', 6)}Via`));
-  for (const c of callers) t.line(`${pad(when(c.at), 18)}${pad(c.handle, 20)}${pad(String(c.node), 6)}${c.via}${c.left_at ? '' : bold(' on now')}`);
+  await page(s, callers.map((c) => `${pad(when(c.at), 18)}${pad(c.handle, 20)}${pad(String(c.node), 6)}${c.via}${c.left_at ? '' : bold(' on now')}`));
   if (!callers.length) t.line('Nobody has called yet.');
 }
 

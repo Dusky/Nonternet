@@ -1,8 +1,9 @@
+import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { JOIN_POLICIES, type RingDetail, type RingMemberView, type RingSummary } from '@app/shared';
 import { api } from '../../api';
-import { Alert, CopyButton, TextField } from '../../components/ui';
+import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav } from '../../nav';
 import { OpenAppLink } from '../../shell/OpenAppLink';
@@ -11,9 +12,8 @@ const ROUTES = ['', 'new', ':slug'] as const;
 
 export default function RingsApp() {
   const nav = useAppNav();
-  const t = useT();
   const route = matchRoute(nav.path, ROUTES);
-  if (!route) return <p className="pad">{t('error.notFound')}</p>;
+  if (!route) return <div className="app-content"><NotFound /></div>;
   return (
     <div className="app-content">
       {route.pattern === '' && <Directory />}
@@ -66,22 +66,23 @@ function Directory() {
         <button className="btn btn-primary" type="submit">{t('boards.search.go')}</button>
       </form>
       <div className="toolbar">
-        <button className="btn" type="button" onClick={() => random.mutate()}>{t('rings.random')}</button>
         {(me?.role === 'trusted' || me?.role === 'admin') && <AppLink className="btn btn-primary" to="new">{t('rings.found')}</AppLink>}
+        <button className="btn" type="button" onClick={() => random.mutate()}>{t('rings.random')}</button>
       </div>
       {error && <Alert kind="error">{error}</Alert>}
       {list.isError && <Alert kind="error">{errorText(list.error)}</Alert>}
-      {list.isSuccess && items.length === 0 && <p>{t('rings.none')}</p>}
-      <ul className="rows">
+      {list.isSuccess && items.length === 0 && <EmptyState>{t('rings.none')}</EmptyState>}
+      {list.isPending && <Loading rows={3} />}
+      <ul className="cards">
         {items.map((r) => (
           <li key={r.id}>
-            <AppLink to={r.slug}><strong>{r.name}</strong></AppLink>{' '}
-            {r.archived && <span className="badge">{t('rings.archived')}</span>}
-            {r.description && <p>{r.description}</p>}
-            <p className="hint">
-              {t('rings.members', { count: r.member_count })} · {t(`rings.policy.${r.join_policy}`)}
-              {r.tags.length > 0 && ` · ${r.tags.join(', ')}`}
-            </p>
+            <div className="row-head">
+              <AppLink to={r.slug} className="board-link"><strong>{r.name}</strong></AppLink>
+              {r.archived && <span className="badge">{t('rings.archived')}</span>}
+            </div>
+            {r.description && <p className="snippet">{r.description}</p>}
+            <p className="row-meta">{t('rings.members', { count: r.member_count })} · {t(`rings.policy.${r.join_policy}`)}</p>
+            {r.tags.length > 0 && <p className="tags">{r.tags.map((x) => <button key={x} type="button" className="badge tag" onClick={() => setTag(x)} aria-label={t('rings.filterTag', { tag: x })}>{x}</button>)}</p>}
           </li>
         ))}
       </ul>
@@ -106,7 +107,7 @@ function FoundRing() {
   const set = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
     <>
-      <p><AppLink to="">&#8592; {t('rings.back')}</AppLink></p>
+      <BackLink to="">{t('rings.back')}</BackLink>
       <form className="panel" onSubmit={(e) => { e.preventDefault(); setError(null); create.mutate(); }}>
         <h2>{t('rings.form.title')}</h2>
         <TextField label={t('rings.form.slug')} hint={t('rings.form.slugHint')} value={f.slug} onChange={(v) => set('slug')(v.toLowerCase())} maxLength={24} autoCapitalize="none" spellCheck={false} required />
@@ -140,11 +141,11 @@ function RingPage({ slug }: { slug: string }) {
   const leave = useMutation({ mutationFn: () => api.post(`/rings/${slug}/leave`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
   const r = q.data;
-  if (!r) return <p className="pad">{t('common.loading')}</p>;
+  if (!r) return <Loading />;
   const status = r.me?.status ?? null;
   return (
     <>
-      <p><AppLink to="">&#8592; {t('rings.back')}</AppLink></p>
+      <BackLink to="">{t('rings.back')}</BackLink>
       <h2>{r.name} {r.archived && <span className="badge">{t('rings.archived')}</span>}</h2>
       {r.description && <p>{r.description}</p>}
       <p className="hint">
@@ -171,7 +172,7 @@ function RingPage({ slug }: { slug: string }) {
 
       <section aria-labelledby="latest-h">
         <h3 id="latest-h">{t('rings.latest')}</h3>
-        {r.latest_posts.length === 0 && <p>{t('rings.latest.none')}</p>}
+        {r.latest_posts.length === 0 && <EmptyState>{t('rings.latest.none')}</EmptyState>}
         <ul className="rows">
           {r.latest_posts.map((p) => (
             <li key={p.id}>
@@ -249,6 +250,7 @@ function ReasonInput({ onSubmit, label, pending }: { onSubmit: (reason: string) 
 
 function Manage({ ring, onChange }: { ring: RingDetail; onChange: () => void }) {
   const t = useT();
+  const confirm = useConfirm();
   const me = useMe().data;
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -342,7 +344,7 @@ function Manage({ ring, onChange }: { ring: RingDetail; onChange: () => void }) 
             <TextField label={t('rings.manage.addOp')} value={opHandle} onChange={setOpHandle} autoCapitalize="none" spellCheck={false} required />
             <button className="btn" type="submit" disabled={addOp.isPending}>{t('boards.settings.add')}</button>
           </form>
-          <form onSubmit={(e) => { e.preventDefault(); if (window.confirm(t('rings.manage.transferConfirm'))) transfer.mutate(); }}>
+          <form onSubmit={(e) => { e.preventDefault(); void confirm({ message: t('rings.manage.transferConfirm'), confirmLabel: t('confirm.handOver') }).then((ok) => ok && transfer.mutate()); }}>
             <TextField label={t('rings.manage.transfer')} value={heir} onChange={setHeir} autoCapitalize="none" spellCheck={false} required />
             <button className="btn btn-danger" type="submit" disabled={transfer.isPending}>{t('rings.manage.transferGo')}</button>
           </form>

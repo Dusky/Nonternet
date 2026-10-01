@@ -14,6 +14,6 @@ export async function online(deps: AppDeps) {
   const web = new Set(webIds);
   return r.rows.map((u) => {
     const n = nodes.find((x) => x.user_id === u.id);
-    return { handle: u.handle, display_name: u.display_name, web: web.has(u.id), chat: irc.has(u.handle.toLowerCase()), bbs: n ? { node: n.node, where: n.where, via: n.via } : null };
+    return { id: u.id, handle: u.handle, display_name: u.display_name, web: web.has(u.id), chat: irc.has(u.handle.toLowerCase()), bbs: n ? { node: n.node, where: n.where, via: n.via } : null };
   });
 }

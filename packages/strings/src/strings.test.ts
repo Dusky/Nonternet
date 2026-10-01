@@ -27,6 +27,20 @@ describe('strings', () => {
     }
   });
 
+  it('picks the singular or the plural form by count', () => {
+    const t = makeT(siteA);
+    expect(t('boards.threads', { count: 1 })).toBe('1 thread');
+    expect(t('boards.threads', { count: 0 })).toBe('0 threads');
+    expect(t('boards.threads', { count: 12 })).toBe('12 threads');
+    for (const [key, tpl] of Object.entries(en)) {
+      if (!tpl.includes('|')) continue;
+      expect(tpl.split('|'), `${key}: a "one|many" string has exactly two forms`).toHaveLength(2);
+      const params: Record<string, string | number> = {};
+      for (const m of tpl.matchAll(/\{([a-zA-Z0-9]+)\}/g)) params[m[1]!] = 'x';
+      for (const count of [1, 2]) expect(() => format(tpl, siteA, { ...params, count }), key).not.toThrow();
+    }
+  });
+
   it('follows the voice guide: no exclamation marks in system text', () => {
     for (const [key, tpl] of Object.entries(en)) expect(tpl, key).not.toContain('!');
   });

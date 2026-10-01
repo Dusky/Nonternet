@@ -4,6 +4,7 @@ import type { Me, PublicSite } from '@app/shared';
 import { en, makeT } from '@app/strings';
 import { api, ApiError } from './api';
 import { fetchSite } from './site';
+import { applyTheme, hasRememberedTheme } from './theme';
 
 type T = ReturnType<typeof makeT>;
 const SiteContext = createContext<{ site: PublicSite; t: T } | null>(null);
@@ -13,7 +14,11 @@ const SiteContext = createContext<{ site: PublicSite; t: T } | null>(null);
 export function SiteProvider({ children }: { children: ReactNode }) {
   const q = useQuery({ queryKey: ['site'], queryFn: fetchSite, staleTime: Infinity, retry: 1 });
   const value = useMemo(() => (q.data ? { site: q.data, t: makeT(q.data) } : null), [q.data]);
-  useEffect(() => { if (value) document.title = value.t('landing.title'); }, [value]);
+  useEffect(() => {
+    if (!value) return;
+    document.title = value.t('landing.title');
+    if (!hasRememberedTheme() && value.site.default_theme) applyTheme(value.site.default_theme, { remember: false });
+  }, [value]);
   if (q.isError) {
     return (
       <main className="center">

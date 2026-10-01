@@ -1,10 +1,11 @@
+import { useToast } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CREATABLE_VISIBILITIES, type BoardSummary } from '@app/shared';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, BackLink } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
-import { AppLink, useAppNav } from '../../nav';
+import { useAppNav } from '../../nav';
 
 function VisibilityField({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
   const t = useT();
@@ -35,7 +36,7 @@ export function NewBoard() {
   const submit = (e: FormEvent) => { e.preventDefault(); setError(null); create.mutate(); };
   return (
     <>
-      <p><AppLink to="">&#8592; {t('boards.backToBoards')}</AppLink></p>
+      <BackLink to="">{t('boards.backToBoards')}</BackLink>
       <form className="panel" onSubmit={submit}>
         <h2>{t('boards.form.title')}</h2>
         <TextField label={t('boards.form.slug')} hint={t('boards.form.slugHint')} value={slug} onChange={(v) => setSlug(v.toLowerCase())}
@@ -57,25 +58,24 @@ export function BoardSettings({ board }: { board: BoardSummary }) {
   const [description, setDescription] = useState(board.description);
   const [visibility, setVisibility] = useState(board.visibility === 'ring' ? 'public' : board.visibility);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const toast = useToast();
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['boards'] }); void qc.invalidateQueries({ queryKey: ['board', board.slug] }); };
   const patch = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.patch<BoardSummary>(`/boards/${board.slug}`, body),
-    onSuccess: () => { setError(null); setSaved(true); refresh(); },
-    onError: (e) => { setSaved(false); setError(errorText(e)); },
+    onSuccess: () => { setError(null); toast(t('common.saved')); refresh(); },
+    onError: (e) => setError(errorText(e)),
   });
 
   if (!board.can_moderate) return <p>{t('boards.settings.forbidden')}</p>;
   return (
     <>
-      <p><AppLink to={board.slug}>&#8592; {t('boards.back', { name: board.name })}</AppLink></p>
+      <BackLink to={board.slug}>{t('boards.back', { name: board.name })}</BackLink>
       <h2>{t('boards.settings.title', { name: board.name })}</h2>
-      <form className="panel" onSubmit={(e) => { e.preventDefault(); setSaved(false); patch.mutate({ name, description, visibility }); }}>
+      <form className="panel" onSubmit={(e) => { e.preventDefault(); patch.mutate({ name, description, visibility }); }}>
         <TextField label={t('boards.form.name')} value={name} onChange={setName} maxLength={60} required />
         <TextField label={t('boards.form.description')} value={description} onChange={setDescription} maxLength={500} multiline />
         <VisibilityField id="set-vis" value={visibility} onChange={(v) => setVisibility(v as typeof visibility)} />
         {error && <Alert kind="error">{error}</Alert>}
-        {saved && <Alert kind="success">{t('common.saved')}</Alert>}
         <button className="btn btn-primary" type="submit" disabled={patch.isPending}>{t('common.save')}</button>
       </form>
       <div className="panel">

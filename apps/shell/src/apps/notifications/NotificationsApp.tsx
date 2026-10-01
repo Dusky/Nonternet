@@ -1,8 +1,8 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NotificationView } from '@app/shared';
 import { api } from '../../api';
-import { Alert } from '../../components/ui';
-import { errorText, formatWhen, useT } from '../../hooks';
+import { Alert, Avatar, EmptyState, Loading, RelativeTime } from '../../components/ui';
+import { errorText, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 
 interface Page { notifications: NotificationView[]; unread: number; next: string | null }
@@ -28,17 +28,26 @@ export default function NotificationsApp() {
         <button type="button" className="btn" onClick={() => markAll.mutate()} disabled={markAll.isPending || unread === 0}>{t('notifications.markAll')}</button>
       </div>
       {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
-      {q.isSuccess && items.length === 0 && <p>{t('notifications.none')}</p>}
+      {q.isSuccess && items.length === 0 && <EmptyState>{t('notifications.none')}</EmptyState>}
+      {q.isPending && <Loading rows={3} />}
       <ul className="rows notif-rows">
         {items.map((n) => {
           const name = n.actor.display_name || n.actor.handle;
           return (
-            <li key={n.id} className={n.read ? undefined : 'is-unread'}>
-              <OpenAppLink app="boards" to={`${n.board.slug}/t/${n.thread_id}`} onClick={() => { if (!n.read) markOne.mutate(n.id); }}>
-                <strong>{t(`notifications.${n.kind}`, { name })}</strong>
-              </OpenAppLink>{' '}
-              {!n.read && <span className="badge badge-open">{t('notifications.unreadBadge')}</span>}
-              <p className="hint">{n.subject && <>{n.subject} · </>}{t('notifications.in', { board: n.board.name })} · {formatWhen(n.at)}</p>
+            <li key={n.id} className={`mail-row${n.read ? '' : ' is-unread'}`}>
+              <Avatar id={n.actor.id} name={name} />
+              <div>
+                <div className="row-head">
+                  <span>
+                    <OpenAppLink app="boards" to={`${n.board.slug}/t/${n.thread_id}`} onClick={() => { if (!n.read) markOne.mutate(n.id); }}>
+                      <strong>{t(`notifications.${n.kind}`, { name })}</strong>
+                    </OpenAppLink>{' '}
+                    {!n.read && <span className="badge badge-accent">{t('notifications.unreadBadge')}</span>}
+                  </span>
+                  <span className="row-meta"><RelativeTime iso={n.at} /></span>
+                </div>
+                <p className="row-meta">{n.subject && <>{n.subject} · </>}{t('notifications.in', { board: n.board.name })}</p>
+              </div>
             </li>
           );
         })}

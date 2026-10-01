@@ -24,6 +24,12 @@ export function rememberedTheme(): ThemeName {
   return isThemeName(v) ? v : DEFAULT_THEME;
 }
 
+// Whether this browser has a theme of its own (picked here, or from the person's profile). If not,
+// the site's default (an admin setting) is used once the site config has loaded.
+export function hasRememberedTheme(): boolean {
+  try { return isThemeName(store()?.getItem(THEME_KEY)); } catch { return false; }
+}
+
 // Effects (scanlines, glow) are switched on by the theme unless the person turned them off, and
 // they never run for someone who asked the browser for reduced motion.
 export function effectPrefs(theme: ThemeName): EffectPrefs {
@@ -38,11 +44,22 @@ export function saveEffectPrefs(theme: ThemeName, prefs: EffectPrefs): void {
   try { store()?.setItem(`${EFFECTS_KEY}:${theme}`, JSON.stringify(prefs)); } catch { /* a convenience only */ }
 }
 
-export function applyTheme(theme: ThemeName): void {
+export function applyTheme(theme: ThemeName, opts: { remember?: boolean } = {}): void {
   const root = document.documentElement;
   const prefs = effectPrefs(theme);
   root.dataset.theme = theme;
   root.dataset.scanlines = prefs.scanlines ? 'on' : 'off';
   root.dataset.glow = prefs.glow ? 'on' : 'off';
+  if (opts.remember === false) return;
   try { store()?.setItem(THEME_KEY, theme); } catch { /* a convenience only */ }
+}
+
+// The taskbar clock: on unless the person switched it off on this device.
+const CLOCK_KEY = 'ui:clock';
+export function clockPref(): boolean {
+  try { return store()?.getItem(CLOCK_KEY) !== 'off'; } catch { return true; }
+}
+export function saveClockPref(on: boolean): void {
+  try { store()?.setItem(CLOCK_KEY, on ? 'on' : 'off'); } catch { /* a convenience only */ }
+  window.dispatchEvent(new Event('ui:clock'));
 }

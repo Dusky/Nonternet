@@ -25,7 +25,8 @@ Every app also has a normal full-page URL (links, bookmarks, sharing).
 
 ## Desktop layout
 Taskbar (launcher, open windows, online count, mail with unread count, notifications, clock); draggable/resizable
-windows with remembered positions; desktop icons; keyboard window cycling.
+windows with remembered positions; desktop icons; keyboard window cycling. All built; see "As built
+(design pass)" below.
 
 ## Mobile
 Launcher grid; apps full-screen with back navigation; terminal key bar (Esc, Ctrl, Tab,
@@ -86,3 +87,44 @@ in-house window manager. All strings from `packages/strings` with `site.name` in
   conversation and their blocks go. **Export** (`12`): `mail/conversations.json` (each conversation's
   subject, people, and only your own messages) and `mail/blocked.json`.
 - API in `14`; core in `apps/core/src/mail.ts`; tests `mail.test.ts`, `e2e/tests/mail.spec.ts`.
+
+## As built (design pass, 2026-10-01)
+The owners asked for a design, UI and usability pass: a stronger default look with the copy kept
+plain, a "what's new" home, and the full landing page. No new themes.
+- **Design tokens** (`packages/ui-themes`): besides colours, each theme sets a display font (system
+  monospace: the site name, headings, numbers), three radii, two shadows, a tinted surface for
+  selected and unread items (`accentSoft`), `warn`, a stronger line, title-bar colours for the focused
+  window, and the desktop's dotted background. Modern is warm paper and ink with a blue accent.
+  Contrast tests cover every new text pair. No font files are bundled (V10 stays open).
+- **Scales** (`styles.css`): one type scale (`--step-*`, fluid) and one spacing scale (`--space-*`)
+  used everywhere; controls are 40px high, 44px on touch screens.
+- **Shared components** (`apps/shell/src/components`): `ConfirmDialog` via `useConfirm()` (a native
+  `<dialog>` naming the action on its button; it replaced every `window.confirm`), `useToast()`,
+  `EmptyState`, `Loading` (placeholder rows for lists), `BackLink`, `Tabs`, `SideNav` (Settings and
+  the admin console, grouped; chips on narrow screens), `Avatar` (initials, colour from the stable
+  id), `RelativeTime` (exact time on hover), `NotFound`.
+- **Strings** can have a singular and a plural form, `"one|many"`, picked by `{count}` (no more
+  "1 threads").
+- **Taskbar**: apps menu with coloured app tiles, a search button, open windows with their icons,
+  people online (opens People), a clock (Settings → Appearance can hide it, per device), mail,
+  notifications, and an account menu with the person's avatar.
+- **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
+  person by handle). Alt+` brings the next window forward, minimized ones included. In a focused
+  title bar, Alt+Left and Alt+Right snap the window to half the screen. Menus follow the menu button
+  pattern (arrows, Home, End, Escape returns focus). Opening a window moves focus into it; closing
+  one gives focus to the window behind or the app's desktop icon.
+- **Home**: on the desktop a home panel sits beside the icons; on a phone it is above the app grid.
+  It shows a greeting, counts (new posts, unread mail, notifications, people online), boards with
+  new posts, who's online, a "getting started" list worked out from what the person has already done
+  (bio, homepage, watching a board, two-factor; confirming email for guests), dismissable, and links
+  to their homepage. Empty sections are left out.
+- **Who's online** is now shown: the home panel, the taskbar count, and the People app's start page.
+- **Phones**: a tab bar along the bottom (Home, Boards, Mail, Notifications, Me) with unread counts.
+- **Landing page**: site name, tagline, people online (a number only), recent threads on public
+  boards, a few rings and homepages, and how to connect (web; telnet, SSH, IRC and the MUD when
+  they are on). Data from `GET /api/v1/landing` (public, cached 30 s).
+- **Default theme**: `ui.default_theme` in the site config, editable in the console; used until the
+  person picks a theme.
+- **Windows** open to the right of the desktop icons so the icons stay reachable.
+- **Screenshots** for reviewing design changes: `SCREENSHOTS=<folder> pnpm --filter @app/e2e test
+  screens` captures every main screen on desktop and phone in modern light, modern dark and amber.

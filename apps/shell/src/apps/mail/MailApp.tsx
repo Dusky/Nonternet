@@ -1,9 +1,10 @@
+import { useConfirm } from '../../components/feedback';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, type MailMessageView, type MailPerson, type MailThreadSummary, type MailThreadView } from '@app/shared';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
-import { errorText, formatWhen, useT } from '../../hooks';
+import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
+import { errorText, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav } from '../../nav';
 import { PersonLink } from '../people/PersonLink';
 
@@ -12,9 +13,8 @@ const ROUTES = ['', 'new', 'new/:to', ':id'] as const;
 // Private mail (docs/10): conversations between two people or a small group, on this site only.
 export default function MailApp() {
   const nav = useAppNav();
-  const t = useT();
   const route = matchRoute(nav.path, ROUTES);
-  if (!route) return <p className="pad">{t('error.notFound')}</p>;
+  if (!route) return <div className="app-content"><NotFound /></div>;
   return (
     <div className="app-content">
       {route.pattern === '' && <Inbox />}
@@ -34,17 +34,22 @@ function Inbox() {
       <div className="toolbar"><AppLink to="new" className="btn btn-primary">{t('mail.new')}</AppLink></div>
       <p className="hint">{t('mail.private')}</p>
       {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
-      {q.data && q.data.threads.length === 0 && <p>{t('mail.none', { max: MAIL_MAX_PEOPLE })}</p>}
+      {q.data && q.data.threads.length === 0 && <EmptyState icon="inbox">{t('mail.none', { max: MAIL_MAX_PEOPLE })}</EmptyState>}
+      {!q.data && !q.isError && <Loading rows={3} />}
       <ul className="rows mail-rows">
         {q.data?.threads.map((th) => (
-          <li key={th.id} className={th.unread ? 'is-unread' : undefined}>
-            <AppLink to={th.id}><strong>{th.subject}</strong></AppLink>{' '}
-            {th.unread && <span className="badge badge-open">{t('mail.unreadBadge')}</span>}{' '}
-            {th.left && <span className="badge">{t('mail.leftBadge')}</span>}
-            <p className="hint">
-              {t('mail.with', { names: th.people.length ? th.people.map((p) => who(t, p)).join(', ') : t('mail.nobody') })} · <time dateTime={th.last_message_at}>{formatWhen(th.last_message_at)}</time>
-            </p>
-            {th.last && th.last.excerpt && <p className="muted mail-excerpt">{th.last.author ? `${th.last.author}: ` : ''}{th.last.excerpt}</p>}
+          <li key={th.id} className={`mail-row${th.unread ? ' is-unread' : ''}`}>
+            <Avatar id={th.people[0]?.id} name={th.people[0] ? who(t, th.people[0]) : '?'} />
+            <div>
+              <div className="row-head">
+                <span><AppLink to={th.id}><strong>{th.subject}</strong></AppLink>{' '}
+                  {th.unread && <span className="badge badge-accent">{t('mail.unreadBadge')}</span>}{' '}
+                  {th.left && <span className="badge">{t('mail.leftBadge')}</span>}</span>
+                <span className="row-meta"><RelativeTime iso={th.last_message_at} /></span>
+              </div>
+              <p className="row-meta">{t('mail.with', { names: th.people.length ? th.people.map((p) => who(t, p)).join(', ') : t('mail.nobody') })}</p>
+              {th.last && th.last.excerpt && <p className="mail-excerpt">{th.last.author ? `${th.last.author}: ` : ''}{th.last.excerpt}</p>}
+            </div>
           </li>
         ))}
       </ul>
@@ -69,7 +74,7 @@ function Compose({ to: initial }: { to: string }) {
   const submit = (e: FormEvent) => { e.preventDefault(); send.mutate(); };
   return (
     <>
-      <p><AppLink to="">&#8592; {t('mail.inbox')}</AppLink></p>
+      <BackLink to="">{t('mail.inbox')}</BackLink>
       <h2>{t('mail.new')}</h2>
       <form onSubmit={submit} className="panel">
         <TextField label={t('mail.to')} value={to} onChange={setTo} hint={t('mail.toHint', { max: MAIL_MAX_PEOPLE })} autoCapitalize="none" spellCheck={false} required />
@@ -84,6 +89,7 @@ function Compose({ to: initial }: { to: string }) {
 
 function Conversation({ id }: { id: string }) {
   const t = useT();
+  const confirm = useConfirm();
   const nav = useAppNav();
   const qc = useQueryClient();
   const key = ['mail', 'thread', id];
@@ -98,12 +104,12 @@ function Conversation({ id }: { id: string }) {
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
   const del = useMutation({ mutationFn: (mid: string) => api.del(`/mail/${id}/messages/${mid}`), onSuccess: () => void refresh() });
 
-  if (q.isError) return <><p><AppLink to="">&#8592; {t('mail.inbox')}</AppLink></p><Alert kind="error">{errorText(q.error)}</Alert></>;
+  if (q.isError) return <><BackLink to="">{t('mail.inbox')}</BackLink><Alert kind="error">{errorText(q.error)}</Alert></>;
   const th = q.data;
-  if (!th) return <p className="pad">{t('common.loading')}</p>;
+  if (!th) return <Loading rows={4} />;
   return (
     <div>
-      <p><AppLink to="">&#8592; {t('mail.inbox')}</AppLink></p>
+      <BackLink to="">{t('mail.inbox')}</BackLink>
       <h2>{th.subject}</h2>
       <section aria-labelledby="mail-people">
         <h3 id="mail-people" className="visually-hidden">{t('mail.people')}</h3>
@@ -113,7 +119,7 @@ function Conversation({ id }: { id: string }) {
       </section>
       {th.left && <Alert kind="info">{t('mail.youLeft')}</Alert>}
       <ol className="posts mail-messages">
-        {th.messages.map((m) => <Message key={m.id} m={m} threadId={id} canAct={!th.left} onDelete={() => { if (window.confirm(t('mail.deleteConfirm'))) del.mutate(m.id); }} />)}
+        {th.messages.map((m) => <Message key={m.id} m={m} threadId={id} canAct={!th.left} onDelete={() => { void confirm({ message: t('mail.deleteConfirm'), confirmLabel: t('confirm.deleteMessage'), danger: true }).then((ok) => ok && del.mutate(m.id)); }} />)}
       </ol>
       {del.isError && <Alert kind="error">{errorText(del.error)}</Alert>}
       {!th.left && (
@@ -123,15 +129,18 @@ function Conversation({ id }: { id: string }) {
             {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
             <button type="submit" className="btn btn-primary" disabled={send.isPending || !body.trim()}>{t('mail.replySend')}</button>
           </form>
+          <details className="panel">
+          <summary>{t('mail.manage')}</summary>
           {th.people.length + 1 < MAIL_MAX_PEOPLE && (
-            <form className="panel" onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
+            <form onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
               <TextField label={t('mail.add')} value={adding} onChange={setAdding} hint={t('mail.addHint')} maxLength={40} autoCapitalize="none" spellCheck={false} required />
               {add.isError && <Alert kind="error">{errorText(add.error)}</Alert>}
               <button type="submit" className="btn" disabled={add.isPending}>{t('mail.addButton')}</button>
             </form>
           )}
-          <p><button type="button" className="btn btn-quiet" onClick={() => { if (window.confirm(t('mail.leaveConfirm'))) leave.mutate(); }} disabled={leave.isPending}>{t('mail.leave')}</button></p>
+          <p><button type="button" className="btn btn-danger" onClick={() => { void confirm({ message: t('mail.leaveConfirm'), confirmLabel: t('confirm.leave'), danger: true }).then((ok) => ok && leave.mutate()); }} disabled={leave.isPending}>{t('mail.leave')}</button></p>
           {leave.isError && <Alert kind="error">{errorText(leave.error)}</Alert>}
+          </details>
         </>
       )}
     </div>
@@ -141,13 +150,13 @@ function Conversation({ id }: { id: string }) {
 function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; threadId: string; canAct: boolean; onDelete: () => void }) {
   const t = useT();
   const name = who(t, m.author);
-  if (m.kind !== 'message') return <li className="mail-event muted">{t(m.kind === 'joined' ? 'mail.joined' : 'mail.left', { name })} · <time dateTime={m.at}>{formatWhen(m.at)}</time></li>;
+  if (m.kind !== 'message') return <li className="mail-event">{t(m.kind === 'joined' ? 'mail.joined' : 'mail.left', { name })} · <RelativeTime iso={m.at} /></li>;
   return (
     <li>
-      <article className="post" aria-label={t('boards.by', { name })}>
+      <article className={`post${m.mine ? ' is-mine' : ''}`} aria-label={t('boards.by', { name })}>
         <header className="post-head">
-          {m.author.handle ? <PersonLink app="people" to={m.author.handle}><strong>{name}</strong></PersonLink> : <strong>{name}</strong>}
-          <span className="muted"> · <time dateTime={m.at}>{formatWhen(m.at)}</time></span>
+          {m.author.handle ? <PersonLink app="people" to={m.author.handle} className="person"><Avatar id={m.author.id} name={name} size="sm" /><strong>{name}</strong></PersonLink> : <span className="person"><Avatar id={null} name={name} size="sm" /><strong>{name}</strong></span>}
+          <span className="muted">· <RelativeTime iso={m.at} /></span>
         </header>
         {m.deleted ? <p className="muted">{t('mail.deleted')}</p> : <pre className="post-body">{m.body}</pre>}
         {!m.deleted && canAct && (

@@ -96,6 +96,43 @@ describe('maximizing', () => {
   });
 });
 
+describe('snapping and cycling', () => {
+  it('snaps a window to half the desktop, and maximizing then restoring puts it back where it was before', () => {
+    store().open('settings');
+    store().move('settings', 200, 120);
+    const before = { x: win('settings').x, y: win('settings').y, w: win('settings').w, h: win('settings').h };
+    store().snap('settings', 'right');
+    expect(win('settings')).toMatchObject({ x: V.w / 2, y: 0, w: V.w / 2, h: V.h - TASKBAR_HEIGHT, maximized: false });
+    store().snap('settings', 'left');
+    expect(win('settings')).toMatchObject({ x: 0, w: V.w / 2 });
+    store().toggleMaximize('settings');
+    store().toggleMaximize('settings');
+    expect(win('settings')).toMatchObject({ ...before, maximized: false });
+  });
+
+  it('moving a snapped window by hand forgets the snap', () => {
+    store().open('settings');
+    store().snap('settings', 'left');
+    store().move('settings', 100, 100);
+    expect(win('settings').restore).toBeNull();
+  });
+
+  it('cycles through every window, minimized ones too, like Alt+Tab', () => {
+    store().open('settings');
+    store().open('admin');
+    store().minimize('settings');
+    expect(store().cycle()).toBe('settings');
+    expect(focusedWindow(store().wins)?.id).toBe('settings');
+    expect(win('settings').minimized).toBe(false);
+    expect(store().cycle()).toBe('admin');
+    expect(store().cycle()).toBe('settings');
+  });
+
+  it('has nothing to cycle to with no windows', () => {
+    expect(store().cycle()).toBeNull();
+  });
+});
+
 describe('keeping windows usable', () => {
   it('never lets a window get smaller than the minimum', () => {
     store().open('settings');

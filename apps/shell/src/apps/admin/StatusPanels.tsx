@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
-import { Alert } from '../../components/ui';
+import { Alert, Loading, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 
 interface Status {
@@ -51,7 +51,7 @@ export function StatusPanel() {
   const q = useQuery({ queryKey: ['admin', 'status'], queryFn: () => api.get<Status>('/admin/status'), refetchInterval: 15_000 });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
   const s = q.data;
-  if (!s) return <p className="pad">{t('common.loading')}</p>;
+  if (!s) return <Loading />;
   const free = (d: { free_bytes: number } | null) => (d ? size(d.free_bytes) : '?');
   const c = s.counts;
   return (
@@ -88,7 +88,7 @@ export function BackupsPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'backups'], queryFn: () => api.get<{ runs: Run[]; summary: Status['backups'] }>('/admin/backups'), refetchInterval: 60_000 });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
-  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  if (!q.data) return <Loading />;
   const { runs, summary } = q.data;
   return (
     <>
@@ -101,7 +101,7 @@ export function BackupsPanel() {
           {summary.restoreTestOverdue && <li>{t('admin.status.warn.restore_test_overdue')}</li>}
         </ul></div>
       )}
-      {runs.length === 0 && <p>{t('admin.backups.none')}</p>}
+      {runs.length === 0 && <EmptyState>{t('admin.backups.none')}</EmptyState>}
       {runs.length > 0 && (
         <table className="table">
           <thead><tr>

@@ -104,8 +104,9 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
 - **Mail, rings, homepages, who, last callers:** mail reads, replies to, adds people to and starts the same
   conversations as the web; rings can be browsed, joined, left, and their board read; the homepage directory
   lists titles and addresses; who's online shows the BBS's own nodes (always current) plus people on the web
-  and in chat from core; last callers comes from core's call log. Settings points to the web and can switch
-  the character set.
+  and in chat from core; last callers comes from core's call log. Both lists go a screenful at a time
+  (the BBS's own nodes first), so a busy site doesn't scroll them past. Settings points to the web and can
+  switch the character set.
 - **Terminal window** (shell app `terminal`, shown when `services.bbs` is on): xterm.js over `/ws/bbs`, signed
   in by a one-use ticket; a key bar (Esc, Tab, Ctrl-C, arrows, Enter) for phones; a screen-reader mode
   (xterm.js's own); how to connect with your own telnet or SSH program. The VGA font is used if the viewer

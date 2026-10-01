@@ -120,3 +120,9 @@ export async function signIn(page: Page, handle: string, password: string, secon
   await loginViaUi(page, handle, password, second);
   await expect(page.getByRole('button', { name: `Account menu for ${handle}` })).toBeVisible();
 }
+
+// Answers the site's confirm dialog (it replaced window.confirm) by clicking its action button.
+export async function confirmDialog(page: Page, button: string) {
+  await page.locator('dialog[open]').getByRole('button', { name: button, exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+}

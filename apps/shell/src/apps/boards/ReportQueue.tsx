@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ReportView } from '@app/shared';
 import { api } from '../../api';
-import { Alert } from '../../components/ui';
+import { Alert, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { ReasonForm } from './ModTools';
@@ -30,7 +30,7 @@ export function ReportQueue() {
         </select>
       </div>
       {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
-      {q.isSuccess && reports.length === 0 && <p>{t('boards.reports.none')}</p>}
+      {q.isSuccess && reports.length === 0 && <EmptyState>{t('boards.reports.none')}</EmptyState>}
       <ul className="rows report-rows">{reports.map((r) => <Report key={r.id} r={r} />)}</ul>
       {q.hasNextPage && <button className="btn" onClick={() => void q.fetchNextPage()} disabled={q.isFetchingNextPage}>{t('boards.more')}</button>}
     </>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { AppId } from './windows';
 
 const paths: Record<AppId, string> = {
@@ -19,4 +20,14 @@ const paths: Record<AppId, string> = {
 // Simple filled icons, drawn in the current text colour so every theme can use them.
 export function AppIcon({ id, size = 32 }: { id: AppId; size?: number }) {
   return <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false"><path d={paths[id]} fill="currentColor" /></svg>;
+}
+
+// Each app has its own colour on the desktop and launcher, so they can be told apart at a glance.
+const hues: Record<AppId, number> = {
+  boards: 222, rings: 280, people: 160, mail: 12, files: 38, chat: 195, mud: 130, terminal: 0,
+  homepages: 330, studio: 250, notifications: 45, settings: 210, admin: 355,
+};
+
+export function AppTile({ id }: { id: AppId }) {
+  return <span className={`app-tile${id === 'terminal' ? ' is-terminal' : ''}`} style={{ '--hue': hues[id] } as CSSProperties}><AppIcon id={id} size={26} /></span>;
 }

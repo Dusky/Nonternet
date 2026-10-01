@@ -2,7 +2,7 @@ import { Fragment, useState, type FormEvent } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { PostView } from '@app/shared';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, BackLink, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 import { AppLink } from '../../nav';
 
@@ -31,14 +31,14 @@ export function Search({ board }: { board?: string }) {
   const submit = (e: FormEvent) => { e.preventDefault(); setTerm(input.trim()); };
   return (
     <>
-      <p><AppLink to="">&#8592; {t('boards.backToBoards')}</AppLink></p>
+      <BackLink to="">{t('boards.backToBoards')}</BackLink>
       <h2>{t('boards.search.title')}</h2>
       <form onSubmit={submit} role="search" className="search-form">
         <TextField label={t('boards.search.label')} value={input} onChange={setInput} type="search" minLength={2} required />
         <button className="btn btn-primary" type="submit">{t('boards.search.go')}</button>
       </form>
       {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
-      {q.isSuccess && hits.length === 0 && <p>{t('boards.search.none')}</p>}
+      {q.isSuccess && hits.length === 0 && <EmptyState>{t('boards.search.none')}</EmptyState>}
       <ul className="rows">
         {hits.map((h) => (
           <li key={h.post.id}>

@@ -6,7 +6,9 @@ import { contrast, isThemeName, themeCss, themes, type Tokens } from './index';
 const PAIRS: [keyof Tokens, keyof Tokens][] = [
   ['text', 'bg'], ['text', 'surface'], ['text', 'surface2'], ['muted', 'bg'], ['muted', 'surface'],
   ['accentText', 'accent'], ['titleText', 'titleBg'], ['taskbarText', 'taskbarBg'],
-  ['danger', 'surface'], ['ok', 'surface'], ['focus', 'bg'], ['focus', 'surface'],
+  ['danger', 'surface'], ['ok', 'surface'], ['warn', 'surface'], ['focus', 'bg'], ['focus', 'surface'],
+  ['text', 'accentSoft'], ['accent', 'surface'], ['accent', 'accentSoft'], ['titleActiveText', 'titleActiveBg'],
+  ['text', 'desktopBg'], ['muted', 'surface2'],
 ];
 
 const variants = Object.values(themes).flatMap((t) => [

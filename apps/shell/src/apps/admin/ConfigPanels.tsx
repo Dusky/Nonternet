@@ -1,8 +1,9 @@
+import { THEMES } from '@app/shared';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, Loading, EmptyState } from '../../components/ui';
 import { AnnouncementBox } from '../../components/Announcements';
 import { errorText, formatWhen, useSite, useT } from '../../hooks';
 
@@ -11,7 +12,7 @@ type Change = { changed: true; version: number } | { pending: true; current: unk
 interface HistoryRow { version: number; value: unknown; previous: unknown; reason: string; by: string | null; at: string; rolled_back_to: number | null }
 
 const label = (key: string) => `setting.${key}` as StringKey;
-const OPTIONS: Record<string, string[]> = { 'signup.mode': ['invite', 'open'] };
+const OPTIONS: Record<string, string[]> = { 'signup.mode': ['invite', 'open'], 'ui.default_theme': [...THEMES] };
 const shown = (t: ReturnType<typeof useT>, key: string, v: unknown): string =>
   typeof v === 'boolean' ? (v ? 'on' : 'off') : OPTIONS[key] ? t(`${label(key)}.${String(v)}` as StringKey) : String(v);
 
@@ -21,7 +22,7 @@ export function SettingsPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'settings'], queryFn: () => api.get<{ settings: SettingRow[]; readonly: { name: string; domain: string; homes_domain: string } }>('/admin/settings') });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
-  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  if (!q.data) return <Loading />;
   const r = q.data.readonly;
   return (
     <>
@@ -159,7 +160,7 @@ export function AnnouncementsPanel() {
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn btn-primary" type="submit" disabled={create.isPending}>{t('admin.ann.publish')}</button>
       </form>
-      {list.data?.announcements.length === 0 && <p>{t('admin.ann.none')}</p>}
+      {list.data?.announcements.length === 0 && <EmptyState>{t('admin.ann.none')}</EmptyState>}
       <ul className="rows">
         {list.data?.announcements.map((a) => (
           <li key={a.id}>

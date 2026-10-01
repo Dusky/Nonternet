@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { AdminStats, ConsoleCommandSpec, ConsoleResult } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api, ApiError } from '../../api';
-import { Alert } from '../../components/ui';
+import { Alert, BackLink, Loading, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 import { AppLink } from '../../nav';
 import { diffFields, replayState } from './diff';
@@ -20,9 +20,9 @@ export function AuditReplay({ type, id }: { type: string; id: string }) {
   const [at, setAt] = useState<number | null>(null);
   const i = at ?? steps.length - 1;
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
-  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
-  const back = <p><AppLink to="audit">&#8592; {t('admin.replay.back')}</AppLink>{type === 'user' && <> · <AppLink to={`users/${id}`}>{t('admin.replay.dossier')}</AppLink></>}</p>;
-  if (steps.length === 0) return <>{back}<p>{t('admin.replay.none')}</p></>;
+  if (!q.data) return <Loading />;
+  const back = <p><BackLink to="audit">{t('admin.replay.back')}</BackLink>{type === 'user' && <> · <AppLink to={`users/${id}`}>{t('admin.replay.dossier')}</AppLink></>}</p>;
+  if (steps.length === 0) return <>{back}<EmptyState>{t('admin.replay.none')}</EmptyState></>;
   const step = steps[i]!;
   const changes = diffFields(step.before, step.after).filter((c) => c.kind !== 'same');
   const state = replayState(steps, i);
@@ -104,7 +104,7 @@ export function StatsPanel() {
         </select>
       </div>
       <p className="hint">{t('admin.stats.utc')}</p>
-      {!s ? <p className="pad">{t('common.loading')}</p> : (
+      {!s ? <Loading /> : (
         <>
           <ul className="inline-list stat-totals">{Object.entries(s.totals).map(([k, v]) => <li key={k}><strong>{v}</strong> {t(`admin.stats.total.${k}` as StringKey)}</li>)}</ul>
           <h3>{t('admin.stats.active')}</h3>

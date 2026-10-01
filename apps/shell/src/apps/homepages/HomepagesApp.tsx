@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, BackLink, EmptyState, NotFound, TextField } from '../../components/ui';
 import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav } from '../../nav';
 
@@ -13,8 +13,7 @@ const ROUTES = ['', 'guestbook/:handle'] as const;
 export default function HomepagesApp() {
   const nav = useAppNav();
   const route = matchRoute(nav.path, ROUTES);
-  const t = useT();
-  if (!route) return <p className="pad">{t('error.notFound')}</p>;
+  if (!route) return <div className="app-content"><NotFound /></div>;
   return <div className="app-content">{route.pattern === '' ? <Directory /> : <Guestbook handle={route.params.handle!} />}</div>;
 }
 
@@ -51,7 +50,7 @@ function Directory() {
       </form>
       {error && <Alert kind="error">{error}</Alert>}
       {list.isError && <Alert kind="error">{errorText(list.error)}</Alert>}
-      {list.isSuccess && items.length === 0 && <p>{t('homepages.none')}</p>}
+      {list.isSuccess && items.length === 0 && <EmptyState>{t('homepages.none')}</EmptyState>}
       <ul className="rows">
         {items.map((h) => (
           <li key={h.handle}>
@@ -103,7 +102,7 @@ function Guestbook({ handle }: { handle: string }) {
   const mode = list.data?.pages[0]?.mode;
   return (
     <>
-      <p><AppLink to="">&#8592; {t('guestbook.back')}</AppLink></p>
+      <BackLink to="">{t('guestbook.back')}</BackLink>
       <h2>{t('guestbook.title', { name: handle })}</h2>
       {mode === 'off' ? <p>{t('guestbook.closed')}</p> : (
         <form className="panel" onSubmit={(e) => { e.preventDefault(); setNote(null); sign.mutate(); }}>
@@ -120,7 +119,7 @@ function Guestbook({ handle }: { handle: string }) {
           <button className="btn btn-primary" type="submit" disabled={sign.isPending}>{t('guestbook.sign')}</button>
         </form>
       )}
-      {list.isSuccess && entries.length === 0 && <p>{t('guestbook.none')}</p>}
+      {list.isSuccess && entries.length === 0 && <EmptyState>{t('guestbook.none')}</EmptyState>}
       <ul className="rows">
         {entries.map((e) => (
           <li key={e.id}>

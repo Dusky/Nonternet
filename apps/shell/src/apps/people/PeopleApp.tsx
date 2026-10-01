@@ -1,13 +1,15 @@
+import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ABILITIES, type CharacterView, type MyVouch, type PublicProfile } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, Avatar, EmptyState, Loading, NotFound, TextField } from '../../components/ui';
+import type { OnlinePerson } from '../../shell/HomePanel';
 import { errorText, formatWhen, useMe, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { useBlocks } from '../settings/Blocks';
-import { matchRoute, useAppNav } from '../../nav';
+import { AppLink, matchRoute, useAppNav } from '../../nav';
 import { PersonLink } from './PersonLink';
 
 const ROUTES = ['', ':handle'] as const;
@@ -15,9 +17,8 @@ const ROUTES = ['', ':handle'] as const;
 // People on the site (docs/10): anyone's public profile, with their rings and MUD characters (docs/09).
 export default function PeopleApp() {
   const nav = useAppNav();
-  const t = useT();
   const route = matchRoute(nav.path, ROUTES);
-  if (!route) return <p className="pad">{t('error.notFound')}</p>;
+  if (!route) return <div className="app-content"><NotFound /></div>;
   return (
     <div className="app-content">
       {route.pattern === '' ? <Find /> : <Profile handle={route.params.handle!} />}
@@ -28,13 +29,32 @@ export default function PeopleApp() {
 function Find() {
   const t = useT();
   const nav = useAppNav();
+  const me = useMe().data;
   const [handle, setHandle] = useState('');
+  const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), enabled: Boolean(me && me.role !== 'guest'), refetchInterval: 60_000 });
   const go = (e: FormEvent) => { e.preventDefault(); const h = handle.trim().replace(/^@/, ''); if (h) nav.go(encodeURIComponent(h)); };
   return (
-    <form onSubmit={go} className="panel">
-      <TextField label={t('people.find')} value={handle} onChange={setHandle} hint={t('people.findHint')} maxLength={40} autoCapitalize="none" spellCheck={false} />
-      <button className="btn btn-primary" type="submit">{t('people.go')}</button>
-    </form>
+    <>
+      <form onSubmit={go} className="panel search-form">
+        <TextField label={t('people.find')} value={handle} onChange={setHandle} hint={t('people.findHint')} maxLength={40} autoCapitalize="none" spellCheck={false} />
+        <button className="btn btn-primary" type="submit">{t('people.go')}</button>
+      </form>
+      {online.data && (
+        <section aria-labelledby="people-online">
+          <h2 id="people-online">{t('people.online', { count: online.data.people.length })}</h2>
+          {online.data.people.length === 0 ? <EmptyState icon="user">{t('people.onlineNone')}</EmptyState> : (
+            <ul className="cards">
+              {online.data.people.map((p) => (
+                <li key={p.id} className="person-card">
+                  <AppLink to={encodeURIComponent(p.handle)} className="person"><Avatar id={p.id} name={p.display_name || p.handle} /><span><strong>{p.display_name || p.handle}</strong><br /><span className="row-meta">@{p.handle}</span></span></AppLink>
+                  <p className="row-meta">{[p.web && t('home.online.web'), p.chat && t('home.online.chat'), p.bbs && t('people.onBbs', { node: p.bbs.node, where: p.bbs.where })].filter(Boolean).join(' · ')}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+    </>
   );
 }
 
@@ -43,12 +63,15 @@ function Profile({ handle }: { handle: string }) {
   const q = useQuery({ queryKey: ['profile', handle.toLowerCase()], queryFn: () => api.get<PublicProfile>(`/users/${encodeURIComponent(handle)}`) });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
   const p = q.data;
-  if (!p) return <p className="pad">{t('common.loading')}</p>;
+  if (!p) return <Loading />;
   return (
     <article aria-labelledby="profile-name">
       <header className="profile-head">
+        <Avatar id={p.id} name={p.display_name || p.handle} size="lg" />
+        <div>
         <h2 id="profile-name">{p.display_name || p.handle}</h2>
         <p className="muted">@{p.handle}{p.role !== 'user' && <> · <span className="badge">{t(`people.role.${p.role}` as StringKey)}</span></>} · {t('people.joined', { when: formatWhen(p.joined_at) ?? '' })}</p>
+        </div>
       </header>
       {p.bio && <p className="profile-bio">{p.bio}</p>}
       <PersonActions p={p} />
@@ -85,6 +108,7 @@ function CharacterCard({ c, featured }: { c: CharacterView; featured: boolean })
 // Mail and block, for signed-in, confirmed people looking at someone else.
 function PersonActions({ p }: { p: PublicProfile }) {
   const t = useT();
+  const confirm = useConfirm();
   const me = useMe().data;
   const qc = useQueryClient();
   const mine = Boolean(me && me.role !== 'guest' && me.id !== p.id);
@@ -100,7 +124,7 @@ function PersonActions({ p }: { p: PublicProfile }) {
       {!blocked && <OpenAppLink app="mail" to={`new/${encodeURIComponent(p.handle)}`} className="btn">{t('mail.write')}</OpenAppLink>}
       {p.role !== 'admin' && (
         <button type="button" className="btn btn-quiet" disabled={toggle.isPending || !blocks.data}
-          onClick={() => { if (blocked || window.confirm(t('blocks.blockConfirm', { handle: p.handle }))) toggle.mutate(); }}>
+          onClick={() => { if (blocked) toggle.mutate(); else void confirm({ message: t('blocks.blockConfirm', { handle: p.handle }), confirmLabel: t('confirm.block'), danger: true }).then((ok) => ok && toggle.mutate()); }}>
           {blocked ? t('blocks.unblock') : t('blocks.block')}
         </button>
       )}

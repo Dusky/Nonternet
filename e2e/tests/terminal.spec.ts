@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
-import { makeAdmin, makeUser, PASSWORD, signIn, totp } from '../support/helpers';
+import { makeAdmin, makeUser, PASSWORD, signIn, totp, confirmDialog } from '../support/helpers';
 
 async function scan(page: Page, what: string) {
   // xterm.js draws the screen itself; its helper textarea and rows are checked by its own project.
@@ -43,8 +43,8 @@ test('SSH keys are added and removed in Settings, Terminal', async ({ page }) =>
   await expect(page.getByText('me@laptop')).toBeVisible();
   await expect(page.getByText(/^SHA256:/)).toBeVisible();
   await scan(page, 'the SSH keys list');
-  page.once('dialog', (d) => void d.accept());
   await page.getByRole('button', { name: 'Remove the key me@laptop' }).click();
+  await confirmDialog(page, 'Remove key');
   await expect(page.getByText('No keys yet.')).toBeVisible();
 });
 

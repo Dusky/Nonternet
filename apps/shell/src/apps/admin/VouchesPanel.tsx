@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AdminVouchCandidate } from '@app/shared';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, Loading, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 import { AppLink } from '../../nav';
 
@@ -13,12 +13,12 @@ export function VouchesPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'vouches'], queryFn: () => api.get<Queue>('/admin/vouches') });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
-  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  if (!q.data) return <Loading />;
   return (
     <section aria-labelledby="vouches-h">
       <h2 id="vouches-h">{t('admin.vouches.title')}</h2>
       <p className="hint">{t('admin.vouches.intro', { count: q.data.needed })}</p>
-      {q.data.candidates.length === 0 ? <p>{t('admin.vouches.none')}</p> : (
+      {q.data.candidates.length === 0 ? <EmptyState>{t('admin.vouches.none')}</EmptyState> : (
         <ul className="rows">{q.data.candidates.map((c) => <Candidate key={c.user.id} c={c} q={q.data} />)}</ul>
       )}
     </section>

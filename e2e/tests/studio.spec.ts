@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
 import { BASE_URL, HOMES_DOMAIN, HOMES_PORT } from '../support/stack';
-import { makeUser, markDomainVerified, PASSWORD, signIn, uniq } from '../support/helpers';
+import { makeUser, markDomainVerified, PASSWORD, signIn, uniq, confirmDialog } from '../support/helpers';
 
 const home = (handle: string, path = '') => `http://${handle}.${HOMES_DOMAIN}:${HOMES_PORT}/${path}`;
 const h = { origin: BASE_URL };
@@ -56,7 +56,7 @@ test.describe('homepage studio', () => {
     await page.request.post('/api/v1/homes/me/template', { data: { template: 'blank' }, headers: h });
     await page.goto('/studio');
     await page.getByLabel('Upload files').setInputFiles({ name: 'song.txt', mimeType: 'text/plain', buffer: Buffer.from('la la la') });
-    await expect(page.getByText('Uploaded 1 files.')).toBeVisible();
+    await expect(page.getByText('Uploaded 1 file.')).toBeVisible();
     await expect(page.getByText('song.txt', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Rename or move song.txt' }).click();
     await page.getByLabel('New name').fill('music/song.txt');
@@ -65,8 +65,8 @@ test.describe('homepage studio', () => {
     const live = await page.context().newPage();
     const got = await live.goto(home(u.handle, 'music/song.txt'));
     expect(await got!.text()).toBe('la la la');
-    page.once('dialog', (d) => void d.accept());
     await page.getByRole('button', { name: 'Delete music' }).click();
+    await confirmDialog(page, 'Delete');
     await expect(page.getByText('song.txt')).toHaveCount(0);
     expect((await live.goto(home(u.handle, 'music/song.txt')))!.status()).toBe(404);
     await live.close();
@@ -114,8 +114,8 @@ test.describe('homepage studio', () => {
     await expect(live.getByRole('heading', { level: 1, name: `Hi, I am ${u.handle}` })).toBeVisible();
     await live.close();
 
-    page.once('dialog', (d) => void d.accept());
     await page.getByRole('button', { name: `Remove ${domain}` }).click();
+    await confirmDialog(page, 'Remove domain');
     await expect(page.getByText('No domains yet.')).toBeVisible();
     const gone = await (await page.context().newPage()).goto(`http://${domain}:${HOMES_PORT}/`);
     expect(gone!.status()).toBe(404);

@@ -6,8 +6,9 @@ import type { ThemeName } from '@app/shared';
 
 export type Tokens = Record<
   | 'bg' | 'surface' | 'surface2' | 'text' | 'muted' | 'border' | 'accent' | 'accentText'
-  | 'danger' | 'ok' | 'focus' | 'titleBg' | 'titleText' | 'taskbarBg' | 'taskbarText'
-  | 'fontBody' | 'fontMono' | 'radius' | 'shadow' | 'glow',
+  | 'accentSoft' | 'danger' | 'ok' | 'warn' | 'focus' | 'lineStrong'
+  | 'titleBg' | 'titleText' | 'titleActiveBg' | 'titleActiveText' | 'taskbarBg' | 'taskbarText' | 'desktopBg' | 'desktopDot'
+  | 'fontBody' | 'fontMono' | 'fontDisplay' | 'radius' | 'radiusSm' | 'radiusLg' | 'shadow' | 'shadowSm' | 'glow',
   string
 >;
 
@@ -24,26 +25,37 @@ export interface Theme {
 const systemSans = `system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`;
 const systemMono = `ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace`;
 
+// Modern: warm paper and ink, a blue accent, monospace for the site name, headings and numbers so it
+// keeps a little of the terminal about it without changing how anything reads.
 const modernLight: Tokens = {
-  bg: '#f3f4f7', surface: '#ffffff', surface2: '#eceef3', text: '#16181d', muted: '#565b66', border: '#c9cdd6',
-  accent: '#1f5fd6', accentText: '#ffffff', danger: '#b3261e', ok: '#1a6b3a', focus: '#1f5fd6',
-  titleBg: '#dfe3ec', titleText: '#16181d', taskbarBg: '#ffffff', taskbarText: '#16181d',
-  fontBody: systemSans, fontMono: systemMono, radius: '8px', shadow: '0 8px 24px rgba(20,24,35,.18)', glow: 'none',
+  bg: '#f4f2ec', surface: '#fffefb', surface2: '#efece4', text: '#1c1b18', muted: '#585549', border: '#d6d1c4',
+  accent: '#2b4fd6', accentText: '#ffffff', accentSoft: '#e7ecfc', danger: '#b42318', ok: '#1f6b40', warn: '#7d5300',
+  focus: '#2b4fd6', lineStrong: '#a49d8b',
+  titleBg: '#ebe7dc', titleText: '#3d3b33', titleActiveBg: '#1c1b18', titleActiveText: '#fffefb',
+  taskbarBg: '#fffefb', taskbarText: '#1c1b18', desktopBg: '#ece9e0', desktopDot: '#d3cdbd',
+  fontBody: systemSans, fontMono: systemMono, fontDisplay: systemMono,
+  radius: '10px', radiusSm: '6px', radiusLg: '16px',
+  shadow: '0 1px 2px rgba(28,27,24,.06), 0 12px 32px rgba(28,27,24,.14)', shadowSm: '0 1px 2px rgba(28,27,24,.08)', glow: 'none',
 };
 
 const modernDark: Tokens = {
   ...modernLight,
-  bg: '#14161b', surface: '#1d2027', surface2: '#262a33', text: '#eceef3', muted: '#a4a9b5', border: '#3a3f4b',
-  accent: '#6ea0ff', accentText: '#0b1020', danger: '#ff8a80', ok: '#7fd39b', focus: '#8fb4ff',
-  titleBg: '#2b303b', titleText: '#eceef3', taskbarBg: '#1d2027', taskbarText: '#eceef3',
-  shadow: '0 8px 24px rgba(0,0,0,.5)',
+  bg: '#121316', surface: '#1b1c21', surface2: '#25272e', text: '#ecebe6', muted: '#a9a79f', border: '#363841',
+  accent: '#8ea6ff', accentText: '#0d1020', accentSoft: '#232b48', danger: '#ff8b7d', ok: '#7fd19c', warn: '#f0c060',
+  focus: '#a9bbff', lineStrong: '#5a5d68',
+  titleBg: '#23252c', titleText: '#c9c7c0', titleActiveBg: '#ecebe6', titleActiveText: '#121316',
+  taskbarBg: '#1b1c21', taskbarText: '#ecebe6', desktopBg: '#16171b', desktopDot: '#2b2d35',
+  shadow: '0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.55)', shadowSm: '0 1px 2px rgba(0,0,0,.4)',
 };
 
 const amber: Tokens = {
   bg: '#120b00', surface: '#1a1000', surface2: '#241600', text: '#ffb000', muted: '#e09a00', border: '#7a5200',
-  accent: '#ffb000', accentText: '#120b00', danger: '#ff8a6b', ok: '#8fe36b', focus: '#ffd166',
-  titleBg: '#ffb000', titleText: '#120b00', taskbarBg: '#1a1000', taskbarText: '#ffb000',
-  fontBody: systemMono, fontMono: systemMono, radius: '0px', shadow: '0 0 0 1px #7a5200', glow: '0 0 6px rgba(255,176,0,.55)',
+  accent: '#ffb000', accentText: '#120b00', accentSoft: '#2e1d00', danger: '#ff8a6b', ok: '#8fe36b', warn: '#ffd166',
+  focus: '#ffd166', lineStrong: '#a87100',
+  titleBg: '#3a2500', titleText: '#ffb000', titleActiveBg: '#ffb000', titleActiveText: '#120b00',
+  taskbarBg: '#1a1000', taskbarText: '#ffb000', desktopBg: '#120b00', desktopDot: '#2e1d00',
+  fontBody: systemMono, fontMono: systemMono, fontDisplay: systemMono,
+  radius: '0px', radiusSm: '0px', radiusLg: '0px', shadow: '0 0 0 1px #7a5200', shadowSm: 'none', glow: '0 0 6px rgba(255,176,0,.55)',
 };
 
 export const themes: Record<ThemeName, Theme> = {

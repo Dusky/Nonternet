@@ -1,10 +1,11 @@
+import { useConfirm } from '../../components/feedback';
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FILE_AREA_VISIBILITIES, FILE_UPLOAD_ROLES, REPORT_CATEGORIES, type FileAreaView, type FileUsage, type FileView } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
-import { errorText, formatBytes, formatWhen, useMe, useT } from '../../hooks';
+import { Alert, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
+import { errorText, formatBytes, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav } from '../../nav';
 import { PersonLink } from '../people/PersonLink';
 
@@ -13,9 +14,8 @@ const ROUTES = ['', ':slug'] as const;
 // File areas (docs/05): categories of files anyone can download and trusted people upload to.
 export default function FilesApp() {
   const nav = useAppNav();
-  const t = useT();
   const route = matchRoute(nav.path, ROUTES);
-  if (!route) return <p className="pad">{t('error.notFound')}</p>;
+  if (!route) return <div className="app-content"><NotFound /></div>;
   return <div className="app-content">{route.pattern === '' ? <Areas /> : <Area slug={route.params.slug!} />}</div>;
 }
 
@@ -27,15 +27,18 @@ function Areas() {
     <>
       <h2>{t('files.areas')}</h2>
       {q.isError && <Alert kind="error">{errorText(q.error)}</Alert>}
-      {q.data && q.data.areas.length === 0 && <p>{t('files.noAreas')}</p>}
+      {q.data && q.data.areas.length === 0 && <EmptyState>{t('files.noAreas')}</EmptyState>}
+      {q.isPending && <Loading rows={3} />}
       <ul className="rows">
         {q.data?.areas.map((a) => (
           <li key={a.id}>
-            <AppLink to={a.slug}><strong>{a.name}</strong></AppLink>{' '}
-            {a.visibility === 'members' && <span className="badge">{t('files.membersOnly')}</span>}{' '}
-            {a.archived && <span className="badge">{t('files.archived')}</span>}
-            {a.description && <p className="muted">{a.description}</p>}
-            <p className="hint">{t('files.count', { count: a.file_count })}{a.last_upload_at ? ` · ${t('files.last', { when: formatWhen(a.last_upload_at) ?? '' })}` : ''}</p>
+            <div className="row-head">
+              <span><AppLink to={a.slug} className="board-link"><strong>{a.name}</strong></AppLink>{' '}
+                {a.visibility === 'members' && <span className="badge">{t('files.membersOnly')}</span>}{' '}
+                {a.archived && <span className="badge">{t('files.archived')}</span>}</span>
+            </div>
+            {a.description && <p>{a.description}</p>}
+            <p className="row-meta">{t('files.count', { count: a.file_count })}{a.last_upload_at ? <> · <RelativeTime iso={a.last_upload_at} /></> : null}</p>
           </li>
         ))}
       </ul>
@@ -90,16 +93,16 @@ function Area({ slug }: { slug: string }) {
     mutationFn: (archived: boolean) => api.patch(`/admin/files/areas/${slug}`, { archived }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['files'] }),
   });
-  if (q.isError) return <><p><AppLink to="">&#8592; {t('files.back')}</AppLink></p><Alert kind="error">{errorText(q.error)}</Alert></>;
-  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  if (q.isError) return <><BackLink to="">{t('files.back')}</BackLink><Alert kind="error">{errorText(q.error)}</Alert></>;
+  if (!q.data) return <Loading rows={4} />;
   const { area, files } = q.data;
   return (
     <>
-      <p><AppLink to="">&#8592; {t('files.back')}</AppLink></p>
+      <BackLink to="">{t('files.back')}</BackLink>
       <h2>{area.name} {area.archived && <span className="badge">{t('files.archived')}</span>}</h2>
       {area.description && <p>{area.description}</p>}
       <p className="hint">{t(`files.uploadRole.${area.upload_role}.who` as StringKey)}</p>
-      {files.length === 0 ? <p>{t('files.empty')}</p> : (
+      {files.length === 0 ? <EmptyState>{t('files.empty')}</EmptyState> : (
         <ul className="rows file-rows">{files.map((f) => <FileRow key={f.id} f={f} />)}</ul>
       )}
       {area.can_upload && <Upload slug={slug} />}
@@ -113,6 +116,7 @@ function Area({ slug }: { slug: string }) {
 
 function FileRow({ f }: { f: FileView }) {
   const t = useT();
+  const confirm = useConfirm();
   const me = useMe().data;
   const qc = useQueryClient();
   const [tool, setTool] = useState<'report' | 'hide' | 'remove' | null>(null);
@@ -131,12 +135,12 @@ function FileRow({ f }: { f: FileView }) {
       {f.description && <p className="muted file-description">{f.description}</p>}
       <p className="hint">
         {f.uploader ? <>{t('files.by')} <PersonLink app="people" to={f.uploader.handle}>{f.uploader.handle}</PersonLink> · </> : null}
-        <time dateTime={f.uploaded_at}>{formatWhen(f.uploaded_at)}</time> · {t('files.downloads', { count: f.downloads })}
+        <RelativeTime iso={f.uploaded_at} /> · {t('files.downloads', { count: f.downloads })}
       </p>
       <details className="hint"><summary>{t('files.checksum')}</summary><code className="checksum">{f.sha256}</code></details>
       {me && (
         <div className="mod-tools">
-          {f.mine && <button type="button" className="link" onClick={() => { if (window.confirm(t('files.deleteConfirm', { name: f.name }))) del.mutate(undefined); }}>{t('files.delete')}</button>}
+          {f.mine && <button type="button" className="link" onClick={() => { void confirm({ message: t('files.deleteConfirm', { name: f.name }), confirmLabel: t('confirm.delete'), danger: true }).then((ok) => ok && del.mutate(undefined)); }}>{t('files.delete')}</button>}
           {!f.mine && me.role !== 'guest' && <button type="button" className="link" aria-expanded={tool === 'report'} onClick={() => setTool(tool === 'report' ? null : 'report')}>{t('files.report')}</button>}
           {admin && <button type="button" className="link" onClick={() => setTool('hide')}>{f.hidden ? t('files.unhide') : t('files.hide')}</button>}
           {admin && !f.mine && <button type="button" className="link" onClick={() => setTool('remove')}>{t('files.remove')}</button>}

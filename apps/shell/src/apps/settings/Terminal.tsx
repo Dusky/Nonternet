@@ -1,7 +1,8 @@
+import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useSite, useT } from '../../hooks';
 
 // A separate password for IRC clients and, later, telnet and the MUD (docs/02). Leaking it doesn't
@@ -41,6 +42,7 @@ interface SshKey { id: string; name: string; type: string; fingerprint: string; 
 // SSH keys for signing in to the BBS without a password (docs/04). Only the public half is ever sent.
 export function SshKeys() {
   const t = useT();
+  const confirm = useConfirm();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['ssh-keys'], queryFn: () => api.get<{ keys: SshKey[]; max: number }>('/me/ssh-keys') });
   const [name, setName] = useState('');
@@ -52,7 +54,7 @@ export function SshKeys() {
     <section className="panel" aria-labelledby="ssh-h">
       <h2 id="ssh-h">{t('ssh.title')}</h2>
       <p className="hint">{t('ssh.intro')}</p>
-      {q.data && q.data.keys.length === 0 && <p className="muted">{t('ssh.none')}</p>}
+      {q.data && q.data.keys.length === 0 && <EmptyState>{t('ssh.none')}</EmptyState>}
       <ul className="rows">
         {q.data?.keys.map((k) => (
           <li key={k.id}>
@@ -60,7 +62,7 @@ export function SshKeys() {
             <p className="hint"><code className="checksum">{k.fingerprint}</code></p>
             <p className="hint">{t('ssh.added', { when: formatWhen(k.added_at) ?? '' })} · {k.last_used_at ? t('ssh.used', { when: formatWhen(k.last_used_at) ?? '' }) : t('ssh.neverUsed')}</p>
             <button type="button" className="btn btn-quiet" aria-label={t('ssh.removeLabel', { name: k.name })} disabled={remove.isPending}
-              onClick={() => { if (window.confirm(t('ssh.removeConfirm', { name: k.name }))) remove.mutate(k.id); }}>{t('ssh.remove')}</button>
+              onClick={() => { void confirm({ message: t('ssh.removeConfirm', { name: k.name }), confirmLabel: t('confirm.removeKey'), danger: true }).then((ok) => ok && remove.mutate(k.id)); }}>{t('ssh.remove')}</button>
           </li>
         ))}
       </ul>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, Loading } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 
 interface BbsState {
@@ -23,7 +23,7 @@ export function BbsPanel() {
   });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
   const s = q.data;
-  if (!s) return <p className="pad">{t('common.loading')}</p>;
+  if (!s) return <Loading />;
   return (
     <section aria-labelledby="bbs-h">
       <h2 id="bbs-h">{t('admin.bbs.title')}</h2>

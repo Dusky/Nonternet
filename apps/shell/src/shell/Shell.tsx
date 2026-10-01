@@ -4,37 +4,67 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Me } from '@app/shared';
 import { api } from '../api';
 import { AnnouncementBanner } from '../components/Announcements';
+import { Icon } from '../components/Icon';
+import { Avatar } from '../components/ui';
 import { useIsDesktop, useSite, useT } from '../hooks';
+import { clockPref } from '../theme';
 import { appById, visibleApps } from './apps';
-import { AppIcon } from './icons';
+import { CommandPalette } from './CommandPalette';
+import type { OnlinePerson } from './HomePanel';
+import { AppIcon, AppTile } from './icons';
+import { useMenuKeys } from './menuKeys';
 import { focusedWindow, useWindows, type AppId } from './windows';
 
-// The frame around everything once you are signed in: the taskbar (site name, apps, open windows,
-// account menu) and the page. On a phone it is a plain top bar with a way back.
+const editable = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || Boolean(el.closest('.xterm')));
+
+// The frame around everything once you are signed in. On a big screen: the taskbar (site name, apps,
+// open windows, who's online, the time, mail, notifications, account). On a phone: a top bar with a
+// way back, and a tab bar along the bottom for the places people go most.
+// Keys: Ctrl+K (Cmd+K) opens the search-and-jump palette; Alt+` brings the next window forward.
 export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const t = useT();
   const site = useSite();
   const desktop = useIsDesktop();
   const navigate = useNavigate();
   const location = useLocation();
-  const { wins, open, focus, minimize } = useWindows();
+  const { wins, open, focus, minimize, cycle } = useWindows();
   const top = focusedWindow(wins);
   const [menu, setMenu] = useState<'apps' | 'account' | null>(null);
+  const [palette, setPalette] = useState(false);
   const bar = useRef<HTMLElement>(null);
-  // A number on the bell. Checked once a minute; there is no live push yet.
-  const unreadMail = useQuery({ queryKey: ['mail', 'unread', me.id], queryFn: () => api.get<{ unread: number }>('/mail/unread'), refetchInterval: 60_000, staleTime: 15_000, enabled: me.role !== 'guest' }).data?.unread ?? 0;
+  const appsButton = useRef<HTMLButtonElement>(null);
+  const accountButton = useRef<HTMLButtonElement>(null);
+  const appsMenu = useRef<HTMLUListElement>(null);
+  const accountMenu = useRef<HTMLUListElement>(null);
+  const confirmed = me.role !== 'guest';
+  // Numbers on the mail and notification buttons. Checked once a minute; there is no live push yet.
+  const unreadMail = useQuery({ queryKey: ['mail', 'unread', me.id], queryFn: () => api.get<{ unread: number }>('/mail/unread'), refetchInterval: 60_000, staleTime: 15_000, enabled: confirmed }).data?.unread ?? 0;
   const unread = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), refetchInterval: 60_000, staleTime: 15_000 }).data?.unread ?? 0;
+  const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), refetchInterval: 60_000, enabled: confirmed && desktop }).data?.people;
 
-  // Escape and clicking elsewhere close a menu, as people expect.
+  useMenuKeys(appsMenu, menu === 'apps', () => setMenu(null), appsButton);
+  useMenuKeys(accountMenu, menu === 'account', () => setMenu(null), accountButton);
+
+  // Clicking elsewhere closes a menu, as people expect.
   useEffect(() => {
     if (!menu) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null); };
     const onClick = (e: MouseEvent) => { if (!bar.current?.contains(e.target as Node)) setMenu(null); };
-    document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onClick);
-    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onClick); };
+    return () => document.removeEventListener('mousedown', onClick);
   }, [menu]);
   useEffect(() => setMenu(null), [location.pathname]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(true); return; }
+      if (desktop && e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'Backquote' && !editable(e.target)) {
+        e.preventDefault();
+        if (cycle()) setTimeout(() => document.querySelector<HTMLElement>('.window.is-focused .window-title')?.focus(), 0);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [desktop, cycle]);
 
   const logout = async () => {
     await api.post('/auth/logout').catch(() => undefined);
@@ -42,29 +72,31 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
     // user list, open windows) stays in memory for the next person at this screen.
     window.location.assign('/');
   };
-  const launch = (id: AppId) => {
+  const launch = (id: AppId, path?: string) => {
     setMenu(null);
-    if (desktop) { open(id); navigate('/'); } else navigate(appById(id).path);
+    if (desktop) { open(id, path); navigate('/'); } else navigate(`${appById(id).path}${path ? `/${path}` : ''}`);
   };
 
   const onHome = location.pathname === '/';
+  const apps = visibleApps(me, site);
   return (
     <div className="shell">
       <a className="skip" href="#main">{t('nav.skip')}</a>
       <header className="taskbar" ref={bar}>
-        {!desktop && !onHome && <Link className="back" to="/" aria-label={t('nav.back')}>&#8592;</Link>}
-        <Link className="brand" to="/">{site.name}</Link>
+        {!desktop && !onHome && <Link className="back" to="/" aria-label={t('nav.back')}><Icon name="back" /></Link>}
+        <Link className="brand" to="/"><span className="brand-mark" aria-hidden="true" />{site.name}</Link>
 
         {desktop && (
           <div className="taskbar-apps">
-            <button type="button" className="btn btn-quiet" aria-haspopup="menu" aria-expanded={menu === 'apps'} onClick={() => setMenu(menu === 'apps' ? null : 'apps')}>{t('nav.apps')}</button>
+            <button ref={appsButton} type="button" className="btn btn-quiet" aria-haspopup="menu" aria-expanded={menu === 'apps'} onClick={() => setMenu(menu === 'apps' ? null : 'apps')}><Icon name="grid" />{t('nav.apps')}</button>
             {menu === 'apps' && (
-              <ul className="menu" role="menu">
-                {visibleApps(me, site).map((a) => (
-                  <li key={a.id} role="none"><button type="button" role="menuitem" onClick={() => launch(a.id)}><AppIcon id={a.id} /> {t(a.title)}</button></li>
+              <ul ref={appsMenu} className="menu menu-grid" role="menu" aria-label={t('nav.apps')}>
+                {apps.map((a) => (
+                  <li key={a.id} role="none"><button type="button" role="menuitem" onClick={() => launch(a.id)}><AppTile id={a.id} /> {t(a.title)}</button></li>
                 ))}
               </ul>
             )}
+            <button type="button" className="btn btn-quiet btn-icon" onClick={() => setPalette(true)} aria-label={t('palette.open')} aria-keyshortcuts="Control+K Meta+K" title={`${t('palette.open')} (Ctrl+K)`}><Icon name="search" /></button>
             <ul className="taskbar-windows" aria-label={t('nav.openWindows')}>
               {wins.map((w) => (
                 <li key={w.id}>
@@ -73,7 +105,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
                     aria-label={t('window.focus', { app: t(appById(w.id).title) })}
                     aria-pressed={top?.id === w.id}
                     onClick={() => (top?.id === w.id ? minimize(w.id) : focus(w.id))}
-                  >{t(appById(w.id).title)}</button>
+                  ><AppIcon id={w.id} size={18} />{t(appById(w.id).title)}</button>
                 </li>
               ))}
             </ul>
@@ -81,22 +113,36 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
         )}
 
         <div className="taskbar-account">
-          {me.role !== 'guest' && (
+          {desktop && (
+            <span className="taskbar-status">
+              {online && (
+                <button type="button" className="btn btn-quiet btn-small" onClick={() => launch('people')} aria-label={t('taskbar.onlineLabel', { count: online.length })}>
+                  <span className="online-dot" aria-hidden="true" />{t('taskbar.online', { count: online.length })}
+                </button>
+              )}
+              <Clock />
+            </span>
+          )}
+          {confirmed && (
             <button type="button" className="btn btn-quiet bell" onClick={() => launch('mail')}
               aria-label={unreadMail > 0 ? t('mail.bellCount', { count: unreadMail }) : t('mail.bell')}>
               <AppIcon id="mail" size={22} />
-              {unreadMail > 0 && <span className="badge badge-open" aria-hidden="true">{unreadMail > 99 ? '99+' : unreadMail}</span>}
+              {unreadMail > 0 && <span className="badge" aria-hidden="true">{unreadMail > 99 ? t('common.lots') : unreadMail}</span>}
             </button>
           )}
           <button type="button" className="btn btn-quiet bell" onClick={() => launch('notifications')}
             aria-label={unread > 0 ? t('notifications.bellCount', { count: unread }) : t('notifications.bell')}>
             <AppIcon id="notifications" size={22} />
-            {unread > 0 && <span className="badge badge-open" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
+            {unread > 0 && <span className="badge" aria-hidden="true">{unread > 99 ? t('common.lots') : unread}</span>}
           </button>
-          <button type="button" className="btn btn-quiet" aria-haspopup="menu" aria-expanded={menu === 'account'} aria-label={t('nav.account', { handle: me.handle })} onClick={() => setMenu(menu === 'account' ? null : 'account')}>{me.handle}</button>
+          <button ref={accountButton} type="button" className="btn btn-quiet person" aria-haspopup="menu" aria-expanded={menu === 'account'} aria-label={t('nav.account', { handle: me.handle })} onClick={() => setMenu(menu === 'account' ? null : 'account')}>
+            <Avatar id={me.id} name={me.display_name || me.handle} size="sm" />{desktop && me.handle}
+          </button>
           {menu === 'account' && (
-            <ul className="menu menu-right" role="menu">
-              <li role="none"><button type="button" role="menuitem" onClick={() => launch('settings')}>{t('app.settings')}</button></li>
+            <ul ref={accountMenu} className="menu menu-right" role="menu" aria-label={t('nav.account', { handle: me.handle })}>
+              <li role="none"><button type="button" role="menuitem" onClick={() => launch('people', me.handle)}><Icon name="user" />{t('nav.profile')}</button></li>
+              <li role="none"><button type="button" role="menuitem" onClick={() => launch('settings')}><AppIcon id="settings" size={22} />{t('app.settings')}</button></li>
+              <li role="none" className="menu-sep" />
               <li role="none"><button type="button" role="menuitem" onClick={() => void logout()}>{t('nav.logout')}</button></li>
             </ul>
           )}
@@ -104,6 +150,48 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
       </header>
       <AnnouncementBanner />
       <main id="main" tabIndex={-1} className="stage">{children}</main>
+      {!desktop && <TabBar me={me} mail={unreadMail} notes={unread} />}
+      <CommandPalette me={me} open={palette} onClose={() => setPalette(false)} />
     </div>
+  );
+}
+
+// The time, in the person's own format. Can be switched off in Settings → Appearance.
+function Clock() {
+  const t = useT();
+  const [now, setNow] = useState(() => new Date());
+  const [on, setOn] = useState(clockPref);
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 15_000);
+    const pref = () => setOn(clockPref());
+    window.addEventListener('ui:clock', pref);
+    return () => { clearInterval(id); window.removeEventListener('ui:clock', pref); };
+  }, []);
+  if (!on) return null;
+  const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(now);
+  return <time className="clock" dateTime={now.toISOString()} aria-label={t('taskbar.time', { time })}>{time}</time>;
+}
+
+// Phones: the places people go most, one tap away, with the same unread numbers as the taskbar.
+function TabBar({ me, mail, notes }: { me: Me; mail: number; notes: number }) {
+  const t = useT();
+  const location = useLocation();
+  const here = (path: string) => (path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`));
+  const items: { path: string; label: string; icon: ReactNode; count?: number }[] = [
+    { path: '/', label: t('tabbar.home'), icon: <Icon name="home" /> },
+    { path: '/boards', label: t('app.boards'), icon: <AppIcon id="boards" size={24} /> },
+    ...(me.role !== 'guest' ? [{ path: '/mail', label: t('app.mail'), icon: <AppIcon id="mail" size={24} />, count: mail }] : []),
+    { path: '/notifications', label: t('app.notifications'), icon: <AppIcon id="notifications" size={24} />, count: notes },
+    { path: '/settings', label: t('tabbar.me'), icon: <Icon name="user" /> },
+  ];
+  return (
+    <nav className="tabbar" aria-label={t('tabbar.label')}>
+      {items.map((i) => (
+        <Link key={i.path} to={i.path} aria-current={here(i.path) ? 'page' : undefined}>
+          {i.icon}<span>{i.label}</span>
+          {i.count ? <span className="badge badge-accent" aria-label={t('common.unreadCount', { count: i.count })}>{i.count > 99 ? t('common.lots') : i.count}</span> : null}
+        </Link>
+      ))}
+    </nav>
   );
 }

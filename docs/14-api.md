@@ -49,6 +49,8 @@ Guestbook: `GET/POST /homes/:handle/guestbook`, `PATCH /homes/me/guestbook/:id`
 Widgets: `GET /w/counter/:handle.svg`, `GET /w/guestbook/:handle`, `GET /w/online/:handle.svg`
 Caddy on-demand TLS check: `GET /internal/tls-allowed?domain=`
 
+Landing (`10`, design pass): `GET /landing` (public, cached 30 s): `{ online, threads, rings, homepages }`, where `online` is a count only and every item is already public. `GET /online` rows carry the person's stable `id`.
+
 ## Moderation
 `POST /reports` · `GET /reports?scope=` · `POST /reports/:id/resolve`
 `POST /mod-actions` · `POST /mod-actions/:id/undo` · `GET /modlog?board=&ring=`

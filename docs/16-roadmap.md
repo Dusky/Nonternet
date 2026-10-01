@@ -120,6 +120,13 @@ font, door games checked against a real DOS door.
 - [ ] Before opening: run `sitectl doctor` on the real server, point real DNS and SMTP, pick the name (Q1),
   have counsel review the legal pages (Q7), decide funding (Q8); check QWK with real readers and a real door.
 
+## Design pass (2026-10-01, owners' choice)
+- [x] Design foundation: tokens, type and spacing scales, refreshed modern palette (`10`).
+- [x] Shared components: confirm dialog, toasts, empty and loading states, back links, tabs, side nav, avatars, relative times.
+- [x] Shell: taskbar clock and online count, Ctrl+K palette, Alt+` window cycling, snapping, menu keyboard, phone tab bar, admin default theme.
+- [x] Home panel and landing page (`GET /landing`).
+- [x] App sweep: boards, mail, notifications, people (who's online), rings, files, settings, admin side nav.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Import
 of export archives; desktop "point" app; self-hosted nodes; hub-and-spoke federation with

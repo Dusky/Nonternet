@@ -61,9 +61,7 @@ test.describe('where you end up after logging in', () => {
     const admin = await makeAdmin(page);
     await page.goto('/admin');
     await expect(page).toHaveURL(/\/login\?return_to=%2Fadmin$/);
-    await loginViaUi(page, admin.handle, PASSWORD, { recovery: admin.recoveryCodes[0]! }).catch(() => undefined);
-    // loginViaUi opens /login fresh, which drops return_to, so do it by hand here
-    await page.goto('/admin');
+    // Log in on that page by hand: loginViaUi opens /login fresh, which would drop return_to.
     await page.getByLabel('Handle or email').fill(admin.handle);
     await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();

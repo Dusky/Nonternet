@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
 import { BASE_URL } from '../support/stack';
-import { loginViaUi, makeUser, PASSWORD, signIn } from '../support/helpers';
+import { loginViaUi, makeUser, PASSWORD, signIn, confirmDialog } from '../support/helpers';
 
 const h = { origin: BASE_URL };
 
@@ -45,15 +45,15 @@ test.describe('your data', () => {
     await signIn(page, u.handle, PASSWORD);
     await page.request.post('/api/v1/homes/me/template', { data: { template: 'blank' }, headers: h });
     await page.goto('/settings/data');
-    page.once('dialog', (d) => void d.accept());
     await page.getByLabel('Type your handle to confirm').fill('not-my-handle');
     await page.getByLabel('Your password').last().fill(PASSWORD);
     await page.getByRole('button', { name: 'Delete my account for good' }).click();
+    await confirmDialog(page, 'Delete my account');
     await expect(page.getByRole('alert')).toContainText('Type your handle exactly');
 
-    page.once('dialog', (d) => void d.accept());
     await page.getByLabel('Type your handle to confirm').fill(u.handle);
     await page.getByRole('button', { name: 'Delete my account for good' }).click();
+    await confirmDialog(page, 'Delete my account');
     await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible(); // back on the landing page
     await loginViaUi(page, u.handle, PASSWORD);
     await expect(page.getByRole('alert')).toBeVisible();

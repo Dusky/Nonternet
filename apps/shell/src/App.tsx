@@ -8,13 +8,14 @@ import { Desktop } from './shell/Desktop';
 import { Launcher } from './shell/Launcher';
 import { Shell } from './shell/Shell';
 import { applyTheme } from './theme';
-import { Centered } from './components/ui';
+import { Centered, Loading } from './components/ui';
 import { AnnouncementBanner } from './components/Announcements';
 import { LoginPage } from './pages/Login';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
 import { Setup2faPage } from './pages/Setup2fa';
 import { ReportHomepagePage } from './pages/ReportHomepage';
-import { LegalLinks, LegalPageRoute } from './pages/Legal';
+import { LegalPageRoute } from './pages/Legal';
+import { Landing } from './pages/Landing';
 import { SignupPage } from './pages/Signup';
 
 // Sends anyone who is not signed in to the login page, and back here afterwards. An admin who
@@ -26,29 +27,6 @@ function RequireUser({ children, allowLimited = false }: { children: (me: Me) =>
   if (!me.data) return <Navigate to={`/login?return_to=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   if (me.data.limited && !allowLimited) return <Navigate to="/setup-2fa" replace />;
   return <>{children(me.data)}</>;
-}
-
-function Landing() {
-  const t = useT();
-  const site = useSite();
-  const note = site.signup_mode === 'invite' ? t('landing.invite') : site.signup_mode === 'open' ? t('landing.open') : t('landing.closed');
-  return (
-    <>
-    <AnnouncementBanner />
-    <main className="center" id="main">
-      <div className="card">
-        <h1>{t('landing.title')}</h1>
-        <p>{t('landing.tagline')}</p>
-        <p className="muted">{note}</p>
-        <div className="actions">
-          <Link className="btn btn-primary" to="/login">{t('auth.login')}</Link>
-          {site.signup_mode !== 'application' && <Link className="btn" to="/signup">{t('auth.signup')}</Link>}
-        </div>
-        <LegalLinks />
-      </div>
-    </main>
-    </>
-  );
 }
 
 function Home() {
@@ -68,7 +46,7 @@ function AppPage({ app, me }: { app: AppDef; me: Me }) {
       <section className="app-page" aria-labelledby="app-title">
         <h1 id="app-title">{t(app.title)}</h1>
         <PageNav base={app.path}>
-          <Suspense fallback={<p className="pad">{t('common.loading')}</p>}><app.Component /></Suspense>
+          <Suspense fallback={<Loading />}><app.Component /></Suspense>
         </PageNav>
       </section>
     </Shell>
@@ -84,11 +62,12 @@ function PublicFrame({ app }: { app: AppDef }) {
   const back = encodeURIComponent(location.pathname + location.search);
   return (
     <div className="shell">
+      <a className="skip" href="#main">{t('nav.skip')}</a>
       <header className="taskbar">
-        <Link className="brand" to="/">{t('landing.title')}</Link>
+        <Link className="brand" to="/"><span className="brand-mark" aria-hidden="true" />{t('landing.title')}</Link>
         <span className="taskbar-account">
           <Link className="btn btn-quiet" to={`/login?return_to=${back}`}>{t('auth.login')}</Link>
-          {site.signup_mode !== 'application' && <Link className="btn btn-quiet" to="/signup">{t('auth.signup')}</Link>}
+          {site.signup_mode !== 'application' && <Link className="btn btn-primary" to="/signup">{t('auth.signup')}</Link>}
         </span>
       </header>
       <AnnouncementBanner />
@@ -96,7 +75,7 @@ function PublicFrame({ app }: { app: AppDef }) {
         <section className="app-page" aria-labelledby="app-title">
           <h1 id="app-title">{t(app.title)}</h1>
           <PageNav base={app.path}>
-            <Suspense fallback={<p className="pad">{t('common.loading')}</p>}><app.Component /></Suspense>
+            <Suspense fallback={<Loading />}><app.Component /></Suspense>
           </PageNav>
         </section>
       </main>

@@ -1,10 +1,11 @@
+import { useConfirm, useToast } from '../../components/feedback';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { HomeFileEntry, HomepageSummary, HomeTemplateInfo } from '@app/shared';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, Loading, EmptyState, Tabs } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
-import { AppNavLink, matchRoute, useAppNav } from '../../nav';
+import { matchRoute, useAppNav } from '../../nav';
 import { CopyButton } from '../../components/ui';
 
 const CodeEditor = lazy(() => import('./CodeEditor'));
@@ -21,18 +22,18 @@ export default function StudioApp() {
   useEffect(() => { if (!route) nav.go('files', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
   const q = useQuery({ queryKey: ['studio'], queryFn: () => api.get<Mine>('/homes/me') });
   if (q.isError) return <div className="app-content"><Alert kind="error">{errorText(q.error)}</Alert></div>;
-  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  if (!q.data) return <Loading />;
   const { homepage } = q.data;
   return (
     <div className="app">
-      <nav className="tabs" aria-label={t('app.studio')}>
-        <AppNavLink to="files">{t('studio.tab.files')}</AppNavLink>
-        <AppNavLink to="assets">{t('studio.tab.assets')}</AppNavLink>
-        <AppNavLink to="widgets">{t('studio.tab.widgets')}</AppNavLink>
-        <AppNavLink to="guestbook">{t('studio.tab.guestbook')}</AppNavLink>
-        <AppNavLink to="domains">{t('studio.tab.domains')}</AppNavLink>
-        <AppNavLink to="settings">{t('studio.tab.settings')}</AppNavLink>
-      </nav>
+      <Tabs label={t('app.studio')} items={[
+        { to: 'files', label: t('studio.tab.files') },
+        { to: 'assets', label: t('studio.tab.assets') },
+        { to: 'widgets', label: t('studio.tab.widgets') },
+        { to: 'guestbook', label: t('studio.tab.guestbook') },
+        { to: 'domains', label: t('studio.tab.domains') },
+        { to: 'settings', label: t('studio.tab.settings') },
+      ]} />
       <div className="app-content">
         <Usage h={homepage} />
         {route?.pattern === 'files' && <Files mine={q.data} />}
@@ -64,6 +65,7 @@ function Usage({ h }: { h: HomepageSummary }) {
 
 function Files({ mine }: { mine: Mine }) {
   const t = useT();
+  const confirm = useConfirm();
   const qc = useQueryClient();
   const [folder, setFolder] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
@@ -133,7 +135,7 @@ function Files({ mine }: { mine: Mine }) {
       )}
       {error && <Alert kind="error">{error}</Alert>}
       {note && <Alert kind="success">{note}</Alert>}
-      {inFolder.length === 0 && <p>{t('studio.files.none')}</p>}
+      {inFolder.length === 0 && <EmptyState>{t('studio.files.none')}</EmptyState>}
       <ul className="rows files">
         {inFolder.map((f) => {
           const name = f.path.split('/').pop()!;
@@ -148,7 +150,7 @@ function Files({ mine }: { mine: Mine }) {
                 {f.type === 'file' && <a href={`${mine.homepage.url}${f.path}`} target="_blank" rel="noopener noreferrer" aria-label={`${t('studio.files.open')} ${f.path}`}>{t('studio.files.open')}</a>}
                 <button type="button" className="link" onClick={() => setRenaming(f.path)} aria-label={`${t('studio.files.rename')} ${f.path}`}>{t('studio.files.rename')}</button>
                 <button type="button" className="link" aria-label={`${t('studio.files.delete')} ${f.path}`} onClick={() => {
-                  if (window.confirm(f.type === 'dir' ? t('studio.files.folderDeleteConfirm', { name: f.path }) : t('studio.files.deleteConfirm', { name: f.path }))) del.mutate(f.path);
+                  void confirm({ message: f.type === 'dir' ? t('studio.files.folderDeleteConfirm', { name: f.path }) : t('studio.files.deleteConfirm', { name: f.path }), confirmLabel: t('confirm.delete'), danger: true }).then((ok) => ok && del.mutate(f.path));
                 }}>{t('studio.files.delete')}</button>
               </span>
               {renaming === f.path && (
@@ -207,6 +209,7 @@ function Templates({ onDone }: { onDone: () => void }) {
 
 function Editor({ path, url, onClose }: { path: string; url: string; onClose: () => void }) {
   const t = useT();
+  const confirm = useConfirm();
   const [text, setText] = useState<string | null>(null);
   const saved = useRef('');
   const [dirty, setDirty] = useState(false);
@@ -231,7 +234,7 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
     } catch (e) { setError(errorText(e)); }
   }, [path, t]);
 
-  const close = () => { if (!dirty || window.confirm(t('studio.edit.leave'))) onClose(); };
+  const close = () => { if (!dirty) onClose(); else void confirm({ message: t('studio.edit.leave'), confirmLabel: t('confirm.discard'), danger: true }).then((ok) => ok && onClose()); };
   const previewable = /\.(html?|svg|txt|css)$/i.test(path);
   return (
     <section aria-labelledby="edit-h">
@@ -245,7 +248,7 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
       {status && !dirty && <p role="status" className="muted">{status}</p>}
       <div className="editor-split">
         {text !== null && (
-          <Suspense fallback={<p>{t('common.loading')}</p>}>
+          <Suspense fallback={<Loading />}>
             <CodeEditor path={path} value={text} label={t('studio.edit.editor', { name: path })}
               onChange={(v) => { latest.current = v; setDirty(v !== saved.current); }} onSave={() => void save()} />
           </Suspense>
@@ -291,18 +294,17 @@ function Settings({ h }: { h: HomepageSummary }) {
   const qc = useQueryClient();
   const [title, setTitle] = useState(h.title);
   const [description, setDescription] = useState(h.description);
-  const [saved, setSaved] = useState(false);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: () => api.patch('/homes/me', { title, description }),
-    onSuccess: () => { setSaved(true); setError(null); void qc.invalidateQueries({ queryKey: ['studio'] }); }, onError: (e) => { setSaved(false); setError(errorText(e)); },
+    onSuccess: () => { toast(t('studio.settings.saved')); setError(null); void qc.invalidateQueries({ queryKey: ['studio'] }); }, onError: (e) => setError(errorText(e)),
   });
   return (
-    <form className="panel" onSubmit={(e) => { e.preventDefault(); setSaved(false); save.mutate(); }}>
+    <form className="panel" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
       <TextField label={t('studio.settings.title')} value={title} onChange={setTitle} maxLength={100} />
       <TextField label={t('studio.settings.description')} hint={t('studio.settings.descriptionHint')} value={description} onChange={setDescription} maxLength={300} multiline />
       {error && <Alert kind="error">{error}</Alert>}
-      {saved && <Alert kind="success">{t('studio.settings.saved')}</Alert>}
       <button className="btn btn-primary" type="submit" disabled={save.isPending}>{t('common.save')}</button>
     </form>
   );
@@ -350,7 +352,7 @@ function GuestbookManager({ h }: { h: HomepageSummary }) {
       </div>
       {error && <Alert kind="error">{error}</Alert>}
       <h2>{t('studio.guestbook.entries')}</h2>
-      {list.data?.entries.length === 0 && <p>{t('studio.guestbook.none')}</p>}
+      {list.data?.entries.length === 0 && <EmptyState>{t('studio.guestbook.none')}</EmptyState>}
       <ul className="rows">
         {list.data?.entries.map((e) => (
           <li key={e.id}>
@@ -375,6 +377,7 @@ interface DomainInfo {
 
 function Domains() {
   const t = useT();
+  const confirm = useConfirm();
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -396,7 +399,7 @@ function Domains() {
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn btn-primary" type="submit" disabled={add.isPending}>{t('studio.domains.add')}</button>
       </form>
-      {list.data?.domains.length === 0 && <p>{t('studio.domains.none')}</p>}
+      {list.data?.domains.length === 0 && <EmptyState>{t('studio.domains.none')}</EmptyState>}
       <ul className="rows">
         {list.data?.domains.map((d) => (
           <li key={d.domain}>
@@ -416,7 +419,7 @@ function Domains() {
                   <button type="button" className="btn" onClick={() => check.mutate(d.domain)} disabled={check.isPending}>{t('studio.domains.check', { name: d.domain })}</button>{' '}
                 </>
               )}
-            <button type="button" className="link" onClick={() => { if (window.confirm(t('studio.domains.removeConfirm', { name: d.domain }))) remove.mutate(d.domain); }}>{t('studio.domains.remove', { name: d.domain })}</button>
+            <button type="button" className="link" onClick={() => { void confirm({ message: t('studio.domains.removeConfirm', { name: d.domain }), confirmLabel: t('confirm.removeDomain'), danger: true }).then((ok) => ok && remove.mutate(d.domain)); }}>{t('studio.domains.remove', { name: d.domain })}</button>
           </li>
         ))}
       </ul>

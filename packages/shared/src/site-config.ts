@@ -87,6 +87,8 @@ export const siteConfigSchema = z
         public_port: z.number().int().min(1).max(65535).default(4000),
       })
       .default({}),
+    // The look people get until they pick one in Settings → Appearance (docs/10). Admin-editable.
+    ui: z.object({ default_theme: z.enum(['modern', 'amber']).default('modern') }).default({}),
     moderation: z
       .object({
         // The mod log of each board is readable by anyone who can read the board (docs/03).
@@ -166,6 +168,7 @@ export const publicSiteSchema = z.object({
   mud: z.object({ host: z.string(), port: z.number().int() }),
   bbs: z.object({ host: z.string(), telnet_port: z.number().int(), ssh_port: z.number().int() }),
   services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean(), gopher: z.boolean() }),
+  default_theme: z.enum(['modern', 'amber']),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
 
@@ -181,5 +184,6 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     mud: { host: cfg.mud.public_host ?? `mud.${cfg.site.domain}`, port: cfg.mud.public_port },
     bbs: { host: cfg.bbs.host ?? `bbs.${cfg.site.domain}`, telnet_port: cfg.bbs.telnet_port, ssh_port: cfg.bbs.ssh_port },
     services: cfg.services,
+    default_theme: cfg.ui.default_theme,
   };
 }

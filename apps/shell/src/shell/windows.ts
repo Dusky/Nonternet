@@ -21,7 +21,8 @@ export interface Viewport { w: number; h: number }
 export const TASKBAR_HEIGHT = 48;
 export const MIN_W = 320;
 export const MIN_H = 240;
-const DEFAULT = { w: 760, h: 540 };
+const DEFAULT = { w: 780, h: 560 };
+const ICONS_W = 232;
 const STORAGE_KEY = 'ui:windows:v1';
 
 type Geometry = Pick<Win, 'x' | 'y' | 'w' | 'h'>;
@@ -67,6 +68,8 @@ interface State {
   focus(id: AppId): void;
   minimize(id: AppId): void;
   toggleMaximize(id: AppId): void;
+  snap(id: AppId, side: 'left' | 'right'): void;
+  cycle(): AppId | null;
   move(id: AppId, x: number, y: number): void;
   resize(id: AppId, geometry: Geometry): void;
   reset(): void;
@@ -92,7 +95,8 @@ export const useWindows = create<State>((set, get) => ({
     if (existing) return { zTop: z, wins: s.wins.map((w) => (w.id === id ? { ...w, minimized: false, z, path: path ?? w.path } : w)) };
     const cascade = s.wins.length * 28;
     const saved = loadSaved()[id];
-    const g = clampGeometry(saved ?? { x: 64 + cascade, y: 40 + cascade, ...DEFAULT }, s.viewport);
+    // New windows open to the right of the desktop icons, so the icons stay in reach.
+    const g = clampGeometry(saved ?? { x: ICONS_W + cascade, y: 24 + cascade, ...DEFAULT }, s.viewport);
     return { zTop: z, wins: [...s.wins, { id, ...g, z, path: path ?? '', minimized: false, maximized: false, restore: null }] };
   }),
 
@@ -115,13 +119,39 @@ export const useWindows = create<State>((set, get) => ({
       wins: s.wins.map((w) => {
         if (w.id !== id) return w;
         if (w.maximized) return { ...w, ...(w.restore ?? clampGeometry(w, s.viewport)), maximized: false, restore: null, z };
-        return { ...w, x: 0, y: 0, w: a.w, h: a.h, maximized: true, restore: { x: w.x, y: w.y, w: w.w, h: w.h }, z };
+        // A snapped window keeps the place it had before it was snapped.
+        return { ...w, x: 0, y: 0, w: a.w, h: a.h, maximized: true, restore: w.restore ?? { x: w.x, y: w.y, w: w.w, h: w.h }, z };
       }),
     };
   }),
 
+  // Fill the left or right half of the desktop. Un-maximizing (or snapping again) puts it back.
+  snap: (id, side) => set((s) => {
+    const a = area(s.viewport);
+    const z = s.zTop + 1;
+    const half = Math.max(Math.floor(a.w / 2), Math.min(MIN_W, a.w));
+    return {
+      zTop: z,
+      wins: s.wins.map((w) => (w.id !== id ? w : {
+        ...w, x: side === 'left' ? 0 : a.w - half, y: 0, w: half, h: a.h, maximized: false, minimized: false, z,
+        restore: w.restore ?? { x: w.x, y: w.y, w: w.w, h: w.h },
+      })),
+    };
+  }),
+
+  // The next window to the front, like Alt+Tab: the one at the back comes forward, so pressing it
+  // again goes through every window, minimized ones included. Returns the window now in front.
+  cycle: () => {
+    const { wins } = get();
+    if (wins.length === 0) return null;
+    const front = topVisible(wins);
+    const back = [...wins].sort((a, b) => a.z - b.z).find((w) => w.id !== front?.id) ?? wins[0]!;
+    get().focus(back.id);
+    return back.id;
+  },
+
   move: (id, x, y) => {
-    set((s) => ({ wins: s.wins.map((w) => (w.id === id && !w.maximized ? { ...w, ...clampGeometry({ ...w, x, y }, s.viewport) } : w)) }));
+    set((s) => ({ wins: s.wins.map((w) => (w.id === id && !w.maximized ? { ...w, ...clampGeometry({ ...w, x, y }, s.viewport), restore: null } : w)) }));
     save(get().wins);
   },
 

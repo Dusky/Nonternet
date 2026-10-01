@@ -1,16 +1,17 @@
+import { useToast } from '../../components/feedback';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { changePasswordSchema, profileUpdateSchema, THEMES, type CharacterView, type Me, type ThemeName } from '@app/shared';
 import { themes } from '@app/ui-themes';
 import { api } from '../../api';
-import { Alert, CopyButton, TextField } from '../../components/ui';
+import { Alert, CopyButton, SideNav, TextField } from '../../components/ui';
 import { errorText, useMe, useSite, useT } from '../../hooks';
-import { AppNavLink, matchRoute, useAppNav } from '../../nav';
+import { matchRoute, useAppNav } from '../../nav';
 import { YourData } from './YourData';
 import { Blocks } from './Blocks';
 import { OfflineMail, SshKeys, TerminalPassword } from './Terminal';
 import { TotpSetup } from '../../pages/Setup2fa';
-import { applyTheme, effectPrefs, saveEffectPrefs } from '../../theme';
+import { applyTheme, clockPref, effectPrefs, saveClockPref, saveEffectPrefs } from '../../theme';
 
 const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance'] as const;
 
@@ -24,26 +25,23 @@ export default function SettingsApp() {
   useEffect(() => { if (!route) nav.go('profile', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!me) return null;
   return (
-    <div className="app">
-      <nav className="tabs" aria-label={t('app.settings')}>
-        <AppNavLink to="profile">{t('settings.tab.profile')}</AppNavLink>
-        <AppNavLink to="password">{t('settings.tab.password')}</AppNavLink>
-        <AppNavLink to="two-factor">{t('settings.tab.twofa')}</AppNavLink>
-        <AppNavLink to="terminal">{t('settings.tab.terminal')}</AppNavLink>
-        <AppNavLink to="data">{t('settings.tab.data')}</AppNavLink>
-        {me.role !== 'guest' && <AppNavLink to="blocked">{t('settings.tab.blocked')}</AppNavLink>}
-        <AppNavLink to="appearance">{t('settings.tab.appearance')}</AppNavLink>
-      </nav>
-      <div className="app-content">
-        {route?.pattern === 'profile' && <><Profile me={me} />{site.services.mud && <FeaturedCharacter />}</>}
-        {route?.pattern === 'password' && <Password />}
-        {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
-        {route?.pattern === 'terminal' && <><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <><SshKeys /><OfflineMail /></>}</>}
-        {route?.pattern === 'data' && <YourData me={me} />}
-        {route?.pattern === 'blocked' && <Blocks />}
-        {route?.pattern === 'appearance' && <Appearance me={me} />}
-      </div>
-    </div>
+    <SideNav label={t('app.settings')} groups={[{ items: [
+      { to: 'profile', label: t('settings.tab.profile') },
+      { to: 'appearance', label: t('settings.tab.appearance') },
+      { to: 'password', label: t('settings.tab.password') },
+      { to: 'two-factor', label: t('settings.tab.twofa') },
+      { to: 'terminal', label: t('settings.tab.terminal') },
+      ...(me.role !== 'guest' ? [{ to: 'blocked', label: t('settings.tab.blocked') }] : []),
+      { to: 'data', label: t('settings.tab.data') },
+    ] }]}>
+      {route?.pattern === 'profile' && <><Profile me={me} />{site.services.mud && <FeaturedCharacter />}</>}
+      {route?.pattern === 'password' && <Password />}
+      {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
+      {route?.pattern === 'terminal' && <><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <><SshKeys /><OfflineMail /></>}</>}
+      {route?.pattern === 'data' && <YourData me={me} />}
+      {route?.pattern === 'blocked' && <Blocks />}
+      {route?.pattern === 'appearance' && <Appearance me={me} />}
+    </SideNav>
   );
 }
 
@@ -52,10 +50,11 @@ function Profile({ me }: { me: Me }) {
   const qc = useQueryClient();
   const [displayName, setDisplayName] = useState(me.display_name ?? '');
   const [bio, setBio] = useState(me.bio ?? '');
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: (body: object) => api.patch<{ user: Me }>('/me', body),
-    onSuccess: ({ user }) => qc.setQueryData(['me'], user),
+    onSuccess: ({ user }) => { qc.setQueryData(['me'], user); toast(t('settings.profile.saved')); },
     onError: (e) => setError(errorText(e)),
   });
   const submit = (e: FormEvent) => {
@@ -70,7 +69,6 @@ function Profile({ me }: { me: Me }) {
       <TextField label={t('field.displayName')} value={displayName} onChange={setDisplayName} maxLength={60} />
       <TextField label={t('field.bio')} value={bio} onChange={setBio} multiline maxLength={500} />
       {error && <Alert kind="error">{error}</Alert>}
-      {save.isSuccess && !error && <Alert kind="success">{t('settings.profile.saved')}</Alert>}
       <button className="btn btn-primary" type="submit" disabled={save.isPending}>{t('common.save')}</button>
     </form>
   );
@@ -182,10 +180,12 @@ function Appearance({ me }: { me: Me }) {
   const current = (document.documentElement.dataset.theme as ThemeName | undefined) ?? me.theme ?? 'modern';
   const [theme, setTheme] = useState<ThemeName>(current);
   const [prefs, setPrefs] = useState(() => effectPrefs(theme));
+  const [clock, setClock] = useState(clockPref);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: (name: ThemeName) => api.patch<{ user: Me }>('/me', { theme: name }),
-    onSuccess: ({ user }) => qc.setQueryData(['me'], user),
+    onSuccess: ({ user }) => { qc.setQueryData(['me'], user); toast(t('settings.appearance.saved')); },
     onError: (e) => setError(errorText(e)),
   });
 
@@ -208,12 +208,17 @@ function Appearance({ me }: { me: Me }) {
     <>
       <fieldset>
         <legend>{t('settings.appearance.theme')}</legend>
-        {THEMES.map((name) => (
-          <label key={name} className="check">
-            <input type="radio" name="theme" value={name} checked={theme === name} onChange={() => choose(name)} />
-            {t(`settings.theme.${name}`)}
-          </label>
-        ))}
+        <div className="theme-choices">
+          {THEMES.map((name) => (
+            <label key={name} className={`theme-choice${theme === name ? ' is-chosen' : ''}`}>
+              <input type="radio" name="theme" value={name} checked={theme === name} onChange={() => choose(name)} />
+              <span className="theme-swatch" aria-hidden="true">
+                {[themes[name].tokens.bg, themes[name].tokens.accent, themes[name].tokens.titleActiveBg].map((c) => <span key={c} style={{ background: c }} />)}
+              </span>
+              <span>{t(`settings.theme.${name}`)}</span>
+            </label>
+          ))}
+        </div>
       </fieldset>
       {(effects.scanlines || effects.glow) && (
         <fieldset>
@@ -222,8 +227,12 @@ function Appearance({ me }: { me: Me }) {
           {effects.glow && <label className="check"><input type="checkbox" checked={prefs.glow} onChange={(e) => toggle('glow', e.target.checked)} />{t('settings.effects.glow')}</label>}
         </fieldset>
       )}
+      <fieldset>
+        <legend>{t('settings.appearance.taskbar')}</legend>
+        <label className="check"><input type="checkbox" checked={clock} onChange={(e) => { setClock(e.target.checked); saveClockPref(e.target.checked); }} />{t('settings.appearance.clock')}</label>
+        <p className="hint">{t('settings.appearance.thisDevice')}</p>
+      </fieldset>
       {error && <Alert kind="error">{error}</Alert>}
-      {save.isSuccess && !error && <Alert kind="success">{t('settings.appearance.saved')}</Alert>}
     </>
   );
 }

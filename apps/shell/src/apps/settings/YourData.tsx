@@ -1,8 +1,9 @@
+import { useConfirm } from '../../components/feedback';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Me } from '@app/shared';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 
 interface ExportRow { id: string; status: 'queued' | 'running' | 'ready' | 'failed' | 'expired'; requested_at: string; ready_at: string | null; expires_at: string | null; size_bytes: number | null; includes_private_key: boolean; error: string | null }
@@ -42,7 +43,7 @@ function ExportSection() {
         <button className="btn btn-primary" type="submit" disabled={ask.isPending}>{t('data.export.request')}</button>
       </form>
       <h3>{t('data.export.list')}</h3>
-      {list.data?.exports.length === 0 && <p>{t('data.export.none')}</p>}
+      {list.data?.exports.length === 0 && <EmptyState>{t('data.export.none')}</EmptyState>}
       <ul className="rows">
         {list.data?.exports.map((x) => (
           <li key={x.id}>
@@ -64,6 +65,7 @@ function ExportSection() {
 
 function DeleteSection({ me }: { me: Me }) {
   const t = useT();
+  const confirm = useConfirm();
   const [f, setF] = useState({ password: '', handle: '', code: '' });
   const [posts, setPosts] = useState<'keep' | 'erase'>('keep');
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +83,7 @@ function DeleteSection({ me }: { me: Me }) {
       <h2 id="delete-h">{t('data.delete.title')}</h2>
       <p>{t('data.delete.intro')}</p>
       <p className="hint">{t('data.delete.ringsNote')}</p>
-      <form onSubmit={(e) => { e.preventDefault(); setError(null); if (window.confirm(t('data.delete.confirm'))) del.mutate(); }}>
+      <form onSubmit={(e) => { e.preventDefault(); setError(null); void confirm({ message: t('data.delete.confirm'), confirmLabel: t('confirm.deleteAccount'), danger: true }).then((ok) => ok && del.mutate()); }}>
         <fieldset>
           <legend>{t('data.delete.postsLegend')}</legend>
           <label className="check"><input type="radio" name="posts" checked={posts === 'keep'} onChange={() => setPosts('keep')} />{t('data.delete.postsKeep')}</label>

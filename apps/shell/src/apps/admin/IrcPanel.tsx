@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { Alert, TextField } from '../../components/ui';
+import { Alert, TextField, Loading } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 
 interface Overview {
@@ -18,7 +18,7 @@ export function IrcPanel() {
   const q = useQuery({ queryKey: ['admin', 'irc'], queryFn: () => api.get<Overview>('/admin/irc'), refetchInterval: 15_000 });
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
   const o = q.data;
-  if (!o) return <p className="pad">{t('common.loading')}</p>;
+  if (!o) return <Loading />;
   if (!o.configured) return <Alert kind="info">{t('admin.irc.off')}</Alert>;
   return (
     <>

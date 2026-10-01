@@ -2,8 +2,9 @@ import { useEffect, useRef } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
-import { Alert } from '../../components/ui';
-import { errorText, formatWhen, useMe, useT } from '../../hooks';
+import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime } from '../../components/ui';
+import { Icon } from '../../components/Icon';
+import { errorText, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav } from '../../nav';
 import { BoardSettings, NewBoard } from './BoardForms';
 import { Composer } from './Composer';
@@ -18,8 +19,7 @@ const ROUTES = ['', 'new', 'search', 'reports', ':slug', ':slug/new', ':slug/set
 export default function BoardsApp() {
   const nav = useAppNav();
   const route = matchRoute(nav.path, ROUTES);
-  const t = useT();
-  if (!route) return <p className="pad">{t('error.notFound')}</p>;
+  if (!route) return <div className="app-content"><NotFound /></div>;
   const slug = route.params.slug;
   return (
     <div className="app-content">
@@ -64,7 +64,7 @@ function BoardList() {
   });
   useListKeys(root);
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
-  if (!q.data) return <p className="pad">{t('common.loading')}</p>;
+  if (!q.data) return <Loading rows={4} />;
   const { categories, boards } = q.data;
   const ringNames = [...new Set(boards.filter((b) => b.ring).map((b) => b.ring!.name))].sort();
   const groups = [
@@ -75,22 +75,23 @@ function BoardList() {
   return (
     <div ref={root}>
       <div className="toolbar">
-        <AppLink className="btn" to="search">{t('boards.search')}</AppLink>
         {(me?.role === 'trusted' || me?.role === 'admin') && <AppLink className="btn btn-primary" to="new">{t('boards.new')}</AppLink>}
+        <AppLink className="btn" to="search"><Icon name="search" />{t('boards.search')}</AppLink>
         {(me?.role === 'admin' || me?.ops.some((o) => o.startsWith('board:')) || boards.some((b) => b.can_moderate)) && <AppLink className="btn" to="reports">{t('boards.reports')}</AppLink>}
       </div>
-      {boards.length === 0 && <p>{t('boards.list.none')}</p>}
+      {boards.length === 0 && <EmptyState>{t('boards.list.none')}</EmptyState>}
       {groups.map((g) => (
         <section key={g.key} aria-label={g.title || undefined}>
           {g.title && <h2>{g.title}</h2>}
           <ul className="rows board-rows">
             {g.boards.map((b) => (
               <li key={b.id}>
-                <AppLink to={b.slug} data-nav className="board-link"><strong>{b.name}</strong></AppLink>{' '}
-                <Badges board={b} />
-                {b.unread ? <span className="badge badge-open">{t('boards.unread', { count: b.unread })}</span> : null}
-                {b.description && <p className="muted">{b.description}</p>}
-                <p className="hint">{t('boards.threads', { count: b.thread_count })}{b.last_post_at ? ` · ${formatWhen(b.last_post_at)}` : ''}</p>
+                <div className="row-head">
+                  <span><AppLink to={b.slug} data-nav className="board-link"><strong>{b.name}</strong></AppLink> <Badges board={b} /></span>
+                  {b.unread ? <span className="badge badge-accent">{t('boards.unread', { count: b.unread })}</span> : null}
+                </div>
+                {b.description && <p>{b.description}</p>}
+                <p className="row-meta">{t('boards.threads', { count: b.thread_count })}{b.last_post_at ? <> · <RelativeTime iso={b.last_post_at} /></> : null}</p>
               </li>
             ))}
           </ul>
@@ -134,10 +135,10 @@ function BoardPage({ slug }: { slug: string }) {
 
   if (board.isError) return <Alert kind="error">{errorText(board.error)}</Alert>;
   const b = board.data;
-  if (!b) return <p className="pad">{t('common.loading')}</p>;
+  if (!b) return <Loading rows={4} />;
   return (
     <div ref={root}>
-      <p><AppLink to="">&#8592; {t('boards.backToBoards')}</AppLink></p>
+      <BackLink to="">{t('boards.backToBoards')}</BackLink>
       <h2>{b.name} <Badges board={b} /></h2>
       {b.description && <p>{b.description}</p>}
       <p className="hint">{t('boards.owner', { name: b.owner.handle })}</p>
@@ -146,19 +147,23 @@ function BoardPage({ slug }: { slug: string }) {
         {me && <button className="btn" onClick={() => watch.mutate(!b.watching)} aria-pressed={b.watching} disabled={watch.isPending}>{b.watching ? t('boards.unwatch') : t('boards.watch')}</button>}
         {me && <button className="btn" onClick={() => markRead.mutate()} disabled={markRead.isPending || !b.unread}>{t('boards.markRead')}</button>}
         {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
-        <AppLink className="btn" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
-        {b.can_moderate && <AppLink className="btn" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
+        <span className="spacer" />
+        <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
+        {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
       </div>
       {!b.can_post && <p className="muted">{postNote(t, b, Boolean(me))}</p>}
       {threads.isError && <Alert kind="error">{errorText(threads.error)}</Alert>}
-      {threads.isSuccess && list.length === 0 && <p>{t('boards.noThreads')}</p>}
+      {threads.isSuccess && list.length === 0 && <EmptyState>{t('boards.noThreads')}</EmptyState>}
       <ul className="rows thread-rows" aria-label={t('boards.threadList')}>
         {list.map((th) => (
           <li key={th.id} className={th.unread ? 'is-unread' : undefined}>
-            <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link"><strong>{th.subject || '…'}</strong></AppLink>{' '}
-            {th.unread && <span className="badge badge-open">{t('boards.unread', { count: 1 }).replace('1 ', '')}</span>}
-            <p className="hint">
-              {th.author ? t('boards.by', { name: th.author.display_name || th.author.handle }) : ''} · {t('boards.replies', { count: th.reply_count })} · {formatWhen(th.last_post_at)}
+            <div className="row-head">
+              <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link"><strong>{th.subject || '…'}</strong></AppLink>
+              {th.unread && <span className="badge badge-accent">{t('boards.newBadge')}</span>}
+            </div>
+            <p className="row-meta">
+              {th.author && <span className="person"><Avatar id={th.author.id} name={th.author.display_name || th.author.handle} size="sm" />{th.author.display_name || th.author.handle}</span>}
+              {th.author ? ' · ' : ''}{t('boards.replies', { count: th.reply_count })} · <RelativeTime iso={th.last_post_at} />
             </p>
           </li>
         ))}
@@ -174,10 +179,10 @@ function NewThread({ slug }: { slug: string }) {
   const nav = useAppNav();
   const board = useBoard(slug);
   if (board.isError) return <Alert kind="error">{errorText(board.error)}</Alert>;
-  if (!board.data) return <p className="pad">{t('common.loading')}</p>;
+  if (!board.data) return <Loading />;
   return (
     <>
-      <p><AppLink to={slug}>&#8592; {t('boards.back', { name: board.data.name })}</AppLink></p>
+      <BackLink to={slug}>{t('boards.back', { name: board.data.name })}</BackLink>
       <h2>{t('boards.newThread')}</h2>
       {board.data.can_post
         ? <Composer slug={slug} onPosted={(p) => nav.go(`${slug}/t/${p.thread_id}`)} onCancel={() => nav.go(slug)} />
@@ -190,7 +195,7 @@ function ReportsPage() {
   const t = useT();
   return (
     <>
-      <p><AppLink to="">&#8592; {t('boards.backToBoards')}</AppLink></p>
+      <BackLink to="">{t('boards.backToBoards')}</BackLink>
       <h2>{t('boards.reports')}</h2>
       <ReportQueue />
     </>
@@ -203,9 +208,8 @@ function ModLogPage({ slug }: { slug: string }) {
 }
 
 function SettingsPage({ slug }: { slug: string }) {
-  const t = useT();
   const board = useBoard(slug);
   if (board.isError) return <Alert kind="error">{errorText(board.error)}</Alert>;
-  if (!board.data) return <p className="pad">{t('common.loading')}</p>;
+  if (!board.data) return <Loading />;
   return <BoardSettings board={board.data} key={board.data.id + String(board.dataUpdatedAt)} />;
 }

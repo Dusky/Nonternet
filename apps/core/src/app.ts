@@ -26,6 +26,7 @@ import { vouchRoutes } from './routes/vouches';
 import { fileRoutes } from './routes/files';
 import { consoleRoutes } from './routes/console';
 import { bbsRoutes } from './routes/bbs';
+import { landingRoutes } from './routes/landing';
 import { isPublicRoute } from './public-routes';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -115,5 +116,6 @@ export async function buildApp(deps: AppDeps) {
   fileRoutes(app, deps);
   consoleRoutes(app, deps);
   bbsRoutes(app, deps);
+  landingRoutes(app, deps);
   return app;
 }

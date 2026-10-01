@@ -40,6 +40,7 @@ export const SETTINGS: SettingDef[] = [
     impact: async (deps, next) => ({ affected: Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM (SELECT uploader_id FROM files WHERE deleted_at IS NULL AND uploader_id IS NOT NULL GROUP BY uploader_id HAVING sum(size_bytes) > $1) x`, [Math.floor((next as number) * MB)])).rows[0]!.n), note: 'people already over that keep their files but cannot upload more' }) },
   { key: 'homes.max_domains', schema: int(0, 20), risky: false, get: (c) => c.homes.max_domains, set: (c, v) => { c.homes.max_domains = v as number; } },
   { key: 'bbs.motd', schema: z.string().max(2000), risky: false, get: (c) => c.bbs.motd, set: (c, v) => { c.bbs.motd = v as string; } },
+  { key: 'ui.default_theme', schema: z.enum(['modern', 'amber']), risky: false, get: (c) => c.ui.default_theme, set: (c, v) => { c.ui.default_theme = v as 'modern' | 'amber'; } },
   { key: 'moderation.public_modlog', schema: z.boolean(), risky: false, get: (c) => c.moderation.public_modlog, set: (c, v) => { c.moderation.public_modlog = v as boolean; } },
 ];
 export const settingDef = (key: string): SettingDef | undefined => SETTINGS.find((s) => s.key === key);

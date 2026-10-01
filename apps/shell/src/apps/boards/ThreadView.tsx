@@ -1,10 +1,11 @@
+import { useConfirm } from '../../components/feedback';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
-import { Alert } from '../../components/ui';
-import { errorText, formatWhen, useMe, useT } from '../../hooks';
-import { AppLink, useAppNav } from '../../nav';
+import { Alert, Avatar, BackLink, Loading, RelativeTime } from '../../components/ui';
+import { errorText, useMe, useT } from '../../hooks';
+import { useAppNav } from '../../nav';
 import { Composer } from './Composer';
 import { useListKeys } from './keys';
 import { PostModTools, ReportPost } from './ModTools';
@@ -32,6 +33,7 @@ export function threadOrder(posts: PostView[]): { post: PostView; depth: number 
 
 export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const t = useT();
+  const confirm = useConfirm();
   const me = useMe().data;
   const nav = useAppNav();
   const qc = useQueryClient();
@@ -83,12 +85,12 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   useListKeys(root, { r: () => canReply && openReply(), n: goNextUnread });
 
   if (q.isError) return <Alert kind="error">{errorText(q.error)}</Alert>;
-  if (!board) return <p className="pad">{t('common.loading')}</p>;
+  if (!board) return <Loading rows={4} />;
   const subject = posts[0]?.subject || '';
 
   return (
     <div ref={root}>
-      <p><AppLink to={slug}>&#8592; {t('boards.back', { name: board.name })}</AppLink></p>
+      <BackLink to={slug}>{t('boards.back', { name: board.name })}</BackLink>
       <h2>{subject} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
       <div className="toolbar" role="group" aria-label={t('boards.view.label')}>
         <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
@@ -103,10 +105,10 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
             <li key={post.id} style={depth ? { marginLeft: `${Math.min(depth, 6) * 1.25}rem` } : undefined}>
               <article className="post" tabIndex={-1} data-nav data-state={post.state} aria-label={name ? t('boards.by', { name }) : undefined}>
                 <header className="post-head">
-                  {post.author ? <PersonLink app="people" to={post.author.handle}><strong>{post.author.display_name || post.author.handle}</strong></PersonLink> : null}
+                  {post.author ? <PersonLink app="people" to={post.author.handle} className="person"><Avatar id={post.author.id} name={post.author.display_name || post.author.handle} /><strong>{post.author.display_name || post.author.handle}</strong></PersonLink> : null}
                   {post.author?.display_name && <span className="muted"> @{post.author.handle}</span>}
                   {post.author?.character && <> <CharacterBadge character={post.author.character} /></>}
-                  <span className="muted"> · <time dateTime={post.posted_at}>{formatWhen(post.posted_at)}</time></span>
+                  <span className="muted">· <RelativeTime iso={post.posted_at} /></span>
                   {view === 'flat' && parent?.author && <span className="muted"> · {t('boards.inReplyTo', { name: parent.author.display_name || parent.author.handle })}</span>}
                 </header>
                 {post.state === 'deleted' && <p className="muted">{t('boards.deleted')}</p>}
@@ -117,7 +119,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
                   {canReply && post.state === 'ok' && <button type="button" className="link" onClick={() => openReply(post)}>{t('boards.reply')}</button>}
                   {me && post.author && post.author.id !== me.id && post.state === 'ok' && <ReportPost post={post} />}
                   {me && post.author?.id === me.id && post.state === 'ok' && (
-                    <button type="button" className="link" onClick={() => { if (window.confirm(t('boards.deleteConfirm'))) del.mutate(post.id); }}>{t('boards.delete')}</button>
+                    <button type="button" className="link" onClick={() => { void confirm({ message: t('boards.deleteConfirm'), confirmLabel: t('confirm.deletePost'), danger: true }).then((ok) => ok && del.mutate(post.id)); }}>{t('boards.delete')}</button>
                   )}
                 </footer>
                 {board.can_moderate && <PostModTools board={board} post={post} isThreadStart={post.id === id} locked={locked} />}

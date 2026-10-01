@@ -1,16 +1,23 @@
-import { Suspense, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { Icon } from '../components/Icon';
+import { Loading } from '../components/ui';
 import { useT } from '../hooks';
 import { WindowNav } from '../nav';
 import { appById } from './apps';
+import { AppIcon } from './icons';
 import { useWindows, type Win } from './windows';
 
 const STEP = 16;
 
 // One window on the desktop. It can be dragged by its title bar, resized from the right, bottom and
-// corner, and moved or resized from the keyboard (arrow keys, with Shift to resize).
+// corner, and moved or resized from the keyboard (arrow keys, with Shift to resize; Alt+Left and
+// Alt+Right snap it to half the screen). Opening a window moves focus into it; closing it gives focus
+// to the window behind, or back to the desktop.
 export function Window({ win, focused }: { win: Win; focused: boolean }) {
   const t = useT();
-  const { focus, close, minimize, toggleMaximize, move, resize } = useWindows();
+  const { focus, close, minimize, toggleMaximize, snap, move, resize } = useWindows();
+  const titleBar = useRef<HTMLElement>(null);
+  useEffect(() => { titleBar.current?.focus({ preventScroll: true }); }, []);
   const app = appById(win.id);
   const title = t(app.title);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
@@ -41,6 +48,7 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
   const onEdgeUp = () => { sizing.current = null; };
 
   const onKey = (e: KeyboardEvent) => {
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); snap(win.id, e.key === 'ArrowLeft' ? 'left' : 'right'); return; }
     const d = { ArrowLeft: [-STEP, 0], ArrowRight: [STEP, 0], ArrowUp: [0, -STEP], ArrowDown: [0, STEP] }[e.key];
     if (!d || win.maximized) return;
     e.preventDefault();
@@ -57,19 +65,19 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
       onPointerDownCapture={() => { if (!focused) focus(win.id); }}
     >
       <header
-        className="window-title" tabIndex={0} onPointerDown={onTitleDown} onPointerMove={onTitleMove} onPointerUp={onTitleUp}
-        onDoubleClick={() => toggleMaximize(win.id)} onKeyDown={onKey} aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown"
+        ref={titleBar} className="window-title" tabIndex={0} onPointerDown={onTitleDown} onPointerMove={onTitleMove} onPointerUp={onTitleUp}
+        onDoubleClick={() => toggleMaximize(win.id)} onKeyDown={onKey} aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown Alt+ArrowLeft Alt+ArrowRight"
       >
-        <h2>{title}</h2>
+        <h2><AppIcon id={win.id} size={18} />{title}</h2>
         <div className="window-buttons">
-          <button type="button" aria-label={t('window.minimize', { app: title })} onClick={() => minimize(win.id)}>&#8211;</button>
-          <button type="button" aria-label={win.maximized ? t('window.restore', { app: title }) : t('window.maximize', { app: title })} onClick={() => toggleMaximize(win.id)}>{win.maximized ? '❐' : '□'}</button>
-          <button type="button" aria-label={t('window.close', { app: title })} onClick={() => close(win.id)}>&#215;</button>
+          <button type="button" aria-label={t('window.minimize', { app: title })} onClick={() => { minimize(win.id); focusFront(); }}><Icon name="minimize" /></button>
+          <button type="button" aria-label={win.maximized ? t('window.restore', { app: title }) : t('window.maximize', { app: title })} onClick={() => toggleMaximize(win.id)}><Icon name={win.maximized ? 'restore' : 'maximize'} /></button>
+          <button type="button" className="is-close" aria-label={t('window.close', { app: title })} onClick={() => { close(win.id); focusFront(win.id); }}><Icon name="close" /></button>
         </div>
       </header>
       <div className="window-body">
         <WindowNav id={win.id}>
-          <Suspense fallback={<p className="pad">{t('common.loading')}</p>}><app.Component /></Suspense>
+          <Suspense fallback={<Loading />}><app.Component /></Suspense>
         </WindowNav>
       </div>
       {!win.maximized && (
@@ -81,4 +89,14 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
       )}
     </section>
   );
+}
+
+// After a window goes away, keyboard focus goes to the window now in front, or to the desktop icon of
+// the app that was closed, so it never falls to the top of the page.
+function focusFront(closed?: string) {
+  setTimeout(() => {
+    const front = document.querySelector<HTMLElement>('.window.is-focused .window-title');
+    const icon = closed ? document.querySelector<HTMLElement>(`[data-app-icon="${closed}"]`) : null;
+    (front ?? icon ?? document.getElementById('main'))?.focus({ preventScroll: true });
+  }, 0);
 }
