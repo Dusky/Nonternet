@@ -56,6 +56,8 @@ BASE_CHARACTER_TYPECLASS = "typeclasses.characters.Character"
 BASE_ROOM_TYPECLASS = "typeclasses.rooms.Room"
 
 TELNET_PORTS = [int(os.environ.get("MUD_TELNET_PORT", 4000))]
+# GMCP and MSDP for telnet clients like Mudlet, so they get the same vitals and room_info as the web client (docs/09).
+TELNET_OOB_ENABLED = True
 WEBSERVER_PORTS = [(int(os.environ.get("MUD_WEB_PORT", 4001)), int(os.environ.get("MUD_WEB_INTERNAL_PORT", 4005)))]
 WEBSOCKET_CLIENT_PORT = int(os.environ.get("MUD_WS_PORT", 4002))
 AMP_PORT = int(os.environ.get("MUD_AMP_PORT", 4006))

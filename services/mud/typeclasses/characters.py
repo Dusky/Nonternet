@@ -6,8 +6,9 @@ import time
 
 from evennia import search_tag
 from evennia.contrib.tutorials.evadventure.characters import EvAdventureCharacter
+from evennia.typeclasses.attributes import AttributeProperty
 
-from world import duels, rules_patch
+from world import duels, oob, rules_patch
 
 from .objects import ObjectParent
 
@@ -16,14 +17,39 @@ rules_patch.apply()  # a weakened character rolls one lower (docs/18)
 WEAKENED_SECONDS = 5 * 60
 
 
+class Watched(AttributeProperty):
+    """An attribute that tells the player's client when it changes (hp, level, coins...: the vitals, docs/09)."""
+
+    def __set__(self, instance, value):
+        # Read the stored value directly: __get__ would create the default through __set__ again.
+        before = instance.attributes.get(self._key, category=self._category)
+        super().__set__(instance, value)
+        if before is not None and before != value:
+            oob.send_vitals(instance)
+
+
 def respawn_room():
     rooms = search_tag("respawn", category="world")
     return rooms[0] if rooms else None
 
 
 class Character(ObjectParent, EvAdventureCharacter):
+    hp = Watched(default=4)
+    hp_max = Watched(default=4)
+    level = Watched(default=1)
+    coins = Watched(default=0)
+    xp = Watched(default=0)
+
+    def at_post_puppet(self, **kwargs):
+        super().at_post_puppet(**kwargs)
+        oob.remember(self)
+        oob.send_vitals(self)
+        oob.send_room(self)
+
     def at_post_move(self, source_location, **kwargs):
         super().at_post_move(source_location, **kwargs)
+        oob.remember(self)
+        oob.send_room(self)
         if self.ndb.duel_with and not duels.consented(self, self.ndb.duel_with):
             duels.end(self)  # walked out of the yard: the duel is off
 
@@ -58,6 +84,7 @@ class Character(ObjectParent, EvAdventureCharacter):
                 pass
         self.hp = max(1, self.hp_max // 2)
         self.db.weakened_until = time.time() + WEAKENED_SECONDS
+        oob.send_vitals(self)
         temple = respawn_room()
         if temple and self.location != temple:
             self.move_to(temple, quiet=True, move_type="teleport")

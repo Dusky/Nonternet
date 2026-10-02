@@ -85,6 +85,36 @@ describe.skipIf(!dbAvailable || !evenniaAvailable)('the MUD, through a real Even
     expect((await mudExport(ctx.deps, u.id)).characters).toEqual([]);
   }, 60_000);
 
+  it('tells the client its vitals, where it is, and a map of where it has been (OOB, docs/09)', async () => {
+    const u = await makeUser(ctx);
+    const first = await mudConnect(mud.wsPort, u.handle, await ticket(u.handle));
+    await until('the welcome', () => first.texts.some((t) => t.includes('You have no character yet')));
+    await new Promise((r) => setTimeout(r, 500));
+    first.send('charcreate');
+    const plain = (t: string) => t.replace(/\x1b\[[0-9;]*m/g, '');
+    await until('the character sheet', () => first.texts.some((t) => plain(t).includes('Accept and create character')));
+    first.send('3');
+    await until('the new character', () => first.texts.some((t) => /is ready/.test(t)));
+    const name = /(\S[^\n]*?) is ready/.exec(plain(first.texts.find((t) => /is ready/.test(t))!).replace(/\|[a-zA-Z]/g, ''))![1]!.trim(); // raw mode keeps |g codes
+    // Going into the character: the client hears its vitals and where it is without asking.
+    const s = first;
+    s.send(`ic ${name}`);
+    const got = (name: string) => s.oob.filter((f) => f[0] === name).map((f) => f[2]);
+    await until('vitals and room_info', () => got('vitals').length > 0 && got('room_info').length > 0).catch((e) => { throw new Error(`${e.message}: ${JSON.stringify(s.oob)} ${name} // ${s.texts.slice(-6).join(' // ')}`); });
+    expect(got('vitals').at(-1)).toMatchObject({ level: 1, in_combat: false });
+    const here = got('room_info').at(-1) as { name: string; area: { key: string }; exits: { name: string; to: number }[] };
+    expect(here).toMatchObject({ name: 'Town square', area: { key: 'town' } });
+    expect(here.exits.map((e) => e.name)).toContain('south');
+    s.send('south');
+    await until('the road', () => (got('room_info').at(-1) as { name: string }).name === 'The old road');
+    s.frame(['area_map', [], {}]);
+    await until('the map', () => got('area_map').length > 0);
+    const map = got('area_map').at(-1) as { area: { key: string }; rooms: { name: string; coord: number[] }[] };
+    expect(map.area.key).toBe('town');
+    expect(map.rooms.map((r) => r.name).sort()).toEqual(['The old road', 'Town square']);
+    s.close();
+  }, 90_000);
+
   it('sends an announcement to everyone playing, once, and the console can see the MUD', async () => {
     const u = await makeUser(ctx);
     const s = await mudConnect(mud.wsPort, u.handle, await ticket(u.handle));

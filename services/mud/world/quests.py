@@ -85,6 +85,9 @@ def search_room(char):
         out.append(f"|gYou find a way through: {e.key}.|n")
     if new:
         char.db.found_exits = found
+        from world import oob
+
+        oob.send_room(char)  # the map can show the new way
     if room.tags.has("room:camp", category="build") and step_of(char) == 1:
         from evennia.prototypes.spawner import spawn
 

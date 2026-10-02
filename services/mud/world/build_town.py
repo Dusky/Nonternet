@@ -108,5 +108,8 @@ def build_town(caller=None):
 
     made += build_areas(rooms)
     made += build_extras(rooms)
+    from world.mapdata import apply_map
+
+    apply_map(rooms)  # positions are not "new things", so they don't count
     say(f"Town built: {made} new things.")
     return made

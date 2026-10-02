@@ -41,6 +41,20 @@ ANSI codes its menus carry (VERIFIED) are parsed into styled text, drawn toward 
 stay readable. No server HTML reaches the shell's origin. A command line with history. Native clients use
 telnet on `mud.public_port` (default 4000). (Was PROPOSED: xterm.js, which would have needed an ANSI layer.)
 
+## What the MUD tells a client besides text (as built, P5)
+Two Evennia outputfuncs (`services/mud/world/oob.py`), so the web client gets `["vitals", [], {...}]` and `["room_info", [], {...}]` frames, and a telnet
+client gets them over GMCP (`TELNET_OOB_ENABLED = True`, for Mudlet and friends):
+- **vitals**: `hp, hp_max, level, xp, xp_next, coins, weakened, in_combat`. Sent on entering a character and whenever one of the first five changes
+  (they are `Watched` attributes on `Character`), and when you are beaten.
+- **room_info**: `id, name, area {key, name}, coord [x, y, z], exits [{name, aliases, to}]`. Sent on entering a character, on every move, and when a search
+  finds a hidden way. A hidden exit is listed only for someone who has found it.
+- The client can ask too (inputfuncs `vitals_get`, `room_get`, `area_map`). `area_map` lists the rooms of the current area **this character has been
+  in** (kept in `db.visited`, newest 2000), with positions and exits, so a map never shows a room you have not seen.
+- Every built room has an area and a position (`world/mapdata.py`, applied on every build). Rooms builders add in-game have none and stay off the map
+  until a builder sets `db.area` and `db.coord`.
+- Screen-reader mode is Evennia's own `client_options {screenreader: true}` (VERIFIED in 5.0.1: the webclient then strips decorative characters).
+- Tested in `tests/test_oob.py` and through a real Evennia in core's `mud/sync.test.ts`.
+
 ## Characters around the site (as built)
 The point of the MUD for the rest of the site is that characters show up elsewhere. Core keeps a copy of every
 character in `mud_characters` (name, level, XP, HP, coins, the six abilities; keyed `c_<MUD object id>`), pulled from

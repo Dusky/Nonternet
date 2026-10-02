@@ -50,3 +50,33 @@ as argument.
 #
 #     """
 #     pass
+
+
+# ---- the site's own (docs/09): a client asks for what world/oob.py otherwise sends on its own.
+def _char(session):
+    return session.puppet if session else None
+
+
+def vitals_get(session, *args, **kwargs):
+    from world import oob
+
+    char = _char(session)
+    if char:
+        session.msg(vitals=((), oob.vitals(char)))
+
+
+def room_get(session, *args, **kwargs):
+    from world import oob
+
+    char = _char(session)
+    info = oob.room_info(char) if char else None
+    if info:
+        session.msg(room_info=((), info))
+
+
+def area_map(session, *args, **kwargs):
+    from world import oob
+
+    char = _char(session)
+    if char:
+        session.msg(area_map=((), oob.area_map(char)))

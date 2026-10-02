@@ -49,15 +49,19 @@ export async function startEvennia(opts: { coreUrl: string; secret: string; site
 }
 
 // The MUD window's way in: Evennia's WebSocket, JSON frames, raw markup.
-export async function mudConnect(wsPort: number, handle: string, password: string): Promise<{ ok: boolean; texts: string[]; closed: () => boolean; send: (t: string) => void; close: () => void }> {
+export type OobFrame = [string, unknown[], Record<string, unknown>];
+
+export async function mudConnect(wsPort: number, handle: string, password: string): Promise<{ ok: boolean; texts: string[]; oob: OobFrame[]; closed: () => boolean; send: (t: string) => void; frame: (f: OobFrame) => void; close: () => void }> {
   const ws = new WebSocket(`ws://127.0.0.1:${wsPort}/`);
   const texts: string[] = [];
+  const oob: OobFrame[] = []; // everything that is not text: vitals, room_info, area_map (docs/09)
   let closed = false;
   let loggedIn = false;
   ws.onmessage = (e) => {
-    const [cmd, args] = JSON.parse(String(e.data)) as [string, unknown[]];
+    const [cmd, args, kwargs] = JSON.parse(String(e.data)) as OobFrame;
     if (cmd === 'logged_in') loggedIn = true;
     if (cmd === 'text') texts.push(String(args[0]));
+    else if (cmd !== 'prompt') oob.push([cmd, args, kwargs ?? {}]);
   };
   ws.onclose = () => { closed = true; };
   await new Promise<void>((ok, fail) => { ws.onopen = () => ok(); ws.onerror = () => fail(new Error('websocket failed')); });
@@ -68,5 +72,5 @@ export async function mudConnect(wsPort: number, handle: string, password: strin
   ws.send(JSON.stringify(['text', [`connect ${handle} ${password}`], {}]));
   const end = Date.now() + 8000;
   while (!loggedIn && Date.now() < end && !texts.some((t) => /incorrect/i.test(t))) await new Promise((r) => setTimeout(r, 50));
-  return { ok: loggedIn, texts, closed: () => closed, send: (t) => ws.send(JSON.stringify(['text', [t], {}])), close: () => ws.close() };
+  return { ok: loggedIn, texts, oob, closed: () => closed, send: (t) => ws.send(JSON.stringify(['text', [t], {}])), frame: (f) => ws.send(JSON.stringify(f)), close: () => ws.close() };
 }
