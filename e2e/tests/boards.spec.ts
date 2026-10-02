@@ -126,6 +126,28 @@ test.describe('boards', () => {
     await expect(page.getByRole('link', { name: 'Gamma' })).toBeFocused();
   });
 
+  test('a deeply nested thread fits the screen: the post header stays tidy and nothing scrolls sideways', async ({ page }) => {
+    const owner = await makeUser(page);
+    await setRole(owner.handle, 'trusted');
+    await signIn(page, owner.handle, PASSWORD);
+    const slug = uniq('deep');
+    const post = async (data: object) => (await (await page.request.post(`/api/v1/boards/${slug}/posts`, { data, headers: { origin: BASE_URL } })).json()).id as string;
+    await page.request.post('/api/v1/boards', { data: { slug, name: 'Deep', visibility: 'private' }, headers: { origin: BASE_URL } });
+    const first = await post({ subject: 'Going down', body: 'Level 0' });
+    let parent = first;
+    for (let i = 1; i <= 7; i++) parent = await post({ body: `Level ${i}`, reply_to: parent });
+    await page.goto(`/boards/${slug}/t/${first}`);
+    await expect(page.getByText('Level 7')).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    const heads = page.locator('.post-head');
+    await expect(heads).toHaveCount(8);
+    await expect(heads.last().locator('.post-who')).toBeVisible();
+    await expect(heads.last().locator('.post-when')).toBeVisible();
+    // A dot never starts a line: it is drawn by CSS, so the text has none.
+    expect((await heads.last().locator('.post-when').innerText()).trim().startsWith('·')).toBe(false);
+  });
+
   test('owner archives a board and it becomes read-only', async ({ page }) => {
     const owner = await makeUser(page);
     await setRole(owner.handle, 'trusted');

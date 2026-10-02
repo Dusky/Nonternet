@@ -1,5 +1,5 @@
 import { useConfirm } from '../../components/feedback';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
@@ -161,14 +161,18 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
           return (
             <Fragment key={post.id}>
               {divider && <li className="new-divider"><div role="separator" aria-label={t('post.newSince')}>{t('post.newSince')}</div></li>}
-            <li id={`post-${post.id}`} style={depth ? { marginLeft: `${Math.min(depth, 6) * 1.25}rem` } : undefined}>
+            <li id={`post-${post.id}`} className={depth ? 'post-nested' : undefined} style={depth ? ({ '--depth': depth } as CSSProperties) : undefined}>
               <article className="post" tabIndex={-1} data-nav data-state={post.state} aria-label={name ? t('boards.by', { name }) : undefined}>
                 <header className="post-head">
-                  {post.author ? <PersonLink app="people" to={post.author.handle} className="person"><Avatar id={post.author.id} name={post.author.display_name || post.author.handle} /><strong>{post.author.display_name || post.author.handle}</strong></PersonLink> : null}
-                  {post.author?.display_name && <span className="muted"> @{post.author.handle}</span>}
-                  {post.author?.character && <> <CharacterBadge character={post.author.character} /></>}
-                  <span className="muted">· <RelativeTime iso={post.posted_at} /><EditedNote post={post} /></span>
-                  {view === 'flat' && parent?.author && <span className="muted"> · {t('boards.inReplyTo', { name: parent.author.display_name || parent.author.handle })}</span>}
+                  <span className="post-who">
+                    {post.author ? <PersonLink app="people" to={post.author.handle} className="person"><Avatar id={post.author.id} name={post.author.display_name || post.author.handle} /><strong>{post.author.display_name || post.author.handle}</strong></PersonLink> : null}
+                    {post.author?.display_name && <span className="muted">@{post.author.handle}</span>}
+                    {post.author?.character && <CharacterBadge character={post.author.character} />}
+                  </span>
+                  <span className="post-when muted">
+                    <span><RelativeTime iso={post.posted_at} /><EditedNote post={post} /></span>
+                    {view === 'flat' && parent?.author && <span>{t('boards.inReplyTo', { name: parent.author.display_name || parent.author.handle })}</span>}
+                  </span>
                 </header>
                 {post.state === 'deleted' && <p className="muted">{t('boards.deleted')}</p>}
                 {post.state === 'removed' && <p className="muted">{t('boards.removed')}</p>}

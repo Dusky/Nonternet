@@ -420,6 +420,15 @@ html[data-glow="on"] input, html[data-glow="on"] select, html[data-glow="on"] te
 .post:focus { outline: 3px solid var(--focus); outline-offset: 1px; }
 .post[data-state="deleted"], .post[data-state="removed"], .post[data-state="hidden"] { background: var(--surface2); border-style: dashed; }
 .post-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--step--1); margin-bottom: var(--space-2); }
+.post-who, .post-when { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-width: 0; }
+/* The dots between time and "in reply to" are drawn here, so a wrapped line never starts with one. */
+.post-when > span + span::before, .post-when::before { content: "·"; margin-right: var(--space-2); }
+.post-nested { margin-left: calc(min(var(--depth), 6) * 1.25rem); }
+@media (max-width: 699px) {
+  .post-head { flex-direction: column; align-items: flex-start; }
+  .post-when::before { content: none; }
+  .post-nested { margin-left: calc(min(var(--depth), 3) * .75rem); }
+}
 .post-head strong { font-size: var(--step-0); }
 .post-head a { text-decoration: none; color: var(--text); }
 .post-head a:hover { text-decoration: underline; }
