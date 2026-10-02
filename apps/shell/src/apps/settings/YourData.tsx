@@ -65,7 +65,7 @@ function ExportSection() {
 }
 
 // Bringing back an export (docs/12): upload, look at what would come back, then bring it back with the password.
-type Part = 'profile' | 'settings' | 'avatar' | 'homepage' | 'files' | 'keys';
+type Part = 'profile' | 'settings' | 'avatar' | 'homepage' | 'files' | 'keys' | 'clients';
 interface Issue { code: string; count: number }
 interface Preview { id: string; origin: 'this_site' | 'other_site'; site: { name: string; domain: string }; handle: string; generated_at: string; parts: { part: Part; count: number; issues: Issue[] }[]; skipped: { kind: string; count: number }[] }
 interface Result { parts: { part: Part; restored: number; issues: Issue[] }[] }

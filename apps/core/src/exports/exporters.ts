@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { AppDeps } from '../deps';
 import { formatMbox } from './mbox';
+import { CLIENT_NAMES } from '@app/shared';
+import { getClientSettings } from '../client-settings';
 import { mudExport } from '../mud/sync';
 
 // Ownership is a feature (docs/12, CLAUDE.md): everything a person makes is in their export. Every
@@ -257,7 +259,19 @@ const fileAreas: Exporter = {
 
 export { ircMessagesOf };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas];
+// The chat and MUD clients' settings (docs/08, 18): aliases, triggers, ignore lists and the rest, as the client keeps them.
+const clients: Exporter = {
+  id: 'clients',
+  tables: ['client_settings'],
+  async run({ deps, user, add }) {
+    for (const name of CLIENT_NAMES) {
+      const r = await deps.db.query(`SELECT 1 FROM client_settings WHERE user_id = $1 AND client = $2`, [user.id, name]);
+      if (r.rowCount) add(`${name}/client.json`, json(await getClientSettings(deps.db, user.id, name)));
+    }
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.

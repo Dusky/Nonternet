@@ -104,6 +104,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`DELETE FROM notification_prefs WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM board_notification_prefs WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM mail_mutes WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM client_settings WHERE user_id = $1`, [userId]);
     await revokeAllSessions(q, userId, 'account_deleted');
     await audit(q, {
       actorId: opts.actor?.userId ?? userId, actorKind: 'user', action: 'user.deleted', targetType: 'user', targetId: userId,

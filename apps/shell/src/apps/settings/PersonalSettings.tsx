@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AVATAR_MAX_BYTES, PREF_KINDS, type Me, type PersonalSettings } from '@app/shared';
+import { AVATAR_MAX_BYTES, PREF_KINDS, type ChatClient, type Me, type PersonalSettings } from '@app/shared';
 import { api } from '../../api';
 import { Avatar, Alert, TextField } from '../../components/ui';
 import { useToast } from '../../components/feedback';
@@ -133,6 +133,50 @@ export function ChatSettings() {
     <Section id="chat-prefs-h" title={t('settings.chat.title')} scope="device">
       <DeviceSwitch label={t('settings.chat.timestamps')} checked={prefs.timestamps} onChange={(on) => set({ timestamps: on })} />
       <DeviceSwitch label={t('settings.chat.joinPart')} checked={prefs.joinPart} onChange={(on) => set({ joinPart: on })} />
+    </Section>
+  );
+}
+
+// Words that count as a mention, and the people you ignore. Kept on the account (exported with it), so they follow
+// you to any browser. An open Chat window picks up the change straight away.
+export function ChatAccountSettings() {
+  const t = useT();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const q = useQuery({ queryKey: ['client-settings', 'chat'], queryFn: () => api.get<{ settings: ChatClient }>('/me/client-settings/chat') });
+  const [words, setWords] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: (next: ChatClient) => api.put<{ settings: ChatClient }>('/me/client-settings/chat', { settings: next }),
+    onSuccess: (r) => {
+      qc.setQueryData(['client-settings', 'chat'], r);
+      window.dispatchEvent(new CustomEvent('client-settings:chat', { detail: r.settings }));
+      setWords(null);
+      toast(t('common.saved'));
+    },
+  });
+  if (!q.data) return q.error ? <Alert kind="error">{errorText(q.error)}</Alert> : null;
+  const s = q.data.settings;
+  const text = words ?? s.highlights.join('\n');
+  return (
+    <Section id="chat-account-h" title={t('settings.chat.account')} scope="account">
+      <form onSubmit={(e: FormEvent) => { e.preventDefault(); save.mutate({ ...s, highlights: text.split('\n').map((w) => w.trim()).filter(Boolean).slice(0, 50) }); }}>
+        <TextField label={t('settings.chat.highlights')} hint={t('settings.chat.highlightsHint')} multiline value={text} onChange={setWords} />
+        {save.error && <Alert kind="error">{errorText(save.error)}</Alert>}
+        <button type="submit" className="btn btn-primary" disabled={save.isPending || words === null}>{t('settings.chat.saveHighlights')}</button>
+      </form>
+      <h3 id="chat-ignore-h">{t('settings.chat.ignoreTitle')}</h3>
+      {s.ignore.length === 0 ? <p className="hint">{t('settings.chat.ignoreNone')}</p> : (
+        <ul className="plain settings-list" aria-labelledby="chat-ignore-h">
+          {s.ignore.map((nick) => (
+            <li key={nick}>
+              <span>{nick}</span>
+              <button type="button" className="btn btn-quiet" disabled={save.isPending} onClick={() => save.mutate({ ...s, ignore: s.ignore.filter((n) => n !== nick) })}>
+                {t('settings.chat.unignore', { nick })}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
   );
 }

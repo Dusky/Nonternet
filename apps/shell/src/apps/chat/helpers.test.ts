@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeNick, dayKey, dayLabel, typingNow } from './helpers';
+import { completeNick, completeWord, dayKey, dayLabel, nickColour, splitPaste, typingNow } from './helpers';
 
 const nicks = ['alice', 'Alma', 'bob'];
 
@@ -40,5 +40,32 @@ describe('days and typing', () => {
   it('lists only people whose typing has not run out, sorted', () => {
     const m = new Map([['zed', now + 1000], ['amy', now + 500], ['old', now - 1]]);
     expect(typingNow(m, now)).toEqual(['amy', 'zed']);
+  });
+});
+
+describe('completeWord', () => {
+  it('finishes a channel or command with a plain space and cycles', () => {
+    const a = completeWord('join #sy', 8, ['#synths', '#symbols', '#lobby'], null)!;
+    expect(a.text).toBe('join #symbols ');
+    const b = completeWord(a.text, a.caret, ['#synths', '#symbols', '#lobby'], a)!;
+    expect(b.text).toBe('join #synths ');
+    expect(completeWord('/wh', 3, ['/whois', '/join'], null)!.text).toBe('/whois ');
+    expect(completeWord('/zz', 3, ['/whois'], null)).toBeNull();
+  });
+});
+
+describe('nickColour', () => {
+  it('is stable and one of five', () => {
+    expect(nickColour('Alice')).toBe(nickColour('alice'));
+    for (const n of ['a', 'bob', 'carol', 'dave', 'eve']) expect(nickColour(n)).toMatch(/^chat-nc-[0-4]$/);
+  });
+});
+
+describe('splitPaste', () => {
+  it('leaves one line alone and splits several, dropping blanks', () => {
+    expect(splitPaste('hello')).toBeNull();
+    expect(splitPaste('hello\n')).toBeNull();
+    expect(splitPaste('one\r\n\ntwo  \nthree')).toEqual(['one', 'two', 'three']);
+    expect(splitPaste(`a\n${'x'.repeat(500)}`)![1]).toHaveLength(400);
   });
 });

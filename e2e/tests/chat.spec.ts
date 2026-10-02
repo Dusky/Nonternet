@@ -74,6 +74,63 @@ test.describe('chat', () => {
     await other.close();
   });
 
+  test('a word you pick counts as a mention, the person menu ignores someone, and a pasted block is sent line by line', async ({ page, browser }) => {
+    const a = await makeUser(page, { handle: uniq('ann') });
+    await signIn(page, a.handle, PASSWORD);
+    // A highlight word is kept on the account, in Settings, Chat.
+    const word = uniq('banana');
+    await page.goto('/settings/chat');
+    await page.getByLabel('Words that count as a mention').fill(word);
+    await page.getByRole('button', { name: 'Save words' }).click();
+    await expect(page.getByText('Saved.')).toBeVisible();
+
+    await page.goto('/chat');
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    const other = await browser.newContext();
+    const page2 = await other.newPage();
+    const b = await makeUser(page2, { handle: uniq('bob') });
+    await signIn(page2, b.handle, PASSWORD);
+    await page2.goto('/chat');
+    const box2 = page2.getByLabel('Message #lobby');
+    await expect(box2).toBeVisible({ timeout: 15_000 });
+    await box2.fill(`who wants a ${word}?`);
+    await box2.press('Enter');
+    await expect(log(page, '#lobby').locator('.is-mention').getByText(`who wants a ${word}?`)).toBeVisible({ timeout: 10_000 });
+
+    // Ignore bob from the people list; his next line never shows.
+    if (await page.getByRole('button', { name: /here$/ }).isVisible()) await page.getByRole('button', { name: /here$/ }).click();
+    await page.getByRole('complementary', { name: /here$/ }).getByRole('button', { name: new RegExp(`^${b.handle}`) }).click();
+    await page.getByRole('menuitem', { name: 'Ignore' }).click();
+    const hidden = uniq('hidden');
+    await box2.fill(`you should not see ${hidden}`);
+    await box2.press('Enter');
+    await box2.fill(`/me is ignored ${hidden}`);
+    await box2.press('Enter');
+    // Once the server has echoed bob's lines back to him, it has sent them to ann too.
+    await expect(log(page2, '#lobby').getByText(`is ignored ${hidden}`)).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1000);
+    const box = page.getByLabel('Message #lobby');
+    await box.fill('/ignore');
+    await box.press('Enter');
+    await expect(log(page, '#lobby').getByText(b.handle, { exact: true }).last()).toBeVisible();
+    await expect(log(page, '#lobby').getByText(`you should not see ${hidden}`)).toHaveCount(0);
+    await box.fill(`/unignore ${b.handle}`);
+    await box.press('Enter');
+    await expect(log(page, '#lobby').getByText('You will see their messages again.')).toBeVisible();
+
+    // Pasting three lines asks first, then sends three messages.
+    await box.focus();
+    const tag = uniq('line');
+    await page.evaluate((tag) => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', `first ${tag}\nsecond ${tag}\nthird ${tag}`);
+      document.getElementById('chat-input')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, tag);
+    await page.getByRole('button', { name: 'Send them' }).click();
+    for (const l of [`first ${tag}`, `second ${tag}`, `third ${tag}`]) await expect(log(page2, '#lobby').getByText(l)).toBeVisible({ timeout: 10_000 });
+    await other.close();
+  });
+
   test('joins another channel, and says plainly when a command is not known', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);

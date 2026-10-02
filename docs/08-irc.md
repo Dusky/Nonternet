@@ -68,7 +68,15 @@ with the site's registered channels, a people list with op prefixes, scrollback 
 (colours are drawn toward the theme's text colour so they stay readable), links, unread and mention
 badges, and per-channel mute (kept on the device). Your own lines are echoed back by the server
 (`echo-message`), so history and live lines never double up.
-Not built: mentions as shell notifications (they show only inside the Chat app), private-message history across devices.
+Added in the polish phase (P4, 2026-10-02):
+- **Alerts.** A mention, a highlight word or a private message goes through the site's own alerts (desktop notice and chime when the person turned them on) and adds to the browser tab's count. A muted channel still shows a badge when you are mentioned.
+- **Older history.** Scrolling to the top asks for 100 more lines (`CHATHISTORY BEFORE`), keeping your place; "That is everything the server keeps" when there is no more.
+- **Private chats** you opened are remembered on the device and refilled from history (`CHATHISTORY LATEST nick`) on the next visit.
+- **People.** Each nick has a steady colour from the theme's readable colours. The people list opens a menu (click, Shift+F10 or the Menu key): private message, who is this, ignore; channel operators also get voice, op and kick. People who are away (`away-notify`) are dimmed and marked "(away)".
+- **Ignore and highlight words** are kept on the account (`client_settings`, client `chat`; Settings, Chat; exported as `chat/client.json`). Ignoring hides a person's lines in the browser only; it is not a server-side block.
+- **Commands** added: `/ignore`, `/unignore`, `/notice`, `/kick`, `/op`, `/deop`, `/voice`, `/devoice` (the server decides who may). Tab finishes nicks, `#channels` and `/commands`.
+- **Pasting several lines** asks first, then sends each line on its own, spaced out (at most 10; more is pointed at a board or file).
+- mIRC background colours are drawn too, mixed toward the theme's background.
 The site's status line and away flag are **not** shown on IRC, and that is decided, not pending. VERIFIED against Ergo 2.19.1's source (`irc/handlers.go`,
 `awayHandler`): `AWAY` takes only a message and changes the sending connection's own state; the operator commands are `SAJOIN`, `SANICK` and `SAMODE`, and
 NickServ has no away command beyond a person's own `auto-away` setting. So showing it on IRC would mean the sync bot holding a connection per person, which it

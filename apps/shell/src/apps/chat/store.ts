@@ -6,6 +6,9 @@ import type { StringKey } from '@app/strings';
 import { backoffMs } from '../../reconnect';
 import { mentions } from './format';
 import { TYPING_SHOW_MS } from './helpers';
+import { arrive } from '../../alerts';
+import { setChatWaiting } from '../../shell/chatBadge';
+import type { ChatClient } from '@app/shared';
 
 // One connection to IRC for the whole shell (docs/08), shared by the Chat window and page. It opens
 // when the Chat app does and closes when the last view of it goes away.
@@ -13,12 +16,14 @@ import { TYPING_SHOW_MS } from './helpers';
 export type MsgKind = 'message' | 'action' | 'notice' | 'join' | 'part' | 'quit' | 'kick' | 'nick' | 'topic' | 'info' | 'error';
 // `key` is a UI string shown instead of `text` (our own notes); `text` is what came from IRC.
 export interface Msg { id: string; time: number; kind: MsgKind; nick: string; text: string; self: boolean; mention: boolean; key?: StringKey }
-export interface Buffer { name: string; kind: 'channel' | 'query' | 'server'; messages: Msg[]; users: Map<string, string>; topic: string; unread: number; mentioned: boolean; joined: boolean; readUpTo: string | null; typing: Map<string, number> }
+export interface Buffer { name: string; kind: 'channel' | 'query' | 'server'; messages: Msg[]; users: Map<string, string>; topic: string; unread: number; mentioned: boolean; joined: boolean; readUpTo: string | null; typing: Map<string, number>; loadingOlder: boolean; olderDone: boolean }
 export type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error';
 
 interface ChatState {
   status: Status; error: string | null; nick: string; active: string; buffers: Map<string, Buffer>; muted: Set<string>;
-  connect(): void; disconnect(): void; select(name: string): void; openQuery(nick: string): void; typing(): void; send(text: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void;
+  away: Set<string>; settings: ChatClient; alertText: { mention: string; dm: string; title: string } | null;
+  connect(): void; disconnect(): void; select(name: string): void; openQuery(nick: string): void; typing(): void; doneTyping(): void; send(text: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void;
+  loadOlder(name: string): void; ignore(nick: string, on: boolean): void; setHighlights(words: string[]): void; setAlertText(t: ChatState['alertText']): void;
 }
 
 // irc-framework's browser build expects Node's global Buffer (for SASL); Kiwi IRC provides it the same way.
@@ -26,7 +31,8 @@ const g = globalThis as { Buffer?: unknown };
 g.Buffer ??= NodeBuffer;
 
 const SERVER = '*';
-const MAX_MESSAGES = 500;
+const MAX_MESSAGES = 2000;
+const QUERIES_KEY = 'chat:queries'; // conversations with one person that are open, reopened after a reload
 const MUTED_KEY = 'chat:muted';
 const CHANNELS_KEY = 'chat:channels'; // the channels this person has open, rejoined after a drop or a reload
 let attempt = 0;
@@ -46,6 +52,13 @@ function loadChannels(): string[] {
   try { return (JSON.parse(localStorage.getItem(CHANNELS_KEY) ?? '[]') as string[]).filter((c) => /^#[^\s,]{1,63}$/.test(c)).slice(0, 30); } catch { return []; }
 }
 function saveChannels(names: string[]) { try { localStorage.setItem(CHANNELS_KEY, JSON.stringify(names)); } catch { /* private window */ } }
+function loadQueries(): string[] {
+  try { return (JSON.parse(localStorage.getItem(QUERIES_KEY) ?? '[]') as string[]).filter((n) => /^[^\s#&,]{1,40}$/.test(n)).slice(0, 30); } catch { return []; }
+}
+function rememberQuery(nick: string, open: boolean) {
+  const rest = loadQueries().filter((n) => n.toLowerCase() !== nick.toLowerCase());
+  try { localStorage.setItem(QUERIES_KEY, JSON.stringify(open ? [...rest, nick] : rest)); } catch { /* private window */ }
+}
 function saveMuted(m: Set<string>) { try { localStorage.setItem(MUTED_KEY, JSON.stringify([...m])); } catch { /* private window */ } }
 
 // The channels this person has open, kept so a reload or a dropped connection comes back to them.
@@ -54,7 +67,13 @@ function remember(channel: string, open: boolean) {
   saveChannels(open ? [...rest, channel] : rest);
 }
 
-const newBuffer = (name: string, kind: Buffer['kind']): Buffer => ({ name, kind, messages: [], users: new Map(), topic: '', unread: 0, mentioned: false, joined: false, readUpTo: null, typing: new Map() });
+const newBuffer = (name: string, kind: Buffer['kind']): Buffer => ({ name, kind, messages: [], users: new Map(), topic: '', unread: 0, mentioned: false, joined: false, readUpTo: null, typing: new Map(), loadingOlder: false, olderDone: false });
+
+// Mentions and direct messages waiting, for the tab title.
+const waiting = (buffers: Map<string, Buffer>) => [...buffers.values()].reduce((n, b) => n + (b.mentioned ? b.unread : 0), 0);
+const DEFAULT_SETTINGS: ChatClient = { ignore: [], highlights: [] };
+// Settings saved from the Settings window reach an open Chat window without a reconnect.
+if (typeof window !== 'undefined') window.addEventListener('client-settings:chat', (e) => useChat.setState({ settings: (e as CustomEvent<ChatClient>).detail }));
 
 export const useChat = create<ChatState>((set, get) => {
   // Every change makes new Map/Buffer objects so React sees it.
@@ -63,13 +82,22 @@ export const useChat = create<ChatState>((set, get) => {
     const k = key(name);
     const cur = buffers.get(k) ?? newBuffer(name, kind ?? (isChannel(name) ? 'channel' : name === SERVER ? 'server' : 'query'));
     buffers.set(k, fn(cur));
+    setChatWaiting(waiting(buffers));
     return { buffers };
   });
+  const saveSettings = (next: ChatClient) => {
+    set({ settings: next });
+    void api.put('/me/client-settings/chat', { settings: next }).catch(() => undefined);
+  };
 
   const add = (target: string, m: Omit<Msg, 'id' | 'mention' | 'self' | 'key'> & { msgid?: string; history?: boolean; key?: StringKey }) => {
-    const { nick, active, muted } = get();
+    const { nick, active, settings } = get();
     const self = key(m.nick) === key(nick);
-    const mention = !self && (m.kind === 'message' || m.kind === 'action') && (!isChannel(target) || mentions(m.text, nick));
+    // Lines from people on the ignore list are not shown at all (their joins and parts neither).
+    if (!self && m.nick && settings.ignore.some((n) => key(n) === key(m.nick))) return;
+    const talk = m.kind === 'message' || m.kind === 'action';
+    const direct = !self && talk && !isChannel(target);
+    const mention = !self && talk && (direct || mentions(m.text, nick) || settings.highlights.some((w) => mentions(m.text, w)));
     update(target, (b) => {
       const id = m.msgid ?? `l${++seq}`;
       if (m.msgid && b.messages.some((x) => x.id === id)) return b; // history and live can overlap
@@ -78,8 +106,14 @@ export const useChat = create<ChatState>((set, get) => {
       if (m.history) messages.sort((a, c) => a.time - c.time);
       if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
       const counts = !m.history && key(target) !== key(active) && (m.kind === 'message' || m.kind === 'action' || m.kind === 'notice');
-      return { ...b, messages, typing, unread: counts ? b.unread + 1 : b.unread, mentioned: b.mentioned || (counts && mention && !muted.has(key(target))) };
+      // A muted channel stays quiet, but a mention of you still counts.
+      return { ...b, messages, typing, unread: counts ? b.unread + 1 : b.unread, mentioned: b.mentioned || (counts && mention) };
     });
+    // Someone said your name, or wrote to you: the same nudge as the rest of the site (desktop and chime, if on).
+    const text = get().alertText;
+    if (mention && !m.history && text && !(key(target) === key(active) && document.visibilityState === 'visible' && document.hasFocus())) {
+      arrive({ title: text.title, body: direct ? text.dm : text.mention, tag: `chat:${key(target)}` }, () => get().select(target));
+    }
   };
   const info = (text: string, kind: MsgKind = 'info', target = get().active) => add(target, { time: Date.now(), kind, nick: '', text });
   const note = (key: StringKey, kind: MsgKind = 'info', target = get().active) => add(target, { time: Date.now(), kind, nick: '', text: '', key });
@@ -103,13 +137,15 @@ export const useChat = create<ChatState>((set, get) => {
       if (users === 0) return;
       const c = new Client();
       client = c;
-      c.requestCap(['draft/chathistory', 'draft/event-playback', 'message-tags']);
+      c.requestCap(['draft/chathistory', 'draft/event-playback', 'message-tags', 'away-notify']);
+      void api.get<{ settings: ChatClient }>('/me/client-settings/chat').then((r) => set({ settings: r.settings })).catch(() => undefined);
       set({ nick: t.nick });
       c.on('registered', () => {
         attempt = 0;
         set({ status: 'connected', nick: c.user.nick });
         note('chat.note.connected', 'info', SERVER);
         for (const ch of loadChannels()) c.join(ch); // back to the channels that were open
+        for (const q of loadQueries()) { update(q, (b) => b, 'query'); c.raw(`CHATHISTORY LATEST ${q} * 50`); } // and the conversations
       });
       c.on('join', (e: any) => {
         if (inHistory(e)) return add(e.channel, { time: timeOf(e), kind: 'join', nick: e.nick, text: '', msgid: e.tags?.msgid, history: true });
@@ -184,6 +220,13 @@ export const useChat = create<ChatState>((set, get) => {
           return { ...b, typing };
         });
       });
+      // Who is away (IRCv3 away-notify), shown in the list of people.
+      c.on('away', (e: any) => { if (e.nick) set((s) => { const away = new Set(s.away); away.add(key(e.nick)); return { away }; }); });
+      c.on('back', (e: any) => { if (e.nick) set((s) => { const away = new Set(s.away); away.delete(key(e.nick)); return { away }; }); });
+      c.on('batch end chathistory', (e: any) => {
+        const target = e.params?.[0] ?? e.target;
+        if (target) update(target, (b) => ({ ...b, loadingOlder: false }));
+      });
       c.on('privmsg', onMessage);
       c.on('action', onMessage);
       c.on('notice', onMessage);
@@ -210,6 +253,35 @@ export const useChat = create<ChatState>((set, get) => {
 
   return {
     status: 'idle', error: null, nick: '', active: SERVER, buffers: new Map([[SERVER, newBuffer(SERVER, 'server')]]), muted: loadMuted(),
+    away: new Set(), settings: DEFAULT_SETTINGS, alertText: null,
+    setAlertText(text) { set({ alertText: text }); },
+
+    // Earlier lines from the server's history, when the log is scrolled to the top.
+    loadOlder(name) {
+      const b = get().buffers.get(key(name));
+      if (!client || !b || b.kind === 'server' || b.loadingOlder || b.olderDone) return;
+      const oldest = b.messages[0];
+      if (!oldest) return;
+      const before = b.messages.length;
+      update(name, (x) => ({ ...x, loadingOlder: true }));
+      client.raw(`CHATHISTORY BEFORE ${b.name} timestamp=${new Date(oldest.time).toISOString()} 100`);
+      // No batch end in time, or nothing new: there is nothing older.
+      setTimeout(() => update(name, (x) => ({ ...x, loadingOlder: false, olderDone: x.olderDone || x.messages.length === before })), 3000);
+    },
+
+    ignore(nick, on) {
+      const s = get().settings;
+      const rest = s.ignore.filter((n) => key(n) !== key(nick));
+      saveSettings({ ...s, ignore: on ? [...rest, nick] : rest });
+    },
+    setHighlights(words) { saveSettings({ ...get().settings, highlights: words.map((w) => w.trim()).filter(Boolean).slice(0, 50) }); },
+    doneTyping() {
+      const { active, buffers } = get();
+      const buf = buffers.get(active);
+      if (!client || !buf || buf.kind === 'server') return;
+      lastTyping = 0;
+      try { client.tagmsg(buf.name, { '+typing': 'done' }); } catch { /* not supported */ }
+    },
 
     connect() {
       users++;
@@ -235,6 +307,7 @@ export const useChat = create<ChatState>((set, get) => {
     openQuery(nick) {
       if (!nick || key(nick) === key(get().nick)) return;
       update(nick, (b) => b, 'query');
+      rememberQuery(nick, true);
       get().select(nick);
     },
 
@@ -256,7 +329,7 @@ export const useChat = create<ChatState>((set, get) => {
 
     part(name) {
       if (client && isChannel(name)) { leaving.add(key(name)); client.part(name); }
-      if (isChannel(name)) remember(name, false);
+      if (isChannel(name)) remember(name, false); else rememberQuery(name, false);
       set((s) => { const buffers = new Map(s.buffers); buffers.delete(key(name)); return { buffers, active: SERVER }; });
     },
 
@@ -281,6 +354,7 @@ export const useChat = create<ChatState>((set, get) => {
             const [to, ...words] = rest;
             if (!to) return note('chat.note.msgWho', 'error');
             update(to, (b) => b, 'query');
+            rememberQuery(to, true);
             set({ active: key(to) });
             if (words.length) client.say(to, words.join(' '));
             return;
@@ -300,6 +374,21 @@ export const useChat = create<ChatState>((set, get) => {
               info(`${e.nick}${e.account ? ` (${e.account})` : ''} ${e.real_name ?? ''}${e.away ? ` — ${e.away}` : ''}`.trim());
             });
             return;
+          }
+          case 'ignore': {
+            const who = rest[0];
+            if (!who) return get().settings.ignore.length ? info(get().settings.ignore.join(', ')) : note('chat.note.ignoreNone');
+            get().ignore(who, true); return note('chat.note.ignored');
+          }
+          case 'unignore': { const who = rest[0]; if (!who) return note('chat.note.msgWho', 'error'); get().ignore(who, false); return note('chat.note.unignored'); }
+          case 'notice': { const [to, ...words] = rest; if (to && words.length) client.notice(to, words.join(' ')); return; }
+          // Channel operators: the server decides whether you may.
+          case 'kick': { const [who, ...why] = rest; if (target && isChannel(target) && who) client.raw('KICK', target, who, why.join(' ') || ''); return; }
+          case 'op': case 'deop': case 'voice': case 'devoice': {
+            const who = rest[0];
+            if (!target || !isChannel(target) || !who) return note('chat.note.msgWho', 'error');
+            const mode = { op: '+o', deop: '-o', voice: '+v', devoice: '-v' }[cmd.toLowerCase() as 'op'];
+            client.raw('MODE', target, mode, who); return;
           }
           default: return note('chat.note.unknown', 'error');
         }

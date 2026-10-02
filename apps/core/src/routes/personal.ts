@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { AVATAR_MAX_BYTES, notificationPrefSchema } from '@app/shared';
+import { AVATAR_MAX_BYTES, CLIENT_NAMES, CLIENT_SETTINGS_MAX_BYTES, notificationPrefSchema, type ClientName } from '@app/shared';
+import { getClientSettings, putClientSettings } from '../client-settings';
 import { ctxOf, requireAdmin, requireUser } from '../http';
 import * as personal from '../personal';
 import type { AppDeps } from '../deps';
@@ -13,6 +14,16 @@ const threadId = z.object({ id: z.string().max(40) });
 export function personalRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/me/personal', async (req) => personal.getSettings(deps, requireUser(req)));
 
+  // Chat and MUD client settings, kept on the account (docs/08, 18).
+  const clientName = z.object({ client: z.enum(CLIENT_NAMES as [ClientName, ...ClientName[]]) });
+  app.get('/api/v1/me/client-settings/:client', async (req) => {
+    const v = requireUser(req);
+    return { settings: await getClientSettings(deps.db, v.userId, clientName.parse(req.params).client) };
+  });
+  app.put('/api/v1/me/client-settings/:client', { bodyLimit: CLIENT_SETTINGS_MAX_BYTES * 2, config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (req) => {
+    const v = requireUser(req);
+    return { settings: await putClientSettings(deps, v, clientName.parse(req.params).client, (req.body as { settings?: unknown } | undefined)?.settings) };
+  });
   app.put('/api/v1/me/notification-prefs', async (req, reply) => {
     const b = notificationPrefSchema.parse(req.body);
     await personal.setPref(deps, requireUser(req), b.kind, b.enabled);

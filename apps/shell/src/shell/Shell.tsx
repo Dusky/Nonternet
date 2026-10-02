@@ -21,6 +21,7 @@ import { useContextMenu } from '../components/ContextMenu';
 import { useMenuKeys } from './menuKeys';
 import { setFavicon, tabTitle } from './tabInfo';
 import { clearSession, focusedWindow, useWindows, type AppId, type Win } from './windows';
+import { useChatWaiting } from './chatBadge';
 
 const editable = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || Boolean(el.closest('.xterm')));
 
@@ -61,7 +62,8 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   // On the desktop screen it is the window in front; on a page of an app's own (a phone, or a link) it is that app.
   const byPath = APPS.find((a) => location.pathname === a.path || location.pathname.startsWith(`${a.path}/`)) ?? null;
   const appHere = desktop && location.pathname === '/' ? (top ? appById(top.id) : null) : byPath;
-  const waiting = unreadMail + unread;
+  const chatWaiting = useChatWaiting();
+  const waiting = unreadMail + unread + chatWaiting;
   const subtitle = useWindows((w) => (appHere ? w.subtitles[appHere.id] : undefined));
   useEffect(() => {
     const where = appHere ? [t(appHere.title), subtitle].filter(Boolean).join(' — ') : null;

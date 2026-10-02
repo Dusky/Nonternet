@@ -63,6 +63,9 @@ README.txt               # human explanation of the archive
   row stays, emptied (`status deleted`, handle `deleted-…`, no email), and the old handle is held for 90 days. A ring founder
   must hand over or archive the ring first, and the last admin cannot be deleted. Announced as `user.deleted`.
 
+## As built (polish phase)
+`chat/client.json` and `mud/client.json`: the settings the Chat and MUD clients keep on the account (highlight words and ignored nicks; the MUD client's aliases, triggers, timers, keys, buttons, variables, saved command history and options). They come back with "Bring back an export" (the part "Your chat and MUD client settings") and are erased with the account.
+
 ## Whose content is it?
 - A user's export includes **what they authored**. Others' posts in their threads are not
   included (PROPOSED), except as quoted context in thread files if we add that later (OPEN).
@@ -70,7 +73,7 @@ README.txt               # human explanation of the archive
 
 ## Bringing back an export (built 2026-10-02)
 Settings, Your data, "Bring back an export". Upload the zip, see a preview, then bring it back with your password.
-- **What comes back**: only what is yours alone:
+- **What comes back**: only what is yours alone (and, since the polish phase, your chat and MUD client settings):
   - your name, bio and theme;
   - your status line, notification choices and muted boards;
   - your picture;

@@ -989,3 +989,20 @@ select option { color: var(--text); background: var(--surface); }
 .terminal-fkeys > summary { list-style: none; cursor: pointer; }
 .terminal-fkeys > summary::-webkit-details-marker { display: none; }
 .terminal-app:fullscreen { background: var(--bg); padding: var(--space-3); }
+
+/* Chat: nick colours from the theme's readable colours, the person menu, away and older history (P4). */
+.chat-nc-0 { color: var(--accent); } .chat-nc-1 { color: var(--ok); } .chat-nc-2 { color: var(--warn); }
+.chat-nc-3 { color: var(--danger); } .chat-nc-4 { color: var(--text); }
+button.chat-person { font: inherit; background: none; border: 0; padding: 2px 0; width: 100%; text-align: start; cursor: pointer; overflow-wrap: anywhere; }
+button.chat-person:hover { text-decoration: underline; }
+.chat-users li.is-away button.chat-person { opacity: .7; }
+.chat-older { text-align: center; margin: 0 0 var(--space-2); }
+.irc-bg0 { background: color-mix(in srgb, #ffffff 30%, var(--bg)); } .irc-bg1 { background: color-mix(in srgb, #000000 30%, var(--bg)); }
+.irc-bg2 { background: color-mix(in srgb, #00007f 30%, var(--bg)); } .irc-bg3 { background: color-mix(in srgb, #009300 30%, var(--bg)); }
+.irc-bg4 { background: color-mix(in srgb, #ff0000 30%, var(--bg)); } .irc-bg5 { background: color-mix(in srgb, #7f0000 30%, var(--bg)); }
+.irc-bg6 { background: color-mix(in srgb, #9c009c 30%, var(--bg)); } .irc-bg7 { background: color-mix(in srgb, #fc7f00 30%, var(--bg)); }
+.irc-bg8 { background: color-mix(in srgb, #c8a800 30%, var(--bg)); } .irc-bg9 { background: color-mix(in srgb, #00c000 30%, var(--bg)); }
+.irc-bg10 { background: color-mix(in srgb, #009393 30%, var(--bg)); } .irc-bg11 { background: color-mix(in srgb, #00b8b8 30%, var(--bg)); }
+.irc-bg12 { background: color-mix(in srgb, #0000fc 30%, var(--bg)); } .irc-bg13 { background: color-mix(in srgb, #ff00ff 30%, var(--bg)); }
+.irc-bg14 { background: color-mix(in srgb, #7f7f7f 30%, var(--bg)); } .irc-bg15 { background: color-mix(in srgb, #a0a0a0 30%, var(--bg)); }
+.settings-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) 0; border-bottom: 1px solid var(--border); }

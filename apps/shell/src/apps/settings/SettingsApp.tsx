@@ -5,7 +5,7 @@ import { matchRoute, useAppNav } from '../../nav';
 import { YourData } from './YourData';
 import { Blocks } from './Blocks';
 import { OfflineMail, SshKeys, TerminalPassword } from './Terminal';
-import { BoardSettings, ChatSettings, NotificationChoices, PersonalProfile, TerminalDisplay } from './PersonalSettings';
+import { BoardSettings, ChatAccountSettings, ChatSettings, NotificationChoices, PersonalProfile, TerminalDisplay } from './PersonalSettings';
 import { Profile, FeaturedCharacter } from './ProfileTab';
 import { Password, TwoFactor } from './SecurityTab';
 import { Appearance, DeviceAlerts } from './AppearanceTab';
@@ -42,7 +42,7 @@ export default function SettingsApp() {
       {route?.pattern === 'blocked' && <Blocks />}
       {route?.pattern === 'appearance' && <Appearance me={me} />}
       {route?.pattern === 'notifications' && <>{me.role !== 'guest' && <NotificationChoices />}<DeviceAlerts /></>}
-      {route?.pattern === 'chat' && <ChatSettings />}
+      {route?.pattern === 'chat' && <><ChatSettings /><ChatAccountSettings /></>}
       {route?.pattern === 'boards' && <BoardSettings />}
     </SideNav>
   );

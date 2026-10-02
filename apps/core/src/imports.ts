@@ -2,7 +2,8 @@ import { createHash, createPublicKey, verify } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { unzipSync } from 'fflate';
-import { PREF_KINDS, homepageSettingsSchema, profileUpdateSchema } from '@app/shared';
+import { CLIENT_NAMES, PREF_KINDS, homepageSettingsSchema, profileUpdateSchema } from '@app/shared';
+import { putClientSettings } from './client-settings';
 import { audit } from './audit';
 import { newId } from './crypto';
 import type { AppDeps } from './deps';
@@ -21,7 +22,7 @@ import { cleanPath } from './homes/files';
 // avatar, your homepage, your files and your SSH keys. Posts, mail, guestbooks, rings and the rest involve
 // other people or the site's own records, so they stay in the archive and the preview says why.
 
-export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys'] as const;
+export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys', 'clients'] as const;
 export type ImportPart = (typeof IMPORT_PARTS)[number];
 const SKIPPED = [
   ['posts', 'posts/posts.json'], ['mail', 'mail/conversations.json'], ['guestbook', 'guestbook.json'], ['rings', 'rings/'], ['boards', 'boards/'],
@@ -134,6 +135,8 @@ async function plan(deps: AppDeps, v: SessionUser, a: Archive): Promise<{ parts:
   }
   const keys = keyLines(a);
   if (keys.length) parts.push({ part: 'keys', count: keys.length, issues: [] });
+  const clientFiles = CLIENT_NAMES.filter((n) => a.files.has(`${n}/client.json`));
+  if (clientFiles.length) parts.push({ part: 'clients', count: clientFiles.length, issues: [] });
   const skipped: { kind: string; count: number }[] = [];
   for (const [kind, path] of SKIPPED) {
     if (path.endsWith('/')) { const n = [...a.files.keys()].filter((p) => p.startsWith(path)).length; if (n) skipped.push({ kind, count: n }); continue; }
@@ -244,6 +247,17 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
     for (const line of keyLines(a)) {
       const [type, blob, ...name] = line.split(/\s+/);
       try { await addKey(deps, v.userId, { name: name.join(' ').replace(/_/g, ' '), public_key: `${type} ${blob}` }, ctx); restored += 1; } catch (e) { codes.push(code(e)); }
+    }
+    return { restored, codes };
+  });
+
+  await run('clients', async () => {
+    const codes: string[] = [];
+    let restored = 0;
+    for (const name of CLIENT_NAMES) {
+      const data = json<unknown>(a, `${name}/client.json`);
+      if (data === null) continue;
+      try { await putClientSettings(deps, v, name, data); restored += 1; } catch (e) { codes.push(code(e)); }
     }
     return { restored, codes };
   });

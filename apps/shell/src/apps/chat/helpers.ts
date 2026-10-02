@@ -16,9 +16,34 @@ export function completeNick(text: string, caret: number, nicks: string[], prev:
   return insertAt(text, caret - word.length, caret, matches, 0);
 }
 
+// The same for channel names and /commands: the word becomes the match and a space, never "nick: ".
+export function completeWord(text: string, caret: number, words: string[], prev: Completion | null): Completion | null {
+  if (prev && prev.text === text && prev.caret === caret && prev.matches.length > 1) return insertAt(text, prev.start, caret, prev.matches, (prev.index + 1) % prev.matches.length, ' ');
+  const word = /([^\s]*)$/.exec(text.slice(0, caret))![1]!;
+  if (!word) return null;
+  const matches = words.filter((n) => n.toLowerCase().startsWith(word.toLowerCase())).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  if (!matches.length) return null;
+  return insertAt(text, caret - word.length, caret, matches, 0, ' ');
+}
+
+export const COMMANDS = ['away', 'help', 'ignore', 'join', 'kick', 'me', 'msg', 'notice', 'op', 'deop', 'part', 'query', 'topic', 'unignore', 'voice', 'devoice', 'whois'];
+
+// A colour for each nick, the same every time, from the theme's readable colours (docs/10).
+export function nickColour(nick: string): string {
+  let h = 0;
+  for (const ch of nick.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `chat-nc-${h % 5}`;
+}
+
+// Pasted text with more than one line: the lines to send (blank ones dropped, each cut to the IRC limit). Null for one line.
+export function splitPaste(text: string): string[] | null {
+  if (!/[\r\n]/.test(text.trim())) return null;
+  return text.split(/\r?\n/).map((l) => l.trimEnd()).filter((l) => l.trim()).map((l) => l.slice(0, 400));
+}
+
 // Replaces text[start..replaceEnd] with the chosen nick and its suffix.
-function insertAt(text: string, start: number, replaceEnd: number, matches: string[], index: number): Completion {
-  const insert = `${matches[index]!}${start === 0 ? ': ' : ' '}`;
+function insertAt(text: string, start: number, replaceEnd: number, matches: string[], index: number, suffix?: string): Completion {
+  const insert = `${matches[index]!}${suffix ?? (start === 0 ? ': ' : ' ')}`;
   return { text: text.slice(0, start) + insert + text.slice(replaceEnd), caret: start + insert.length, matches, index, start };
 }
 

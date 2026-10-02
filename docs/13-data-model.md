@@ -132,6 +132,8 @@ file_areas (id fa_, slug, name, description, visibility public|members, upload_r
 files (id f_, area_id, uploader_id?, name, title, description, size_bytes, sha256, downloads, hidden_at, deleted_at)
                                    -- the bytes are FILES_DIR/{id}
 activity_days (user_id, day, services[])   -- stats only; one row per person per day (0024)
+client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+client)
+                                   -- a client's account-kept settings, validated by zod in @app/shared (0034); exported, imported, erased
 ```
 
 ## Invariants (enforce and test)
