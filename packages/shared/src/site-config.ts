@@ -60,6 +60,8 @@ export const siteConfigSchema = z
         // File areas (docs/05, M7): the largest single file, and the space each uploader gets. Admins have no quota.
         file_max_mb: z.number().positive().default(25),
         file_quota_mb: z.number().positive().default(250),
+        // Bringing back an export (docs/12): the largest archive someone can upload.
+        import_max_mb: z.number().positive().default(200),
       })
       .default({}),
     homes: z

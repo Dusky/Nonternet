@@ -146,7 +146,10 @@ The owners picked every look on the design board, with Webring as the default (`
 
 Details are in `10` ("As built (restyle)").
 
+## Import and terminal sign-up (2026-10-02, owners' choice)
+- **I1:** bring back an export: preview, then restore what is yours alone (`12`).
+- **I2:** sign up from the terminal (`04`).
+
 ## Later phases (not scheduled)
-BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Import
-of export archives; desktop "point" app; self-hosted nodes; hub-and-spoke federation with
+BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

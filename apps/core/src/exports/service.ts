@@ -11,6 +11,7 @@ import { toPublicSite } from '@app/shared';
 import { EXPORTERS, sha256Hex, type ExportUser } from './exporters';
 import { ensureKeypair, lockedPrivateKey, publicKeyFingerprint, signData } from './keys';
 import type { Ctx, SessionUser } from '../accounts';
+import { pruneImports } from '../imports';
 
 const DAY = 86_400_000;
 export const EXPORT_LIFETIME_DAYS = 7;
@@ -63,18 +64,29 @@ export async function downloadTarget(deps: AppDeps, v: SessionUser, id: string, 
 const README = (site: { name: string; domain: string }, handle: string) => `This is everything you made on ${site.name} (${site.domain}), as of the date in manifest.json.
 
 profile.json      your account details, rings, memberships and role history
+settings.json     your status line, notification choices and mutes
+avatar.webp       your picture, if you have one
 homepage/         your homepage files, exactly as you uploaded them (homepage.json has the settings)
 guestbook.json    entries on your guestbook, and entries you signed elsewhere
-posts/posts.json  every post you wrote: board, thread, subject, text, date
+posts/posts.json  every post you wrote: board, thread, subject, text, date (revisions.json and reactions.json beside it)
 posts/posts.mbox  the same posts as a mailbox, for mail and news readers
+mail/             your conversations: who was in them and the messages you wrote
+files/            files you uploaded to file areas (files.json has their details)
 rings/            for rings you founded or help run: the profile and the member list
-boards/           for boards you own: the board's details (other people's messages are not included)
-keys/public.key   your public key (Ed25519)
+boards/           for boards you own: the board's details
+irc/              chat channels you registered and your own chat messages
+mud/              your characters in the game, and notes you left there
+classics.json     lines you put on the wall, polls you asked and votes you cast
+vouches.json      people you vouched for
+keys/public.key   your public key (Ed25519); ssh_authorized_keys has your SSH keys
 keys/private.key.json  only if you asked for it: your private key, locked with the password you gave
 manifest.json     every file here with its size and SHA-256 hash
 manifest.sig      a signature of manifest.json made with your key
 
-Not included: other people's posts in your threads, and chat history. Nothing you did not make is here.
+Not included: other people's posts and messages. Nothing you did not make is here.
+
+To bring your profile, settings, picture, homepage, files and SSH keys back, upload this zip under
+Settings, Your data, "Bring back an export".
 
 To check that nothing changed since the export was made, and that ${site.name} made it for ${handle}:
   1. Compare each file's SHA-256 with manifest.json.
@@ -164,7 +176,7 @@ export function startExportWorker(deps: AppDeps, log: (m: string) => void): { st
   const tick = async () => {
     try {
       while (!stopped && (await processNext(deps, log))) { /* drain the queue */ }
-      if (Date.now() - lastPrune > 3_600_000) { lastPrune = Date.now(); await pruneExports(deps); }
+      if (Date.now() - lastPrune > 600_000) { lastPrune = Date.now(); await pruneExports(deps); await pruneImports(deps); }
     } catch (e) { log(`export worker: ${e}`); }
   };
   const timer = setInterval(() => { busy = busy.then(tick); }, 5000);

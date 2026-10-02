@@ -5,6 +5,8 @@ import * as accounts from '../accounts';
 import { createReadStream } from 'node:fs';
 import { ctxOf, requireUser } from '../http';
 import * as exports_ from '../exports/service';
+import * as imports from '../imports';
+import { ApiError } from '../errors';
 import { deleteOwnAccount } from '../deletion';
 import { COOKIE } from '../http';
 import type { AppDeps } from '../deps';
@@ -54,6 +56,21 @@ export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
     const f = await exports_.downloadTarget(deps, requireUser(req), id, ctxOf(deps, req));
     return reply.type('application/zip').header('content-disposition', `attachment; filename="${f.name.replace(/[^A-Za-z0-9._-]/g, '_')}"`)
       .header('content-length', f.size).header('cache-control', 'no-store').header('x-content-type-options', 'nosniff').send(createReadStream(f.path));
+  });
+
+  // Bringing back an export (docs/12). The upload changes nothing; it returns a preview. Applying needs the password.
+  app.register(async (scope) => {
+    scope.removeAllContentTypeParsers();
+    scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: imports.importMaxBytes(deps) }, (_req, body, done) => done(null, body));
+    scope.post('/api/v1/me/import', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req) => {
+      if (req.body !== undefined && !Buffer.isBuffer(req.body)) throw new ApiError(400, 'bad_request', 'Send the zip file itself as the request body.');
+      return imports.previewImport(deps, requireUser(req), (req.body as Buffer | undefined) ?? Buffer.alloc(0));
+    });
+  });
+  app.post('/api/v1/me/import/:id/apply', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req) => {
+    const { id } = z.object({ id: z.string().regex(/^im_[0-9A-Z]{26}$/) }).parse(req.params);
+    const body = z.object({ password: z.string().max(200), parts: z.array(z.enum(imports.IMPORT_PARTS)).min(1), replace_homepage: z.boolean().default(false) }).parse(req.body);
+    return imports.applyImport(deps, requireUser(req), id, body, ctxOf(deps, req));
   });
 
   // Deleting the account (docs/12): as hard to do as logging in, and it cannot be undone.

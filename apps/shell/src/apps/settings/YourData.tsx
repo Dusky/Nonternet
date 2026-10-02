@@ -2,6 +2,7 @@ import { useConfirm } from '../../components/feedback';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Me } from '@app/shared';
+import { en, type StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, TextField, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
@@ -10,7 +11,7 @@ interface ExportRow { id: string; status: 'queued' | 'running' | 'ready' | 'fail
 const size = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 export function YourData({ me }: { me: Me }) {
-  return <><ExportSection /><DeleteSection me={me} /></>;
+  return <><ExportSection /><ImportSection /><DeleteSection me={me} /></>;
 }
 
 function ExportSection() {
@@ -59,6 +60,89 @@ function ExportSection() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+// Bringing back an export (docs/12): upload, look at what would come back, then bring it back with the password.
+type Part = 'profile' | 'settings' | 'avatar' | 'homepage' | 'files' | 'keys';
+interface Issue { code: string; count: number }
+interface Preview { id: string; origin: 'this_site' | 'other_site'; site: { name: string; domain: string }; handle: string; generated_at: string; parts: { part: Part; count: number; issues: Issue[] }[]; skipped: { kind: string; count: number }[] }
+interface Result { parts: { part: Part; restored: number; issues: Issue[] }[] }
+// Known reasons get their own sentence; anything else (a quota, a file type) is counted plainly.
+const issueText = (t: ReturnType<typeof useT>, i: Issue) => t((`data.import.issue.${i.code}` in en ? `data.import.issue.${i.code}` : 'data.import.issue.other') as StringKey, { count: i.count });
+
+function ImportSection() {
+  const t = useT();
+  const qc = useQueryClient();
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [replace, setReplace] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
+  const upload = useMutation({
+    mutationFn: (f: File) => api.upload<Preview>('/me/import', f, 'POST'),
+    onSuccess: (p) => { setPreview(p); setParts(p.parts.map((x) => x.part)); setResult(null); setError(null); },
+    onError: (e) => { setPreview(null); setError(errorText(e)); },
+  });
+  const apply = useMutation({
+    mutationFn: () => api.post<Result>(`/me/import/${preview!.id}/apply`, { password, parts, replace_homepage: replace }),
+    onSuccess: (r) => { setResult(r); setPreview(null); setPassword(''); setError(null); void qc.invalidateQueries(); },
+    onError: (e) => setError(errorText(e)),
+  });
+  const toggle = (p: Part, on: boolean) => setParts((now) => (on ? [...now, p] : now.filter((x) => x !== p)));
+  return (
+    <section className="panel" aria-labelledby="import-h">
+      <h2 id="import-h">{t('data.import.title')}</h2>
+      <p>{t('data.import.intro')}</p>
+      <div className="field">
+        <label htmlFor="import-file">{t('data.import.file')}</label>
+        <input id="import-file" type="file" accept=".zip,application/zip" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); }} disabled={upload.isPending} />
+      </div>
+      {upload.isPending && <p className="muted" role="status">{t('data.import.checking')}</p>}
+      {preview && (
+        <form onSubmit={(e) => { e.preventDefault(); setError(null); apply.mutate(); }} aria-labelledby="import-preview-h">
+          <h3 id="import-preview-h">{t('data.import.previewTitle', { handle: preview.handle, site: preview.site.domain, when: formatWhen(preview.generated_at) ?? '' })}</h3>
+          <Alert kind={preview.origin === 'this_site' ? 'success' : 'info'}>{t(preview.origin === 'this_site' ? 'data.import.originHere' : 'data.import.originElsewhere')}</Alert>
+          <fieldset>
+            <legend>{t('data.import.willRestore')}</legend>
+            {preview.parts.length === 0 && <p className="muted">{t('data.import.nothing')}</p>}
+            {preview.parts.map((p) => (
+              <label key={p.part} className="check">
+                <input type="checkbox" checked={parts.includes(p.part)} onChange={(e) => toggle(p.part, e.target.checked)} />
+                <span><strong>{t(`data.import.part.${p.part}` as StringKey, { count: p.count })}</strong>
+                  {p.issues.length > 0 && <span className="hint"> {p.issues.map((i) => issueText(t, i)).join(' ')}</span>}</span>
+              </label>
+            ))}
+            {preview.parts.some((p) => p.part === 'homepage' && p.issues.some((i) => i.code === 'exists')) && (
+              <label className="check"><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />{t('data.import.replace')}</label>
+            )}
+          </fieldset>
+          {preview.skipped.length > 0 && (
+            <>
+              <h4>{t('data.import.staysTitle')}</h4>
+              <p className="hint">{t('data.import.staysIntro')}</p>
+              <ul className="plain">{preview.skipped.map((s) => <li key={s.kind}>{t(`data.import.skip.${s.kind}` as StringKey, { count: s.count })}</li>)}</ul>
+            </>
+          )}
+          <TextField label={t('data.export.password')} type="password" autoComplete="current-password" value={password} onChange={setPassword} required />
+          {error && <Alert kind="error">{error}</Alert>}
+          <div className="actions">
+            <button className="btn btn-primary" type="submit" disabled={apply.isPending || parts.length === 0}>{t('data.import.apply')}</button>
+            <button className="btn btn-quiet" type="button" onClick={() => { setPreview(null); setError(null); }}>{t('data.import.cancel')}</button>
+          </div>
+        </form>
+      )}
+      {!preview && error && <Alert kind="error">{error}</Alert>}
+      {result && (
+        <Alert kind="success">
+          <strong>{t('data.import.done')}</strong>
+          <ul className="plain">{result.parts.map((p) => (
+            <li key={p.part}>{t(`data.import.restored.${p.part}` as StringKey, { count: p.restored })}{p.issues.length > 0 && <span className="hint"> {p.issues.map((i) => issueText(t, i)).join(' ')}</span>}</li>
+          ))}</ul>
+        </Alert>
+      )}
     </section>
   );
 }

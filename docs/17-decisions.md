@@ -99,6 +99,8 @@
 
 - 2026-10-02: restyle (D18). The five themes are token sets with a few `data-chrome` rules. The note about the new look lives in the shell (shown once per device), not as an announcement row, because a migration-seeded announcement would put our copy on other people's sites. Effects stay off under reduced motion or more contrast. Sizes: main 233 KB, vendor 226 KB, fonts fetched per theme (Webring 88 KB).
 
+- 2026-10-02: import of exports (owners' choice). Only what is yours alone comes back (profile, settings, picture, homepage, files, SSH keys); everything involving other people stays in the archive and is listed. Origin is proven only for archives made here for you; from another site the integrity is checked and the preview says the origin is not proven.
+
 ## Verify list
 | # | Fact | Affects |
 |---|---|---|

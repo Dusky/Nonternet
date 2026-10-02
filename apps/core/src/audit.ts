@@ -8,7 +8,7 @@ export interface AuditEntry {
   targetId?: string;
   before?: unknown;
   after?: unknown;
-  origin: 'web' | 'cli' | 'system' | 'console';
+  origin: 'web' | 'cli' | 'system' | 'console' | 'bbs';
   ipHash?: string | null;
 }
 

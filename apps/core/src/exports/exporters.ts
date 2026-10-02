@@ -263,6 +263,7 @@ export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings
 // exporter fails the test in exports/exporters.test.ts.
 export const EXEMPT: Record<string, string> = {
   legal_pages: 'site documents written by admins',
+  imports: 'a record of archives the person uploaded to bring back; the content itself is in their export',
   guestbook_tickets: 'one-use sign-in passes, security state rather than content',
   bulletins: 'site notices written by admins, not a person\'s own content',
   legal_page_versions: 'site documents written by admins',

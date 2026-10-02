@@ -109,6 +109,7 @@ settings_history (id, key, version, value jsonb, changed_by, reason, created_at)
 announcements (id, body, channels text[], starts_at, ends_at, created_by)
 notifications (id, user_id, kind, payload jsonb, read_at)
 exports (id, user_id, status, path, size_bytes, expires_at)
+imports (id, user_id, sha256, created_at, applied_at, summary)   -- uploaded archives; brought back once
 jobs (id, kind, status, attempts, payload jsonb, result jsonb, run_at)
 oidc_payloads (id, type, payload jsonb, grant_id, user_code, uid, account_id, expires_at, consumed_at)
                                    -- the OIDC provider's own records; pk (id, type); account_id lets a suspension revoke them

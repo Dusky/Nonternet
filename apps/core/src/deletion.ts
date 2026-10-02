@@ -1,3 +1,4 @@
+import { removeImportFiles } from './imports';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { en } from '@app/strings';
@@ -20,6 +21,7 @@ export type PostsChoice = 'keep' | 'erase';
 
 export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts: PostsChoice; actor: SessionUser | null; reason?: string }, ctx: Ctx): Promise<void> {
   let exportIds: string[] = [];
+  let importIds: string[] = [];
   let fileIds: string[] = [];
   await deps.db.tx(async (q) => {
     const r = await q.query<{ handle: string; role: string; status: string }>(`SELECT handle, role, status FROM users WHERE id = $1 FOR UPDATE`, [userId]);
@@ -82,6 +84,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`DELETE FROM ring_members WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM scoped_roles WHERE user_id = $1`, [userId]);
     exportIds = (await q.query<{ id: string }>(`DELETE FROM exports WHERE user_id = $1 RETURNING id`, [userId])).rows.map((x) => x.id);
+    importIds = (await q.query<{ id: string }>(`DELETE FROM imports WHERE user_id = $1 RETURNING id`, [userId])).rows.map((x) => x.id);
     await q.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM email_verifications WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM password_resets WHERE user_id = $1`, [userId]);
@@ -112,6 +115,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
   await deps.homes.removeAll(userId).catch(() => undefined);
   await fs.rm(join(deps.filesDir, 'avatars', `${userId}.webp`), { force: true });
   for (const id of exportIds) await fs.rm(join(deps.exportsDir, `${id}.zip`), { force: true });
+  await removeImportFiles(deps, importIds);
   for (const id of fileIds) await fs.rm(join(deps.filesDir, id), { force: true });
 }
 

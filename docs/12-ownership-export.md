@@ -68,9 +68,31 @@ README.txt               # human explanation of the archive
   included (PROPOSED), except as quoted context in thread files if we add that later (OPEN).
 - Ring founders get ring metadata and member lists (public info), not members' content.
 
+## Bringing back an export (built 2026-10-02)
+Settings, Your data, "Bring back an export". Upload the zip, see a preview, then bring it back with your password.
+- **What comes back**: only what is yours alone:
+  - your name, bio and theme;
+  - your status line, notification choices and muted boards;
+  - your picture;
+  - your homepage files and settings;
+  - your files in file areas that exist here;
+  - your SSH keys.
+
+  Each goes through the same checks as doing it by hand: quotas, file types, upload rights, the 500-file cap and safe paths. So a file that doesn't fit is reported and the rest still comes back. Homepage files already here are kept unless you tick "replace".
+- **What stays in the archive**: posts, mail, guestbook entries, rings, boards, chat, MUD characters, vouches, and wall lines, polls and votes. They involve other people or the site's own records. The preview lists them with counts.
+- **Never changed**: handle, email, role, ops, custom domains, anything of anyone else.
+- **Checks**:
+  - Every file the manifest lists must be present with the right size and SHA-256, and nothing else may be in the zip.
+  - It may unpack to at most `limits.import_max_mb` (default 200 MB) and 5000 entries.
+  - An archive made here must be for you and signed with your own key; one made for another account here is refused.
+  - An archive from another site is checked against the key inside it, which proves nothing changed but not who made it. The preview says so plainly.
+  - One archive can be brought back once.
+  - Uploads not brought back within an hour are deleted.
+  - Each import is audited (`import.applied`, with the archive's hash and counts).
+
 ## Future: the path out (designed for, not built)
-- **Import**: a future self-hosted node or another instance can import the archive; the
-  signature proves it's the same person.
+- **Import elsewhere**: a self-hosted node could take the same archive; proving origin across sites needs the source site's
+  record of the key, or the person unlocking `keys/private.key.json`.
 - **Identity portability**: user key signs a statement "I moved to X"; the site can publish
   a redirect for the homepage and profile.
 - **Points / self-hosting / federation**: hub-and-spoke with this site as hub, desktop
