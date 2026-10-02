@@ -65,7 +65,7 @@
 | Q10 | ~~Vouching: auto-promote or admin confirm?~~ Resolved 2026-09-30: two trusted users vouch, an admin confirms; sponsors flagged if the person is demoted for abuse soon after (`03`) | — |
 | Q11 | ~~Private mail: local DMs, later netmail?~~ Resolved 2026-09-30: local private messages and small group threads on this site; netmail maybe later with the BBS | — |
 | Q12 | Future federation shape: hub-and-spoke, points, peers | later phase |
-| Q13 | ~~BBS scope beyond boards~~ Resolved 2026-09-30: file areas built on the web in M7 (`05`); for M8 the terminal also gets private mail, door games and QWK offline mail. Still out: FTN echomail, terminal signup, file areas in the terminal (later) | — |
+| Q13 | ~~BBS scope beyond boards~~ Resolved 2026-09-30: file areas built on the web in M7 (`05`); for M8 the terminal also gets private mail, door games and QWK offline mail. Still out: FTN echomail, file areas in the terminal (later). Terminal signup built 2026-10-02 (`04`) | — |
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
@@ -100,6 +100,8 @@
 - 2026-10-02: restyle (D18). The five themes are token sets with a few `data-chrome` rules. The note about the new look lives in the shell (shown once per device), not as an announcement row, because a migration-seeded announcement would put our copy on other people's sites. Effects stay off under reduced motion or more contrast. Sizes: main 233 KB, vendor 226 KB, fonts fetched per theme (Webring 88 KB).
 
 - 2026-10-02: import of exports (owners' choice). Only what is yours alone comes back (profile, settings, picture, homepage, files, SSH keys); everything involving other people stays in the archive and is listed. Origin is proven only for archives made here for you; from another site the integrity is checked and the preview says the origin is not proven.
+
+- 2026-10-02: terminal sign-up (owners' choice): the emailed code confirms in the terminal; telnet allowed with a plain warning; website and terminal passwords must differ; 3 accounts an hour per caller address. Nothing about agreeing to the terms is stored, on the web or in the terminal (unchanged).
 
 ## Verify list
 | # | Fact | Affects |

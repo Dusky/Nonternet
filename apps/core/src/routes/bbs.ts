@@ -1,6 +1,8 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { signupInputSchema } from '@app/shared';
+import * as accounts from '../accounts';
 import { ctxOf, requireAdmin, requireUser } from '../http';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
@@ -28,6 +30,23 @@ export function bbsRoutes(app: FastifyInstance, deps: AppDeps): void {
     fromBbs(req);
     const b = z.object({ method: z.enum(['password', 'ticket']), handle, secret: z.string().max(300), via, node, ip_hash: z.string().max(100).nullish() }).parse(req.body);
     return bbs.loginWithSecret(deps, { handle: b.handle, secret: b.secret, via: b.via, node: b.node, ip_hash: b.ip_hash });
+  });
+  // Signing up from the terminal (docs/04): create the account, then confirm it with the code from the email.
+  app.post('/internal/bbs/signup', internal, async (req, reply) => {
+    fromBbs(req);
+    const b = signupInputSchema.extend({ terminal_password: z.string().min(10).max(128), ip_hash: z.string().max(100).nullish() }).parse(req.body);
+    const { ip_hash, ...input } = b;
+    return reply.code(201).send(await bbs.signupFromBbs(deps, input, ip_hash ?? null));
+  });
+  app.post('/internal/bbs/verify-code', internal, async (req) => {
+    fromBbs(req);
+    const b = z.object({ user_id: z.string().regex(/^u_[0-9A-Z]{26}$/), code: z.string().trim().regex(/^\d{6}$/, 'enter the 6-digit code'), via, node, ip_hash: z.string().max(100).nullish() }).parse(req.body);
+    return bbs.confirmFromBbs(deps, b);
+  });
+  app.post('/internal/bbs/resend-code', internal, async (req, reply) => {
+    fromBbs(req);
+    await accounts.resendVerificationTo(deps, z.object({ user_id: z.string().regex(/^u_[0-9A-Z]{26}$/) }).parse(req.body).user_id);
+    return reply.code(204).send();
   });
   app.post('/internal/bbs/login-key', internal, async (req) => {
     fromBbs(req);

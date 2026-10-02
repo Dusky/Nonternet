@@ -31,6 +31,14 @@
   Unknown, used and expired codes all give the same error so codes can't be probed.
 - **Application mode is not built yet.** It needs the review queue in the admin console;
   until then the API says so plainly.
+- **From the terminal** (built 2026-10-02, `04`):
+  - Type `new` at the BBS handle prompt, or log in over SSH as the user `new`.
+  - The rules are the same as the web: mode, invite, the age question, handle, email and password. The terms of service can be read as text, and the caller must agree to them and the privacy policy.
+  - The terminal password is set at the same time and must differ from the website one.
+  - Telnet callers are told plainly that what they type is not encrypted.
+  - The confirmation email carries a six-digit code as well as the link. The code is stored hashed, works for 24 hours, and stops working after 5 wrong tries.
+  - Typing the code confirms the account and signs the caller in. A new code can be sent, three an hour.
+  - Three new accounts an hour per caller address. The `user.created` audit entry has origin `bbs`.
 - Signup tells you when an email is already registered (`email_taken`). That lets someone probe
   for accounts, which is acceptable while signup is invite-only; revisit before opening signup.
 

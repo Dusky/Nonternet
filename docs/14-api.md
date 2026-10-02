@@ -10,6 +10,7 @@ bearer token. Errors: `{ "error": { "code", "message" } }`. The admin console us
 `POST /me/totp/setup` · `POST /me/totp/enable` (returns the recovery codes, once) · `POST /me/totp/recovery-codes` (regenerate; needs a current code) — all built
 `POST /tickets {service}` → one-time login ticket (bbs | mud)
 `POST /me/export` · `GET /me/exports` · `DELETE /me` (after confirm)
+Internal (BBS token): `POST /internal/bbs/signup` · `POST /internal/bbs/verify-code` · `POST /internal/bbs/resend-code` (terminal sign-up, `04`)
 `POST /me/import` (the zip as the body; changes nothing, returns a preview) · `POST /me/import/:id/apply {password, parts, replace_homepage}` (docs/12)
 OIDC under `/oidc/*`.
 

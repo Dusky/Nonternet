@@ -40,6 +40,13 @@ export class Core {
   async hasKeys(handle: string): Promise<boolean> {
     return (await this.call<{ keys: boolean }>('POST', '/internal/bbs/has-keys', { body: { handle }, bearer: this.bbsToken })).keys;
   }
+  signup(b: { handle: string; email: string; password: string; terminal_password: string; invite?: string; age_confirmed?: boolean; ip_hash?: string | null }) {
+    return this.call<{ id: string; handle: string }>('POST', '/internal/bbs/signup', { body: b, bearer: this.bbsToken });
+  }
+  verifyCode(b: { user_id: string; code: string; via: NodeReport['via']; node: number; ip_hash?: string | null }) {
+    return this.call<LoginResult>('POST', '/internal/bbs/verify-code', { body: b, bearer: this.bbsToken });
+  }
+  resendCode(userId: string) { return this.call<void>('POST', '/internal/bbs/resend-code', { body: { user_id: userId }, bearer: this.bbsToken }); }
   logout(token: string, callId?: string) { return this.call<void>('POST', '/internal/bbs/logout', { body: { token, call_id: callId }, bearer: this.bbsToken }); }
   nodes(nodes: NodeReport[]) { return this.call<{ nodes: NodeAnswer[] }>('POST', '/internal/bbs/nodes', { body: { nodes }, bearer: this.bbsToken }); }
 

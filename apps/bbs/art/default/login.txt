@@ -6,4 +6,5 @@
 Welcome to the {{site.name}} BBS. You are on node {{node}}.
 
 Log in with your handle and your terminal password (set it on the web,
-under Settings, Terminal). New here? Sign up at {{site.url}}
+under Settings, Terminal). New here? Type new as your handle, or sign
+up at {{site.url}}

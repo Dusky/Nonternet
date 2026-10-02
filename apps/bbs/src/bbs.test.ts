@@ -412,6 +412,72 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     s.destroy();
   });
 
+  it('signs up from the terminal with the same rules as the web, confirms with the emailed code, and lands on the menu', async () => {
+    const code = 'TERM-SIGN-UP01';
+    await ctx.deps.db.query(`INSERT INTO invites (code, created_by, expires_at) VALUES ($1, $2, now() + interval '1 day')`, [code, admin.id]);
+    const taken = await person();
+    const mails = (ctx.deps.mailer as unknown as { sent: { to: string; text: string }[] }).sent;
+    const { s, screen, type } = telnet();
+    await screen.until(/Handle:/);
+    expect(screen.text).toContain('Type new as your handle');
+    type('new\r');
+    await screen.until(/not encrypted/); // telnet gets the warning
+    await screen.until(/Read the terms of service first\? \[Y\/N\]/);
+    type('y');
+    await screen.until(/Terms of service/);
+    await screen.until(/Do you agree to the terms of service and the privacy policy\? \[Y\/N\]/);
+    type('y');
+    await screen.until(/at least 16 years old\? \[Y\/N\]/);
+    type('y');
+    await screen.until(/Invite code:/);
+    type(`${code}\r`);
+    await screen.until(/Handle \(your name here\):/);
+    type(`${taken.handle}\r`);
+    await screen.until(/Email address:/);
+    type('newcomer@example.test\r');
+    await screen.until(/Website password:/);
+    type('website pass 1\rwebsite pass 1\r');
+    await screen.until(/Terminal password:/);
+    type('website pass 1\r');
+    await screen.until(/different password from your website one/); // the two must differ
+    type('terminal pass 9\rterminal pass 9\r');
+    await screen.until(/handle is not available/i); // someone has it: asked again, nothing else retyped
+    type('Newcomer\r');
+    await screen.until(/six-digit code/);
+    const mail = mails.filter((m) => m.to === 'newcomer@example.test').at(-1)!;
+    const sent = /type this code there: (\d{6})/.exec(mail.text)![1]!;
+    type(`${sent === '000000' ? '111111' : '000000'}\r`);
+    await screen.until(/That code is not right/);
+    type(`${sent}\r`);
+    await screen.until(/Main menu \[/);
+    expect(screen.text).not.toMatch(/website pass 1|terminal pass 9/); // passwords never echoed
+    const u = (await ctx.deps.db.query(`SELECT role, terminal_password_hash IS NOT NULL AS term, email_verified_at IS NOT NULL AS ok FROM users WHERE handle = 'Newcomer'`)).rows[0];
+    expect(u).toEqual({ role: 'user', term: true, ok: true });
+    expect((await ctx.deps.db.query(`SELECT origin FROM audit_log WHERE action = 'user.created' ORDER BY id DESC LIMIT 1`)).rows[0]).toEqual({ origin: 'bbs' });
+    type('g');
+    await screen.until(/Thanks for calling/);
+    await new Promise((r) => s.on('close', r));
+    // The new account logs in on the website with the website password.
+    const web = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { identifier: 'Newcomer', password: 'website pass 1' }, headers: { origin: 'https://example.test' } });
+    expect(web.statusCode).toBe(200);
+  });
+
+  it('lets SSH callers sign up as the user "new", without the telnet warning', async () => {
+    const screen = new Screen();
+    const conn = new ssh2.Client();
+    await new Promise<void>((resolve, reject) => {
+      conn.on('ready', () => conn.shell({ term: 'xterm', cols: 90, rows: 30 }, (err, stream) => {
+        if (err) return reject(err);
+        stream.on('data', (d: Buffer) => screen.add(d.toString('utf8')));
+        resolve();
+      })).on('error', reject).connect({ host: '127.0.0.1', port: sshPort, username: 'new', readyTimeout: 5000, tryKeyboard: false });
+    });
+    await screen.until(/New account/);
+    expect(screen.text).not.toContain('not encrypted');
+    await screen.until(/Read the terms of service first/);
+    conn.end();
+  });
+
   it('limits callers per address', async () => {
     for (let i = 0; i < 50 && bbs.nodes.list().length; i++) await new Promise((r) => setTimeout(r, 100)); // earlier callers have hung up
     const callers = [telnet(), telnet(), telnet()];

@@ -25,6 +25,33 @@ export async function linkFor(email: string, kind: 'verify-email' | 'reset-passw
   return link;
 }
 
+// The six-digit code in the confirmation email, for signing up from the terminal.
+export async function codeFor(email: string): Promise<string> {
+  let code = '';
+  await expect.poll(() => {
+    const log = readFileSync(join(TMP, 'core.log'), 'utf8');
+    const blocks = log.split('[mail to ').filter((b) => b.startsWith(`${email}]`));
+    code = blocks.flatMap((b) => [...b.matchAll(/type this code there: (\d{6})/g)].map((m) => m[1]!)).at(-1) ?? '';
+    return code;
+  }, { message: `no code email for ${email}`, timeout: 8000 }).not.toBe('');
+  return code;
+}
+
+// A fresh invite code, made by an admin straight in the database.
+export async function newInvite(): Promise<string> {
+  const stack = JSON.parse(readFileSync(join(TMP, 'stack.json'), 'utf8')) as { DATABASE_URL: string };
+  const db = new pg.Client({ connectionString: stack.DATABASE_URL });
+  await db.connect();
+  const code = `E2E-${randomBytes(4).toString('hex').toUpperCase()}`;
+  try {
+    if ((await db.query(`SELECT 1 FROM users WHERE role = 'admin'`)).rowCount === 0) {
+      cli(['create-admin', '--handle', 'seedadmin', '--email', 'seedadmin@example.test'], { ADMIN_PASSWORD: PASSWORD });
+    }
+    await db.query(`INSERT INTO invites (code, created_by, expires_at) SELECT $1, id, now() + interval '1 day' FROM users WHERE role = 'admin' LIMIT 1`, [code]);
+  } finally { await db.end(); }
+  return code;
+}
+
 export interface TestAdmin { handle: string; password: string; secret: string; recoveryCodes: string[] }
 
 // An admin with two-factor already on, made the way an operator would (CLI), then set up over the API.

@@ -27,6 +27,8 @@ export const signupInputSchema = z.object({
   invite: z.string().trim().min(1).max(64).optional(),
   // Ticked at signup when the site asks for a minimum age (docs/02).
   age_confirmed: z.boolean().optional(),
+  // Signing up from the terminal (docs/04) sets the terminal password too; it must differ from the website one.
+  terminal_password: z.string().min(10).max(128).optional(),
 });
 export type SignupInput = z.infer<typeof signupInputSchema>;
 

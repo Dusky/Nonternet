@@ -7,6 +7,8 @@ import { noteActive } from '../activity';
 import { checkTerminalLogin } from '../irc/auth';
 import { bbsNodes, setBbsNodes, type BbsNodeState } from '../presence';
 import type { Ctx, SessionUser } from '../accounts';
+import * as accounts from '../accounts';
+import type { SignupInput } from '@app/shared';
 
 // Signing BBS callers in (docs/04). The BBS never sees a user table: it asks core, and core answers with a
 // short-lived ordinary session (kind 'bbs') that the BBS uses to call the public API as that person. So
@@ -32,6 +34,25 @@ async function openSession(deps: AppDeps, user: { id: string; handle: string; ro
   });
   noteActive(deps, user.id, 'bbs');
   return { token, call_id: callId, user: { id: user.id, handle: user.handle, role: user.role }, last_call_at: (last as Date | null)?.toISOString() ?? null };
+}
+
+// Signing up from the terminal (docs/04). The same rules as the web (accounts.signup); the limit is per caller's
+// address, counted from the audit log, since internal routes have no rate limiter.
+export const BBS_SIGNUPS_PER_HOUR = 3;
+export async function signupFromBbs(deps: AppDeps, input: SignupInput, ipHash: string | null): Promise<{ id: string; handle: string }> {
+  const recent = await deps.db.query<{ n: string }>(
+    `SELECT count(*) AS n FROM audit_log WHERE action = 'user.created' AND origin = 'bbs' AND ip_hash IS NOT DISTINCT FROM $1 AND created_at > now() - interval '1 hour'`, [ipHash]);
+  if (Number(recent.rows[0]!.n) >= (ipHash ? BBS_SIGNUPS_PER_HOUR : BBS_SIGNUPS_PER_HOUR * 5)) {
+    throw new ApiError(429, 'rate_limited', 'Too many new accounts from here in the last hour. Try again later.');
+  }
+  return accounts.signup(deps, input, { ipHash: ipHash ?? undefined } as Ctx, 'bbs');
+}
+
+// The code from the email confirms the account, and the caller is signed in straight away.
+export async function confirmFromBbs(deps: AppDeps, input: { user_id: string; code: string; via: BbsVia; node: number; ip_hash?: string | null }): Promise<BbsLogin> {
+  await accounts.verifyCode(deps, input.user_id, input.code, { ipHash: input.ip_hash ?? undefined } as Ctx, 'bbs');
+  const u = (await deps.db.query<{ id: string; handle: string; role: string }>(`SELECT id, handle, role FROM users WHERE id = $1`, [input.user_id])).rows[0]!;
+  return openSession(deps, u, input.via, input.node, input.ip_hash ?? null);
 }
 
 const refused = () => new ApiError(401, 'login_failed', 'That handle and password do not match, or this account cannot use the BBS.');

@@ -6,6 +6,7 @@ import type { NodeHolder, Nodes } from './nodes';
 import type { Term } from './term';
 import { SCREENS } from './screens';
 import { newBulletinNote, recentOneliners } from './screens/classics';
+import { signUp } from './screens/signup';
 
 export interface BbsContext {
   core: Core;
@@ -18,7 +19,10 @@ export interface BbsContext {
   doorWrapper: string[];
 }
 
-export type PreAuth = { kind: 'login'; login: LoginResult } | { kind: 'ticket'; handle: string; ticket: string };
+export type PreAuth = { kind: 'login'; login: LoginResult } | { kind: 'ticket'; handle: string; ticket: string } | { kind: 'signup' };
+
+// The same hash core sees for a caller's address, wherever it is worked out.
+export const hashIp = (secret: string, ip: string): string => createHmac('sha256', secret).update(`ip:${ip}`).digest('base64url').slice(0, 22);
 
 // One caller on one node, from connect to goodbye. The transport (telnet, SSH, WebSocket) has already
 // negotiated the terminal; everything here is the same for all three.
@@ -37,13 +41,14 @@ export class Session implements NodeHolder {
     term.onIdle = () => this.drop('You have been idle for a while, so the BBS let you go. Call again any time.');
   }
 
-  get ipHash(): string { return createHmac('sha256', this.ctx.secret).update(`ip:${this.ip}`).digest('base64url').slice(0, 22); }
+  get ipHash(): string { return hashIp(this.ctx.secret, this.ip); }
   at(where: string): void { this.where = where; }
 
   async run(pre?: PreAuth): Promise<void> {
     this.ctx.nodes.attach(this);
     try {
-      const ok = pre?.kind === 'login' ? this.signedIn(pre.login) : pre?.kind === 'ticket' ? await this.redeem(pre.handle, pre.ticket) : await this.loginPrompt();
+      const ok = pre?.kind === 'login' ? this.signedIn(pre.login) : pre?.kind === 'ticket' ? await this.redeem(pre.handle, pre.ticket)
+        : pre?.kind === 'signup' ? await this.signUp() : await this.loginPrompt();
       if (!ok) return;
       await this.menuLoop();
     } catch (e) {
@@ -71,6 +76,11 @@ export class Session implements NodeHolder {
     }
   }
 
+  private async signUp(): Promise<boolean> {
+    const l = await signUp(this);
+    return l ? this.signedIn(l) : false;
+  }
+
   private async loginPrompt(): Promise<boolean> {
     const t = this.term;
     t.clear();
@@ -81,7 +91,7 @@ export class Session implements NodeHolder {
       const handle = (await t.readLine({ max: 40 }))?.trim().replace(/^@/, '');
       if (handle === undefined || handle === null) return false;
       if (!handle) { tries--; continue; }
-      if (handle.toLowerCase() === 'new') { t.line(`Sign up on the web at ${this.ctx.siteUrl}, then set a terminal password under Settings, Terminal.`); tries--; continue; }
+      if (handle.toLowerCase() === 'new') return this.signUp();
       t.write('Terminal password: ');
       const password = await t.readLine({ max: 200, mask: true });
       if (password === null) return false;

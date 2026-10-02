@@ -110,13 +110,13 @@ describe.skipIf(!dbAvailable)('bringing back an export', () => {
 
     const u = (await db.query(`SELECT handle, email, role, display_name, bio, theme, theme_variant, status_line, away, avatar_at FROM users WHERE id = $1`, [alice.id])).rows[0];
     expect(u).toMatchObject({ handle: 'alice', role: 'user', display_name: 'Alice A.', bio: 'Makes synth patches.', theme: 'terminal', theme_variant: 'green', status_line: 'Patching', away: true });
-    expect(u.avatar_at).not.toBeNull();
+    expect(u!.avatar_at).not.toBeNull();
     expect((await db.query(`SELECT enabled FROM notification_prefs WHERE user_id = $1 AND kind = 'mention'`, [alice.id])).rows[0]).toEqual({ enabled: false });
     expect(readFileSync(homeFile(alice, 'index.html'), 'utf8')).toBe('<h1>alice</h1>');
     expect((await db.query(`SELECT title FROM homepages WHERE user_id = $1`, [alice.id])).rows[0]).toEqual({ title: 'Alice’s place' });
     expect((await db.query(`SELECT name, title FROM files WHERE uploader_id = $1 AND deleted_at IS NULL`, [alice.id])).rows).toEqual([{ name: 'readme.txt', title: 'Read me' }]);
     expect((await db.query(`SELECT name FROM ssh_keys WHERE user_id = $1`, [alice.id])).rows).toEqual([{ name: 'laptop' }]);
-    expect((await db.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'import.applied' AND actor_id = $1`, [alice.id])).rows[0].n).toBe(1);
+    expect((await db.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'import.applied' AND actor_id = $1`, [alice.id])).rows[0]!.n).toBe(1);
   });
 
   it('brings an archive back only once', async () => {

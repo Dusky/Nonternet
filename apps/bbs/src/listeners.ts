@@ -4,7 +4,7 @@ import type { IncomingMessage } from 'node:http';
 import ssh2 from 'ssh2';
 import type { WebSocketServer } from 'ws';
 import { CoreError, type LoginResult } from './core';
-import { Session, type BbsContext, type PreAuth } from './session';
+import { hashIp, Session, type BbsContext, type PreAuth } from './session';
 import { OPENING, TelnetParser, escapeOut } from './telnet';
 import { Term, encodingFor } from './term';
 
@@ -51,6 +51,7 @@ export function sshServer(ctx: BbsContext, hostKey: Buffer | string, opts: Liste
   return new ssh2.Server({ hostKeys: [hostKey], ident: 'BBS' }, (client, info) => {
     const ip = info.ip;
     let login: LoginResult | null = null;
+    let signupOnly = false; // the SSH user "new": straight to signing up, nothing else
     let fails = 0;
     let node: number | null = null;
     client.on('error', () => undefined);
@@ -67,18 +68,19 @@ export function sshServer(ctx: BbsContext, hostKey: Buffer | string, opts: Liste
 
     client.on('authentication', (a) => {
       const handle = a.username.trim().replace(/^@/, '');
+      if (handle.toLowerCase() === 'new') { signupOnly = true; return a.accept(); }
       const fail = () => { if (++fails >= 6) client.end(); else a.reject(['publickey', 'password', 'keyboard-interactive']); };
       const tryLogin = (p: Promise<LoginResult>) => p.then((l) => { login = l; a.accept(); }).catch((e) => { if (e instanceof CoreError && e.status === 0) client.end(); else setTimeout(fail, 800); });
       if (a.method === 'publickey') {
         if (!a.signature) return a.accept(); // the client asks whether this key would do; the signed attempt decides
         const key = ssh2.utils.parseKey(a.key.data);
         if (key instanceof Error || !a.blob || !key.verify(a.blob, a.signature, (a as { hashAlgo?: string }).hashAlgo)) return fail();
-        return tryLogin(ctx.core.loginKey({ handle, fingerprint: fingerprintOf(a.key.data), node: node!, ip_hash: null }));
+        return tryLogin(ctx.core.loginKey({ handle, fingerprint: fingerprintOf(a.key.data), node: node!, ip_hash: hashIp(ctx.secret, ip) }));
       }
-      if (a.method === 'password') return tryLogin(ctx.core.login({ method: 'password', handle, secret: a.password, via: 'ssh', node: node!, ip_hash: null }));
+      if (a.method === 'password') return tryLogin(ctx.core.login({ method: 'password', handle, secret: a.password, via: 'ssh', node: node!, ip_hash: hashIp(ctx.secret, ip) }));
       if (a.method === 'keyboard-interactive') {
         return a.prompt([{ prompt: 'Terminal password: ', echo: false }], (answers) => {
-          tryLogin(ctx.core.login({ method: 'password', handle, secret: answers[0] ?? '', via: 'ssh', node: node!, ip_hash: null }));
+          tryLogin(ctx.core.login({ method: 'password', handle, secret: answers[0] ?? '', via: 'ssh', node: node!, ip_hash: hashIp(ctx.secret, ip) }));
         });
       }
       a.reject(['publickey', 'password', 'keyboard-interactive']);
@@ -102,7 +104,7 @@ export function sshServer(ctx: BbsContext, hostKey: Buffer | string, opts: Liste
           stream.on('data', (d: Buffer) => term!.input(d));
           stream.on('close', () => term!.close());
           const s = new Session(ctx, term, node!, 'ssh', ip);
-          void s.run({ kind: 'login', login: login! });
+          void s.run(signupOnly ? { kind: 'signup' } : { kind: 'login', login: login! });
         });
       });
     });

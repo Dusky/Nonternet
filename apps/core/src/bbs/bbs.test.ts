@@ -1,6 +1,6 @@
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { client, createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser, TEST_PASSWORD } from '../test/harness';
+import { client, createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser, TEST_PASSWORD, tokenFromMail } from '../test/harness';
 import { parsePublicKey } from './service';
 import { bbsSecrets } from './secrets';
 
@@ -114,5 +114,66 @@ describe.skipIf(!dbAvailable)('the BBS in core', () => {
     const online = (await (await loginAs(ctx, b.handle)).get('/api/v1/online')).body.people;
     expect(online.find((p: { handle: string }) => p.handle === b.handle)).toMatchObject({ bbs: { node: 2, where: 'Reading Lobby' } });
     expect((await client(ctx.app).get('/api/v1/online')).status).toBe(401);
+  });
+
+  describe('signing up from the terminal', () => {
+    let n = 0;
+    const invite = async () => {
+      const code = `TERM-${String(++n).padStart(4, '0')}-CODE`;
+      await db.query(`INSERT INTO invites (code, created_by, expires_at) VALUES ($1, (SELECT id FROM users LIMIT 1), now() + interval '1 day')`, [code]);
+      return code;
+    };
+    const body = async (handle: string, extra: Record<string, unknown> = {}) => ({
+      handle, email: `${handle.toLowerCase()}@example.test`, password: 'website pass 1', terminal_password: 'terminal pass 1', age_confirmed: true, invite: await invite(), ip_hash: `ip-${handle}`, ...extra,
+    });
+    const codeFor = (email: string) => {
+      const mail = (ctx.deps.mailer as unknown as { sent: { to: string; text: string }[] }).sent.filter((m) => m.to === email).at(-1)!;
+      return /type this code there: (\d{6})/.exec(mail.text)![1]!;
+    };
+
+    it('creates a guest with both passwords, audited as from the BBS; refuses the same password twice and callers without the BBS token', async () => {
+      await makeUser(ctx); // someone to own the invites
+      expect((await internal('signup', await body('Termie'), 'wrong')).statusCode).toBe(401);
+      expect((await internal('signup', await body('Samey', { terminal_password: 'website pass 1' }))).json().error.code).toBe('same_password');
+      const r = await internal('signup', await body('Termie'));
+      expect(r.statusCode).toBe(201);
+      const u = (await db.query(`SELECT role, terminal_password_hash IS NOT NULL AS term FROM users WHERE id = $1`, [r.json().id])).rows[0];
+      expect(u).toEqual({ role: 'guest', term: true });
+      expect((await db.query(`SELECT origin FROM audit_log WHERE action = 'user.created' AND target_id = $1`, [r.json().id])).rows[0]).toEqual({ origin: 'bbs' });
+      expect((await internal('signup', { ...(await body('NoInvite')), invite: undefined })).json().error.code).toBe('invite_required');
+      expect((await internal('signup', { ...(await body('Young')), age_confirmed: false })).json().error.code).toBe('age_required');
+    });
+
+    it('confirms with the emailed code once, signs the caller in, and stops after five wrong tries', async () => {
+      const r = (await internal('signup', await body('Coder'))).json();
+      const code = codeFor('coder@example.test');
+      const wrong = code === '000000' ? '111111' : '000000';
+      expect((await internal('verify-code', { user_id: r.id, code: wrong, via: 'telnet', node: 1 })).json().error.code).toBe('code_wrong');
+      const ok = await internal('verify-code', { user_id: r.id, code, via: 'telnet', node: 1 });
+      expect(ok.statusCode).toBe(200);
+      expect(ok.json().user).toMatchObject({ handle: 'Coder', role: 'user' });
+      expect((await internal('verify-code', { user_id: r.id, code, via: 'telnet', node: 1 })).json().error.code).toBe('code_invalid'); // used up
+
+      const g = (await internal('signup', await body('Guesser'))).json();
+      const real = codeFor('guesser@example.test');
+      const bad = real === '000000' ? '111111' : '000000';
+      for (let i = 0; i < 5; i++) expect((await internal('verify-code', { user_id: g.id, code: bad, via: 'telnet', node: 1 })).json().error.code).toBe('code_wrong');
+      expect((await internal('verify-code', { user_id: g.id, code: real, via: 'telnet', node: 1 })).json().error.code).toBe('code_invalid');
+      expect((await internal('resend-code', { user_id: g.id })).statusCode).toBe(204);
+      expect((await internal('verify-code', { user_id: g.id, code: codeFor('guesser@example.test'), via: 'telnet', node: 1 })).statusCode).toBe(200);
+      expect((await internal('resend-code', { user_id: g.id })).json().error.code).toBe('already_verified');
+    });
+
+    it('allows three new accounts an hour from one address', async () => {
+      for (const h of ['Lim1', 'Lim2', 'Lim3']) expect((await internal('signup', await body(h, { ip_hash: 'same-place' }))).statusCode).toBe(201);
+      expect((await internal('signup', await body('Lim4', { ip_hash: 'same-place' }))).json().error.code).toBe('rate_limited');
+    });
+
+    it('the web confirmation link still works for an account made in the terminal', async () => {
+      const r = (await internal('signup', await body('Linker'))).json();
+      const mail = (ctx.deps.mailer as unknown as { sent: { to: string; text: string }[] }).sent.filter((m) => m.to === 'linker@example.test').at(-1)!;
+      expect((await client(ctx.app).post('/api/v1/auth/verify-email', { token: tokenFromMail(mail.text) })).status).toBeLessThan(300);
+      expect((await db.query(`SELECT role FROM users WHERE id = $1`, [r.id])).rows[0]).toEqual({ role: 'user' });
+    });
   });
 });

@@ -151,5 +151,5 @@ Details are in `10` ("As built (restyle)").
 - **I2:** sign up from the terminal (`04`).
 
 ## Later phases (not scheduled)
-BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
+BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

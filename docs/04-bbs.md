@@ -24,7 +24,7 @@ for the shell's xterm.js window). It is a **client of the core API**:
 | Telnet / SSH, password | terminal password, checked by core's private `verify` endpoint |
 | SSH, key | public keys from core (`ssh_keys`); host key managed by `sitectl` |
 | Web terminal | one-time **login ticket** in the WebSocket URL (`login_tickets`, 60 s, single use), redeemed against core when the socket connects; replay and expiry are refused |
-| Signup | not in the terminal; unknown callers are told to sign up on the web |
+| Signup | built 2026-10-02: `new` at the handle prompt (or SSH user `new`); same rules as the web, both passwords, the emailed code confirms and signs in (`02`) |
 
 The BBS subscribes to `user.suspended`, `user.role_changed` and `session.revoked` and drops or
 updates live sessions within 5 s.
@@ -60,7 +60,7 @@ and a settings page that points to the web. Presence is reported to core for the
 - **SSH keys**: added and removed in Settings → Terminal; part of the export.
 
 ## Later (see Q13 in `17`)
-File areas in the terminal, FTN echomail, terminal signup.
+File areas in the terminal, FTN echomail.
 
 ## Notes carried over from the Enigma½ spike
 The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:

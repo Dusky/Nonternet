@@ -3,6 +3,7 @@ import { noteActive } from './activity';
 import { noteWebSeen } from './presence';
 import { makeT } from '@app/strings';
 import { audit } from './audit';
+import { randomInt } from 'node:crypto';
 import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
 import { emit } from './events';
@@ -50,22 +51,25 @@ export async function revokeAllSessions(q: Queryable, userId: string, reason: st
 
 // ---------------------------------------------------------------- signup & email verification
 
-async function issueVerification(q: Queryable, userId: string): Promise<string> {
+// A link for the browser and a six-digit code for the terminal (docs/04); either confirms the email.
+interface Verification { token: string; code: string }
+async function issueVerification(q: Queryable, userId: string): Promise<Verification> {
   const token = randomToken();
+  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
   await q.query(
-    `INSERT INTO email_verifications (token_hash, user_id, expires_at) VALUES ($1, $2, now() + $3 * interval '1 hour')`,
-    [sha256(token), userId, VERIFY_HOURS],
+    `INSERT INTO email_verifications (token_hash, user_id, expires_at, code_hash) VALUES ($1, $2, now() + $3 * interval '1 hour', $4)`,
+    [sha256(token), userId, VERIFY_HOURS, sha256(`${userId}:${code}`)],
   );
-  return token;
+  return { token, code };
 }
 
-async function sendVerification(deps: AppDeps, user: { email: string; handle: string }, token: string): Promise<void> {
+async function sendVerification(deps: AppDeps, user: { email: string; handle: string }, v: Verification): Promise<void> {
   const t = makeT(toPublicSite(deps.config));
-  const link = `${deps.publicUrl}/verify-email?token=${encodeURIComponent(token)}`;
-  await deps.mailer.send({ to: user.email, subject: t('email.verify.subject'), text: t('email.verify.body', { handle: user.handle, link }) });
+  const link = `${deps.publicUrl}/verify-email?token=${encodeURIComponent(v.token)}`;
+  await deps.mailer.send({ to: user.email, subject: t('email.verify.subject'), text: t('email.verify.body', { handle: user.handle, link, code: v.code }) });
 }
 
-export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promise<{ id: string; handle: string }> {
+export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin: 'web' | 'bbs' = 'web'): Promise<{ id: string; handle: string }> {
   const { mode } = deps.config.signup;
   // TODO(M1 task 3, application mode): the roadmap only calls for invite mode. Application mode
   // (docs/02) needs the review queue in the admin console first.
@@ -77,10 +81,14 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
     throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
   }
 
+  if (input.terminal_password !== undefined && input.terminal_password === input.password) {
+    throw new ApiError(400, 'same_password', 'Use a different terminal password from the one you log in to the website with.');
+  }
   const passwordHash = await hashPassword(input.password);
+  const terminalHash = input.terminal_password ? await hashPassword(input.terminal_password) : null;
   const id = newId('u');
 
-  let token: string;
+  let token: Verification;
   try {
     token = await deps.db.tx(async (q) => {
       if (mode === 'invite') {
@@ -95,14 +103,15 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
         throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
       }
       await q.query(
-        `INSERT INTO users (id, handle, display_name, email, password_hash, age_confirmed_at, age_confirmed_min) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [id, input.handle, input.display_name ?? null, input.email, passwordHash, minAge > 0 ? new Date(deps.now()) : null, minAge > 0 ? minAge : null]);
+        `INSERT INTO users (id, handle, display_name, email, password_hash, age_confirmed_at, age_confirmed_min, terminal_password_hash, terminal_password_set_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8::text IS NULL THEN NULL ELSE now() END)`,
+        [id, input.handle, input.display_name ?? null, input.email, passwordHash, minAge > 0 ? new Date(deps.now()) : null, minAge > 0 ? minAge : null, terminalHash]);
       await ensureKeypair(q, deps.secretKey, id); // the person's signing key, made at signup (docs/02)
       if (mode === 'invite') {
         await q.query(`UPDATE invites SET used_by = $1, used_at = now() WHERE code = $2`, [id, input.invite!.toUpperCase()]);
       }
       await audit(q, { actorId: id, actorKind: 'user', action: 'user.created', targetType: 'user', targetId: id,
-        after: { handle: input.handle, role: 'guest', age_confirmed_min: minAge > 0 ? minAge : undefined, invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined }, origin: 'web', ipHash: ctx.ipHash });
+        after: { handle: input.handle, role: 'guest', age_confirmed_min: minAge > 0 ? minAge : undefined, invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined }, origin, ipHash: ctx.ipHash });
       await emit(q, 'user.created', { user_id: id, handle: input.handle, role: 'guest' });
       return issueVerification(q, id);
     });
@@ -119,8 +128,35 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx): Promi
 
 export async function resendVerification(deps: AppDeps, user: SessionUser): Promise<void> {
   if (user.emailVerified) throw new ApiError(409, 'already_verified', 'Your email is already confirmed.');
-  const token = await issueVerification(deps.db, user.userId);
-  await sendVerification(deps, { email: user.email, handle: user.handle }, token);
+  const v = await issueVerification(deps.db, user.userId);
+  await sendVerification(deps, { email: user.email, handle: user.handle }, v);
+}
+
+// From the terminal: a new code for a guest who lost the email (three an hour).
+export async function resendVerificationTo(deps: AppDeps, userId: string): Promise<void> {
+  const u = (await deps.db.query<{ email: string; handle: string; role: string; recent: string }>(
+    `SELECT email, handle, role, (SELECT count(*) FROM email_verifications WHERE user_id = $1 AND expires_at > now() + interval '23 hours') AS recent FROM users WHERE id = $1 AND status = 'active'`, [userId])).rows[0];
+  if (!u || u.role !== 'guest') throw new ApiError(409, 'already_verified', 'That account is already confirmed.');
+  if (Number(u.recent) >= 3) throw new ApiError(429, 'rate_limited', 'We have sent a few codes already. Check your email, or wait an hour.');
+  await sendVerification(deps, u, await issueVerification(deps.db, userId));
+}
+
+// The code from the email, typed in a terminal. Five wrong tries use up that code.
+export async function verifyCode(deps: AppDeps, userId: string, code: string, ctx: Ctx, origin: 'web' | 'bbs' = 'bbs'): Promise<void> {
+  const wrong = await deps.db.tx(async (q) => {
+    const row = (await q.query<{ token_hash: string; code_hash: string; code_tries: number; ok: boolean }>(
+      `SELECT token_hash, code_hash, code_tries, expires_at > now() AS ok FROM email_verifications
+       WHERE user_id = $1 AND used_at IS NULL AND code_hash IS NOT NULL ORDER BY expires_at DESC LIMIT 1 FOR UPDATE`, [userId])).rows[0];
+    if (!row || !row.ok || row.code_tries >= 5) throw new ApiError(400, 'code_invalid', 'That code has expired or was tried too many times. Ask for a new one.');
+    if (sha256(`${userId}:${code.trim()}`) !== row.code_hash) {
+      await q.query(`UPDATE email_verifications SET code_tries = code_tries + 1 WHERE token_hash = $1`, [row.token_hash]);
+      return true;
+    }
+    await q.query(`UPDATE email_verifications SET used_at = now() WHERE token_hash = $1`, [row.token_hash]);
+    await confirmEmail(q, userId, ctx, origin);
+    return false;
+  });
+  if (wrong) throw new ApiError(400, 'code_wrong', 'That code is not right. Check the email and try again.');
 }
 
 export async function verifyEmail(deps: AppDeps, token: string, ctx: Ctx): Promise<void> {
@@ -130,25 +166,25 @@ export async function verifyEmail(deps: AppDeps, token: string, ctx: Ctx): Promi
     const row = found.rows[0];
     if (!row || row.used_at || !row.ok) throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
     await q.query(`UPDATE email_verifications SET used_at = now() WHERE token_hash = $1`, [sha256(token)]);
-
-    const before = await q.query<{ role: string; status: string; email_verified_at: string | null }>(
-      `SELECT role, status, email_verified_at FROM users WHERE id = $1 FOR UPDATE`, [row.user_id]);
-    const u = before.rows[0];
-    if (!u || u.status !== 'active') throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
-
-    // Guests become users once the email is confirmed (docs/02). Anyone with a higher role keeps it.
-    const promote = u.role === 'guest';
-    const updated = await q.query<{ role_rev: number }>(
-      `UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()),
-              role = CASE WHEN role = 'guest' THEN 'user' ELSE role END,
-              role_rev = role_rev + $2, updated_at = now() WHERE id = $1 RETURNING role_rev`, [row.user_id, promote ? 1 : 0]);
-    await audit(q, { actorId: row.user_id, actorKind: 'user', action: 'user.email_verified', targetType: 'user', targetId: row.user_id, origin: 'web', ipHash: ctx.ipHash });
-    if (promote) {
-      await audit(q, { actorKind: 'system', action: 'user.role_changed', targetType: 'user', targetId: row.user_id,
-        before: { role: 'guest' }, after: { role: 'user', reason: 'email verified' }, origin: 'system' });
-      await emit(q, 'user.role_changed', { user_id: row.user_id, role: 'user', previous_role: 'guest', role_rev: updated.rows[0]!.role_rev });
-    }
+    await confirmEmail(q, row.user_id, ctx, 'web');
   });
+}
+
+// Confirms the email and makes a guest a user (docs/02). Anyone with a higher role keeps it.
+async function confirmEmail(q: Queryable, userId: string, ctx: Ctx, origin: 'web' | 'bbs'): Promise<void> {
+  const u = (await q.query<{ role: string; status: string }>(`SELECT role, status FROM users WHERE id = $1 FOR UPDATE`, [userId])).rows[0];
+  if (!u || u.status !== 'active') throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
+  const promote = u.role === 'guest';
+  const updated = await q.query<{ role_rev: number }>(
+    `UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()),
+            role = CASE WHEN role = 'guest' THEN 'user' ELSE role END,
+            role_rev = role_rev + $2, updated_at = now() WHERE id = $1 RETURNING role_rev`, [userId, promote ? 1 : 0]);
+  await audit(q, { actorId: userId, actorKind: 'user', action: 'user.email_verified', targetType: 'user', targetId: userId, origin, ipHash: ctx.ipHash });
+  if (promote) {
+    await audit(q, { actorKind: 'system', action: 'user.role_changed', targetType: 'user', targetId: userId,
+      before: { role: 'guest' }, after: { role: 'user', reason: 'email verified' }, origin: 'system' });
+    await emit(q, 'user.role_changed', { user_id: userId, role: 'user', previous_role: 'guest', role_rev: updated.rows[0]!.role_rev });
+  }
 }
 
 // ---------------------------------------------------------------- login & sessions

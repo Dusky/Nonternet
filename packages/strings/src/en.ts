@@ -30,7 +30,7 @@ export const en = {
   'board.publicNotice': 'Posts on this board are public.',
   'email.verify.subject': 'Confirm your email for {site.name}',
   'email.verify.body':
-    'Welcome to {site.name}, {handle}.\n\nConfirm your email address to finish setting up your account:\n{link}\n\nThis link works for 24 hours. If you did not sign up, you can ignore this message.',
+    'Welcome to {site.name}, {handle}.\n\nConfirm your email address to finish setting up your account:\n{link}\n\nOr, if you signed up in a terminal, type this code there: {code}\n\nThe link and the code work for 24 hours. If you did not sign up, you can ignore this message.',
   'account.deletedName': 'Deleted user',
   'email.export.subject': 'Your {site.name} export is ready',
   'email.export.body': 'Hello {handle},\n\nThe export of everything you made on {site.name} is ready. Download it while you are logged in:\n{link}\n\nIt is kept for {days} days and then deleted. If you did not ask for it, change your password.',
