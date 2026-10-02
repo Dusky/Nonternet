@@ -21,6 +21,9 @@
 | D16 | Built with Claude Code from these docs | DECIDED |
 | D17 | The BBS is built in-house (not Enigma½), is a client of core's API, and is the **last** milestone (M8). Boards and posts are native to core and work on the web from v1 | DECIDED |
 | D18 | Five themes from the design board: Webring (default), After dark, Terminal (eight screen colours), Platinum, Aqua. Modern and Amber retired and mapped to Webring and Terminal. Effects off by default. Board: https://claude.ai/artifact/7m11ykm4aaUKYrS3akbFGA, proposal: https://claude.ai/code/artifact/e76bc564-641f-4c36-b021-9f8c9a2ad99e (2026-10-02) | DECIDED |
+| D19 | Admin two-factor is a site setting, `security.require_admin_2fa`, **off by default** (owners, 2026-10-02). When on, an admin without 2FA gets a limited session until they set it up | DECIDED |
+| D20 | MUD client automation is **rules only, never code**: aliases, triggers with a fixed set of actions, timers, keys, buttons, variables (owners, 2026-10-02) | DECIDED |
+| D21 | Chat and MUD client settings are **kept on the account** (`client_settings`), exported, imported and erased with it; device-only display choices stay on the device (owners, 2026-10-02) | DECIDED |
 
 ### Superseded from earlier planning
 | Earlier | Now |

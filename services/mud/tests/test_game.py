@@ -117,6 +117,19 @@ class WelcomeTest(BaseEvenniaTest):
             Account.at_post_login(self.account, session=None)
         self.assertIn("charcreate", msg.call_args_list[0][0][0])
 
+    def test_a_character_never_entered_is_entered_instead_of_an_error(self):
+        from evennia import DefaultAccount
+
+        from typeclasses.accounts import Account
+
+        self.account.swap_typeclass(Account, clean_attributes=False)
+        self.account.characters.add(self.char1)
+        self.account.db._last_puppet = None
+        with patch.object(DefaultAccount, "at_post_login") as base:
+            self.account.at_post_login(session=None)
+        base.assert_called_once()
+        self.assertIn(self.account.db._last_puppet, list(self.account.characters.all()))
+
 
 @GAME
 class DuelTest(BaseEvenniaCommandTest):

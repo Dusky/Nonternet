@@ -150,6 +150,14 @@ Details are in `10` ("As built (restyle)").
 - **I1:** bring back an export: preview, then restore what is yours alone (`12`).
 - **I2:** sign up from the terminal (`04`).
 
+## Polish (2026-10-02, owners' choice) — DONE
+- **P1:** admin 2FA is optional, a site setting that is off by default (`17` D19, `02`, `15`).
+- **P2:** every window resizes from every edge and corner and snaps to halves and quarters (mouse and keyboard); apps fill their window. Settings tabs share one section pattern, with switches and "saved to your account / this device only" labels.
+- **P3:** Terminal: copy and paste, find, clickable links, scrollback and bell choices, the BBS title in the window, more phone keys, keepalive (`10`).
+- **P4:** Chat: alerts for mentions and private messages, older history on scroll, remembered private chats, nick colours and a person menu, away, ignore and highlight words kept on the account (`08`).
+- **P5–P6:** the MUD sends vitals, room info and a map of visited rooms (also over GMCP), and the web client gained gauges, a mini-map, exits as buttons, full colour, links, split scrollback, find, saving the log, and rules (aliases, triggers, timers, keys, buttons, variables) kept on the account (`09`, `17` D20–D21).
+- **P7:** chat and MUD follow the size of their own window; logging back into the MUD enters the character you made instead of an error.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

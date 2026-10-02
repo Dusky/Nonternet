@@ -260,3 +260,19 @@ the site config and browser storage all accept the old names).
 - **Sizes** (2026-10-02): main file 233 KB (68 KB gzip), vendor 226 KB, stylesheet 105 KB (most of it
   `@font-face` rules). 57 font files, 638 KB in all, but a browser fetches only what the current theme
   uses; Webring's Latin faces are 88 KB.
+
+## As built (polish, 2026-10-02)
+- **Windows**: resize from all four edges and corners (8 px sides, larger corners); snap by dragging to an edge or corner, from the title bar
+  menu (also Shift+F10 on the title bar), or with the keyboard on the focused title bar (arrows move, Shift+arrows resize from the right
+  and bottom edges, Ctrl+Shift+arrows from the left and top, Alt+Left/Right snap to a half, Alt+Up/Down maximize and restore). Snap zones: left, right, top half, bottom half and the four quarters. Apps marked `.app-fill` (Chat, MUD, Terminal)
+  fill the window instead of scrolling inside it.
+- **Container layout**: Chat and the MUD are CSS containers, so a narrow window on a wide screen gets the compact layout (people list behind a
+  button; the MUD side panel under the log). Phones keep their own layout.
+- **Settings**: every tab uses the same section (`Section`: panel, heading, optional "Saved to your account" / "This device only" badge);
+  on/off choices are switches (`role="switch"`); selects share one look everywhere.
+- **Terminal window**: toolbar with Copy, Paste, Find and Full screen; Ctrl+Shift+C/V; optional copy on select; clickable links; a find bar;
+  scrollback (1000–10000) and bell (off, flash, sound) choices; the BBS sets the window subtitle; phone keys gained Ctrl/Alt latches,
+  Home/End/PgUp/PgDn and F1–F10; a keepalive so idle proxies don't drop it.
+- **Chat and MUD**: see `08` and `09` (alerts, history, person menu; the MUD's rules, panel and map). The tab title counts chat mentions and
+  private messages as well as mail and notifications.
+

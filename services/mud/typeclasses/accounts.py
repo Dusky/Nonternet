@@ -145,6 +145,11 @@ class Account(DefaultAccount):
             self.msg("|wWelcome!|n You have no character yet. Type |wcharcreate|n to roll one.", session=session)
             self.msg(self.at_look(target=self.characters, session=session), session=session)
             return
+        # Made a character but never entered it (or the one last played is gone): enter the newest one, rather than
+        # Evennia's "The Character does not exist."
+        last = self.db._last_puppet
+        if not last or last not in self.characters.all():
+            self.db._last_puppet = max(self.characters.all(), key=lambda c: c.db_date_created)
         super().at_post_login(session=session, **kwargs)
 
 

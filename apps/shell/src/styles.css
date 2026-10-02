@@ -1080,3 +1080,18 @@ button.chat-person:hover { text-decoration: underline; }
   .mud-side { flex-direction: row; flex-wrap: wrap; }
   .mud-side > .mud-card { flex: 1 1 14rem; }
 }
+
+/* Chat and the MUD follow the size of their own window, not just the screen: a narrow window gets the compact layout. */
+.app-content.chat, .app-content.mud { container: app / inline-size; }
+/* (Phones already have their own layout above; this is for windows on a wide screen.) */
+@media (min-width: 900px) {
+@container app (max-width: 700px) {
+  .chat-grid { grid-template-columns: 9rem minmax(0, 1fr); }
+  .chat-users { display: none; }
+  .chat-users.is-open { display: block; grid-column: 1 / -1; }
+  .chat-users-toggle { display: inline-flex; }
+  .mud-layout.has-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(14rem, 1fr) auto; overflow-y: auto; }
+  .mud-side { flex-direction: row; flex-wrap: wrap; overflow: visible; }
+  .mud-side > .mud-card { flex: 1 1 13rem; }
+}
+}
