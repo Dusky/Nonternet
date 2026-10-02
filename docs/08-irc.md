@@ -68,8 +68,11 @@ with the site's registered channels, a people list with op prefixes, scrollback 
 (colours are drawn toward the theme's text colour so they stay readable), links, unread and mention
 badges, and per-channel mute (kept on the device). Your own lines are echoed back by the server
 (`echo-message`), so history and live lines never double up.
-Not built: mentions as shell notifications (they show only inside the Chat app), away status,
-private-message history across devices.
+Not built: mentions as shell notifications (they show only inside the Chat app), private-message history across devices.
+The site's status line and away flag are **not** shown on IRC, and that is decided, not pending. VERIFIED against Ergo 2.19.1's source (`irc/handlers.go`,
+`awayHandler`): `AWAY` takes only a message and changes the sending connection's own state; the operator commands are `SAJOIN`, `SANICK` and `SAMODE`, and
+NickServ has no away command beyond a person's own `auto-away` setting. So showing it on IRC would mean the sync bot holding a connection per person, which it
+deliberately does not. People set `/away` in the Chat app itself, which does reach IRC.
 
 ## History
 **Decided (Q9, 2026-09-30):** kept for `irc.history_days` (default 30) in Ergo's persistent history, in its own
