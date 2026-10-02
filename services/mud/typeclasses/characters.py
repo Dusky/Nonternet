@@ -7,7 +7,7 @@ import time
 from evennia import search_tag
 from evennia.contrib.tutorials.evadventure.characters import EvAdventureCharacter
 
-from world import rules_patch
+from world import duels, rules_patch
 
 from .objects import ObjectParent
 
@@ -22,8 +22,32 @@ def respawn_room():
 
 
 class Character(ObjectParent, EvAdventureCharacter):
+    def at_post_move(self, source_location, **kwargs):
+        super().at_post_move(source_location, **kwargs)
+        if self.ndb.duel_with and not duels.consented(self, self.ndb.duel_with):
+            duels.end(self)  # walked out of the yard: the duel is off
+
+    def _lose_duel(self, winner):
+        """A duel is friendly: the loser stays put, a little sore, with no weakness and no trip to the temple."""
+        combat = self.ndb.combathandler
+        if combat:
+            try:
+                combat.remove_combatant(self)
+            except Exception:
+                pass
+        self.hp = max(1, self.hp_max // 2)
+        if self.location:
+            self.location.msg_contents(f"|y$You() $conj(yield), beaten. {winner.key} wins the duel.|n", from_obj=self)
+        winner.msg("|gYou win the duel.|n")
+        self.msg("|yYou lost the duel, but you are fine: just a little sore.|n")
+
     def at_defeat(self):
-        """0 HP: out of the fight and carried to the temple. Never death (decided 2026-09-30)."""
+        """0 HP: out of the fight and carried to the temple. Never death (decided 2026-09-30). In a duel, you just stay."""
+        opponent = self.ndb.duel_with
+        if opponent:
+            duels.end(self)
+            self._lose_duel(opponent)
+            return
         if self.location:
             self.location.msg_contents("|y$You() $conj(fall), beaten. Someone carries $pron(you) away...|n", from_obj=self)
         combat = self.ndb.combathandler

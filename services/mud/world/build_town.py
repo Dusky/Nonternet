@@ -22,9 +22,10 @@ ROOMS = {
     "market": ("typeclasses.rooms.Room", "Market",
                "Stalls under striped awnings: a smith's anvil ringing, an outfitter's racks of cloaks and packs, "
                "a stall of odds and ends.", []),
-    "yard": ("typeclasses.rooms.Room", "Training yard",
+    "yard": ("typeclasses.rooms.YardRoom", "Training yard",
              "A square of packed earth behind the temple, with straw targets and a rack of blunt practice weapons. "
-             "A sign reads: TYPE 'help' TO LEARN. TYPE 'inventory' TO SEE WHAT YOU CARRY. 'wield' A WEAPON BEFORE THE ROAD.", []),
+             "A sign reads: TYPE 'help' TO LEARN. TYPE 'inventory' TO SEE WHAT YOU CARRY. 'wield' A WEAPON BEFORE THE ROAD. "
+             "TO TEST YOURSELF AGAINST A FRIEND, 'duel <name>': BOTH MUST AGREE, AND NOBODY IS HURT FOR REAL.", []),
     "road": ("typeclasses.rooms.WildRoom", "The old road",
              "Past the last cottages the road turns to ruts between hedges. Something rustles in the ditch. "
              "Further on, a collapsed farmhouse has a cellar door hanging open.", []),
@@ -70,6 +71,10 @@ def build_town(caller=None):
             for t in tags:
                 room.tags.add(t, category="world")
             made += 1
+        elif key == "yard" and room.typeclass_path != typeclass:
+            room.swap_typeclass(typeclass, clean_attributes=False)  # a yard built before duels existed
+            if "duel" not in (room.db.desc or ""):
+                room.db.desc = desc
         rooms[key] = room
     for src, dst, name, aliases, back, back_aliases in EXITS:
         for a, b, n, al in ((src, dst, name, aliases), (dst, src, back, back_aliases)):

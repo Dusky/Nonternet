@@ -8,6 +8,7 @@ from evennia.utils.test_resources import BaseEvenniaCommandTest, BaseEvenniaTest
 
 from commands.characters import CmdCharCreate
 from typeclasses.characters import Character
+from world import duels
 from world.build_town import build_town
 from world.chargen import CharacterSheet, name_problem
 
@@ -115,3 +116,112 @@ class WelcomeTest(BaseEvenniaTest):
         with patch.object(self.account, "msg") as msg:
             Account.at_post_login(self.account, session=None)
         self.assertIn("charcreate", msg.call_args_list[0][0][0])
+
+
+@GAME
+class DuelTest(BaseEvenniaCommandTest):
+    def setUp(self):
+        super().setUp()
+        build_town()
+        self.yard = search_tag("room:yard", category="build")[0]
+        self.a = self.fighter(self.account, "Ash")
+        self.b = self.fighter(self.account2, "Birch")
+        self.c = self.fighter(self.account2, "Cedar")
+
+    def fighter(self, account, name):
+        sheet = CharacterSheet()
+        sheet.name = name
+        char = sheet.apply(account)
+        char.move_to(self.yard, quiet=True)
+        return char
+
+    def says(self, cmd, args, who, expected):
+        self.assertIn(expected, self.call(cmd, args, caller=who) or "")
+
+    def test_the_yard_is_the_one_place_for_it_and_everything_else_still_refuses(self):
+        from typeclasses.rooms import YardRoom
+
+        self.assertIsInstance(self.yard, YardRoom)
+        self.assertTrue(self.yard.allow_pvp)
+        self.assertFalse(self.yard.allow_death)
+        for key in ("square", "tavern", "temple", "market", "road"):
+            self.assertFalse(search_tag(f"room:{key}", category="build")[0].allow_pvp)
+
+    def test_a_yard_built_before_duels_is_upgraded_in_place(self):
+        from typeclasses.rooms import YardRoom
+
+        self.yard.swap_typeclass("typeclasses.rooms.Room", clean_attributes=False)
+        self.assertNotIsInstance(search_tag("room:yard", category="build")[0], YardRoom)
+        self.yard.db.desc = "An old yard."
+        build_town()
+        yard = search_tag("room:yard", category="build")[0]
+        self.assertIsInstance(yard, YardRoom)
+        self.assertIn("duel", yard.db.desc)
+
+    def test_attack_is_ours_and_needs_agreement_with_that_very_person(self):
+        from commands.duel_cmds import CmdAccept, CmdAttack, CmdDecline, CmdDuel
+
+        from commands.default_cmdsets import CharacterCmdSet
+
+        every = CharacterCmdSet()
+        every.at_cmdset_creation()
+        self.assertEqual([type(c) for c in every.commands if c.key == "attack"], [CmdAttack])  # ours replaced EvAdventure's
+        self.says(CmdAttack(), "Birch", self.a, "only fight someone who has agreed")
+        self.says(CmdDuel(), "Birch", self.a, "You challenge Birch")
+        self.says(CmdAttack(), "Birch", self.a, "only fight someone who has agreed")  # not until they say yes
+        self.says(CmdAccept(), "", self.b, "")
+        self.assertTrue(duels.consented(self.a, self.b))
+        self.assertFalse(duels.consented(self.a, self.c))
+        self.says(CmdAttack(), "Cedar", self.a, "only fight someone who has agreed")  # nobody else can be hit
+        self.says(CmdAttack(), "Ash", self.c, "only fight someone who has agreed")  # nor can Cedar join in
+        self.says(CmdDecline(), "", self.b, "Nobody is waiting")
+
+    def test_a_challenge_can_be_turned_down_or_lapse_and_only_works_in_the_yard(self):
+        from commands.duel_cmds import CmdAccept, CmdDecline, CmdDuel
+
+        self.says(CmdDuel(), "Birch", self.a, "You challenge Birch")
+        self.says(CmdDecline(), "", self.b, "You turn Ash down")
+        self.says(CmdAccept(), "", self.b, "Nobody is waiting")
+        duels.challenge(self.a, self.b, now=1000)
+        self.assertIsNone(duels.pending(self.b, now=1000 + duels.CHALLENGE_SECONDS + 1))
+        self.says(CmdDuel(), "Ash", self.a, "can't duel yourself")
+        self.a.move_to(search_tag("room:temple", category="build")[0], quiet=True)
+        self.says(CmdDuel(), "Birch", self.a, "training yard")
+
+    def test_walking_away_or_yielding_ends_it(self):
+        from commands.duel_cmds import CmdYield
+
+        duels.challenge(self.a, self.b)
+        duels.accept(self.b)
+        self.b.move_to(search_tag("room:temple", category="build")[0], quiet=True)
+        self.assertIsNone(self.a.ndb.duel_with)
+        self.assertIsNone(self.b.ndb.duel_with)
+        self.b.move_to(self.yard, quiet=True)
+        duels.challenge(self.a, self.b)
+        duels.accept(self.b)
+        self.says(CmdYield(), "", self.a, "")
+        self.assertFalse(duels.consented(self.a, self.b))
+        self.says(CmdYield(), "", self.a, "not in a duel")
+
+    def test_losing_a_duel_leaves_you_in_the_yard_sore_but_not_weakened_and_a_real_fight_still_sends_you_to_the_temple(self):
+        from evennia.contrib.tutorials.evadventure.combat_turnbased import _get_combathandler
+
+        duels.challenge(self.a, self.b)
+        duels.accept(self.b)
+        combat = _get_combathandler(self.a, 30, 3)  # the turn-based handler fighting person against person
+        combat.add_combatant(self.a)
+        combat.add_combatant(self.b)
+        self.assertEqual(combat.get_sides(self.a)[1], [self.b])
+        gear = sorted(o.key for o in self.b.contents)
+        self.b.hp = 0
+        combat.check_stop_combat()
+        self.assertEqual(self.b.location, self.yard)
+        self.assertGreaterEqual(self.b.hp, 1)
+        self.assertFalse(self.b.weakened)
+        self.assertEqual(sorted(o.key for o in self.b.contents), gear)
+        self.assertFalse(duels.consented(self.a, self.b))
+        # outside a duel, defeat is as before
+        self.c.hp = 0
+        self.c.at_defeat()
+        self.assertEqual(self.c.location, search_tag("respawn", category="world")[0])
+        self.assertTrue(self.c.weakened)

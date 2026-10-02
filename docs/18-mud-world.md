@@ -38,7 +38,7 @@ with our own tests, and pin the Evennia version.
 - **The tavern**: the main place to sit and talk; safe, no fighting.
 - **Temple**: where you wake after defeat; healing for a few coins.
 - **Market**: a weapon smith, an outfitter and a general store (EvAdventure shops).
-- **Training yard**: the tutorial: movement, talking, equipment and one practice fight, skippable.
+- **Training yard**: a sign tells new people the basics (movement, inventory, wielding), and it is the one place for friendly duels (below). There is no practice dummy; the first real fight is the wild dog on the road.
 - **The old road and the cellar dungeon**: the first adventure for new characters.
 
 ## What people do
@@ -94,6 +94,11 @@ action audited in core (`03`). Suspension drops MUD sessions within 5 s (`02`).
   minute) but the newest 100 are kept and it reads newest first, ten to a page. In the export (`guestbook_entries`) and removed when the account is erased.
 - **Moderation is audited.** When a builder or admin takes down someone else's note or guestbook line, the MUD tells core (`world/audit.py` →
   `POST /internal/mud/audit`), which writes `mud.note_removed` or `mud.guestbook_removed` with the actor, the author and the text. Taking down your own is not reported.
+- **Duels** (`world/duels.py`, `commands/duel_cmds.py`; `duel <name>`, `accept`, `decline`, `yield`): only in the training yard (`YardRoom`, `allow_pvp`), and only
+  when both people agree. The room flag lets the combat handler fight person against person; our `attack` is what checks consent, so nobody can hit a person who
+  has not agreed, and a third person can't join. A challenge lapses after 30 seconds. Walking out of the yard, yielding or losing ends it. Losing costs nothing:
+  you stay in the yard at half hit points, not weakened, not sent to the temple. Everywhere else a defeat is as before. VERIFIED against Evennia 5.0.1 that its
+  turn-based handler fights two people in such a room.
 - **Weakened** (`world/rules_patch.py`): for five minutes after a defeat every roll, attack or save, is one lower.
 
 ## Still open

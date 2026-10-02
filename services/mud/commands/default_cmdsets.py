@@ -19,6 +19,7 @@ from evennia.contrib.tutorials.evadventure.combat_turnbased import TurnCombatCmd
 from evennia.contrib.tutorials.evadventure.commands import EvAdventureCmdSet
 
 from commands.characters import CmdBuildTown, CmdCharCreate
+from commands.duel_cmds import CmdAccept, CmdAttack, CmdDecline, CmdDuel, CmdYield
 from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdGuestbook, CmdPost, CmdQuests, CmdRead, CmdSearch, CmdSell, CmdShop, CmdSign, CmdUnpost, CmdUnsign
 
 
@@ -41,6 +42,9 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         # EvAdventure's inventory, equipment and talk commands, and turn-based combat (docs/18).
         self.add(EvAdventureCmdSet)
         self.add(TurnCombatCmdSet)
+        self.add(CmdAttack())  # replaces EvAdventure's: another person can only be attacked in an agreed duel
+        for cmd in (CmdDuel, CmdAccept, CmdDecline, CmdYield):
+            self.add(cmd())
         self.add(CmdBuildTown())
         for cmd in (CmdRead, CmdSearch, CmdAsk, CmdQuests, CmdShop, CmdBuy, CmdSell, CmdBoard, CmdPost, CmdUnpost, CmdGuestbook, CmdSign, CmdUnsign):
             self.add(cmd())
