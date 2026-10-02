@@ -96,6 +96,12 @@ plain, a "what's new" home, and the full landing page. No new themes.
   selected and unread items (`accentSoft`), `warn`, a stronger line, title-bar colours for the focused
   window, and the desktop's dotted background. Modern is warm paper and ink with a blue accent.
   Contrast tests cover every new text pair. No font files are bundled (V10 stays open).
+- **First load** (Phase H4, 2026-10-02): the libraries every page needs (React, router, query) are one `vendor` file; the main file is our own code.
+  Signup, legal pages, password recovery, two-factor setup, homepage reports and the guestbook sign page are fetched when someone goes there
+  (the front door, Landing and Login, stay in the main file). Main file 482 KB → 223 KB raw (149 KB → 65 KB gzipped); `vendor` 226 KB (72 KB gzipped);
+  so the first load is about 449 KB raw instead of 482 KB, and a new release of our code no longer refetches React. The editor (CodeMirror, 567 KB),
+  the terminal (xterm), chat (irc-framework) and each app are their own files, fetched when opened. The English string table stays in the main file
+  (it is the only language and every screen needs it). The size warning limit is 600 KB so only a file bigger than the editor is flagged.
 - **Scales** (`styles.css`): one type scale (`--step-*`, fluid) and one spacing scale (`--space-*`)
   used everywhere; controls are 40px high, 44px on touch screens.
 - **Shared components** (`apps/shell/src/components`): `ConfirmDialog` via `useConfirm()` (a native

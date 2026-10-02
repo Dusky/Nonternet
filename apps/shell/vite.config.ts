@@ -26,6 +26,18 @@ const securityHeaders = {
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        // The libraries every page needs go in one file that rarely changes, so a new release of our own code does not make
+        // browsers fetch React again, and the main file is just our code.
+        manualChunks: (id) => (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler|@tanstack)\//.test(id) ? 'vendor' : undefined),
+      },
+    },
+    // The editor (CodeMirror, about 570 KB) is its own file, fetched only when someone opens a file in the studio; anything bigger than
+    // that, or any other file over 500 KB, is still warned about.
+    chunkSizeWarningLimit: 600,
+  },
   // Vite's own CORS handling would answer the widget API's preflight for it, and only for localhost.
   // The API answers its own (see core routes/widgets.ts), so leave it alone.
   server: { port: 5173, proxy, cors: false },

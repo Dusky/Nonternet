@@ -1,4 +1,4 @@
-import { Suspense, useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import type { Me } from '@app/shared';
 import { useIsDesktop, useMe, useSite, useT } from './hooks';
@@ -11,14 +11,18 @@ import { applyTheme } from './theme';
 import { Centered, Loading } from './components/ui';
 import { AnnouncementBanner } from './components/Announcements';
 import { LoginPage } from './pages/Login';
-import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
-import { Setup2faPage } from './pages/Setup2fa';
-import { ReportHomepagePage } from './pages/ReportHomepage';
 import { AppBoundary } from './components/Boundary';
-import { LegalPageRoute } from './pages/Legal';
 import { Landing } from './pages/Landing';
-import { SignupPage } from './pages/Signup';
-import { GuestbookSignPage } from './pages/GuestbookSign';
+
+// The front door (Landing, Login) loads with the page; the rest are fetched when someone goes there, so a visitor's first load stays small.
+const SignupPage = lazy(() => import('./pages/Signup').then((m) => ({ default: m.SignupPage })));
+const LegalPageRoute = lazy(() => import('./pages/Legal').then((m) => ({ default: m.LegalPageRoute })));
+const ForgotPasswordPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.ResetPasswordPage })));
+const VerifyEmailPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.VerifyEmailPage })));
+const Setup2faPage = lazy(() => import('./pages/Setup2fa').then((m) => ({ default: m.Setup2faPage })));
+const ReportHomepagePage = lazy(() => import('./pages/ReportHomepage').then((m) => ({ default: m.ReportHomepagePage })));
+const GuestbookSignPage = lazy(() => import('./pages/GuestbookSign').then((m) => ({ default: m.GuestbookSignPage })));
 
 // Sends anyone who is not signed in to the login page, and back here afterwards. An admin who
 // has not set up two-factor is held at that step (the server refuses their other calls anyway).
@@ -111,6 +115,7 @@ export function App() {
   // The theme saved on the profile wins once we know who is signed in.
   useEffect(() => { if (me.data?.theme) applyTheme(me.data.theme); }, [me.data?.theme]);
   return (
+    <Suspense fallback={<Loading />}>
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<LoginPage />} />
@@ -125,5 +130,6 @@ export function App() {
       {APPS.map((app) => <Route key={app.id} path={`${app.path}/*`} element={<AppRoute app={app} />} />)}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }
