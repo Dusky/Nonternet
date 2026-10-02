@@ -11,7 +11,8 @@ class CmdAttack(CmdTurnAttack):
     def func(self):
         found = self.caller.search(self.args, quiet=True) if self.args else None
         target = found[0] if found else None
-        if target is not None and getattr(target, "is_pc", False) and not duels.consented(self.caller, target):
+        # Where fighting people is off, EvAdventure's own refusal applies; in the yard, agreement is what counts.
+        if target is not None and getattr(target, "is_pc", False) and target.location.allow_pvp and not duels.consented(self.caller, target):
             self.msg("You can only fight someone who has agreed to a duel with you. In the training yard, use 'duel <name>'.")
             return
         super().func()

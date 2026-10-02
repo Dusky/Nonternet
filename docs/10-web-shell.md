@@ -197,7 +197,7 @@ plain, a "what's new" home, and the full landing page. No new themes.
   signed-in, confirmed people, by stable id (`GET /avatars/:id`). `GET /avatars` lists who has one (id → version) so the
   shell asks for pictures only where they exist; initials remain the fallback everywhere, and the BBS stays text.
 - **Status line** (80 characters, no control characters) and an **away** flag: Settings → Profile, shown on the profile, the
-  hover card, the directory and who's online. Not yet sent to IRC as AWAY (see `17`).
+  hover card, the directory and who's online. Not sent to IRC as AWAY, by decision (see `08`).
 - **Profile page**: recent posts (public boards only), the homepage card (title and last update), rings, characters,
   copy link, and a coarse "here today / this week / a while ago" that the person can switch off. `users.last_seen_at` is
   now kept current while someone uses the site (written at most every ten minutes).

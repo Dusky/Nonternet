@@ -135,7 +135,7 @@ The owners picked all four web areas and all three retro extras, and approved a 
 - **C, writing and reading**: the shared Editor with drafts and @mentions, editing with history, pins, reactions, post links, hover cards, mail search/quote/suggestions, chat Tab completion and typing, files and studio upgrades.
 - **D, personal touches**: avatars, status line, richer profiles, a people directory, notification choices and mutes, a daily digest, device settings.
 - **E, retro extras**: oneliners, bulletins, the voting booth and file areas in the terminal and on the web; counter looks, the 88×31 button maker, blinkies, ring banners and "sign with your account" for homepages; the Bandit Woods and the Flooded Mine, the lost-ledger quest, a working shop, a tavern noticeboard and a weakened effect that changes rolls.
-Details are in the "As built (M9-…)" section of each doc and the dated entries in `17`. Left open on purpose: IRC AWAY for the status line (see `17`), the tavern guestbook and duels in the MUD, the older items Q16, federation, ZMODEM and import.
+Details are in the "As built (M9-…)" section of each doc and the dated entries in `17`. Phase G (2026-10-02) closed the loose ends: server-side mail paging, the tavern guestbook, duels in the training yard, and IRC AWAY (decided: web-only, see `08`). Left open on purpose: the older items Q16, federation, ZMODEM and import.
 
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Import
