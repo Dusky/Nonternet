@@ -90,6 +90,10 @@ action audited in core (`03`). Suspension drops MUD sessions within 5 s (`02`).
 - **Noticeboard** (`world/noticeboard.py`; `board`, `post`, `unpost` in the tavern): notes up to 200 characters, one a minute, newest 30 kept;
   the author, a builder or an admin can take one down; colour codes in a note are shown, not run. In the export (`noticeboard_notes`,
   with each character's `quests`) and removed when the account is erased.
+- **Guestbook** (`world/guestbook.py`; `guestbook [page]`, `sign`, `unsign` in the tavern): the same rules as the noticeboard (200 characters, one a
+  minute) but the newest 100 are kept and it reads newest first, ten to a page. In the export (`guestbook_entries`) and removed when the account is erased.
+- **Moderation is audited.** When a builder or admin takes down someone else's note or guestbook line, the MUD tells core (`world/audit.py` →
+  `POST /internal/mud/audit`), which writes `mud.note_removed` or `mud.guestbook_removed` with the actor, the author and the text. Taking down your own is not reported.
 - **Weakened** (`world/rules_patch.py`): for five minutes after a defeat every roll, attack or save, is one lower.
 
 ## Still open

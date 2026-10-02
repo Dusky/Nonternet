@@ -119,7 +119,7 @@ Vouching (`03`, M7): `GET /me/vouches` · `POST /vouches` · `POST /vouches/with
 `POST /admin/vouches/:userId/confirm` · `POST /admin/vouches/:userId/decline`. The dossier gains `vouching`.
 
 MUD (`09`): `GET /users/:handle` (public profile with characters) · `GET /me/characters` · `PUT /me/featured-character` ·
-private, MUD → core: `POST /internal/mud/characters-changed` · `POST /mud/ticket` · `GET /admin/mud` · `GET|POST /admin/mud/builders` · `POST /admin/mud/builders/remove` ·
+private, MUD → core: `POST /internal/mud/characters-changed` · `POST /internal/mud/audit` (a builder removed a note or guestbook line; writes the audit row) · `POST /mud/ticket` · `GET /admin/mud` · `GET|POST /admin/mud/builders` · `POST /admin/mud/builders/remove` ·
 private, core → MUD (control token): `GET /internal/status`, `POST /internal/accounts/sync`, `POST /internal/broadcast`,
 `POST /internal/export` · private, MUD → core (auth token): `POST /internal/mud/auth`. Announcements take `irc` and `mud` flags.
 

@@ -31,6 +31,18 @@ describe.skipIf(!dbAvailable)('MUD sign-in', () => {
     expect((await auth({ accountName: u.handle, passphrase: again })).body.builder).toBe(true);
   });
 
+  it('writes what a builder took down in the game to the audit log, and only for the MUD', async () => {
+    const builder = await makeUser(ctx); const author = await makeUser(ctx);
+    const call = (body: object, token = secrets.authToken) => client(ctx.app).post('/internal/mud/audit', body, { authorization: `Bearer ${token}`, origin: '' });
+    const body = { action: 'mud.guestbook_removed', actor: builder.id, target: author.id, text: 'rude words' };
+    expect((await call(body, 'wrong')).status).toBe(401);
+    expect((await call({ ...body, action: 'user.suspended' })).status).toBe(400);
+    expect((await call({ ...body, actor: 'someone' })).status).toBe(400);
+    expect((await call(body)).status).toBe(204);
+    const row = (await db.query(`SELECT actor_id, action, target_id, after, origin FROM audit_log WHERE action = 'mud.guestbook_removed'`)).rows[0];
+    expect(row).toMatchObject({ actor_id: builder.id, target_id: author.id, after: { text: 'rude words' }, origin: 'system' });
+  });
+
   it('lets admins appoint and remove builders by handle, audited, and only admins', async () => {
     const admin = await makeAdmin(ctx);
     const u = await makeUser(ctx);

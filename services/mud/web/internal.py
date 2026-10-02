@@ -139,12 +139,19 @@ def _tavern_board():
     return found[0] if found else None
 
 
-def _forget_notes(core_id):
-    """An erased account's pinned notes go with it (docs/12)."""
-    from world import noticeboard
+def _tavern_book():
+    from evennia import search_tag
 
-    board = _tavern_board()
-    return noticeboard.remove_all_of(board, core_id) if board else 0
+    found = search_tag("book:tavern", category="build")
+    return found[0] if found else None
+
+
+def _forget_notes(core_id):
+    """An erased account's pinned notes and guestbook lines go with it (docs/12)."""
+    from world import guestbook, noticeboard
+
+    board, book = _tavern_board(), _tavern_book()
+    return (noticeboard.remove_all_of(board, core_id) if board else 0) + (guestbook.remove_all_of(book, core_id) if book else 0)
 
 
 def _sheet(c):
@@ -206,7 +213,11 @@ def export(request):
     board = _tavern_board()
     notes = [{"text": n["text"], "pinned": datetime.fromtimestamp(n["at"], timezone.utc).isoformat(), "as": n["author"]}
              for n in (board.db.notes or []) if n["core_id"] == core_id] if board else []
-    return JsonResponse({"account": account.username, "created": account.date_joined.isoformat(), "characters": chars, "noticeboard_notes": notes})
+    book = _tavern_book()
+    signed = [{"text": e["text"], "signed": datetime.fromtimestamp(e["at"], timezone.utc).isoformat(), "as": e["author"]}
+              for e in (book.db.entries or []) if e["core_id"] == core_id] if book else []
+    return JsonResponse({"account": account.username, "created": account.date_joined.isoformat(), "characters": chars,
+                         "noticeboard_notes": notes, "guestbook_entries": signed})
 
 
 @require_http_methods(["POST"])

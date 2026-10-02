@@ -19,7 +19,7 @@ from evennia.contrib.tutorials.evadventure.combat_turnbased import TurnCombatCmd
 from evennia.contrib.tutorials.evadventure.commands import EvAdventureCmdSet
 
 from commands.characters import CmdBuildTown, CmdCharCreate
-from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdPost, CmdQuests, CmdRead, CmdSearch, CmdSell, CmdShop, CmdUnpost
+from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdGuestbook, CmdPost, CmdQuests, CmdRead, CmdSearch, CmdSell, CmdShop, CmdSign, CmdUnpost, CmdUnsign
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -42,7 +42,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(EvAdventureCmdSet)
         self.add(TurnCombatCmdSet)
         self.add(CmdBuildTown())
-        for cmd in (CmdRead, CmdSearch, CmdAsk, CmdQuests, CmdShop, CmdBuy, CmdSell, CmdBoard, CmdPost, CmdUnpost):
+        for cmd in (CmdRead, CmdSearch, CmdAsk, CmdQuests, CmdShop, CmdBuy, CmdSell, CmdBoard, CmdPost, CmdUnpost, CmdGuestbook, CmdSign, CmdUnsign):
             self.add(cmd())
         #
 

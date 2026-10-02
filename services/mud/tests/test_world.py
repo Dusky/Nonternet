@@ -7,8 +7,8 @@ from evennia import search_tag
 from evennia.utils.test_resources import BaseEvenniaCommandTest
 
 from commands import world_cmds
-from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdPost, CmdQuests, CmdRead, CmdSearch, CmdSell, CmdShop, CmdUnpost
-from world import areas, noticeboard, quests, shop
+from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdGuestbook, CmdPost, CmdQuests, CmdRead, CmdSearch, CmdSell, CmdShop, CmdSign, CmdUnpost, CmdUnsign
+from world import areas, audit, guestbook, noticeboard, quests, shop
 from world.build_town import build_town
 from world.chargen import CharacterSheet
 
@@ -221,3 +221,53 @@ class WorldTest(BaseEvenniaCommandTest):
             self.assertTrue(dice.opposed_saving_throw(self.hero, self.char2, defense_type=Ability.ARMOR)[0])
             self.hero.db.weakened_until = time.time() + 60
             self.assertFalse(dice.opposed_saving_throw(self.hero, self.char2, defense_type=Ability.ARMOR)[0])
+
+
+    # ---------------------------------------------------------------- the guestbook, and telling core about removals
+    def test_the_guestbook_is_signed_read_and_struck(self):
+        self.go("tavern")
+        self.says(CmdGuestbook(), "", "book is empty")
+        self.says(CmdSign(), "Lovely stew, kind landlady", "You sign the guestbook (#1)")
+        self.says(CmdGuestbook(), "", "Lovely stew")
+        self.says(CmdSign(), "again", "moment ago")  # one a minute
+        self.says(CmdUnsign(), "1", "strike entry #1")
+        self.says(CmdGuestbook(), "", "book is empty")
+        self.says(CmdUnsign(), "7", "no entry with that number")
+
+    def test_guestbook_entries_are_short_plain_paged_and_capped_and_erased_with_the_account(self):
+        book = search_tag("book:tavern", category="build")[0]
+        with self.assertRaises(noticeboard.NoteError):
+            guestbook.sign(book, "u_X", "A", "x" * 201)
+        with self.assertRaises(noticeboard.NoteError):
+            guestbook.sign(book, None, "A", "hello")
+        for i in range(guestbook.MAX_ENTRIES + 5):
+            guestbook.sign(book, f"u_{i}", "x", f"line {i}", now=1000 + i)
+        self.assertEqual(len(guestbook.entries(book)), guestbook.MAX_ENTRIES)
+        self.assertEqual(guestbook.entries(book)[0]["text"], "line 5")
+        page2 = guestbook.lines(book, 2)
+        self.assertIn("page 2 of 10", page2[0])
+        self.assertEqual(guestbook.remove_all_of(book, "u_104"), 1)
+        guestbook.sign(book, "u_A", "Ann", "hello |rred|n", now=5000)
+        self.assertNotIn("|r", "\n".join(guestbook.lines(book)[:2]).replace("||r", "").replace("|c", "").replace("|w", "").replace("|x", "").replace("|n", ""))
+        with self.assertRaises(noticeboard.NoteError):
+            guestbook.remove(book, guestbook.entries(book)[-1]["id"], core_id="u_B")
+
+    def test_the_guestbook_only_works_in_the_tavern(self):
+        self.go("square")
+        self.says(CmdSign(), "hello", "no guestbook here")
+
+    def test_a_builder_taking_down_someone_elses_words_is_reported_to_core_but_your_own_is_not(self):
+        board = search_tag("board:tavern", category="build")[0]
+        book = search_tag("book:tavern", category="build")[0]
+        noticeboard.post(board, "u_OTHER", "Other", "buy my stuff", now=1000)
+        guestbook.sign(book, "u_OTHER", "Other", "rude words", now=1000)
+        guestbook.sign(book, "u_TEST", "Wren", "my own line", now=1000)
+        self.go("tavern")
+        self.hero.permissions.add("Builder")
+        sent = []
+        with patch.object(audit, "send", side_effect=sent.append):
+            self.says(CmdUnpost(), "1", "take note #1 down")
+            self.says(CmdUnsign(), "1", "strike entry #1")
+            self.says(CmdUnsign(), "2", "strike entry #2")  # mine: nothing to report
+        self.assertEqual([(m["action"], m["actor"], m["target"], m["text"]) for m in sent],
+                         [("mud.note_removed", "u_TEST", "u_OTHER", "buy my stuff"), ("mud.guestbook_removed", "u_TEST", "u_OTHER", "rude words")])

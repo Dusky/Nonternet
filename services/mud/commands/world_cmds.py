@@ -1,7 +1,7 @@
 """World commands (docs/18): reading, searching, asking, the shop and the noticeboard."""
 from evennia import Command, search_tag
 
-from world import noticeboard, quests, shop
+from world import audit, guestbook, noticeboard, quests, shop
 
 BUILD = "build"
 
@@ -239,8 +239,96 @@ class CmdUnpost(_BoardCmd):
             self.msg("Which note? Use its number, like 'unpost 3'.")
             return
         try:
-            noticeboard.remove(self.board, number, core_id=_core_id(char), force=char.check_permstring("Builder"))
+            gone = noticeboard.remove(self.board, number, core_id=_core_id(char), force=char.check_permstring("Builder"))
         except noticeboard.NoteError as err:
             self.msg(str(err))
             return
+        if gone["core_id"] != _core_id(char):
+            audit.moderator_removed("mud.note_removed", _core_id(char), gone)
         self.msg(f"You take note #{number} down.")
+
+
+class _BookCmd(Command):
+    help_category = "General"
+
+    def at_book(self):
+        books = _here(self.caller, "book:tavern")
+        if not books:
+            self.msg("There is no guestbook here. It is on the bar in the tavern.")
+            return False
+        self.book = books[0]
+        return True
+
+
+class CmdGuestbook(_BookCmd):
+    """
+    Read the tavern guestbook, newest first, ten to a page.
+
+    Usage:
+      guestbook [page]
+    """
+
+    key = "guestbook"
+    aliases = ["book", "visitors"]
+
+    def func(self):
+        if not self.at_book():
+            return
+        arg = self.args.strip()
+        page = int(arg) if arg.isdigit() else 1
+        for line in guestbook.lines(self.book, page):
+            self.msg(line)
+
+
+class CmdSign(_BookCmd):
+    """
+    Sign the tavern guestbook.
+
+    Usage:
+      sign <words>
+
+    A line or two, up to 200 characters, one a minute. Take your own down with 'unsign <number>'; builders can remove any.
+    """
+
+    key = "sign"
+
+    def func(self):
+        if not self.at_book():
+            return
+        char = self.caller
+        try:
+            n = guestbook.sign(self.book, _core_id(char), char.key, self.args)
+        except guestbook.NoteError as err:
+            self.msg(str(err))
+            return
+        self.msg(f"You sign the guestbook (#{n}).")
+        char.location.msg_contents(f"{char.key} signs the guestbook.", exclude=char)
+
+
+class CmdUnsign(_BookCmd):
+    """
+    Strike an entry from the tavern guestbook: your own, or any if you are a builder.
+
+    Usage:
+      unsign <number>
+    """
+
+    key = "unsign"
+
+    def func(self):
+        if not self.at_book():
+            return
+        char = self.caller
+        try:
+            number = int(self.args.strip().lstrip("#"))
+        except ValueError:
+            self.msg("Which entry? Use its number, like 'unsign 3'.")
+            return
+        try:
+            gone = guestbook.remove(self.book, number, core_id=_core_id(char), force=char.check_permstring("Builder"))
+        except guestbook.NoteError as err:
+            self.msg(str(err))
+            return
+        if gone["core_id"] != _core_id(char):
+            audit.moderator_removed("mud.guestbook_removed", _core_id(char), gone)
+        self.msg(f"You strike entry #{number} from the book.")

@@ -65,7 +65,7 @@ can be an op if appointed. Stored in `scoped_roles`; carried in the token's `ops
   to moderators only. A post on a board you cannot read cannot be reported.
 - Mod log: per board, readable by anyone who can read the board, switchable with
   `moderation.public_modlog` in the site config (default true). It shows who, what, when and the
-  reason, never the removed text. Every action is also in the audit log (`mod.*`, `report.*`).
+  reason, never the removed text. Every action is also in the audit log (`mod.*`, `report.*`). In the MUD, a builder removing someone else's noticeboard note or guestbook line is audited as `mud.note_removed` / `mud.guestbook_removed`.
 - The reports queue is in the Boards app for people who moderate something, and in the admin
   console for admins.
 - A report on a private mail message (M7) goes to admins only and shows that one message, never the

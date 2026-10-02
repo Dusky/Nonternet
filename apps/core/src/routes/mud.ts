@@ -10,6 +10,7 @@ import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import { issueTicket } from '../irc/auth';
 import { checkMudLogin } from '../mud/auth';
+import { audit } from '../audit';
 
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
@@ -27,6 +28,22 @@ export function mudRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (!deps.mud || !same(token, deps.mud.secrets.authToken)) throw new ApiError(401, 'unauthenticated', 'Not allowed.');
     mudSyncSoon();
     return reply.code(202).send();
+  });
+  // A builder or admin took something down in the game: the MUD tells core, which writes it to the audit log (docs/03).
+  app.post('/internal/mud/audit', { config: { rateLimit: false } }, async (req, reply) => {
+    const token = (req.headers.authorization ?? '').replace(/^Bearer /, '');
+    if (!deps.mud || !same(token, deps.mud.secrets.authToken)) throw new ApiError(401, 'unauthenticated', 'Not allowed.');
+    const b = z.object({
+      action: z.enum(['mud.note_removed', 'mud.guestbook_removed']),
+      actor: z.string().regex(/^u_[0-9A-Z]{26}$/), target: z.string().regex(/^u_[0-9A-Z]{26}$/).nullable().default(null),
+      text: z.string().max(400).default(''),
+    }).parse(req.body);
+    const known = await deps.db.query<{ id: string }>(`SELECT id FROM users WHERE id = ANY($1)`, [[b.actor, b.target].filter(Boolean)]);
+    await audit(deps.db, {
+      actorId: known.rows.some((u) => u.id === b.actor) ? b.actor : null, actorKind: 'user', action: b.action, targetType: 'user',
+      targetId: b.target && known.rows.some((u) => u.id === b.target) ? b.target : undefined, after: { text: b.text }, origin: 'system',
+    });
+    return reply.code(204).send();
   });
   // The MUD window asks for a one-use ticket and sends `connect <handle> <ticket>` over its WebSocket.
   // The console's MUD page (docs/11): who is playing and where, and how big the world is.

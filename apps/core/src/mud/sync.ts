@@ -26,7 +26,7 @@ export interface MudStatus {
 }
 export const mudStatus = (deps: AppDeps) => call<MudStatus>(deps, 'GET', 'status');
 
-export interface MudExport { account: string | null; created?: string; characters: Record<string, unknown>[]; noticeboard_notes?: Record<string, unknown>[] }
+export interface MudExport { account: string | null; created?: string; characters: Record<string, unknown>[]; noticeboard_notes?: Record<string, unknown>[]; guestbook_entries?: Record<string, unknown>[] }
 export const mudExport = (deps: AppDeps, coreId: string) => call<MudExport>(deps, 'POST', 'export', { core_id: coreId });
 
 export async function pushAccounts(deps: AppDeps): Promise<{ renamed: number; roles: number; disconnected: number }> {

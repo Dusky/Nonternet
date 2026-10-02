@@ -18,11 +18,11 @@ class NoteError(ValueError):
     pass
 
 
-def clean(text):
+def clean(text, empty="Write something to pin."):
     text = _CONTROL.sub(" ", (text or "").strip())
     text = re.sub(r"\s+", " ", text)
     if not text:
-        raise NoteError("Write something to pin.")
+        raise NoteError(empty)
     if len(text) > MAX_LEN:
         raise NoteError(f"A note can be up to {MAX_LEN} characters. Yours is {len(text)}.")
     return text
@@ -48,13 +48,14 @@ def post(board, core_id, author, text, now=None):
 
 
 def remove(board, note_id, core_id=None, force=False):
-    """The author can take their own down; builders and admins (force) any."""
+    """The author can take their own down; builders and admins (force) any. Returns the note that went."""
     found = [n for n in notes(board) if n["id"] == note_id]
     if not found:
         raise NoteError("There is no note with that number.")
     if not force and found[0]["core_id"] != core_id:
         raise NoteError("That is not your note.")
     board.db.notes = [n for n in notes(board) if n["id"] != note_id]
+    return found[0]
 
 
 def remove_all_of(board, core_id):

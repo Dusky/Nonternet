@@ -70,15 +70,22 @@ class InternalApiTest(BaseEvenniaTest):
         board = search_tag("board:tavern", category="build")[0]
         noticeboard.post(board, "u_CAT", "Tansy", "Looking for a group", now=1000)
         noticeboard.post(board, "u_OTHER", "Someone", "Not hers", now=1000)
+        from world import guestbook
+
+        book = search_tag("book:tavern", category="build")[0]
+        guestbook.sign(book, "u_CAT", "Tansy", "Thank you for the stew", now=1000)
+        guestbook.sign(book, "u_OTHER", "Someone", "Not hers", now=1000)
         cat.characters.all()[0].db.quests = {"ledger": {"step": 2}}
         out = self.post("/internal/export", {"core_id": "u_CAT"}).json()
         self.assertEqual([n["text"] for n in out["noticeboard_notes"]], ["Looking for a group"])
+        self.assertEqual([e["text"] for e in out["guestbook_entries"]], ["Thank you for the stew"])
         self.assertEqual(out["characters"][0]["quests"], {"ledger": {"step": 2}})
         with patch("web.internal._disconnect", return_value=0):
             res = self.post("/internal/accounts/sync", {"accounts": [{"core_id": "u_CAT", "handle": "deleted-1", "status": "deleted", "role": "user", "builder": False}]}).json()
         self.assertEqual(res["deleted"], 1)
         self.assertEqual(self.post("/internal/export", {"core_id": "u_CAT"}).json()["characters"], [])
         self.assertEqual([n["text"] for n in noticeboard.notes(board)], ["Not hers"])
+        self.assertEqual([e["text"] for e in guestbook.entries(book)], ["Not hers"])
         from evennia.objects.models import ObjectDB
         self.assertFalse(ObjectDB.objects.filter(db_key="Tansy").exists())
 

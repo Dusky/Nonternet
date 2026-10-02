@@ -12,6 +12,8 @@ FITTINGS = [
      "A stout woman with flour to the elbows and a ring of keys at her belt. Her eyes keep drifting to a bare hook behind the bar. Try 'ask marta'."),
     ("tavern", "board:tavern", "typeclasses.objects.Object", "noticeboard", ["board", "notices"],
      "A cork board by the door, thick with pinned scraps. 'board' shows what is pinned; 'post <words>' pins a note of your own."),
+    ("tavern", "book:tavern", "typeclasses.objects.Object", "guestbook", ["book", "visitors book"],
+     "A fat leather book on the bar, its pages crowded with names and kind words. 'guestbook' reads it; 'sign <words>' adds your line."),
     ("market", "npc:shop", "typeclasses.objects.Object", "Odo", ["shopkeeper", "odo the shopkeeper"],
      "A cheerful man behind a counter crowded with weapons, coats and tins. A chalkboard reads: 'shop' TO SEE WHAT'S FOR SALE, 'buy' AND 'sell'."),
 ]
@@ -32,5 +34,7 @@ def build_extras(rooms):
             obj.db.proper_name = True  # "Marta", not "a Marta"
         if tag == "board:tavern":
             obj.db.notes = []
+        if tag == "book:tavern":
+            obj.db.entries = []
         made += 1
     return made
