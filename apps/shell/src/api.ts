@@ -13,7 +13,7 @@ export class ApiError extends Error {
 // answer 401 for a wrong password; those are not "expired".
 const expiredListeners = new Set<() => void>();
 export const onSessionExpired = (fn: () => void): (() => void) => { expiredListeners.add(fn); return () => { expiredListeners.delete(fn); }; };
-const notAboutSession = /^\/(auth\/|me$)/;
+const notAboutSession = /^\/(auth\/|me$|session$)/;
 function expired(path: string, status: number) { if (status === 401 && !notAboutSession.test(path)) for (const fn of expiredListeners) fn(); }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {

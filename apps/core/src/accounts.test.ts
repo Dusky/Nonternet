@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAdmin } from './accounts';
-import { client, createTestDb, dbAvailable, makeApp, tokenFromMail, first } from './test/harness';
+import { client, createTestDb, dbAvailable, loginAs, makeApp, makeUser, tokenFromMail, first } from './test/harness';
 import { verifyPassword } from './passwords';
 
 const PASSWORD = 'correct horse battery';
@@ -241,6 +241,16 @@ describe.skipIf(!dbAvailable)('accounts', () => {
         expect(cookie.path).toBe('/');
         expect((await c.get('/api/v1/me')).body.user.handle).toBe(body.handle);
       }
+    });
+
+    it('says who is signed in without an error for a visitor: /session is 200 with null, /me stays 401', async () => {
+      expect((await client(ctx.app).get('/api/v1/session')).body).toEqual({ user: null });
+      expect((await client(ctx.app).get('/api/v1/me')).status).toBe(401);
+      const u = await makeUser(ctx);
+      const c = await loginAs(ctx, u.handle);
+      const [session, me] = [(await c.get('/api/v1/session')).body, (await c.get('/api/v1/me')).body];
+      expect(session.user).toMatchObject({ handle: u.handle });
+      expect(session).toEqual(me);
     });
 
     it('gives the same answer for a wrong password and an unknown user', async () => {

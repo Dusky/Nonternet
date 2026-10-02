@@ -6,7 +6,7 @@ bearer token. Errors: `{ "error": { "code", "message" } }`. The admin console us
 ## Auth & me
 `POST /auth/signup` · `POST /auth/login` · `POST /auth/logout` · `POST /auth/verify-email` · `POST /auth/resend-verification`
 `POST /auth/forgot-password` (always 204) · `POST /auth/reset-password`
-`GET /me` · `PATCH /me` (display name, bio, theme) · `PUT /me/password` (needs the current password) — all built · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
+`GET /me` (401 when signed out) · `GET /session` (public: the same `{user}`, or `{user: null}` with a 200, so a visitor's page load is not an error; the shell uses this) · `PATCH /me` (display name, bio, theme) · `PUT /me/password` (needs the current password) — all built · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
 `POST /me/totp/setup` · `POST /me/totp/enable` (returns the recovery codes, once) · `POST /me/totp/recovery-codes` (regenerate; needs a current code) — all built
 `POST /tickets {service}` → one-time login ticket (bbs | mud)
 `POST /me/export` · `GET /me/exports` · `DELETE /me` (after confirm)

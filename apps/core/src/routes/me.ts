@@ -12,6 +12,8 @@ import type { AppDeps } from '../deps';
 const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, 'enter the 6-digit code') });
 
 export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
+  // The same answer as /me, but a visitor gets `{ user: null }` with a 200, so loading any public page does not log a failing request.
+  app.get('/api/v1/session', async (req) => ({ user: req.session ? accounts.toMe(req.session) : null }));
   app.get('/api/v1/me', async (req) => ({ user: accounts.toMe(requireUser(req, { allowLimited: true })) }));
 
   app.patch('/api/v1/me', async (req) => {

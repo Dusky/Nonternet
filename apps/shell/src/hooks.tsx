@@ -48,7 +48,7 @@ export function useMe() {
     queryKey: ['me'],
     queryFn: async (): Promise<Me | null> => {
       try {
-        return (await api.get<{ user: Me }>('/me')).user;
+        return (await api.get<{ user: Me | null }>('/session')).user;
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) return null;
         throw err;
