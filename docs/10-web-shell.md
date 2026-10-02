@@ -244,3 +244,10 @@ the site config and browser storage all accept the old names).
 - **Fonts** are bundled with `@fontsource` (all OFL-1.1, `17` V10), so `font-src 'self'` is unchanged.
   A browser downloads only the faces the current theme uses.
 - People's homepages, widgets and templates keep their own styling.
+- **The apps** (R3) follow the board mockups with the same structure in every theme: a panel's first
+  heading row is a title strip in the first sticker colour (Terminal sets it into the box line); the
+  home greeting is big with a block cursor in `pop`, and the wall is a tilted sticker; a thread has a
+  big title, a PINNED sticker, posts in the body font, metadata in the label font, and quieter nested
+  replies; the front page shows the site name huge with an "Invite only" sticker when sign-ups are by
+  invite; a profile is a card with a big avatar, the status as a speech bubble and rings as tags; admin
+  status tiles show big numbers. Tables stay plain.

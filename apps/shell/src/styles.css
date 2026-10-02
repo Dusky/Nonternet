@@ -865,3 +865,71 @@ ul.wall li .link { font-size: var(--step--1); }
 :root[data-chrome="terminal"] .tabs a[aria-current=page] { transform: none; }
 :root[data-chrome="terminal"] h1, :root[data-chrome="terminal"] h2 { font-weight: 400; }
 :root[data-chrome="platinum"] .taskbar-windows .btn.is-active { border-color: var(--line-strong); box-shadow: inset 2px 2px 0 #9a9a9a, inset -2px -2px 0 #ffffff; }
+
+/* ---- R3: the apps, after the board mockups (docs/10). Token-driven, so every theme gets the same structure. */
+
+/* A panel's first heading row becomes a title strip (Terminal sets it into the box line instead). */
+:root:not([data-chrome="terminal"]) .panel > .panel-head:first-child {
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-3); padding: var(--space-2) var(--space-4);
+  background: var(--sticker-1); color: var(--sticker-text); border-bottom: var(--line-width) solid var(--line-strong);
+  border-top-left-radius: inherit; border-top-right-radius: inherit;
+}
+:root:not([data-chrome="terminal"]) .panel > .panel-head:first-child :is(a, .link, .btn, .muted, .hint) { color: inherit; }
+:root:not([data-chrome="terminal"]) .panel > .panel-head:first-child .btn { background: transparent; border-color: transparent; box-shadow: none; text-decoration: underline; }
+.panel-head h2, .panel-head h3 { font-family: var(--font-display); font-weight: 800; }
+
+/* Home: a big greeting with a block cursor, the wall as a tilted sticker. */
+.home-greeting h2 { font-size: var(--step-4); font-weight: 800; line-height: .95; letter-spacing: -.03em; }
+.home-greeting h2::after { content: ''; display: inline-block; width: .45em; height: .8em; margin-left: .12em; background: var(--pop); vertical-align: -.05em; }
+.wall-panel { background: var(--sticker-2); color: var(--sticker-text); transform: rotate(calc(var(--tilt) * -1)); }
+:root:not([data-chrome="terminal"]) .wall-panel > .panel-head:first-child { background: transparent; border-bottom: 0; margin-bottom: 0; }
+.wall-panel :is(a, .link, .muted) { color: inherit; }
+.wall-panel .wall li { padding: var(--space-1) 0; border-bottom: var(--control-line) dashed color-mix(in srgb, currentColor 35%, transparent); }
+
+/* Threads: a big title with a sticker, posts in the body font, metadata in the label font. */
+.thread-title { font-size: var(--step-3); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.badge.sticker { font-size: var(--step--2); text-transform: uppercase; letter-spacing: .06em; border-radius: 0; background: var(--sticker-1); color: var(--sticker-text); transform: rotate(calc(var(--tilt) * -3)); }
+.post-body { font-family: var(--font-body); font-size: var(--step-0); line-height: 1.55; }
+.post-when, .row-meta, .post-head .muted { font-family: var(--font-label); font-size: var(--step--2); }
+.post-nested .post { background: var(--surface2); border-width: var(--control-line); box-shadow: none; }
+.chip { border: var(--control-line) solid var(--line-strong); font-family: var(--font-label); font-weight: 700; font-size: var(--step--2); }
+.chip:hover:not(:disabled) { border-color: var(--line-strong); background: var(--accent-soft); }
+.chip.is-on { background: var(--fill); color: var(--fill-text); border-color: var(--line-strong); }
+li.new-divider { color: var(--text); font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; }
+li.new-divider::before, li.new-divider::after { border-top: var(--line-width) solid var(--pop); }
+
+/* The front page: a huge name, the invite sticker, a solid footer. */
+.landing-hero { position: relative; }
+.landing-hero h1 { font-size: clamp(2.6rem, 1.6rem + 5vw, 5.5rem); font-weight: 800; line-height: .92; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.landing-hero h1::after { color: var(--pop); }
+.landing-sticker {
+  position: absolute; top: var(--space-4); right: 0; display: grid; place-items: center; width: 7.5rem; height: 7.5rem; margin: 0; padding: var(--space-2);
+  border-radius: 50%; background: var(--sticker-1); color: var(--sticker-text); border: var(--line-width) solid var(--line-strong);
+  font-family: var(--font-display); font-weight: 800; text-align: center; line-height: 1.1; transform: rotate(12deg); box-shadow: var(--shadow-hard);
+}
+.landing-tagline { color: var(--text); }
+.landing-online { border: var(--control-line) solid var(--line-strong); font-family: var(--font-label); }
+.landing-side .panel, .landing-posts { box-shadow: var(--shadow-card); }
+.landing-footer { padding: var(--space-3) var(--space-4); background: var(--taskbar-bg); color: var(--taskbar-text); border-top: var(--line-width) solid var(--line-strong); }
+.landing-footer a { color: inherit; }
+@media (max-width: 699px) { .landing-sticker { position: static; width: auto; height: auto; border-radius: var(--radius-sm); display: inline-block; transform: rotate(-2deg); margin-bottom: var(--space-3); } }
+
+/* Profiles: a card with a big avatar, the status as a speech bubble, rings as tags. */
+.profile { display: grid; gap: var(--space-4); }
+.profile > section > h3 { font-family: var(--font-display); font-weight: 800; }
+.profile-card { margin: 0; }
+.profile-head .avatar-lg { width: 5rem; height: 5rem; font-size: 2rem; border-width: var(--line-width); box-shadow: var(--shadow-hard); }
+.profile-head h2 { font-size: var(--step-3); font-weight: 800; letter-spacing: -.02em; }
+.profile-status { position: relative; display: inline-block; margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--sticker-2); color: var(--sticker-text); border: var(--control-line) solid var(--line-strong); border-radius: 14px; }
+.profile .panel { margin: 0; }
+.ring-tags { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; }
+.ring-tags a { display: inline-block; padding: 2px var(--space-3); border: var(--control-line) solid var(--line-strong); border-radius: 999px; background: var(--sticker-4); color: var(--sticker-text); font-weight: 700; text-decoration: none; }
+.ring-tags li:nth-child(3n+2) a { background: var(--sticker-3); }
+.ring-tags li:nth-child(3n) a { background: var(--sticker-5); }
+.ring-tags a:hover { text-decoration: underline; }
+
+/* Admin: big numbers on the status tiles, quiet table headings in the label font. */
+.tile h3 { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: var(--step--2); }
+.tile-value { font-family: var(--font-number); font-size: var(--step-4); font-weight: 800; line-height: 1; }
+.tile-bad { border-color: var(--danger); box-shadow: var(--shadow-card), inset 6px 0 0 var(--danger); }
+.table thead th { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: var(--step--2); }

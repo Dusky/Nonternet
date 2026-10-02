@@ -137,7 +137,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   return (
     <div ref={root}>
       <BackLink to={slug}>{t('boards.back', { name: board.name })}</BackLink>
-      <h2>{subject} {posts[0]?.pinned && <span className="badge">{t('pin.badge')}</span>} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
+      <h2 className="thread-title">{subject} {posts[0]?.pinned && <span className="badge sticker">{t('pin.badge')}</span>} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
       <div className="toolbar" role="group" aria-label={t('boards.view.label')}>
         <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
         <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>

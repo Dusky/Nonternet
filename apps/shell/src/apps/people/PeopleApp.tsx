@@ -114,7 +114,8 @@ function Profile({ handle }: { handle: string }) {
   const p = q.data;
   if (!p) return <Loading />;
   return (
-    <article aria-labelledby="profile-name">
+    <article aria-labelledby="profile-name" className="profile">
+      <div className="panel profile-card">
       <header className="profile-head">
         <Avatar id={p.id} name={p.display_name || p.handle} size="lg" />
         <div>
@@ -126,6 +127,7 @@ function Profile({ handle }: { handle: string }) {
       {p.bio && <p className="profile-bio">{p.bio}</p>}
       <PersonActions p={p} />
       <p className="toolbar"><CopyButton text={`${window.location.origin}/people/${encodeURIComponent(p.handle)}`} label={t('people.copyLink')} /></p>
+      </div>
       {p.homepage_url && (
         <p className="panel homepage-card">
           <a href={p.homepage_url} rel="noopener"><strong>{p.homepage?.title || t('people.homepage')}</strong></a>
@@ -133,8 +135,8 @@ function Profile({ handle }: { handle: string }) {
         </p>
       )}
       {p.recent_posts.length > 0 && (
-        <section aria-labelledby="profile-posts">
-          <h3 id="profile-posts">{t('people.recentPosts')}</h3>
+        <section aria-labelledby="profile-posts" className="panel">
+          <div className="panel-head"><h3 id="profile-posts">{t('people.recentPosts')}</h3></div>
           <ul className="rows">
             {p.recent_posts.map((x) => (
               <li key={x.id}><PersonLink app="boards" to={`${x.board.slug}/t/${x.thread_id}`}>{x.subject || t('people.untitled')}</PersonLink> <span className="muted">· {x.board.name} · <RelativeTime iso={x.posted_at} /></span></li>
@@ -145,7 +147,7 @@ function Profile({ handle }: { handle: string }) {
       {p.rings.length > 0 && (
         <section aria-labelledby="profile-rings">
           <h3 id="profile-rings">{t('people.rings')}</h3>
-          <ul className="inline-list">{p.rings.map((r) => <li key={r.slug}><PersonLink app="rings" to={r.slug}>{r.name}</PersonLink></li>)}</ul>
+          <ul className="ring-tags">{p.rings.map((r) => <li key={r.slug}><PersonLink app="rings" to={r.slug}>{r.name}</PersonLink></li>)}</ul>
         </section>
       )}
       <section aria-labelledby="profile-chars">

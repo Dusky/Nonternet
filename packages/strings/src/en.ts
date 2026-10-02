@@ -4,6 +4,7 @@
 export const en = {
   'landing.title': '{site.name}',
   'landing.tagline': 'Boards, rings and homepages, all under one login.',
+  'landing.inviteSticker': 'Invite only, for now',
   'landing.online': '{count} user online|{count} users online',
   'landing.browse': 'Browse the boards',
   'landing.browseRings': 'Look through the rings',

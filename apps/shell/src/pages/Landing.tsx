@@ -45,6 +45,7 @@ export function Landing() {
       <main id="main" className="landing-main">
         <section className="landing-hero">
           <h1>{t('landing.title')}</h1>
+          {site.signup_mode === 'invite' && <p className="landing-sticker" aria-hidden="true">{t('landing.inviteSticker')}</p>}
           <p className="landing-tagline">{t('landing.tagline')}</p>
           {d && d.online > 0 && <p className="landing-online"><span className="online-dot" aria-hidden="true" />{t('landing.online', { count: d.online })}</p>}
           <div className="actions">

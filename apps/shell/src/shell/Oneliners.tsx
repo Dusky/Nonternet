@@ -21,7 +21,7 @@ export function Oneliners() {
   const hide = useMutation({ mutationFn: (id: string) => api.post(`/admin/oneliners/${id}/hide`, { reason: 'Taken down by an admin' }), onSuccess: () => void refresh() });
   if (q.isError) return null; // the wall is a nicety: say nothing if it can't load
   return (
-    <section className="panel" aria-labelledby="home-wall">
+    <section className="panel wall-panel" aria-labelledby="home-wall">
       <div className="panel-head">
         <h3 id="home-wall">{t('classics.wall')}</h3>
         <OpenAppLink app="boards" to="bulletins" className="btn btn-quiet btn-small">{t('classics.bulletins')}</OpenAppLink>
