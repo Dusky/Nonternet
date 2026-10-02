@@ -53,8 +53,8 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
     queryFn: () => api.get<{ rings: RingSummary[] }>(`/rings?q=${encodeURIComponent(debounced)}&limit=4`),
   }).data?.rings ?? [];
   const mail = useQuery({
-    queryKey: ['mail', 'list'], enabled: open && me.role !== 'guest', staleTime: 60_000,
-    queryFn: () => api.get<{ threads: MailThreadSummary[] }>('/mail'),
+    queryKey: ['mail', 'palette'], enabled: open && me.role !== 'guest', staleTime: 60_000,
+    queryFn: () => api.get<{ threads: MailThreadSummary[] }>('/mail?limit=50'),
   }).data?.threads ?? [];
   const [recent, setRecent] = useState<{ key: string; label: string; kind: string; app: AppId; path: string }[]>(() => loadRecent());
 

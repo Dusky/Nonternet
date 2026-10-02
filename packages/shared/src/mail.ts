@@ -18,6 +18,8 @@ export interface MailThreadSummary {
   id: string; subject: string; people: MailPerson[]; last_message_at: string; unread: boolean;
   last: { author: string | null; excerpt: string } | null; left: boolean; muted: boolean;
 }
+// One page of the inbox: `unread` counts the whole inbox, `next` is the cursor for the page after this one (null at the end).
+export interface MailInbox { threads: MailThreadSummary[]; unread: number; next: string | null }
 export interface MailMessageView { id: string; kind: 'message' | 'joined' | 'left'; author: MailPerson; body: string; deleted: boolean; at: string; mine: boolean }
-export interface MailThreadView { id: string; subject: string; people: MailPerson[]; left: boolean; messages: MailMessageView[] }
+export interface MailThreadView { id: string; subject: string; people: MailPerson[]; left: boolean; muted: boolean; messages: MailMessageView[] }
 export interface BlockView { handle: string; since: string }

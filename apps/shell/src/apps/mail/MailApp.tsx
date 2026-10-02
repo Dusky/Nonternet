@@ -1,7 +1,7 @@
 import { useConfirm } from '../../components/feedback';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, type MailMessageView, type MailPerson, type MailThreadSummary, type MailThreadView } from '@app/shared';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, type MailInbox, type MailMessageView, type MailPerson, type MailThreadView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
@@ -32,26 +32,29 @@ const who = (t: ReturnType<typeof useT>, p: MailPerson) => p.display_name || p.h
 
 function Inbox() {
   const t = useT();
-  const q = useQuery({ queryKey: ['mail', 'list'], queryFn: () => api.get<{ threads: MailThreadSummary[]; unread: number }>('/mail'), refetchInterval: 60_000 });
   const [find, setFind] = useState('');
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const shown = useMemo(() => {
-    const needle = find.trim().toLowerCase();
-    return (q.data?.threads ?? []).filter((th) => (!unreadOnly || th.unread) && (!needle
-      || `${th.subject} ${th.people.map((p) => p.handle ?? '').join(' ')} ${th.people.map((p) => p.display_name ?? '').join(' ')} ${th.last?.excerpt ?? ''}`.toLowerCase().includes(needle)));
-  }, [q.data, find, unreadOnly]);
+  const term = useDebounced(find.trim(), 250);
+  const q = useInfiniteQuery({
+    queryKey: ['mail', 'list', term, unreadOnly],
+    queryFn: ({ pageParam }) => api.get<MailInbox>(`/mail?${new URLSearchParams({ ...(term ? { q: term } : {}), ...(unreadOnly ? { unread: '1' } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
+    initialPageParam: '',
+    getNextPageParam: (last) => last.next ?? undefined,
+    refetchInterval: 60_000,
+  });
+  const shown = q.data?.pages.flatMap((p) => p.threads) ?? [];
+  const filtering = term !== '' || unreadOnly;
   return (
     <>
       <div className="toolbar">
         <AppLink to="new" className="btn btn-primary">{t('mail.new')}</AppLink>
-        <input type="search" aria-label={t('mail.search')} placeholder={t('mail.search')} value={find} onChange={(e) => setFind(e.target.value)} />
+        <input type="search" aria-label={t('mail.search')} placeholder={t('mail.search')} value={find} onChange={(e) => setFind(e.target.value)} maxLength={80} />
         <button type="button" className={`btn btn-quiet${unreadOnly ? ' is-active' : ''}`} aria-pressed={unreadOnly} onClick={() => setUnreadOnly((u) => !u)}>{t('mail.unreadOnly')}</button>
       </div>
       <p className="hint">{t('mail.private')}</p>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
-      {q.data && q.data.threads.length === 0 && <EmptyState icon="inbox">{t('mail.none', { max: MAIL_MAX_PEOPLE })}</EmptyState>}
+      {q.data && shown.length === 0 && <EmptyState icon="inbox">{filtering ? t('mail.noMatch') : t('mail.none', { max: MAIL_MAX_PEOPLE })}</EmptyState>}
       {!q.data && !q.isError && <Loading rows={3} />}
-      {q.data && q.data.threads.length > 0 && shown.length === 0 && <EmptyState icon="inbox">{t('mail.noMatch')}</EmptyState>}
       <ul className="rows mail-rows">
         {shown.map((th) => (
           <li key={th.id} className={`mail-row${th.unread ? ' is-unread' : ''}`}>
@@ -70,6 +73,7 @@ function Inbox() {
           </li>
         ))}
       </ul>
+      {q.hasNextPage && <p><button type="button" className="btn btn-quiet" disabled={q.isFetchingNextPage} onClick={() => void q.fetchNextPage()}>{t('mail.older')}</button></p>}
     </>
   );
 }
@@ -123,9 +127,9 @@ function Conversation({ id }: { id: string }) {
   const add = useMutation({ mutationFn: () => api.post(`/mail/${id}/people`, { handle: adding.trim().replace(/^@/, '') }), onSuccess: () => { setAdding(''); void refresh(); } });
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
   const del = useMutation({ mutationFn: (mid: string) => api.del(`/mail/${id}/messages/${mid}`), onSuccess: () => void refresh() });
-  const inboxMuted = useQuery({ queryKey: ['mail', 'list'], queryFn: () => api.get<{ threads: MailThreadSummary[]; unread: number }>('/mail'), refetchInterval: 60_000 }).data?.threads.find((x) => x.id === id)?.muted ?? false;
   const mute = useMutation({ mutationFn: (on: boolean) => (on ? api.put(`/mail/${id}/mute`, {}) : api.del(`/mail/${id}/mute`)), onSuccess: () => void refresh() });
 
+  const inboxMuted = q.data?.muted ?? false;
   const end = useRef<HTMLOListElement>(null);
   const scrolled = useRef(false);
   useEffect(() => {

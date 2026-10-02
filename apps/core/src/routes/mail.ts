@@ -10,7 +10,13 @@ const handle = z.string().trim().min(1).max(40);
 
 // Private mail (docs/10). Everything here is for the signed-in person's own conversations only.
 export function mailRoutes(app: FastifyInstance, deps: AppDeps): void {
-  app.get('/api/v1/mail', async (req) => mail.listThreads(deps, requireUser(req)));
+  app.get('/api/v1/mail', async (req) => {
+    const o = z.object({
+      q: z.string().max(80).optional(), unread: z.enum(['1', 'true']).optional().transform((v) => (v ? true : undefined)),
+      before: z.string().regex(/^mt_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(50).optional(),
+    }).parse(req.query);
+    return mail.listThreads(deps, requireUser(req), o);
+  });
   app.get('/api/v1/mail/unread', async (req) => ({ unread: await mail.unreadMail(deps, requireUser(req)) }));
   app.post('/api/v1/mail', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req, reply) => {
     const b = mailStartSchema.parse(req.body);

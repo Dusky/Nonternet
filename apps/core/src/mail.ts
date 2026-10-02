@@ -122,28 +122,42 @@ export async function leave(deps: AppDeps, me: SessionUser, threadId: string): P
   });
 }
 
-export async function listThreads(deps: AppDeps, me: SessionUser): Promise<{ threads: MailThreadSummary[]; unread: number }> {
-  const r = await deps.db.query<{ id: string; subject: string; last_message_at: Date; last_read_at: Date | null; left_at: Date | null; joined_at: Date }>(
-    `SELECT t.id, t.subject, t.last_message_at, p.last_read_at, p.left_at, p.joined_at
+export interface InboxQuery { q?: string; unread?: boolean; before?: string; limit?: number }
+
+// One page of the inbox, newest first. `q` matches the subject, who is in it, and the last message you can see;
+// `unread` keeps only conversations with something new from someone else. `unread` in the answer is the true
+// count across the whole inbox (muted conversations do not count), not just this page.
+export async function listThreads(deps: AppDeps, me: SessionUser, opts: InboxQuery = {}): Promise<{ threads: MailThreadSummary[]; unread: number; next: string | null }> {
+  const limit = Math.min(50, Math.max(1, opts.limit ?? 30));
+  const like = opts.q?.trim() ? `%${opts.q.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+  const r = await deps.db.query<{ id: string; subject: string; last_message_at: Date; last_read_at: Date | null; left_at: Date | null; handle: string | null; body: string | null; deleted_at: Date | null; l_at: Date | null; author_id: string | null }>(
+    `SELECT t.id, t.subject, t.last_message_at, p.last_read_at, p.left_at, l.handle, l.body, l.deleted_at, l.created_at AS l_at, l.author_id
      FROM mail_participants p JOIN mail_threads t ON t.id = p.thread_id
-     WHERE p.user_id = $1 ORDER BY t.last_message_at DESC LIMIT 200`, [me.userId]);
+     LEFT JOIN LATERAL (
+       SELECT u.handle, m.body, m.deleted_at, m.created_at, m.author_id FROM mail_messages m LEFT JOIN users u ON u.id = m.author_id
+       WHERE m.thread_id = t.id AND m.kind = 'message' AND m.created_at >= p.joined_at AND (p.left_at IS NULL OR m.created_at <= p.left_at)
+         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.user_id = $1 AND b.blocked_id = m.author_id)
+       ORDER BY m.created_at DESC, m.id DESC LIMIT 1) l ON true
+     WHERE p.user_id = $1
+       AND ($2::text IS NULL OR (t.last_message_at, t.id) < (
+         SELECT t2.last_message_at, t2.id FROM mail_threads t2 JOIN mail_participants p2 ON p2.thread_id = t2.id AND p2.user_id = $1 WHERE t2.id = $2))
+       AND ($3::boolean IS NOT TRUE OR (p.left_at IS NULL AND l.created_at IS NOT NULL AND l.author_id IS DISTINCT FROM $1 AND (p.last_read_at IS NULL OR l.created_at > p.last_read_at)))
+       AND ($4::text IS NULL OR t.subject ILIKE $4 ESCAPE '\\' OR (l.deleted_at IS NULL AND l.body ILIKE $4 ESCAPE '\\') OR EXISTS (
+         SELECT 1 FROM mail_participants pp JOIN users u ON u.id = pp.user_id
+         WHERE pp.thread_id = t.id AND pp.left_at IS NULL AND u.status <> 'deleted' AND (u.handle ILIKE $4 ESCAPE '\\' OR u.display_name ILIKE $4 ESCAPE '\\')))
+     ORDER BY t.last_message_at DESC, t.id DESC LIMIT $5`,
+    [me.userId, opts.before ?? null, opts.unread ?? null, like, limit + 1]);
+  const page = r.rows.slice(0, limit);
   const muted = new Set((await deps.db.query<{ thread_id: string }>(`SELECT thread_id FROM mail_mutes WHERE user_id = $1`, [me.userId])).rows.map((x) => x.thread_id));
   const threads: MailThreadSummary[] = [];
-  for (const t of r.rows) {
-    const people = await peopleIn(deps.db, t.id);
-    const last = await deps.db.query<{ handle: string | null; body: string; deleted_at: Date | null; created_at: Date; author_id: string | null }>(
-      `SELECT u.handle, m.body, m.deleted_at, m.created_at, m.author_id FROM mail_messages m LEFT JOIN users u ON u.id = m.author_id
-       WHERE m.thread_id = $1 AND m.kind = 'message' AND m.created_at >= $2 AND ($3::timestamptz IS NULL OR m.created_at <= $3)
-         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.user_id = $4 AND b.blocked_id = m.author_id)
-       ORDER BY m.created_at DESC, m.id DESC LIMIT 1`, [t.id, t.joined_at, t.left_at, me.userId]);
-    const l = last.rows[0];
+  for (const t of page) {
     threads.push({
-      id: t.id, subject: t.subject, people, last_message_at: t.last_message_at.toISOString(), left: t.left_at !== null, muted: muted.has(t.id),
-      unread: !t.left_at && !!l && l.author_id !== me.userId && (!t.last_read_at || l.created_at > t.last_read_at),
-      last: l ? { author: l.handle, excerpt: l.deleted_at ? '' : [...l.body].slice(0, 120).join('') } : null,
+      id: t.id, subject: t.subject, people: await peopleIn(deps.db, t.id), last_message_at: t.last_message_at.toISOString(), left: t.left_at !== null, muted: muted.has(t.id),
+      unread: !t.left_at && t.l_at !== null && t.author_id !== me.userId && (!t.last_read_at || t.l_at > t.last_read_at),
+      last: t.l_at ? { author: t.handle, excerpt: t.deleted_at ? '' : [...(t.body ?? '')].slice(0, 120).join('') } : null,
     });
   }
-  return { threads, unread: threads.filter((t) => t.unread && !t.muted).length };
+  return { threads, unread: await unreadMail(deps, me), next: r.rows.length > limit ? page[page.length - 1]!.id : null };
 }
 
 async function peopleIn(q: Queryable, threadId: string): Promise<MailPerson[]> {
@@ -153,7 +167,7 @@ async function peopleIn(q: Queryable, threadId: string): Promise<MailPerson[]> {
   return r.rows.map((u) => (u.status === 'deleted' ? { id: null, handle: null, display_name: null } : { id: u.id, handle: u.handle, display_name: u.display_name }));
 }
 
-export async function readThread(deps: AppDeps, me: SessionUser, threadId: string): Promise<{ id: string; subject: string; people: MailPerson[]; left: boolean; messages: MailMessageView[] }> {
+export async function readThread(deps: AppDeps, me: SessionUser, threadId: string): Promise<{ id: string; subject: string; people: MailPerson[]; left: boolean; muted: boolean; messages: MailMessageView[] }> {
   const p = await requireParticipant(deps.db, threadId, me.userId);
   const t = (await deps.db.query<{ subject: string }>(`SELECT subject FROM mail_threads WHERE id = $1`, [threadId])).rows[0]!;
   // Someone added later reads from when they joined; someone who left reads up to when they left.
@@ -166,6 +180,7 @@ export async function readThread(deps: AppDeps, me: SessionUser, threadId: strin
   if (!p.left_at) await deps.db.query(`UPDATE mail_participants SET last_read_at = now() WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId]);
   return {
     id: threadId, subject: t.subject, people: await peopleIn(deps.db, threadId), left: p.left_at !== null,
+    muted: (await deps.db.query(`SELECT 1 FROM mail_mutes WHERE user_id = $1 AND thread_id = $2`, [me.userId, threadId])).rowCount === 1,
     messages: r.rows.map((m) => {
       const gone = !m.author_id || m.status === 'deleted';
       return {

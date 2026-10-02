@@ -1038,6 +1038,7 @@ export const en = {
   'mail.search': 'Search your mail',
   'mail.unreadOnly': 'Unread only',
   'mail.noMatch': 'No conversations match.',
+  'mail.older': 'Show older conversations',
   'mail.quote': 'Quote their last message',
   'hover.label': 'About {name}',
   'hover.rings': 'In {count} ring|In {count} rings',

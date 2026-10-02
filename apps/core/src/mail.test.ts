@@ -63,6 +63,35 @@ describe.skipIf(!dbAvailable)('private mail', () => {
     expect((await a.c.post('/api/v1/mail', { to: [], subject: 'x', body: 'y' })).status).toBe(400);
   });
 
+  it('pages the inbox with a cursor, and searches subject, people and the latest message on the server', async () => {
+    const a = await person(); const b = await person(); const c = await person();
+    const ids: string[] = [];
+    for (let i = 0; i < 7; i++) ids.push((await a.c.post('/api/v1/mail', { to: [i === 3 ? c.handle : b.handle], subject: `Topic ${i}`, body: i === 5 ? 'the lantern is lit' : `note ${i}` })).body.id);
+    const first = (await b.c.get('/api/v1/mail?limit=3')).body;
+    expect(first.threads.map((t: { subject: string }) => t.subject)).toEqual(['Topic 6', 'Topic 5', 'Topic 4']);
+    expect(first.next).toBe(first.threads[2].id);
+    expect(first.unread).toBe(6); // the whole inbox, not this page
+    const second = (await b.c.get(`/api/v1/mail?limit=3&before=${first.next}`)).body;
+    expect(second.threads.map((t: { subject: string }) => t.subject)).toEqual(['Topic 2', 'Topic 1', 'Topic 0']);
+    expect(second.next).toBeNull();
+    // search: subject, the latest message, a person's handle (c is only in Topic 3)
+    expect((await b.c.get('/api/v1/mail?q=topic%205')).body.threads).toHaveLength(1);
+    expect((await b.c.get('/api/v1/mail?q=LANTERN')).body.threads.map((t: { subject: string }) => t.subject)).toEqual(['Topic 5']);
+    expect((await a.c.get(`/api/v1/mail?q=${encodeURIComponent(c.handle)}`)).body.threads.map((t: { subject: string }) => t.subject)).toEqual(['Topic 3']);
+    expect((await b.c.get('/api/v1/mail?q=%25')).body.threads).toHaveLength(0); // % is not a wildcard
+    // unread filter follows reading and your own messages
+    await b.c.get(`/api/v1/mail/${ids[6]}`);
+    const unread = (await b.c.get('/api/v1/mail?unread=1')).body;
+    expect(unread.threads.map((t: { subject: string }) => t.subject)).not.toContain('Topic 6');
+    expect(unread.threads).toHaveLength(5);
+    expect((await a.c.get('/api/v1/mail?unread=1')).body.threads).toHaveLength(0);
+    // a cursor from someone else's inbox shows nothing, and junk is refused
+    expect((await c.c.get(`/api/v1/mail?before=${ids[0]}`)).body.threads).toHaveLength(0);
+    expect((await b.c.get('/api/v1/mail?before=nonsense')).status).toBe(400);
+    expect((await b.c.get('/api/v1/mail?limit=500')).status).toBe(400);
+    expect((await b.c.get(`/api/v1/mail/${ids[6]}`)).body.muted).toBe(false);
+  });
+
   it('blocking keeps someone out of new conversations and hides their messages in shared groups', async () => {
     const a = await person(); const b = await person(); const c = await person();
     const group = (await c.c.post('/api/v1/mail', { to: [a.handle, b.handle], subject: 'Group', body: 'hi all' })).body;

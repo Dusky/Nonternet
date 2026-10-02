@@ -132,7 +132,7 @@ muted boards). `PATCH /me` also takes `status_line`, `away`, `show_last_seen`, `
 `{kind, enabled}`. `PUT|DELETE /boards/:slug/mute`, `PUT|DELETE /mail/:id/mute`. `PUT /me/avatar` (image bytes),
 `DELETE /me/avatar`, `GET /avatars`, `GET /avatars/:id`, admin `DELETE /admin/users/:id/avatar` `{reason}` (audited as
 `user.avatar_removed`). `GET /people?q=&role=&offset=`. `GET /users/:handle` gains `status_line`, `away`, `last_seen`,
-`homepage`, `recent_posts`. `GET /mail` threads gain `muted`.
+`homepage`, `recent_posts`. `GET /mail` threads gain `muted`. `GET /mail?q=&unread=1&before=<thread id>&limit=` (limit 1–50, default 30) returns `{threads, unread, next}`: `q` matches subject, people and the latest message you can see; `unread` is the whole-inbox count; `next` is the cursor for the following page. `GET /mail/:id` gains `muted`.
 
 ## BBS classics (M9-E)
 `GET|POST /oneliners`, `DELETE /oneliners/:id`, admin `POST /admin/oneliners/:id/hide|unhide {reason}`. `GET /bulletins`, `GET /bulletins/:number`

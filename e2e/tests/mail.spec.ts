@@ -75,6 +75,34 @@ test.describe('mail', () => {
     await expect(ap.getByText('Want to play on Friday?')).toHaveCount(0);
   });
 
+  test('the inbox searches the whole mailbox and can show only what is unread', async ({ page, browser }) => {
+    const a = await makeUser(page);
+    const b = await makeUser(page);
+    await signIn(page, a.handle, PASSWORD);
+    for (const [subject, body] of [['Garden plans', 'tomatoes?'], ['Synth swap', 'trade a Juno?'], ['Lunch', 'noon?']]) {
+      await page.goto(`/mail/new/${b.handle}`);
+      await page.getByLabel('Subject').fill(subject!);
+      await page.getByLabel('Message').fill(body!);
+      await page.getByRole('button', { name: 'Send', exact: true }).click();
+      await expect(page.getByRole('heading', { level: 2, name: subject!, exact: true })).toBeVisible();
+    }
+    const bp = await signedInPage(browser, b.handle);
+    await bp.goto('/mail');
+    await expect(bp.getByRole('link', { name: 'Lunch' })).toBeVisible();
+    await bp.getByLabel('Search your mail').fill('juno');
+    await expect(bp.getByRole('link', { name: 'Synth swap' })).toBeVisible();
+    await expect(bp.getByRole('link', { name: 'Lunch' })).toHaveCount(0);
+    await bp.getByLabel('Search your mail').fill('nothing like this');
+    await expect(bp.getByText('No conversations match.')).toBeVisible();
+    await bp.getByLabel('Search your mail').fill('');
+    await bp.getByRole('link', { name: 'Lunch' }).click();
+    await expect(bp.getByText('noon?')).toBeVisible();
+    await bp.getByRole('link', { name: 'Back to mail' }).click();
+    await bp.getByRole('button', { name: 'Unread only' }).click();
+    await expect(bp.getByRole('link', { name: 'Garden plans' })).toBeVisible();
+    await expect(bp.getByRole('link', { name: 'Lunch' })).toHaveCount(0);
+  });
+
   test('blocking from a profile stops mail, and the Blocked tab lists and lifts it', async ({ page, browser }) => {
     const a = await makeUser(page);
     const b = await makeUser(page);
