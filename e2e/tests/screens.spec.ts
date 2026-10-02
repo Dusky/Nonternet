@@ -10,9 +10,11 @@ import { BASE_URL } from '../support/stack';
 const OUT = process.env.SCREENSHOTS;
 const h = { origin: BASE_URL };
 const VARIANTS = [
-  { name: 'light', theme: 'modern', scheme: 'light' },
-  { name: 'dark', theme: 'modern', scheme: 'dark' },
-  { name: 'amber', theme: 'amber', scheme: 'dark' },
+  { name: 'webring', theme: 'webring', scheme: 'light' },
+  { name: 'after-dark', theme: 'after-dark', scheme: 'dark' },
+  { name: 'terminal', theme: 'terminal', scheme: 'dark' },
+  { name: 'platinum', theme: 'platinum', scheme: 'light' },
+  { name: 'aqua', theme: 'aqua', scheme: 'light' },
 ] as const;
 
 test.skip(!OUT, 'set SCREENSHOTS=<folder> to take screenshots');

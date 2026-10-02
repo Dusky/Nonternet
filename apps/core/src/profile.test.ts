@@ -18,19 +18,24 @@ describe.skipIf(!dbAvailable)('profile and password', () => {
       const r = await (async () => { const res = await ctx.app.inject({ method: 'PATCH', url: '/api/v1/me', payload: { display_name: '  Dade  ' }, headers: { origin: ctx.deps.publicUrl, cookie: `sid=${c.sid}` } }); return { status: res.statusCode, body: res.json() }; })();
       expect(r.status).toBe(200);
       expect(r.body.user).toMatchObject({ display_name: 'Dade', bio: null, theme: null });
-      const again = await ctx.app.inject({ method: 'PATCH', url: '/api/v1/me', payload: { bio: 'I like modems.', theme: 'amber' }, headers: { origin: ctx.deps.publicUrl, cookie: `sid=${c.sid}` } });
-      expect(again.json().user).toMatchObject({ display_name: 'Dade', bio: 'I like modems.', theme: 'amber' });
+      const again = await ctx.app.inject({ method: 'PATCH', url: '/api/v1/me', payload: { bio: 'I like modems.', theme: 'terminal', theme_variant: 'green' }, headers: { origin: ctx.deps.publicUrl, cookie: `sid=${c.sid}` } });
+      expect(again.json().user).toMatchObject({ display_name: 'Dade', bio: 'I like modems.', theme: 'terminal', theme_variant: 'green' });
+      // A theme name from before the restyle still works and means its successor.
+      const legacy = await ctx.app.inject({ method: 'PATCH', url: '/api/v1/me', payload: { theme: 'modern' }, headers: { origin: ctx.deps.publicUrl, cookie: `sid=${c.sid}` } });
+      expect(legacy.json().user.theme).toBe('webring');
+      const bad = await ctx.app.inject({ method: 'PATCH', url: '/api/v1/me', payload: { theme_variant: 'neon' }, headers: { origin: ctx.deps.publicUrl, cookie: `sid=${c.sid}` } });
+      expect(bad.statusCode).toBe(400);
     });
 
     it('clears a display name or bio with an empty value or null, and keeps the theme choice for next login', async () => {
       const u = await makeUser(ctx);
       const c = await loginAs(ctx, u.handle);
       const patch = (payload: object) => ctx.app.inject({ method: 'PATCH', url: '/api/v1/me', payload, headers: { origin: ctx.deps.publicUrl, cookie: `sid=${c.sid}` } });
-      await patch({ display_name: 'Name', bio: 'Bio', theme: 'amber' });
+      await patch({ display_name: 'Name', bio: 'Bio', theme: 'after-dark' });
       const cleared = (await patch({ display_name: '', bio: null })).json().user;
-      expect(cleared).toMatchObject({ display_name: null, bio: null, theme: 'amber' });
+      expect(cleared).toMatchObject({ display_name: null, bio: null, theme: 'after-dark' });
       const relog = await loginAs(ctx, u.handle);
-      expect((await relog.get('/api/v1/me')).body.user.theme).toBe('amber');
+      expect((await relog.get('/api/v1/me')).body.user.theme).toBe('after-dark');
       expect((await patch({ theme: null })).json().user.theme).toBeNull();
     });
 

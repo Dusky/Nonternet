@@ -7,14 +7,19 @@ import { BASE_URL } from '../support/stack';
 // Automated accessibility checks (WCAG 2.1 A and AA) on every main screen, in both themes. This
 // catches what a machine can: contrast, missing labels, bad ARIA. It does not replace using the
 // site with a screen reader and a keyboard.
-const THEMES = ['modern', 'amber'] as const;
+// Every theme, plus two Terminal screen colours (the darkest green and the one light scheme).
+const THEMES = ['webring', 'after-dark', 'terminal', 'platinum', 'aqua', 'terminal:green', 'terminal:paper'] as const;
 
 async function scan(page: Page, what: string) {
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   const summary = results.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
   expect(summary, `accessibility problems on ${what}`).toEqual([]);
 }
-const useTheme = (page: Page, theme: string) => page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
+const useTheme = (page: Page, theme: string) => page.addInitScript((look) => {
+  const [t, s] = look.split(':');
+  localStorage.setItem('ui:theme', t!);
+  if (s) localStorage.setItem('ui:scheme', s);
+}, theme);
 
 for (const theme of THEMES) {
   test.describe(`${theme} theme`, () => {

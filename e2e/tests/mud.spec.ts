@@ -17,7 +17,7 @@ async function type(page: Page, text: string) {
 test.describe('the MUD', () => {
   test.skip(!EVENNIA_BIN, 'needs Evennia (set EVENNIA_BIN)');
 
-  for (const theme of ['modern', 'amber']) {
+  for (const theme of ['webring', 'terminal']) {
     test(`a new player rolls a character and walks into town (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       const u = await makeUser(page, { handle: uniq('hero') });

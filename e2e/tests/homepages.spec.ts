@@ -156,7 +156,7 @@ test.describe('widgets and directory', () => {
     await ac.close();
   });
 
-  for (const theme of ['modern', 'amber'] as const) {
+  for (const theme of ['webring', 'terminal'] as const) {
     test(`accessibility of the directory, guestbook and widgets screens (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       const u = await withWidgets(page, { title: `A11y ${uniq('a')}` });

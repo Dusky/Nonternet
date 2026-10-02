@@ -122,7 +122,7 @@ test.describe('rings', () => {
     await visitor.context().close();
   });
 
-  for (const theme of ['modern', 'amber'] as const) {
+  for (const theme of ['webring', 'terminal'] as const) {
     test(`accessibility of the rings screens (${theme})`, async ({ page, browser }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       const founder = await makeUser(page);

@@ -5,7 +5,7 @@ import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // The design pass (docs/10): the landing page, the home panel, the palette, window keys, the phone
-// tab bar and the confirm dialog. Accessibility is checked on each new screen, in light, dark and amber.
+// tab bar and the confirm dialog. Accessibility is checked on each new screen, in every theme.
 const h = { origin: BASE_URL };
 
 async function scan(page: Page, what: string) {
@@ -155,13 +155,13 @@ test('confirming in the site dialog: Cancel leaves things alone and returns focu
   await expect(page.getByText('You have blocked this person.')).toBeVisible();
 });
 
-test('amber: the new screens keep their contrast', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('ui:theme', 'amber'));
+test('terminal: the new screens keep their contrast', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('ui:theme', 'terminal'));
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  await scan(page, 'landing (amber)');
+  await scan(page, 'landing (terminal)');
   const u = await makeUser(page);
   await signIn(page, u.handle, PASSWORD);
   await expect(page.getByRole('region', { name: /^Hello,/ })).toBeVisible();
-  await scan(page, 'home (amber)');
+  await scan(page, 'home (terminal)');
 });

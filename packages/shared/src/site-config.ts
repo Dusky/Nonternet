@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_THEME_NAME, themeSchema } from './profile';
 
 // `site.*` is the only place the product name and domains live (CLAUDE.md, docs/15).
 // There are deliberately no defaults for the name or domains.
@@ -88,7 +89,7 @@ export const siteConfigSchema = z
       })
       .default({}),
     // The look people get until they pick one in Settings → Appearance (docs/10). Admin-editable.
-    ui: z.object({ default_theme: z.enum(['modern', 'amber']).default('modern') }).default({}),
+    ui: z.object({ default_theme: themeSchema.default(DEFAULT_THEME_NAME) }).default({}),
     moderation: z
       .object({
         // The mod log of each board is readable by anyone who can read the board (docs/03).
@@ -168,7 +169,7 @@ export const publicSiteSchema = z.object({
   mud: z.object({ host: z.string(), port: z.number().int() }),
   bbs: z.object({ host: z.string(), telnet_port: z.number().int(), ssh_port: z.number().int() }),
   services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean(), gopher: z.boolean() }),
-  default_theme: z.enum(['modern', 'amber']),
+  default_theme: themeSchema,
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
 

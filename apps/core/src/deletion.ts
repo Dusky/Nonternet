@@ -91,7 +91,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     const gone = `deleted-${userId.slice(-8).toLowerCase()}`;
     await q.query(
       `UPDATE users SET status = 'deleted', handle = $2, display_name = NULL, bio = NULL, email = $3, email_verified_at = NULL, password_hash = 'deleted',
-         totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = NULL, public_key = NULL, private_key_enc = NULL, theme = NULL,
+         totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = NULL, public_key = NULL, private_key_enc = NULL, theme = NULL, theme_variant = NULL,
          status_line = NULL, away = false, avatar_at = NULL, email_digest = false,
          role = 'guest', role_rev = role_rev + 1, updated_at = now() WHERE id = $1`, [userId, gone, `${gone}@deleted.invalid`]);
     await q.query(`DELETE FROM guestbook_tickets WHERE user_id = $1 OR home_user_id = $1`, [userId]);

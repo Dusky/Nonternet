@@ -113,7 +113,7 @@ function NotFound() {
 export function App() {
   const me = useMe();
   // The theme saved on the profile wins once we know who is signed in.
-  useEffect(() => { if (me.data?.theme) applyTheme(me.data.theme); }, [me.data?.theme]);
+  useEffect(() => { if (me.data?.theme) applyTheme(me.data.theme, { scheme: me.data.theme_variant }); }, [me.data?.theme, me.data?.theme_variant]);
   return (
     <Suspense fallback={<Loading />}>
     <Routes>

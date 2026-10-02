@@ -3,7 +3,7 @@ import type { Me } from '@app/shared';
 import { gettingStarted } from './HomePanel';
 
 const me = (over: Partial<Me> = {}): Me => ({
-  id: 'u_1', handle: 'ada', display_name: null, bio: null, theme: null, role: 'user', email: 'a@x.test', email_verified: true,
+  id: 'u_1', handle: 'ada', display_name: null, bio: null, theme: null, theme_variant: null, role: 'user', email: 'a@x.test', email_verified: true,
   totp_enabled: false, recovery_codes_remaining: 0, role_rev: 0, ops: [], limited: false, ...over,
 });
 

@@ -1,3 +1,4 @@
+import { themeSchema, themeVariantSchema } from './profile';
 import { z } from 'zod';
 
 // Handle rules from docs/02: unique, case-insensitive, 2–20 chars [A-Za-z0-9_-], starts with a letter.
@@ -52,7 +53,8 @@ export const meSchema = z.object({
   handle: z.string(),
   display_name: z.string().nullable(),
   bio: z.string().nullable(),
-  theme: z.enum(['modern', 'amber']).nullable(),
+  theme: themeSchema.nullable(),
+  theme_variant: themeVariantSchema.nullable(),
   role: z.enum(['guest', 'user', 'trusted', 'admin']),
   email: z.string(),
   email_verified: z.boolean(),

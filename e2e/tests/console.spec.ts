@@ -8,7 +8,7 @@ async function scan(page: Page, what: string) {
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `accessibility problems on ${what}`).toEqual([]);
 }
 
-for (const theme of ['modern', 'amber'] as const) test(`an admin uses the command console, then replays what it did, and reads the stats (${theme})`, async ({ page }) => {
+for (const theme of ['webring', 'terminal'] as const) test(`an admin uses the command console, then replays what it did, and reads the stats (${theme})`, async ({ page }) => {
   await page.addInitScript((th) => localStorage.setItem('ui:theme', th), theme);
   const u = await makeUser(page);
   const admin = await makeAdmin(page);

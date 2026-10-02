@@ -207,8 +207,6 @@ button.badge.tag:hover { border-color: var(--accent); color: var(--accent); }
 }
 .avatar-lg { width: 3.5rem; height: 3.5rem; font-size: 1.25rem; }
 .avatar-sm { width: 1.5rem; height: 1.5rem; font-size: .65rem; }
-:root[data-theme="amber"] .avatar { background: var(--accent-soft); color: var(--text); border: 1px solid var(--border); border-radius: 0; }
-@media (prefers-color-scheme: dark) { :root[data-theme="modern"] .avatar { background: hsl(var(--hue) 35% 26%); color: hsl(var(--hue) 70% 88%); } }
 .person { display: inline-flex; align-items: center; gap: var(--space-2); }
 
 .table { width: 100%; border-collapse: collapse; margin-bottom: var(--space-4); font-variant-numeric: tabular-nums; }
@@ -250,7 +248,6 @@ button.badge.tag:hover { border-color: var(--accent); color: var(--accent); }
 .taskbar .btn-quiet:hover { background: var(--surface2); }
 .brand { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; color: inherit; text-decoration: none; padding: 0 var(--space-2); min-height: 36px; white-space: nowrap; }
 .brand-mark { display: inline-block; width: .6em; height: 1.05em; background: var(--accent); border-radius: 1px; }
-html[data-glow="on"] .brand-mark { box-shadow: var(--glow); }
 .back { color: inherit; text-decoration: none; min-width: var(--control-h); min-height: var(--control-h); display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
 .back svg { width: 22px; height: 22px; }
 .taskbar-apps { display: flex; align-items: center; gap: var(--space-1); flex: 1; position: relative; min-width: 0; }
@@ -399,13 +396,43 @@ html[data-glow="on"] .brand-mark { box-shadow: var(--glow); }
   .app-page { padding: var(--space-4) var(--space-4) var(--space-6); }
 }
 
-/* ---- theme effects (each can be switched off in Settings) */
-html[data-scanlines="on"] body::after {
-  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .22) 0, rgba(0, 0, 0, .22) 1px, transparent 1px, transparent 3px);
+/* ---- theme effects: off until switched on in Settings, and always off when the device asks for
+   reduced motion or more contrast */
+@media (prefers-reduced-motion: no-preference) {
+  @media not (prefers-contrast: more) {
+    html[data-scanlines="on"] body::after {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+      background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .22) 0, rgba(0, 0, 0, .22) 1px, transparent 1px, transparent 3px);
+    }
+    html[data-glow="on"] body { text-shadow: var(--glow); }
+    html[data-glow="on"] input, html[data-glow="on"] select, html[data-glow="on"] textarea { text-shadow: none; }
+    html[data-glow="on"] .brand-mark { box-shadow: var(--glow); }
+    html[data-crt="on"] body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9998; border-radius: 1.5rem;
+      box-shadow: inset 0 0 0 .5rem rgba(0, 0, 0, .55), inset 0 0 6rem rgba(0, 0, 0, .6);
+    }
+  }
 }
-html[data-glow="on"] body { text-shadow: var(--glow); }
-html[data-glow="on"] input, html[data-glow="on"] select, html[data-glow="on"] textarea { text-shadow: none; }
+
+/* ---- spacing: Compact tightens every gap a step */
+html[data-density="compact"] {
+  --space-2: .375rem; --space-3: .5rem; --space-4: .75rem; --space-5: 1rem; --space-6: 1.5rem; --space-7: 2rem;
+}
+body { font-family: var(--font-body); }
+h1, h2, h3 { font-family: var(--font-display); }
+
+/* ---- Terminal box styles. Double lines bring the pixel heading font, like the BBS screens. */
+html[data-theme="terminal"][data-boxes="double"] { --line-width: 3px; }
+html[data-theme="terminal"][data-boxes="double"] .card, html[data-theme="terminal"][data-boxes="double"] .panel,
+html[data-theme="terminal"][data-boxes="double"] .tile, html[data-theme="terminal"][data-boxes="double"] .post,
+html[data-theme="terminal"][data-boxes="double"] .window { border-style: double; border-width: 3px; }
+html[data-theme="terminal"][data-boxes="double"] h1, html[data-theme="terminal"][data-boxes="double"] h2 { font-family: 'Silkscreen', var(--font-mono); font-weight: 400; letter-spacing: 0; }
+html[data-theme="terminal"][data-boxes="heavy"] .card, html[data-theme="terminal"][data-boxes="heavy"] .panel,
+html[data-theme="terminal"][data-boxes="heavy"] .tile, html[data-theme="terminal"][data-boxes="heavy"] .post,
+html[data-theme="terminal"][data-boxes="heavy"] .window { border-width: 3px; }
+html[data-theme="terminal"][data-boxes="none"] .card, html[data-theme="terminal"][data-boxes="none"] .panel,
+html[data-theme="terminal"][data-boxes="none"] .tile, html[data-theme="terminal"][data-boxes="none"] .post { border-color: transparent; }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
 /* ---- boards */
@@ -633,7 +660,6 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 .app-tile svg { width: 26px; height: 26px; filter: none; }
 .menu .app-tile { width: 30px; height: 30px; border-radius: 8px; }
 .menu .app-tile svg { width: 18px; height: 18px; }
-:root[data-theme="amber"] .app-tile { background: var(--accent-soft); color: var(--text); border: 1px solid var(--border); border-radius: 0; box-shadow: none; }
 
 /* ---- the front page for visitors */
 .landing { min-height: 100dvh; background-color: var(--desktop-bg); background-image: var(--wp-image); background-size: var(--wp-size); }
@@ -665,6 +691,24 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 .theme-choice.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .theme-choice input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
 .theme-choice:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.theme-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--space-3); padding: var(--space-2) 0; }
+.theme-card { position: relative; display: grid; gap: var(--space-2); padding: var(--space-2); border: var(--control-line) solid var(--border); border-radius: var(--radius); cursor: pointer; background: var(--surface); }
+.theme-card:hover { border-color: var(--line-strong); }
+.theme-card.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.theme-card:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.theme-card-label { display: flex; gap: var(--space-2); align-items: flex-start; }
+.theme-card-label input { margin-top: .3rem; }
+.theme-mini { display: grid; gap: .4rem; padding: .6rem; height: 6.5rem; box-sizing: border-box; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+.theme-mini-hello { font-size: 1.25rem; font-weight: 800; line-height: 1; }
+.theme-mini-row { display: flex; gap: .4rem; }
+.theme-mini-row > span { width: 2.5rem; height: 1.1rem; }
+.theme-mini-card { height: 1.6rem; }
+.scheme-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: var(--space-2); padding: var(--space-2) 0; }
+.scheme-choice { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); border: var(--control-line) solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); }
+.scheme-choice.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.scheme-choice:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.scheme-swatch { display: inline-flex; align-items: center; justify-content: center; width: 3rem; height: 2rem; font-family: 'VT323', var(--font-mono); font-size: 1.2rem; border: 2px solid; border-radius: 2px; }
+.choice-row { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .theme-swatch { display: grid; grid-template-columns: 2fr 1fr 1fr; height: 3.5rem; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
 
 /* ---- shell top: the taskbar and the banners under it */
@@ -711,7 +755,7 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 .editor { position: relative; }
 .editor-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; margin-top: var(--space-1); }
 .editor .counter.near { color: var(--warn); font-weight: 600; }
-.mention-list { position: absolute; z-index: 20; left: 0; margin: 0; padding: var(--space-1); list-style: none; min-width: 14rem; max-width: 100%; background: var(--surface); border: 1px solid var(--border-strong, var(--border)); border-radius: var(--radius); box-shadow: var(--shadow-2, 0 4px 16px rgba(0,0,0,.2)); }
+.mention-list { position: absolute; z-index: 20; left: 0; margin: 0; padding: var(--space-1); list-style: none; min-width: 14rem; max-width: 100%; background: var(--surface); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-card); }
 .mention-list li { padding: var(--space-1) var(--space-2); border-radius: calc(var(--radius) - 2px); cursor: pointer; }
 .mention-list li[aria-selected=true] { background: var(--accent-soft); }
 

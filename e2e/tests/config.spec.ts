@@ -98,7 +98,7 @@ test.describe('settings and announcements', () => {
     await after.context().close();
   });
 
-  for (const theme of ['modern', 'amber'] as const) {
+  for (const theme of ['webring', 'terminal'] as const) {
     test(`accessibility of the settings and announcements screens (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       await adminPage(page);

@@ -7,6 +7,7 @@ import { App } from './App';
 import { FeedbackProvider } from './components/feedback';
 import { SiteProvider } from './hooks';
 import { applyTheme, installThemeCss, rememberedTheme } from './theme';
+import './fonts';
 import './styles.css';
 
 installThemeCss();

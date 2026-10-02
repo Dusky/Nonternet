@@ -151,7 +151,7 @@ test.describe('homepage studio', () => {
     expect((await page.request.get('/api/v1/me')).ok()).toBe(true);
   });
 
-  for (const theme of ['modern', 'amber'] as const) {
+  for (const theme of ['webring', 'terminal'] as const) {
     test(`accessibility of the studio (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       const u = await makeUser(page);

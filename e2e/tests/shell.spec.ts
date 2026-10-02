@@ -163,43 +163,46 @@ test.describe('desktop windows', () => {
 test.describe('themes', () => {
   test.skip(({ isMobile }) => isMobile, 'covered on the desktop; the phone uses the same controls');
 
-  test('switches to the amber screen, saves it to the profile, and keeps effects switchable', async ({ page, browser }) => {
+  test('starts on Webring, switches to Terminal with a screen colour, saves both to the profile, and keeps effects off until asked', async ({ page, browser }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'modern');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'webring');
+    await expect(page.locator('html')).toHaveAttribute('data-chrome', 'zine');
     await page.getByRole('button', { name: 'Open Settings' }).click();
     const win = page.getByRole('dialog', { name: 'Settings window' });
     await win.getByRole('link', { name: 'Appearance' }).click();
-    await win.getByLabel('Amber screen').check();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'amber');
-    await expect(page.getByText('Theme saved.')).toBeVisible(); // a toast, outside the window
+    await expect(win.getByRole('radio', { name: /^Webring/ })).toBeChecked();
+    await expect(win.getByRole('radio', { name: 'Green', exact: true })).toHaveCount(0); // schemes only for Terminal
+    await win.getByRole('radio', { name: /^Terminal/ }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'terminal');
+    await expect(page.locator('html')).toHaveAttribute('data-scheme', 'amber');
+    await expect(page.getByText('Theme saved.').first()).toBeVisible(); // a toast, outside the window
+    await win.getByRole('radio', { name: 'Green', exact: true }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-scheme', 'green');
+    await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'off'); // effects start off
+    await expect(page.locator('html')).toHaveAttribute('data-glow', 'off');
+
+    await win.getByRole('checkbox', { name: /^Scanlines/ }).check();
     await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'on');
-    await expect(page.locator('html')).toHaveAttribute('data-glow', 'on');
-    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(bg).toBe('rgb(18, 11, 0)');
-
-    await win.getByLabel('Scanlines').uncheck();
-    await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'off');
     await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'amber');
-    await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'off'); // the choice survives a reload
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'terminal');
+    await expect(page.locator('html')).toHaveAttribute('data-scheme', 'green');
+    await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'on'); // the choice survives a reload
 
-    // the theme is on the profile, so a different browser gets it after logging in
+    // the theme and screen colour are on the profile, so a different browser gets them after logging in
     const other = await browser.newContext({ baseURL: BASE_URL });
     const otherPage = await other.newPage();
     await signIn(otherPage, u.handle, PASSWORD);
-    await expect(otherPage.locator('html')).toHaveAttribute('data-theme', 'amber');
+    await expect(otherPage.locator('html')).toHaveAttribute('data-theme', 'terminal');
+    await expect(otherPage.locator('html')).toHaveAttribute('data-scheme', 'green');
+    await expect(otherPage.locator('html')).toHaveAttribute('data-scanlines', 'off'); // effects belong to the device
     await other.close();
   });
 
-  test('offers no effects for the modern theme', async ({ page }) => {
-    const u = await makeUser(page);
-    await signIn(page, u.handle, PASSWORD);
-    await page.getByRole('button', { name: 'Open Settings' }).click();
-    const win = page.getByRole('dialog', { name: 'Settings window' });
-    await win.getByRole('link', { name: 'Appearance' }).click();
-    await expect(win.getByLabel('Modern')).toBeChecked();
-    await expect(win.getByLabel('Scanlines')).toHaveCount(0);
+  test('a theme saved before the restyle still works: amber becomes Terminal', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui:theme', 'amber'));
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'terminal');
   });
 });
 

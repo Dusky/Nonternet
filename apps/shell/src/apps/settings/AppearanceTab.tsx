@@ -1,68 +1,121 @@
 import { useToast } from '../../components/feedback';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { THEMES, type Me, type ThemeName } from '@app/shared';
-import { themes } from '@app/ui-themes';
+import { TERMINAL_SCHEMES, THEMES, type Me, type TerminalScheme, type ThemeName } from '@app/shared';
+import { TERMINAL_SCHEME_BASES, tokensFor } from '@app/ui-themes';
+import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert } from '../../components/ui';
 import { errorText, useT } from '../../hooks';
 import { alertPrefs, askDesktopPermission, desktopSupported, playChime, saveAlertPrefs, unlockAudio, type AlertPrefs } from '../../alerts';
-import { applyTheme, clockPref, effectPrefs, saveClockPref, saveEffectPrefs, saveWallpaperPref, wallpaperPref, WALLPAPERS } from '../../theme';
+import { applyTheme, BOX_STYLES, boxStylePref, clockPref, DEFAULT_THEME, DENSITIES, densityPref, effectPrefs, saveBoxStylePref, saveClockPref, saveDensityPref, saveEffectPrefs, saveWallpaperPref, wallpaperPref, WALLPAPERS, type EffectPrefs } from '../../theme';
 
 export function Appearance({ me }: { me: Me }) {
   const t = useT();
   const qc = useQueryClient();
-  const current = (document.documentElement.dataset.theme as ThemeName | undefined) ?? me.theme ?? 'modern';
-  const [theme, setTheme] = useState<ThemeName>(current);
-  const [prefs, setPrefs] = useState(() => effectPrefs(theme));
+  const root = document.documentElement.dataset;
+  const [theme, setTheme] = useState<ThemeName>((root.theme as ThemeName | undefined) ?? me.theme ?? DEFAULT_THEME);
+  const [scheme, setScheme] = useState<TerminalScheme>((root.scheme as TerminalScheme | undefined) ?? me.theme_variant ?? 'amber');
+  const [fx, setFx] = useState(effectPrefs);
+  const [density, setDensity] = useState(densityPref);
+  const [boxes, setBoxes] = useState(boxStylePref);
   const [clock, setClock] = useState(clockPref);
   const [paper, setPaper] = useState(wallpaperPref);
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
-    mutationFn: (name: ThemeName) => api.patch<{ user: Me }>('/me', { theme: name }),
+    mutationFn: (body: { theme: ThemeName; theme_variant: TerminalScheme | null }) => api.patch<{ user: Me }>('/me', body),
     onSuccess: ({ user }) => { qc.setQueryData(['me'], user); toast(t('settings.appearance.saved')); },
     onError: (e) => setError(errorText(e)),
   });
 
-  const choose = (name: ThemeName) => {
+  // Takes effect at once; saving to the profile follows, so it sticks on other devices too.
+  const choose = (name: ThemeName, nextScheme: TerminalScheme = scheme) => {
     setTheme(name);
-    setPrefs(effectPrefs(name));
-    applyTheme(name); // takes effect at once; saving to the profile follows
+    setScheme(nextScheme);
+    applyTheme(name, { scheme: name === 'terminal' ? nextScheme : null });
     setError(null);
-    save.mutate(name);
+    save.mutate({ theme: name, theme_variant: name === 'terminal' ? nextScheme : null });
   };
-  const toggle = (key: 'scanlines' | 'glow', on: boolean) => {
-    const next = { ...prefs, [key]: on };
-    setPrefs(next);
-    saveEffectPrefs(theme, next);
-    applyTheme(theme);
+  const toggle = (key: keyof EffectPrefs, on: boolean) => {
+    const next = { ...fx, [key]: on };
+    setFx(next);
+    saveEffectPrefs(next);
   };
 
-  const effects = themes[theme].effects;
   return (
     <>
       <fieldset>
         <legend>{t('settings.appearance.theme')}</legend>
-        <div className="theme-choices">
-          {THEMES.map((name) => (
-            <label key={name} className={`theme-choice${theme === name ? ' is-chosen' : ''}`}>
-              <input type="radio" name="theme" value={name} checked={theme === name} onChange={() => choose(name)} />
-              <span className="theme-swatch" aria-hidden="true">
-                {[themes[name].tokens.bg, themes[name].tokens.accent, themes[name].tokens.titleActiveBg].map((c) => <span key={c} style={{ background: c }} />)}
-              </span>
-              <span>{t(`settings.theme.${name}`)}</span>
-            </label>
-          ))}
+        <div className="theme-cards">
+          {THEMES.map((name) => {
+            const k = tokensFor(name, name === 'terminal' ? scheme : null);
+            return (
+              <label key={name} className={`theme-card${theme === name ? ' is-chosen' : ''}`}>
+                <span className="theme-mini" aria-hidden="true" style={{ background: k.bg, fontFamily: k.fontDisplay }}>
+                  <span className="theme-mini-hello" style={{ color: name === 'webring' ? k.text : k.accent }}>{t('settings.appearance.preview')}</span>
+                  <span className="theme-mini-row">
+                    <span style={{ background: k.fill, border: `2px solid ${k.lineStrong}`, boxShadow: k.shadowHard, borderRadius: k.radiusSm }} />
+                    <span style={{ background: k.surface, border: `2px solid ${k.lineStrong}`, boxShadow: k.shadowHard, borderRadius: k.radiusSm }} />
+                  </span>
+                  <span className="theme-mini-card" style={{ background: k.surface, border: `2px solid ${k.lineStrong}`, boxShadow: k.shadowCard, borderRadius: k.radius }} />
+                </span>
+                <span className="theme-card-label">
+                  <input type="radio" name="theme" value={name} checked={theme === name} onChange={() => choose(name)} />
+                  <span><strong>{t(`settings.theme.${name}` as StringKey)}</strong><br /><span className="hint">{t(`settings.theme.${name}.hint` as StringKey)}</span></span>
+                </span>
+              </label>
+            );
+          })}
         </div>
       </fieldset>
-      {(effects.scanlines || effects.glow) && (
-        <fieldset>
-          <legend>{t('settings.appearance.effects')}</legend>
-          {effects.scanlines && <label className="check"><input type="checkbox" checked={prefs.scanlines} onChange={(e) => toggle('scanlines', e.target.checked)} />{t('settings.effects.scanlines')}</label>}
-          {effects.glow && <label className="check"><input type="checkbox" checked={prefs.glow} onChange={(e) => toggle('glow', e.target.checked)} />{t('settings.effects.glow')}</label>}
-        </fieldset>
+      {theme === 'terminal' && (
+        <>
+          <fieldset>
+            <legend>{t('settings.appearance.scheme')}</legend>
+            <div className="scheme-choices">
+              {TERMINAL_SCHEMES.map((s) => {
+                const b = TERMINAL_SCHEME_BASES[s];
+                return (
+                  <label key={s} className={`scheme-choice${scheme === s ? ' is-chosen' : ''}`}>
+                    <input type="radio" name="scheme" value={s} checked={scheme === s} onChange={() => choose('terminal', s)} />
+                    <span className="scheme-swatch" aria-hidden="true" style={{ background: b.bg, color: b.ink, borderColor: b.line }}>A_<span style={{ color: b.accent }}>█</span></span>
+                    <span>{t(`settings.scheme.${s}` as StringKey)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>{t('settings.appearance.boxes')}</legend>
+            <div className="choice-row">
+              {BOX_STYLES.map((b) => (
+                <label key={b} className="check"><input type="radio" name="boxes" value={b} checked={boxes === b} onChange={() => { setBoxes(b); saveBoxStylePref(b); }} />{t(`settings.boxes.${b}` as StringKey)}</label>
+              ))}
+            </div>
+            <p className="hint">{t('settings.appearance.thisDevice')}</p>
+          </fieldset>
+        </>
       )}
+      <fieldset>
+        <legend>{t('settings.appearance.effects')}</legend>
+        {(['scanlines', 'glow', 'crt'] as const).map((key) => (
+          <label key={key} className="check">
+            <input type="checkbox" checked={fx[key]} onChange={(e) => toggle(key, e.target.checked)} />
+            <span><strong>{t(`settings.effects.${key}` as StringKey)}</strong> <span className="hint">{t(`settings.effects.${key}.hint` as StringKey)}</span></span>
+          </label>
+        ))}
+        <p className="hint">{t('settings.appearance.effectsNote')} {t('settings.appearance.thisDevice')}</p>
+      </fieldset>
+      <fieldset>
+        <legend>{t('settings.appearance.density')}</legend>
+        <div className="choice-row">
+          {DENSITIES.map((d) => (
+            <label key={d} className="check"><input type="radio" name="density" value={d} checked={density === d} onChange={() => { setDensity(d); saveDensityPref(d); }} />{t(`settings.density.${d}` as StringKey)}</label>
+          ))}
+        </div>
+        <p className="hint">{t('settings.appearance.thisDevice')}</p>
+      </fieldset>
       <fieldset>
         <legend>{t('settings.appearance.wallpaper')}</legend>
         <div className="theme-choices">

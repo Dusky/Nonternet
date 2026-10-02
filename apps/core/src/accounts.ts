@@ -1,4 +1,4 @@
-import { isReservedHandle, toPublicSite, type LoginInput, type Me, type ProfileUpdate, type SignupInput } from '@app/shared';
+import { isReservedHandle, toPublicSite, type LoginInput, type Me, type ProfileUpdate, type SignupInput, type TerminalScheme, type ThemeName } from '@app/shared';
 import { noteActive } from './activity';
 import { noteWebSeen } from './presence';
 import { makeT } from '@app/strings';
@@ -21,13 +21,13 @@ const RECOVERY_CODE_COUNT = 10;
 
 export interface Ctx { ipHash?: string | null; ip?: string; userAgent?: string }
 export interface SessionUser {
-  sessionId: string; userId: string; handle: string; displayName: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string;
+  sessionId: string; userId: string; handle: string; displayName: string | null; bio: string | null; theme: ThemeName | null; theme_variant: TerminalScheme | null; email: string;
   role: 'guest' | 'user' | 'trusted' | 'admin'; emailVerified: boolean; totpEnabled: boolean; limited: boolean;
   recoveryRemaining: number; roleRev: number; ops: string[];
 }
 
 export const toMe = (u: SessionUser): Me => ({
-  id: u.userId, handle: u.handle, display_name: u.displayName, bio: u.bio, theme: u.theme, role: u.role, email: u.email,
+  id: u.userId, handle: u.handle, display_name: u.displayName, bio: u.bio, theme: u.theme, theme_variant: u.theme_variant, role: u.role, email: u.email,
   email_verified: u.emailVerified, totp_enabled: u.totpEnabled, recovery_codes_remaining: u.recoveryRemaining, role_rev: u.roleRev, ops: u.ops, limited: u.limited,
 });
 
@@ -173,7 +173,7 @@ export async function requireSecondFactor(
 export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise<{ token: string; user: Me }> {
   const bad = new ApiError(401, 'invalid_credentials', 'That handle, email or password is not right.');
   const found = await deps.db.query<{
-    id: string; handle: string; display_name: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string; email_verified_at: string | null; password_hash: string;
+    id: string; handle: string; display_name: string | null; bio: string | null; theme: ThemeName | null; theme_variant: TerminalScheme | null; email: string; email_verified_at: string | null; password_hash: string;
     role: SessionUser['role']; role_rev: number; status: string; totp_secret_enc: string | null; totp_enabled_at: string | null;
   }>(`SELECT * FROM users WHERE lower(handle) = lower($1) OR lower(email) = lower($1) LIMIT 1`, [input.identifier]);
   const u = found.rows[0];
@@ -200,28 +200,28 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   const ops = await opsFor(deps.db, u.id);
   return {
     token,
-    user: { id: u.id, handle: u.handle, display_name: u.display_name, bio: u.bio, theme: u.theme, role: u.role, email: u.email,
+    user: { id: u.id, handle: u.handle, display_name: u.display_name, bio: u.bio, theme: u.theme, theme_variant: u.theme_variant, role: u.role, email: u.email,
       email_verified: !!u.email_verified_at, totp_enabled: !!u.totp_enabled_at, recovery_codes_remaining: remaining, role_rev: u.role_rev, ops, limited },
   };
 }
 
 export async function resolveSession(deps: AppDeps, rawToken: string): Promise<SessionUser | null> {
   const r = await deps.db.query<{
-    sid: string; kind: 'web' | 'bbs'; id: string; handle: string; display_name: string | null; bio: string | null; theme: 'modern' | 'amber' | null; email: string; role: SessionUser['role'];
+    sid: string; kind: 'web' | 'bbs'; id: string; handle: string; display_name: string | null; bio: string | null; theme: ThemeName | null; theme_variant: TerminalScheme | null; email: string; role: SessionUser['role'];
     email_verified_at: string | null; totp_enabled_at: string | null; limited: boolean; recovery_remaining: number; role_rev: number; ops: string[];
   }>(
     // `limited` is worked out from the user's CURRENT role, not just the session's flag: someone
     // promoted to admin mid-session must set up TOTP before they can use any admin power.
     `SELECT s.id AS sid, s.kind, (s.limited OR (u.role = 'admin' AND u.totp_enabled_at IS NULL)) AS limited, u.role_rev,
             COALESCE((SELECT array_agg(o.scope_type || ':' || o.scope_id ORDER BY o.scope_type, o.scope_id) FROM scoped_roles o WHERE o.user_id = u.id), '{}') AS ops,
-            (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.bio, u.theme, u.email, u.role, u.email_verified_at, u.totp_enabled_at
+            (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.bio, u.theme, u.theme_variant, u.email, u.role, u.email_verified_at, u.totp_enabled_at
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
   const row = r.rows[0];
   if (!row) return null;
   // BBS sessions count as the BBS when it signs in (bbs/service.ts), not as web visits.
   if (!row.limited && row.kind === 'web') { noteActive(deps, row.id, 'web'); noteWebSeen(row.id); touchLastSeen(deps, row.id); }
-  return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, email: row.email, role: row.role,
+  return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, theme_variant: row.theme_variant, email: row.email, role: row.role,
     emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
 }
 
@@ -252,6 +252,7 @@ export async function updateProfile(deps: AppDeps, user: SessionUser, changes: P
   if (changes.display_name !== undefined) add('display_name', changes.display_name || null);
   if (changes.bio !== undefined) add('bio', changes.bio || null);
   if (changes.theme !== undefined) add('theme', changes.theme);
+  if (changes.theme_variant !== undefined) add('theme_variant', changes.theme_variant);
   if (changes.status_line !== undefined) add('status_line', changes.status_line || null);
   if (changes.away !== undefined) add('away', changes.away);
   if (changes.show_last_seen !== undefined) add('show_last_seen', changes.show_last_seen);

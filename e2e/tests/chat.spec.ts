@@ -141,8 +141,8 @@ test.describe('chat', () => {
     expect((await page.request.delete(`/api/v1/admin/announcements/${made.id}`, { headers: { origin: BASE_URL } })).status()).toBe(204);
   });
 
-  test('opening Chat from the desktop signs you in with no prompt (amber theme, accessibility)', async ({ page, isMobile }) => {
-    await page.addInitScript(() => localStorage.setItem('ui:theme', 'amber'));
+  test('opening Chat from the desktop signs you in with no prompt (terminal theme, accessibility)', async ({ page, isMobile }) => {
+    await page.addInitScript(() => localStorage.setItem('ui:theme', 'terminal'));
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
     await page.goto('/');
@@ -151,6 +151,6 @@ test.describe('chat', () => {
     else { await page.getByRole('button', { name: 'Open Chat' }).click(); scope = page.getByRole('dialog', { name: 'Chat window' }); }
     await expect(scope.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
     await expect(scope.getByLabel('Message #lobby')).toBeVisible();
-    await scan(page, 'the Chat app (amber)');
+    await scan(page, 'the Chat app (terminal)');
   });
 });

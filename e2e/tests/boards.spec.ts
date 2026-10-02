@@ -187,7 +187,7 @@ test.describe('boards', () => {
     await op.context().close();
   });
 
-  for (const theme of ['modern', 'amber'] as const) {
+  for (const theme of ['webring', 'terminal'] as const) {
     test(`accessibility of the boards screens (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       const owner = await makeUser(page);

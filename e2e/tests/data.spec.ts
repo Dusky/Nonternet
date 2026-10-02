@@ -59,7 +59,7 @@ test.describe('your data', () => {
     await expect(page.getByRole('alert')).toBeVisible();
   });
 
-  for (const theme of ['modern', 'amber'] as const) {
+  for (const theme of ['webring', 'terminal'] as const) {
     test(`accessibility of the data screen (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       const u = await makeUser(page);
