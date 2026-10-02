@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TERMINAL_SCHEMES, THEMES } from '@app/shared';
-import { contrast, isTerminalScheme, isThemeName, terminalTokens, themeCss, themes, type Tokens } from './index';
+import { contrast, isTerminalScheme, isThemeName, terminalPalette, terminalTokens, themeCss, themes, type Tokens } from './index';
 
 // Every pair the interface actually draws text on.
 const TEXT_PAIRS: [keyof Tokens, keyof Tokens][] = [
@@ -51,5 +51,15 @@ describe('themes', () => {
 
   it('starts every effect switched off', () => {
     for (const t of Object.values(themes)) expect(t.effects).toEqual({ scanlines: false, glow: false, crt: false });
+  });
+
+  it('gives the Terminal window 16 readable colours in every screen colour', () => {
+    for (const s of TERMINAL_SCHEMES) {
+      const p = terminalPalette(s);
+      expect(p.colours, s).toHaveLength(16);
+      expect(contrast(p.foreground, p.background), `${s} text`).toBeGreaterThanOrEqual(4.5);
+      // everything but black (0) can be read on the background
+      p.colours.slice(1).forEach((c, i) => expect(contrast(c, p.background), `${s} colour ${i + 1}`).toBeGreaterThanOrEqual(3));
+    }
   });
 });

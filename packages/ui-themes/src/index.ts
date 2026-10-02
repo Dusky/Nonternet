@@ -17,7 +17,7 @@ export type Tokens = Record<
   | 'fontBody' | 'fontMono' | 'fontDisplay' | 'fontLabel' | 'fontNumber'
   // Shape: corners, outline widths, shadows (soft or hard, by theme), a small tilt for stickers.
   | 'radius' | 'radiusSm' | 'radiusLg' | 'lineWidth' | 'controlLine'
-  | 'shadow' | 'shadowSm' | 'shadowHard' | 'shadowCard' | 'shadowWindow' | 'glow' | 'tilt',
+  | 'shadow' | 'shadowSm' | 'shadowHard' | 'shadowCard' | 'shadowWindow' | 'shadowPop' | 'glow' | 'tilt',
   string
 >;
 
@@ -59,7 +59,7 @@ const webring: Tokens = {
   fontBody: bricolage, fontMono: spaceMono, fontDisplay: bricolage, fontLabel: spaceMono, fontNumber: bricolage,
   radius: '0', radiusSm: '0', radiusLg: '0', lineWidth: '3px', controlLine: '2px',
   shadow: offset(6, '#141414'), shadowSm: offset(3, '#141414'), shadowHard: offset(3, '#141414'), shadowCard: offset(5, '#141414'),
-  shadowWindow: offset(8, '#141414'), glow: 'none', tilt: '-1deg',
+  shadowWindow: offset(8, '#141414'), shadowPop: offset(5, '#ff4fa0'), glow: 'none', tilt: '-1deg',
 };
 
 // After dark: the same zine, lit by an amber screen. Amber outlines and shadows, magenta for what is new.
@@ -73,7 +73,7 @@ const afterDark: Tokens = {
   fontBody: bricolage, fontMono: spaceMono, fontDisplay: bricolage, fontLabel: spaceMono, fontNumber: vt323,
   radius: '0', radiusSm: '0', radiusLg: '0', lineWidth: '3px', controlLine: '2px',
   shadow: offset(6, '#ffb43a'), shadowSm: offset(3, '#ffb43a'), shadowHard: offset(3, '#ff5fae'), shadowCard: offset(5, '#ffb43a'),
-  shadowWindow: offset(8, '#ffb43a'), glow: '0 0 6px rgba(255,180,58,.5)', tilt: '-1deg',
+  shadowWindow: offset(8, '#ffb43a'), shadowPop: offset(5, '#ff5fae'), glow: '0 0 6px rgba(255,180,58,.5)', tilt: '-1deg',
 };
 
 // Terminal: the BBS everywhere. Each scheme is a phosphor colour; the tokens are worked out from a few base colours.
@@ -105,9 +105,26 @@ export function terminalTokens(scheme: TerminalScheme): Tokens {
     taskbarBg: s.bg, taskbarText: s.ink, desktopBg: s.bg, desktopDot: s.surface2, winBtnRadius: '0',
     fontBody: plexMono, fontMono: plexMono, fontDisplay: vt323, fontLabel: plexMono, fontNumber: vt323,
     radius: '0', radiusSm: '0', radiusLg: '0', lineWidth: '1px', controlLine: '1px',
-    shadow: 'none', shadowSm: 'none', shadowHard: 'none', shadowCard: 'none', shadowWindow: `0 0 0 1px ${s.border}`,
+    shadow: 'none', shadowSm: 'none', shadowHard: 'none', shadowCard: 'none', shadowWindow: `0 0 0 1px ${s.border}`, shadowPop: `0 0 0 1px ${s.line}`,
     glow: s.light ? 'none' : `0 0 6px ${rgba(s.ink, 0.5)}`, tilt: '0deg',
   };
+}
+
+// The 16 colours the Terminal window (xterm.js) and BBS art use, per scheme. Phosphor schemes stay close to
+// their one colour: red, green and yellow keep their meaning, the rest are shades of the phosphor.
+export const ANSI_NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] as const;
+export type TerminalPalette = { background: string; foreground: string; cursor: string; selection: string; colours: string[] };
+export function terminalPalette(scheme: TerminalScheme): TerminalPalette {
+  const s = TERMINAL_SCHEME_BASES[scheme];
+  const base = { background: s.bg, foreground: s.ink, cursor: s.accent, selection: s.border };
+  if (scheme === 'ansi') {
+    return { ...base, colours: [s.surface2, '#ff6b6b', '#5ee87a', '#ffe14d', '#7f9dff', '#ff7fe0', '#4fe0ff', '#c8c8e8',
+      s.dim, '#ff9a9a', '#9dffb0', '#fff08a', '#b0c2ff', '#ffb0ee', '#a0f0ff', '#ffffff'] };
+  }
+  const dark = s.light ? s.ink : s.surface2;
+  const white = s.light ? s.dim : s.ink;
+  return { ...base, colours: [dark, s.danger, s.ok, s.warn, s.dim, s.dim, s.dim, white,
+    s.dim, s.danger, s.ok, s.warn, s.accent, s.accent, s.accent, s.accent] };
 }
 
 // Platinum: a late-90s desktop. Grey bevels, striped title bars, a teal desktop.
@@ -123,7 +140,7 @@ const platinum: Tokens = {
   fontBody: plexSans, fontMono: plexMono, fontDisplay: pixelify, fontLabel: plexSans, fontNumber: pixelify,
   radius: '0', radiusSm: '4px', radiusLg: '0', lineWidth: '1px', controlLine: '1px',
   shadow: '3px 3px 0 rgba(0,0,0,.35)', shadowSm: bevelOut, shadowHard: bevelOut, shadowCard: 'inset 2px 2px 0 #9a9a9a',
-  shadowWindow: `inset -1px -1px 0 #808080, inset 1px 1px 0 #ffffff, 3px 3px 0 rgba(0,0,0,.35)`, glow: 'none', tilt: '0deg',
+  shadowWindow: `inset -1px -1px 0 #808080, inset 1px 1px 0 #ffffff, 3px 3px 0 rgba(0,0,0,.35)`, shadowPop: '3px 3px 0 rgba(0,0,0,.35)', glow: 'none', tilt: '0deg',
 };
 
 // Aqua: the glossy turn of the century. Pinstripes, soft translucent windows, gel buttons.
@@ -139,7 +156,7 @@ const aqua: Tokens = {
   radius: '10px', radiusSm: '8px', radiusLg: '14px', lineWidth: '1px', controlLine: '1px',
   shadow: '0 12px 30px rgba(20,40,70,.22)', shadowSm: '0 1px 2px rgba(20,40,70,.14)',
   shadowHard: 'inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(20,40,70,.18)', shadowCard: '0 1px 3px rgba(20,40,70,.14)',
-  shadowWindow: '0 18px 40px rgba(20,40,70,.28)', glow: 'none', tilt: '0deg',
+  shadowWindow: '0 18px 40px rgba(20,40,70,.28)', shadowPop: '0 12px 30px rgba(20,40,70,.22)', glow: 'none', tilt: '0deg',
 };
 
 const off = { scanlines: false, glow: false, crt: false };

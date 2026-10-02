@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import type { AppId } from './windows';
 
 const paths: Record<AppId, string> = {
@@ -22,12 +21,12 @@ export function AppIcon({ id, size = 32 }: { id: AppId; size?: number }) {
   return <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false"><path d={paths[id]} fill="currentColor" /></svg>;
 }
 
-// Each app has its own colour on the desktop and launcher, so they can be told apart at a glance.
-const hues: Record<AppId, number> = {
-  boards: 222, rings: 280, people: 160, mail: 12, files: 38, chat: 195, mud: 130, terminal: 0,
-  homepages: 330, studio: 250, notifications: 45, settings: 210, admin: 355,
+// Each app has its own sticker colour on the desktop and launcher, so they can be told apart at a glance.
+const stickers: Record<AppId, 1 | 2 | 3 | 4 | 5> = {
+  boards: 1, rings: 5, people: 4, mail: 3, files: 1, chat: 2, mud: 4, terminal: 1,
+  homepages: 3, studio: 5, notifications: 1, settings: 2, admin: 3,
 };
 
 export function AppTile({ id }: { id: AppId }) {
-  return <span className={`app-tile${id === 'terminal' ? ' is-terminal' : ''}`} style={{ '--hue': hues[id] } as CSSProperties}><AppIcon id={id} size={26} /></span>;
+  return <span className={`app-tile${id === 'terminal' ? ' is-terminal' : ''}`} data-sticker={stickers[id]}><AppIcon id={id} size={26} /></span>;
 }

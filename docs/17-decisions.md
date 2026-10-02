@@ -20,6 +20,7 @@
 | D15 | Admin console is a first-class, deliberately deep feature | DECIDED |
 | D16 | Built with Claude Code from these docs | DECIDED |
 | D17 | The BBS is built in-house (not Enigma½), is a client of core's API, and is the **last** milestone (M8). Boards and posts are native to core and work on the web from v1 | DECIDED |
+| D18 | Five themes from the design board: Webring (default), After dark, Terminal (eight screen colours), Platinum, Aqua. Modern and Amber retired and mapped to Webring and Terminal. Effects off by default. Board: https://claude.ai/artifact/7m11ykm4aaUKYrS3akbFGA, proposal: https://claude.ai/code/artifact/e76bc564-641f-4c36-b021-9f8c9a2ad99e (2026-10-02) | DECIDED |
 
 ### Superseded from earlier planning
 | Earlier | Now |
@@ -103,7 +104,7 @@
 | V7 | ~~Ergo: accounts, SASL, external auth, history, WebSocket~~ Verified 2026-09-30 against Ergo 2.19.1 (source and tests in `apps/core/src/irc/*.test.ts` run the real server). Found: opers can't follow accounts, unregistering needs a confirmation code, the network name can't hold spaces | 08 |
 | V8 | ~~Evennia: auth backend, web client embedding~~ Verified 2026-09-30 against Evennia 5.0.1 (`spikes/m6-evennia.md`): login can be handed to core, stable ids and roles map, ticket login works over WebSocket; its WebSocket sends Evennia markup, not ANSI | 09 |
 | V9 | xterm.js screen reader support | 10 |
-| V10 | Licences of bundled GIFs, fonts, any embedded clients. Ergo and irc-framework are MIT (checked 2026-09-30) | 07, 08, 10 |
+| V10 | Licences of bundled GIFs, fonts, any embedded clients. Ergo and irc-framework are MIT (checked 2026-09-30). Fonts bundled for the themes (Bricolage Grotesque, Space Mono, VT323, IBM Plex Mono and Sans, Pixelify Sans, Nunito Sans, Silkscreen, via @fontsource 5.3) are all OFL-1.1 (checked 2026-10-02) | 07, 08, 10 |
 | V11 | Caddy on-demand TLS with ask endpoint. The `ask` endpoint and `Caddyfile.prod` are written and the endpoint is tested; Caddy itself has not been run against a real domain | 07, 15 |
 | V12 | Node telnet and SSH server libraries (e.g. `ssh2`): pty, public-key auth, terminal-type and window-size negotiation, xterm.js over WebSocket | 04 |
 

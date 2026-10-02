@@ -20,7 +20,8 @@ users (
   role_rev int not null default 0,
   status text not null default 'active',-- active|suspended|deleted
   quota_bytes bigint,               -- null = role default
-  theme text,                       -- modern|amber, null = site default
+  theme text,                       -- webring|after-dark|terminal|platinum|aqua, null = site default
+  theme_variant text,               -- Terminal screen colour (amber, green, …), null otherwise
   last_seen_at timestamptz
 )
 handle_aliases (handle text pk, user_id fk, expires_at)   -- built as handle_history (migration 0009)

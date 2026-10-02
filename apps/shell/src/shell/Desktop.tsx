@@ -59,7 +59,7 @@ function DesktopIcon({ app }: { app: AppDef }) {
     <>
       <button type="button" className="icon" data-app-icon={app.id} onClick={() => open(app.id)} aria-label={t('app.openApp', { app: title })} {...ctx.bind}>
         <AppTile id={app.id} />
-        <span>{title}</span>
+        <span className="icon-label">{title}</span>
       </button>
       {ctx.menu}
     </>

@@ -32,10 +32,12 @@ windows with remembered positions; desktop icons; keyboard window cycling. All b
 Launcher grid; apps full-screen with back navigation; terminal key bar (Esc, Ctrl, Tab,
 arrows); Boards designed mobile-first.
 
-## Themes (PROPOSED)
-Amber CRT, green screen, Win95-style, System 7-style, and a clean modern light/dark.
-Themes are token sets in `packages/ui-themes`. Effects (scanlines, glow, sounds) individually
-toggleable; flicker off by default; respect `prefers-reduced-motion`. Admin sets the default.
+## Themes (DECIDED 2026-10-02, see `17` D18 and "As built (restyle)" below)
+Five themes: **Webring** (the handmade web on cream paper; the default), **After dark** (the same zine
+in amber, magenta second), **Terminal** (the BBS everywhere, with eight screen colours), **Platinum**
+(late-90s grey desktop) and **Aqua** (turn-of-the-century gloss). Themes are token sets in
+`packages/ui-themes`. Effects (scanlines, glow, CRT corners) are separate switches, off by default and
+off whenever the device asks for reduced motion or more contrast. Admin sets the default.
 
 Note: themes style the chrome; **all copy follows the plain voice** in `00`.
 
@@ -133,7 +135,7 @@ plain, a "what's new" home, and the full landing page. No new themes.
   person picks a theme.
 - **Windows** open to the right of the desktop icons so the icons stay reachable.
 - **Screenshots** for reviewing design changes: `SCREENSHOTS=<folder> pnpm --filter @app/e2e test
-  screens` captures every main screen on desktop and phone in modern light, modern dark and amber.
+  screens` captures every main screen on desktop and phone in every theme.
 
 ## As built (M9-A): live updates
 - **One event stream per tab** (`GET /api/v1/events`, `live.ts`): core says "something changed" and the tab refetches
@@ -215,3 +217,30 @@ plain, a "what's new" home, and the full landing page. No new themes.
   daily email summary appears only when the site has SMTP. Defaults are everything on.
 - **On this device** (localStorage, not exported): Chat (timestamps, join/leave lines), Boards (default view, reactions),
   Terminal (text size, reader mode).
+
+## As built (restyle, 2026-10-02)
+The owners picked every look from the design board (canvas and proposal linked in `17`), with Webring as
+the default. Modern and Amber are retired: saved choices move to Webring and Terminal (migration 0031,
+the site config and browser storage all accept the old names).
+- **Names**: `webring`, `after-dark`, `terminal`, `platinum`, `aqua` (one list, `THEMES` in
+  `packages/shared`). Terminal's screen colour (`amber`, `green`, `white`, `ice`, `ansi`,
+  `amber-magenta`, `paper`, `dusk`) is saved on the profile as `theme_variant` (`13`), exported (`12`).
+- **Tokens** (`packages/ui-themes`): colours (with `fill` for primary buttons and selected things, `pop`
+  for what is new, five `sticker` colours), window chrome (title colours and a title image for
+  Platinum's stripes and Aqua's gloss, window-button corner), five font roles, and shape (corners,
+  outline widths, hard or soft shadows, `shadowPop` for toasts, a small `tilt` for stickers). A unit test
+  checks 25 text pairs at 4.5:1 and 4 edge pairs at 3:1 in every theme and screen colour, and that the
+  Terminal window's 16 colours are readable in every screen colour.
+- **Components** take their shape from tokens only: outlined buttons that drop into their shadow when
+  pressed, one outside focus ring, boxed tabs with the current one filled and lifted, outlined cards and
+  panels, alerts with a full border in their colour, toasts with the pop shadow, app icons as stickers.
+- **Chrome**: a few rules key on `data-chrome` (`zine`, `terminal`, `platinum`, `aqua`, set from the
+  theme, never the theme's name): Platinum's centred title on stripes and bevelled buttons, Aqua's round
+  lights on the left and dock of open windows, Terminal's headings set into the box line.
+- **Modifiers** (this device only): effects; spacing (roomy or compact, every theme); Terminal's box
+  style (single, double, heavy, none; double brings the pixel heading font).
+- **The Terminal window** uses your Terminal screen colour in every theme (an xterm theme built from
+  `terminalPalette`), and follows a change made in Settings while it is open.
+- **Fonts** are bundled with `@fontsource` (all OFL-1.1, `17` V10), so `font-src 'self'` is unchanged.
+  A browser downloads only the faces the current theme uses.
+- People's homepages, widgets and templates keep their own styling.

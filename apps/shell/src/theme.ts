@@ -93,9 +93,17 @@ export function applyTheme(theme: ThemeName, opts: { remember?: boolean; scheme?
   if (theme === 'terminal') root.dataset.scheme = scheme ?? 'amber';
   else delete root.dataset.scheme;
   applyModifiers();
-  if (opts.remember === false) return;
-  write(THEME_KEY, theme);
-  if (opts.scheme !== undefined) write(SCHEME_KEY, opts.scheme ?? 'amber');
+  if (opts.remember !== false) {
+    write(THEME_KEY, theme);
+    if (opts.scheme !== undefined) write(SCHEME_KEY, opts.scheme ?? 'amber');
+  }
+  window.dispatchEvent(new Event('ui:theme'));
+}
+
+// The Terminal window and the MUD use your Terminal screen colour in every theme.
+export function terminalScheme(): TerminalScheme {
+  const shown = document.documentElement.dataset.scheme;
+  return isTerminalScheme(shown) ? shown : rememberedScheme() ?? 'amber';
 }
 
 // The taskbar clock: on unless the person switched it off on this device.

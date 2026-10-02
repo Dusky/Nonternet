@@ -8,6 +8,20 @@ import { Alert } from '../../components/ui';
 import { errorText, useSite, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { backoffMs, wasDropped } from '../../reconnect';
+import { terminalPalette, ANSI_NAMES } from '@app/ui-themes';
+import type { ITheme } from '@xterm/xterm';
+import { terminalScheme } from '../../theme';
+
+// xterm's colours from the screen colour (docs/10): the BBS looks like your Terminal theme wherever it opens.
+function xtermTheme(): ITheme {
+  const p = terminalPalette(terminalScheme());
+  const theme: Record<string, string> = { background: p.background, foreground: p.foreground, cursor: p.cursor, cursorAccent: p.background, selectionBackground: p.selection };
+  ANSI_NAMES.forEach((name, i) => {
+    theme[name] = p.colours[i]!;
+    theme[`bright${name[0]!.toUpperCase()}${name.slice(1)}`] = p.colours[i + 8]!;
+  });
+  return theme as ITheme;
+}
 
 type Status = 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error';
 
@@ -76,7 +90,7 @@ export default function TerminalApp() {
   connectRef.current = connect;
 
   useEffect(() => {
-    const x = new Terminal({ convertEol: false, cursorBlink: true, fontFamily: '"Px437 IBM VGA 8x16", "Web437 IBM VGA 8x16", ui-monospace, monospace', fontSize: readPrefs('terminal').fontSize, scrollback: 2000, allowProposedApi: false });
+    const x = new Terminal({ convertEol: false, cursorBlink: true, fontFamily: '"Px437 IBM VGA 8x16", "Web437 IBM VGA 8x16", "IBM Plex Mono", ui-monospace, monospace', theme: xtermTheme(), fontSize: readPrefs('terminal').fontSize, scrollback: 2000, allowProposedApi: false });
     const fit = new FitAddon();
     x.loadAddon(fit);
     x.open(host.current!);
@@ -92,6 +106,13 @@ export default function TerminalApp() {
   }, [connect, send]);
 
   useEffect(() => { if (term.current) term.current.options.screenReaderMode = reader; }, [reader]);
+  // Follow a new screen colour picked in Settings while the window is open.
+  const [screenBg, setScreenBg] = useState(() => terminalPalette(terminalScheme()).background);
+  useEffect(() => {
+    const onTheme = () => { const th = xtermTheme(); setScreenBg(th.background!); if (term.current) term.current.options.theme = th; };
+    window.addEventListener('ui:theme', onTheme);
+    return () => window.removeEventListener('ui:theme', onTheme);
+  }, []);
   // A new text size is applied at once and the screen is re-fitted, so the BBS gets the new column count.
   useEffect(() => {
     const x = term.current;
@@ -106,7 +127,7 @@ export default function TerminalApp() {
       {status === 'connecting' && <p className="hint" role="status">{t('terminal.connecting')}</p>}
       {status === 'reconnecting' && <p className="hint" role="status">{t('terminal.reconnecting')}</p>}
       {status === 'closed' && <Alert kind="info">{t('terminal.closed')} <button type="button" className="link" onClick={() => void connect()}>{t('terminal.reconnect')}</button></Alert>}
-      <div className="terminal-screen" ref={host} aria-label={t('terminal.screen')} />
+      <div className="terminal-screen" ref={host} aria-label={t('terminal.screen')} style={{ background: screenBg }} />
       <div className="terminal-keys" role="group" aria-label={t('terminal.keys')}>
         {KEYS.map((k) => (
           <button key={k.label} type="button" className="btn btn-quiet" aria-label={t(k.name as never)} onClick={() => { send({ t: 'in', d: k.seq }); term.current?.focus(); }}>{k.label}</button>

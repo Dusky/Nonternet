@@ -19,7 +19,7 @@ export function Launcher({ me }: { me: Me }) {
             <li key={app.id}>
               <Link to={app.path} className="icon">
                 <AppTile id={app.id} />
-                <span>{t(app.title)}</span>
+                <span className="icon-label">{t(app.title)}</span>
               </Link>
             </li>
           ))}
