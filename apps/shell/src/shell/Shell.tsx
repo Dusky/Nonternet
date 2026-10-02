@@ -172,7 +172,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
       </header>
       <StatusBanners />
       </div>
-      <AnnouncementBanner />
+      <AnnouncementBanner lookNote />
       <main id="main" tabIndex={-1} className="stage">{children}</main>
       {!desktop && <TabBar me={me} mail={unreadMail} notes={unread} />}
       <CommandPalette me={me} open={palette} onClose={() => setPalette(false)} />

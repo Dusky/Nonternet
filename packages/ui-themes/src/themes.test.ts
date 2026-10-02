@@ -47,6 +47,8 @@ describe('themes', () => {
     expect(css).toContain('--accent-text:');
     expect(css).toContain('--sticker-1:');
     expect(css).not.toContain('undefined');
+    expect(css).toMatch(/@media \(max-width: 699px\)\{:root\[data-theme="webring"\]\{--line-width:2px;/);
+    expect(css).toContain(':root[data-theme="after-dark"]{--line-width:2px;');
   });
 
   it('starts every effect switched off', () => {

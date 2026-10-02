@@ -206,6 +206,34 @@ test.describe('themes', () => {
   });
 });
 
+test.describe('the note about the new look', () => {
+  test.use({ seenLookNote: false });
+
+  test('shows once, opens Appearance, and stays dismissed', async ({ page, isMobile }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    const note = page.getByTestId('new-look');
+    await expect(note).toContainText('The site has a new look.');
+    await note.getByRole('link', { name: 'Open Appearance' }).click();
+    if (isMobile) await expect(page).toHaveURL(/\/settings\/appearance$/);
+    else await expect(page.getByRole('dialog', { name: 'Settings window' }).getByRole('radio', { name: /^Webring/ })).toBeVisible();
+    await expect(note).toHaveCount(0);
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+    await expect(page.getByTestId('new-look')).toHaveCount(0); // not again on this device
+  });
+
+  test('can be dismissed without opening Settings', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.getByRole('button', { name: 'Dismiss the note about the new look' }).click();
+    await expect(page.getByTestId('new-look')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+    await expect(page.getByTestId('new-look')).toHaveCount(0);
+  });
+});
+
 test.describe('on a phone', () => {
   test.skip(({ isMobile }) => !isMobile, 'phone layout only');
 

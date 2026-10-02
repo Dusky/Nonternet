@@ -509,7 +509,7 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 
 /* ---- announcements */
 .announcements { position: fixed; top: calc(var(--taskbar-h) + 8px); right: 12px; z-index: 5500; display: grid; gap: 6px; width: min(26rem, calc(100vw - 24px)); }
-.announcement { box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius-sm); background: var(--surface); }
+.announcement { box-shadow: var(--shadow-pop); display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--text); border: var(--line-width) solid var(--line-strong); border-left-width: 6px; border-radius: var(--radius-sm); background: var(--surface); }
 .announcement-info { border-left-color: var(--accent); }
 .announcement-warning { border-left-color: var(--danger); }
 .announcement-body { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -933,3 +933,18 @@ li.new-divider::before, li.new-divider::after { border-top: var(--line-width) so
 .tile-value { font-family: var(--font-number); font-size: var(--step-4); font-weight: 800; line-height: 1; }
 .tile-bad { border-color: var(--danger); box-shadow: var(--shadow-card), inset 6px 0 0 var(--danger); }
 .table thead th { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: var(--step--2); }
+
+/* ---- R4: phones. Shadows and outlines shrink through the theme's phone tokens; these fix layout. */
+.tabbar a[aria-current=page] { box-shadow: inset 0 4px 0 var(--line-strong); }
+.tabbar a[aria-current=page] .badge { background: var(--taskbar-bg); color: var(--taskbar-text); border-color: var(--taskbar-text); }
+@media (max-width: 699px) {
+  .tabbar a { font-size: clamp(.66rem, 2.8vw, .8rem); padding: 0 2px; text-align: center; }
+  .tabbar a + a { border-left: var(--control-line) solid color-mix(in srgb, var(--taskbar-text) 25%, transparent); }
+  .home-greeting h2 { font-size: var(--step-3); }
+  .thread-title { font-size: var(--step-2); }
+  .profile-head { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+  .profile-head .avatar-lg { width: 4rem; height: 4rem; font-size: 1.6rem; }
+  .profile-head h2 { font-size: var(--step-2); }
+  .launcher-apps ul { gap: var(--space-4) var(--space-3); }
+  .wall-panel { transform: none; }
+}

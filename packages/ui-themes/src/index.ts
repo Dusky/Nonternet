@@ -30,6 +30,8 @@ export interface Theme {
   chrome: Chrome;
   scheme: 'light' | 'dark';
   tokens: Tokens;
+  // Smaller shadows and thinner outlines under 700 px wide, so cards don't crowd a phone screen.
+  phone?: Partial<Tokens>;
   // Optional effects. All start off; each is a switch in Settings → Appearance.
   effects: { scanlines: boolean; glow: boolean; crt: boolean };
 }
@@ -160,9 +162,12 @@ const aqua: Tokens = {
 };
 
 const off = { scanlines: false, glow: false, crt: false };
+const zinePhone = (line: string, pop: string): Partial<Tokens> => ({
+  lineWidth: '2px', shadow: offset(4, line), shadowCard: offset(3, line), shadowWindow: offset(4, line), shadowPop: offset(3, pop),
+});
 export const themes: Record<ThemeName, Theme> = {
-  webring: { name: 'webring', label: 'Webring', chrome: 'zine', scheme: 'light', tokens: webring, effects: off },
-  'after-dark': { name: 'after-dark', label: 'After dark', chrome: 'zine', scheme: 'dark', tokens: afterDark, effects: off },
+  webring: { name: 'webring', label: 'Webring', chrome: 'zine', scheme: 'light', tokens: webring, phone: zinePhone('#141414', '#ff4fa0'), effects: off },
+  'after-dark': { name: 'after-dark', label: 'After dark', chrome: 'zine', scheme: 'dark', tokens: afterDark, phone: zinePhone('#ffb43a', '#ff5fae'), effects: off },
   terminal: { name: 'terminal', label: 'Terminal', chrome: 'terminal', scheme: 'dark', tokens: terminalTokens('amber'), effects: off },
   platinum: { name: 'platinum', label: 'Platinum', chrome: 'platinum', scheme: 'light', tokens: platinum, effects: off },
   aqua: { name: 'aqua', label: 'Aqua', chrome: 'aqua', scheme: 'light', tokens: aqua, effects: off },
@@ -178,6 +183,8 @@ export function themeCss(): string {
   for (const s of TERMINAL_SCHEMES) {
     out.push(`:root[data-theme="terminal"][data-scheme="${s}"]{color-scheme:${TERMINAL_SCHEME_BASES[s].light ? 'light' : 'dark'};${vars(terminalTokens(s))}}`);
   }
+  const phone = Object.values(themes).filter((t) => t.phone).map((t) => `:root[data-theme="${t.name}"]{${vars(t.phone as Tokens)}}`);
+  if (phone.length) out.push(`@media (max-width: 699px){${phone.join('')}}`);
   return out.join('\n');
 }
 

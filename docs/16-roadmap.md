@@ -137,6 +137,15 @@ The owners picked all four web areas and all three retro extras, and approved a 
 - **E, retro extras**: oneliners, bulletins, the voting booth and file areas in the terminal and on the web; counter looks, the 88×31 button maker, blinkies, ring banners and "sign with your account" for homepages; the Bandit Woods and the Flooded Mine, the lost-ledger quest, a working shop, a tavern noticeboard and a weakened effect that changes rolls.
 Details are in the "As built (M9-…)" section of each doc and the dated entries in `17`. Phase G (2026-10-02) closed the loose ends: server-side mail paging, the tavern guestbook, duels in the training yard, and IRC AWAY (decided: web-only, see `08`). Phase H (2026-10-02) polished what the first look showed: tidy post headers and reply indents on phones, a calm admin status on a new site, no failing request for visitors, a smaller first load (main file 482 KB → 223 KB), `StudioApp` and `SettingsApp` split into per-tab files, and accessibility scans for the M9 screens in both themes. Left open on purpose: the older items Q16, federation, ZMODEM and import; in-game builder commands other than removing notes and guestbook lines are not audited.
 
+## Restyle (2026-10-02, owners' choice) — DONE
+The owners picked every look on the design board, with Webring as the default (`17` D18).
+- **R1:** five themes and eight Terminal screen colours, with the old names mapped to the new ones (migration 0031). Also bundled open-licence fonts, and Settings, Appearance with theme cards, screen colour, effects, spacing and box style.
+- **R2:** components, windows, the taskbar and app stickers take their shape from tokens, with chrome rules for Platinum, Aqua and Terminal. The Terminal window uses your screen colour.
+- **R3:** every app follows the board mockups: title strips, home, threads, the front page, profiles and admin.
+- **R4:** phone sizes, the one-time note about the new look, and full checks (axe in every theme on desktop and phone).
+
+Details are in `10` ("As built (restyle)").
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail, terminal signup (scope: Q13). Import
 of export archives; desktop "point" app; self-hosted nodes; hub-and-spoke federation with

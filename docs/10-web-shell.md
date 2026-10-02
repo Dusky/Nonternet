@@ -251,3 +251,12 @@ the site config and browser storage all accept the old names).
   replies; the front page shows the site name huge with an "Invite only" sticker when sign-ups are by
   invite; a profile is a card with a big avatar, the status as a speech bubble and rings as tags; admin
   status tiles show big numbers. Tables stay plain.
+- **Phones** (R4): Webring and After dark use 2 px outlines and 3–4 px shadows under 700 px wide (the
+  theme's `phone` tokens). The tab bar has dividers, and the current tab gets a bar on top as well as its
+  fill, so it stands out in every theme. Profiles stack, and the big headings are a step smaller.
+- **The note about the new look**: signed-in people see one dismissible note, once per device, saying
+  the site has a new look, with a link to Settings, Appearance. It is part of the shell, not an
+  announcement, so no site shows copy its admins didn't write.
+- **Sizes** (2026-10-02): main file 233 KB (68 KB gzip), vendor 226 KB, stylesheet 105 KB (most of it
+  `@font-face` rules). 57 font files, 638 KB in all, but a browser fetches only what the current theme
+  uses; Webring's Latin faces are 88 KB.

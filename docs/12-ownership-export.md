@@ -14,7 +14,7 @@ Users own their stuff (DECIDED), without having to run a server.
 ```
 manifest.json            # format version, user id, handle, export date, file list + hashes
 manifest.sig             # Ed25519 signature by the user's key
-profile.json             # handle, display name, bio, join date, rings, role history
+profile.json             # handle, display name, bio, join date, rings, role history, theme and Terminal screen colour
 homepage/                # all homepage files exactly as uploaded
 guestbook.json           # entries on their homepage
 posts/
