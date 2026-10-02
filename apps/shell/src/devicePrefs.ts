@@ -4,15 +4,17 @@ import { useSyncExternalStore } from 'react';
 // Like the clock and wallpaper they are not part of the account, so they are not in the export.
 export interface ChatPrefs { timestamps: boolean; joinPart: boolean }
 export interface BoardPrefs { view: 'flat' | 'threaded'; reactions: boolean }
-export interface TerminalPrefs { fontSize: number; reader: boolean }
+export interface TerminalPrefs { fontSize: number; reader: boolean; scrollback: number; copyOnSelect: boolean; bell: 'off' | 'flash' | 'sound' }
 
 export const DEFAULTS = {
   chat: { timestamps: true, joinPart: true } as ChatPrefs,
   boards: { view: 'flat', reactions: true } as BoardPrefs,
-  terminal: { fontSize: 16, reader: false } as TerminalPrefs,
+  terminal: { fontSize: 16, reader: false, scrollback: 2000, copyOnSelect: false, bell: 'flash' } as TerminalPrefs,
 };
 type Key = keyof typeof DEFAULTS;
 export const FONT_SIZES = [12, 14, 16, 18, 20, 24] as const;
+export const SCROLLBACKS = [1000, 2000, 5000, 10000] as const;
+export const BELLS = ['off', 'flash', 'sound'] as const;
 
 // Whatever is stored is checked field by field; anything odd falls back to the default for that field.
 export function parsePrefs<K extends Key>(key: K, raw: string | null): (typeof DEFAULTS)[K] {
@@ -26,6 +28,8 @@ export function parsePrefs<K extends Key>(key: K, raw: string | null): (typeof D
     if (typeof def === 'boolean' && typeof x === 'boolean') out[field] = x;
     else if (field === 'view' && (x === 'flat' || x === 'threaded')) out[field] = x;
     else if (field === 'fontSize' && typeof x === 'number' && (FONT_SIZES as readonly number[]).includes(x)) out[field] = x;
+    else if (field === 'scrollback' && typeof x === 'number' && (SCROLLBACKS as readonly number[]).includes(x)) out[field] = x;
+    else if (field === 'bell' && typeof x === 'string' && (BELLS as readonly string[]).includes(x)) out[field] = x;
   }
   return out as unknown as (typeof DEFAULTS)[K];
 }

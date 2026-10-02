@@ -978,3 +978,14 @@ label.inline select { width: auto; min-width: 9rem; }
 /* Selects: the same height, border and arrow everywhere, and readable options in dark themes. */
 select { color: var(--text); background-color: var(--surface); }
 select option { color: var(--text); background: var(--surface); }
+
+/* ---- Terminal (P3) */
+.terminal-tools { margin: 0; }
+.terminal-find { margin: 0; }
+.terminal-find input { flex: 1; }
+.terminal-screen.is-bell { outline: 4px solid var(--warn); outline-offset: -4px; }
+.terminal-keys [aria-pressed="true"] { background: var(--fill); color: var(--fill-text); }
+.terminal-fkeys { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
+.terminal-fkeys > summary { list-style: none; cursor: pointer; }
+.terminal-fkeys > summary::-webkit-details-marker { display: none; }
+.terminal-app:fullscreen { background: var(--bg); padding: var(--space-3); }

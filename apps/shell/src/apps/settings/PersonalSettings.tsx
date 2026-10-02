@@ -4,7 +4,7 @@ import { AVATAR_MAX_BYTES, PREF_KINDS, type Me, type PersonalSettings } from '@a
 import { api } from '../../api';
 import { Avatar, Alert, TextField } from '../../components/ui';
 import { useToast } from '../../components/feedback';
-import { FONT_SIZES, usePrefs } from '../../devicePrefs';
+import { BELLS, FONT_SIZES, SCROLLBACKS, usePrefs } from '../../devicePrefs';
 import { Section } from './Section';
 import { errorText, useT } from '../../hooks';
 
@@ -166,6 +166,19 @@ export function TerminalDisplay() {
           {FONT_SIZES.map((n) => <option key={n} value={n}>{n}px</option>)}
         </select>
       </div>
+      <div className="field">
+        <label htmlFor="term-scrollback">{t('settings.terminal.scrollback')}</label>
+        <select id="term-scrollback" value={prefs.scrollback} onChange={(e) => set({ scrollback: Number(e.target.value) })}>
+          {SCROLLBACKS.map((n) => <option key={n} value={n}>{n.toLocaleString()}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="term-bell">{t('settings.terminal.bell')}</label>
+        <select id="term-bell" value={prefs.bell} onChange={(e) => set({ bell: e.target.value as 'off' | 'flash' | 'sound' })}>
+          {BELLS.map((b) => <option key={b} value={b}>{t(`settings.terminal.bell.${b}`)}</option>)}
+        </select>
+      </div>
+      <DeviceSwitch label={t('settings.terminal.copyOnSelect')} checked={prefs.copyOnSelect} onChange={(on) => set({ copyOnSelect: on })} />
       <DeviceSwitch label={t('terminal.reader')} checked={prefs.reader} onChange={(on) => set({ reader: on })} />
     </Section>
   );

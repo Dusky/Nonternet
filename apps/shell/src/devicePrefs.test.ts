@@ -14,7 +14,7 @@ describe('device preferences', () => {
   it('check every field and ignore junk', () => {
     expect(parsePrefs('boards', '{"view":"sideways","reactions":"yes"}')).toEqual(DEFAULTS.boards);
     expect(parsePrefs('boards', '{"view":"threaded"}')).toEqual({ view: 'threaded', reactions: true });
-    expect(parsePrefs('terminal', '{"fontSize":99,"reader":true}')).toEqual({ fontSize: 16, reader: true });
+    expect(parsePrefs('terminal', '{"fontSize":99,"reader":true}')).toEqual({ fontSize: 16, reader: true, scrollback: 2000, copyOnSelect: false, bell: 'flash' });
     expect(parsePrefs('terminal', '{"fontSize":20}').fontSize).toBe(20);
     expect(parsePrefs('chat', 'not json')).toEqual(DEFAULTS.chat);
     expect(parsePrefs('chat', 'null')).toEqual(DEFAULTS.chat);
