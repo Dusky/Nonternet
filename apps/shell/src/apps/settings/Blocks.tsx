@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BlockView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, TextField, EmptyState } from '../../components/ui';
+import { Section } from './Section';
 import { errorText, formatWhen, useT } from '../../hooks';
 
 export const useBlocks = () => useQuery({ queryKey: ['me', 'blocks'], queryFn: () => api.get<{ blocks: BlockView[] }>('/me/blocks') });
@@ -18,8 +19,7 @@ export function Blocks() {
   const add = useMutation({ mutationFn: () => api.post('/me/blocks', { handle: handle.trim().replace(/^@/, '') }), onSuccess: done });
   const remove = useMutation({ mutationFn: (h: string) => api.post('/me/blocks/remove', { handle: h }), onSuccess: done });
   return (
-    <section className="panel" aria-labelledby="blocks-h">
-      <h2 id="blocks-h">{t('blocks.title')}</h2>
+    <Section id="blocks-h" title={t('blocks.title')} scope="account">
       <p className="hint">{t('blocks.intro')}</p>
       {q.data && q.data.blocks.length === 0 && <EmptyState>{t('blocks.none')}</EmptyState>}
       <ul className="rows">
@@ -36,6 +36,6 @@ export function Blocks() {
         {add.isError && <Alert kind="error">{errorText(add.error)}</Alert>}
         <button type="submit" className="btn" disabled={add.isPending}>{t('blocks.addButton')}</button>
       </form>
-    </section>
+    </Section>
   );
 }

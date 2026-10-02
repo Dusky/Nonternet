@@ -8,6 +8,8 @@ import { api } from '../../api';
 import { Alert } from '../../components/ui';
 import { errorText, useT } from '../../hooks';
 import { alertPrefs, askDesktopPermission, desktopSupported, playChime, saveAlertPrefs, unlockAudio, type AlertPrefs } from '../../alerts';
+import { Section } from './Section';
+import { DeviceSwitch } from './PersonalSettings';
 import { applyTheme, BOX_STYLES, boxStylePref, clockPref, DEFAULT_THEME, DENSITIES, densityPref, effectPrefs, saveBoxStylePref, saveClockPref, saveDensityPref, saveEffectPrefs, saveWallpaperPref, wallpaperPref, WALLPAPERS, type EffectPrefs } from '../../theme';
 
 export function Appearance({ me }: { me: Me }) {
@@ -45,9 +47,8 @@ export function Appearance({ me }: { me: Me }) {
 
   return (
     <>
-      <fieldset>
-        <legend>{t('settings.appearance.theme')}</legend>
-        <div className="theme-cards">
+      <Section id="look-theme" title={t('settings.appearance.theme')} scope="account">
+        <div className="theme-cards" role="radiogroup" aria-labelledby="look-theme">
           {THEMES.map((name) => {
             const k = tokensFor(name, name === 'terminal' ? scheme : null);
             return (
@@ -68,12 +69,11 @@ export function Appearance({ me }: { me: Me }) {
             );
           })}
         </div>
-      </fieldset>
+      </Section>
       {theme === 'terminal' && (
         <>
-          <fieldset>
-            <legend>{t('settings.appearance.scheme')}</legend>
-            <div className="scheme-choices">
+          <Section id="look-scheme" title={t('settings.appearance.scheme')} scope="account">
+            <div className="scheme-choices" role="radiogroup" aria-labelledby="look-scheme">
               {TERMINAL_SCHEMES.map((s) => {
                 const b = TERMINAL_SCHEME_BASES[s];
                 return (
@@ -85,40 +85,30 @@ export function Appearance({ me }: { me: Me }) {
                 );
               })}
             </div>
-          </fieldset>
-          <fieldset>
-            <legend>{t('settings.appearance.boxes')}</legend>
-            <div className="choice-row">
+          </Section>
+          <Section id="look-boxes" title={t('settings.appearance.boxes')} scope="device">
+            <div className="choice-row" role="radiogroup" aria-labelledby="look-boxes">
               {BOX_STYLES.map((b) => (
                 <label key={b} className="check"><input type="radio" name="boxes" value={b} checked={boxes === b} onChange={() => { setBoxes(b); saveBoxStylePref(b); }} />{t(`settings.boxes.${b}` as StringKey)}</label>
               ))}
             </div>
-            <p className="hint">{t('settings.appearance.thisDevice')}</p>
-          </fieldset>
+          </Section>
         </>
       )}
-      <fieldset>
-        <legend>{t('settings.appearance.effects')}</legend>
+      <Section id="look-effects" title={t('settings.appearance.effects')} scope="device" intro={t('settings.appearance.effectsNote')}>
         {(['scanlines', 'glow', 'crt'] as const).map((key) => (
-          <label key={key} className="check">
-            <input type="checkbox" checked={fx[key]} onChange={(e) => toggle(key, e.target.checked)} />
-            <span><strong>{t(`settings.effects.${key}` as StringKey)}</strong> <span className="hint">{t(`settings.effects.${key}.hint` as StringKey)}</span></span>
-          </label>
+          <DeviceSwitch key={key} label={t(`settings.effects.${key}` as StringKey)} hint={t(`settings.effects.${key}.hint` as StringKey)} checked={fx[key]} onChange={(on) => toggle(key, on)} />
         ))}
-        <p className="hint">{t('settings.appearance.effectsNote')} {t('settings.appearance.thisDevice')}</p>
-      </fieldset>
-      <fieldset>
-        <legend>{t('settings.appearance.density')}</legend>
-        <div className="choice-row">
+      </Section>
+      <Section id="look-density" title={t('settings.appearance.density')} scope="device">
+        <div className="choice-row" role="radiogroup" aria-labelledby="look-density">
           {DENSITIES.map((d) => (
             <label key={d} className="check"><input type="radio" name="density" value={d} checked={density === d} onChange={() => { setDensity(d); saveDensityPref(d); }} />{t(`settings.density.${d}` as StringKey)}</label>
           ))}
         </div>
-        <p className="hint">{t('settings.appearance.thisDevice')}</p>
-      </fieldset>
-      <fieldset>
-        <legend>{t('settings.appearance.wallpaper')}</legend>
-        <div className="theme-choices">
+      </Section>
+      <Section id="look-wallpaper" title={t('settings.appearance.wallpaper')} scope="device">
+        <div className="theme-choices" role="radiogroup" aria-labelledby="look-wallpaper">
           {WALLPAPERS.map((w) => (
             <label key={w} className={`theme-choice${paper === w ? ' is-chosen' : ''}`}>
               <input type="radio" name="wallpaper" value={w} checked={paper === w} onChange={() => { setPaper(w); saveWallpaperPref(w); }} />
@@ -127,13 +117,10 @@ export function Appearance({ me }: { me: Me }) {
             </label>
           ))}
         </div>
-        <p className="hint">{t('settings.appearance.thisDevice')}</p>
-      </fieldset>
-      <fieldset>
-        <legend>{t('settings.appearance.taskbar')}</legend>
-        <label className="check"><input type="checkbox" checked={clock} onChange={(e) => { setClock(e.target.checked); saveClockPref(e.target.checked); }} />{t('settings.appearance.clock')}</label>
-        <p className="hint">{t('settings.appearance.thisDevice')}</p>
-      </fieldset>
+      </Section>
+      <Section id="look-taskbar" title={t('settings.appearance.taskbar')} scope="device">
+        <DeviceSwitch label={t('settings.appearance.clock')} checked={clock} onChange={(on) => { setClock(on); saveClockPref(on); }} />
+      </Section>
       {error && <Alert kind="error">{error}</Alert>}
     </>
   );
@@ -154,26 +141,14 @@ export function DeviceAlerts() {
     save({ ...prefs, desktop: p === 'granted' });
   };
   return (
-    <section aria-labelledby="alerts-h">
-      <h2 id="alerts-h">{t('settings.alerts.title')}</h2>
-      <p className="hint">{t('settings.alerts.intro')}</p>
-      <fieldset>
-        <legend>{t('settings.alerts.device')}</legend>
-        <label className="check">
-          <input type="checkbox" checked={prefs.desktop} disabled={permission === 'unsupported'} onChange={(e) => void turnOnDesktop(e.target.checked)} />
-          {t('settings.alerts.desktop')}
-        </label>
+    <Section id="alerts-h" title={t('settings.alerts.title')} scope="device" intro={t('settings.alerts.intro')}>
+        <DeviceSwitch label={t('settings.alerts.desktop')} checked={prefs.desktop} disabled={permission === 'unsupported'} onChange={(on) => void turnOnDesktop(on)} />
         {permission === 'unsupported' && <p className="hint">{t('settings.alerts.unsupported')}</p>}
         {permission === 'denied' && <p className="field-error">{t('settings.alerts.denied')}</p>}
-        <label className="check">
-          <input type="checkbox" checked={prefs.sound} onChange={(e) => { unlockAudio(); save({ ...prefs, sound: e.target.checked }); if (e.target.checked) playChime(); }} />
-          {t('settings.alerts.sound')}
-        </label>
-        <p className="hint">{t('settings.appearance.thisDevice')}</p>
+        <DeviceSwitch label={t('settings.alerts.sound')} checked={prefs.sound} onChange={(on) => { unlockAudio(); save({ ...prefs, sound: on }); if (on) playChime(); }} />
         <div className="actions">
           <button type="button" className="btn" onClick={() => { unlockAudio(); if (prefs.sound) playChime(); toast(t('settings.alerts.tested')); }}>{t('settings.alerts.test')}</button>
         </div>
-      </fieldset>
-    </section>
+    </Section>
   );
 }

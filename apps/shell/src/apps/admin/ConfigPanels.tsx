@@ -14,7 +14,7 @@ interface HistoryRow { version: number; value: unknown; previous: unknown; reaso
 const label = (key: string) => `setting.${key}` as StringKey;
 const OPTIONS: Record<string, string[]> = { 'signup.mode': ['invite', 'open'], 'ui.default_theme': [...THEMES] };
 const shown = (t: ReturnType<typeof useT>, key: string, v: unknown): string =>
-  typeof v === 'boolean' ? (v ? 'on' : 'off') : OPTIONS[key] ? t(`${label(key)}.${String(v)}` as StringKey) : String(v);
+  typeof v === 'boolean' ? t(v ? 'admin.config.on' : 'admin.config.off') : OPTIONS[key] ? t(`${label(key)}.${String(v)}` as StringKey) : String(v);
 
 // ---------------------------------------------------------------- settings
 
@@ -59,18 +59,23 @@ function Setting({ s }: { s: SettingRow }) {
         {s.risky && ` · ${t('admin.config.risky')}`}
       </p>
       <form onSubmit={(e) => { e.preventDefault(); setError(null); setSaved(false); send.mutate({ value: parse(), confirm: false }); }}>
+        {typeof s.value === 'boolean' && !OPTIONS[s.key] ? (
+          <label className="check switch">
+            <input id={id} type="checkbox" role="switch" checked={value === 'true'} onChange={(e) => setValue(String(e.target.checked))} />
+            <span>{t('admin.config.newSwitch')}</span>
+          </label>
+        ) : (
         <div className="field">
           <label htmlFor={id}>{t('admin.config.new')}</label>
           {OPTIONS[s.key] ? (
             <select id={id} value={value} onChange={(e) => setValue(e.target.value)}>{OPTIONS[s.key]!.map((o) => <option key={o} value={o}>{t(`${label(s.key)}.${o}` as StringKey)}</option>)}</select>
-          ) : typeof s.value === 'boolean' ? (
-            <select id={id} value={value} onChange={(e) => setValue(e.target.value)}><option value="true">on</option><option value="false">off</option></select>
           ) : typeof s.value === 'string' ? (
             <textarea id={id} rows={4} value={value} onChange={(e) => setValue(e.target.value)} maxLength={2000} />
           ) : (
             <input id={id} type="number" step="any" value={value} onChange={(e) => setValue(e.target.value)} required />
           )}
         </div>
+        )}
         <TextField label={t('field.reason')} value={reason} onChange={setReason} hint={t('admin.user.reasonHint')} />
         {error && <Alert kind="error">{error}</Alert>}
         {saved && <Alert kind="success">{t('admin.config.saved')}</Alert>}

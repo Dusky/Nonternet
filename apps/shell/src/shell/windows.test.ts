@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clampGeometry, clearSession, resizeFrom, snapZone, focusedWindow, MIN_H, MIN_W, restoreSession, saveSession, TASKBAR_HEIGHT, useWindows } from './windows';
+import { clampGeometry, clearSession, resizeFrom, snapGeometry, snapZone, focusedWindow, MIN_H, MIN_W, restoreSession, saveSession, TASKBAR_HEIGHT, useWindows } from './windows';
 
 const V = { w: 1200, h: 800 };
 const store = () => useWindows.getState();
@@ -283,6 +283,16 @@ describe('snapping by dragging to an edge', () => {
     expect(snapZone({ x: V.w - 1, y: 300 }, V)).toBe('right');
     expect(snapZone({ x: 400, y: 10 }, V)).toBe('max');
     expect(snapZone({ x: 400, y: 300 }, V)).toBeNull();
+  });
+
+  it('takes a quarter in each corner, and fills half or all of the desktop in the right place', () => {
+    expect(snapZone({ x: 0, y: TASKBAR_HEIGHT + 10 }, V)).toBe('top-left');
+    expect(snapZone({ x: V.w - 1, y: V.h - 5 }, V)).toBe('bottom-right');
+    expect(snapZone({ x: 20, y: 5 }, V)).toBe('top-left'); // dragged into the very corner past the taskbar
+    const a = { w: V.w, h: V.h - TASKBAR_HEIGHT };
+    expect(snapGeometry('bottom-right', V)).toEqual({ x: a.w - a.w / 2, y: a.h - a.h / 2, w: a.w / 2, h: a.h / 2 });
+    expect(snapGeometry('left', V)).toEqual({ x: 0, y: 0, w: a.w / 2, h: a.h });
+    store().snap('settings', 'top-right');
   });
 });
 

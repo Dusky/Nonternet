@@ -232,6 +232,10 @@ function TaskbarWindow({ win, front }: { win: Win; front: boolean }) {
     { label: win.maximized ? t('window.restore', { app: title }) : t('window.maximize', { app: title }), onSelect: () => toggleMaximize(win.id) },
     { label: t('window.snapLeft'), onSelect: () => snap(win.id, 'left') },
     { label: t('window.snapRight'), onSelect: () => snap(win.id, 'right') },
+    { label: t('window.snapTopLeft'), onSelect: () => snap(win.id, 'top-left') },
+    { label: t('window.snapTopRight'), onSelect: () => snap(win.id, 'top-right') },
+    { label: t('window.snapBottomLeft'), onSelect: () => snap(win.id, 'bottom-left') },
+    { label: t('window.snapBottomRight'), onSelect: () => snap(win.id, 'bottom-right') },
     { label: t('window.close', { app: title }), onSelect: () => close(win.id), danger: true },
   ]);
   return (

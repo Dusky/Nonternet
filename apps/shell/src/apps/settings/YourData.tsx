@@ -5,6 +5,7 @@ import type { Me } from '@app/shared';
 import { en, type StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, TextField, EmptyState } from '../../components/ui';
+import { Section } from './Section';
 import { errorText, formatWhen, useT } from '../../hooks';
 
 interface ExportRow { id: string; status: 'queued' | 'running' | 'ready' | 'failed' | 'expired'; requested_at: string; ready_at: string | null; expires_at: string | null; size_bytes: number | null; includes_private_key: boolean; error: string | null }
@@ -33,8 +34,7 @@ function ExportSection() {
     onError: (e) => { setNote(null); setError(errorText(e)); },
   });
   return (
-    <section className="panel" aria-labelledby="export-h">
-      <h2 id="export-h">{t('data.export.title')}</h2>
+    <Section id="export-h" title={t('data.export.title')} scope="account">
       <p>{t('data.export.intro')}</p>
       <form onSubmit={(e) => { e.preventDefault(); setError(null); ask.mutate(); }}>
         <TextField label={t('data.export.password')} hint={t('data.export.passwordHint')} type="password" autoComplete="current-password" value={password} onChange={setPassword} required />
@@ -60,7 +60,7 @@ function ExportSection() {
           </li>
         ))}
       </ul>
-    </section>
+    </Section>
   );
 }
 
@@ -93,8 +93,7 @@ function ImportSection() {
   });
   const toggle = (p: Part, on: boolean) => setParts((now) => (on ? [...now, p] : now.filter((x) => x !== p)));
   return (
-    <section className="panel" aria-labelledby="import-h">
-      <h2 id="import-h">{t('data.import.title')}</h2>
+    <Section id="import-h" title={t('data.import.title')} scope="account">
       <p>{t('data.import.intro')}</p>
       <div className="field">
         <label htmlFor="import-file">{t('data.import.file')}</label>
@@ -143,7 +142,7 @@ function ImportSection() {
           ))}</ul>
         </Alert>
       )}
-    </section>
+    </Section>
   );
 }
 
@@ -163,8 +162,7 @@ function DeleteSection({ me }: { me: Me }) {
     onError: (e) => setError(errorText(e)),
   });
   return (
-    <section className="panel" aria-labelledby="delete-h">
-      <h2 id="delete-h">{t('data.delete.title')}</h2>
+    <Section id="delete-h" title={t('data.delete.title')} scope="account">
       <p>{t('data.delete.intro')}</p>
       <p className="hint">{t('data.delete.ringsNote')}</p>
       <form onSubmit={(e) => { e.preventDefault(); setError(null); void confirm({ message: t('data.delete.confirm'), confirmLabel: t('confirm.deleteAccount'), danger: true }).then((ok) => ok && del.mutate()); }}>
@@ -179,6 +177,6 @@ function DeleteSection({ me }: { me: Me }) {
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn btn-danger" type="submit" disabled={del.isPending}>{t('data.delete.go')}</button>
       </form>
-    </section>
+    </Section>
   );
 }

@@ -17,7 +17,7 @@ export default function ChatApp() {
   useEffect(() => { connect(); return () => disconnect(); }, [connect, disconnect]);
   const [showHelp, setShowHelp] = useState(false);
   return (
-    <div className="app-content chat">
+    <div className="app-content chat app-fill">
       {status === 'error' && <Alert kind="error">{error ?? t('chat.failed')}</Alert>}
       {status === 'closed' && (
         <Alert kind="info">{t('chat.closed')} <button type="button" className="link" onClick={() => { disconnect(); connect(); }}>{t('chat.reconnect')}</button></Alert>

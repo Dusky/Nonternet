@@ -100,10 +100,10 @@ test('device preferences for chat, boards and the terminal are saved on this dev
   const u = await makeUser(page);
   await signIn(page, u.handle, PASSWORD);
   await page.goto('/settings/boards');
-  await page.getByLabel('Open threads as').selectOption('threaded');
+  await page.getByRole('group', { name: 'Open threads as' }).getByRole('button', { name: 'Threaded' }).click();
   await page.getByLabel('Show reactions on posts').uncheck();
   await page.reload();
-  await expect(page.getByLabel('Open threads as')).toHaveValue('threaded');
+  await expect(page.getByRole('group', { name: 'Open threads as' }).getByRole('button', { name: 'Threaded' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('Show reactions on posts')).not.toBeChecked();
   await scan(page, 'board settings');
   await page.goto('/settings/terminal');

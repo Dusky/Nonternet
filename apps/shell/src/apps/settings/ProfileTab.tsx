@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { profileUpdateSchema, type CharacterView, type Me } from '@app/shared';
 import { api } from '../../api';
 import { Alert, TextField } from '../../components/ui';
+import { Section } from './Section';
 import { errorText, useT } from '../../hooks';
 
 export function Profile({ me }: { me: Me }) {
@@ -26,12 +27,14 @@ export function Profile({ me }: { me: Me }) {
     save.mutate(parsed.data);
   };
   return (
+    <Section id="profile-h" title={t('settings.tab.profile')} scope="account">
     <form onSubmit={submit} noValidate>
       <TextField label={t('field.displayName')} value={displayName} onChange={setDisplayName} maxLength={60} />
       <TextField label={t('field.bio')} value={bio} onChange={setBio} multiline maxLength={500} />
       {error && <Alert kind="error">{error}</Alert>}
       <button className="btn btn-primary" type="submit" disabled={save.isPending}>{t('common.save')}</button>
     </form>
+    </Section>
   );
 }
 
@@ -46,8 +49,7 @@ export function FeaturedCharacter() {
   });
   if (!q.data) return null;
   return (
-    <section className="panel" aria-labelledby="featured-h">
-      <h2 id="featured-h">{t('settings.featured')}</h2>
+    <Section id="featured-h" title={t('settings.featured')} scope="account">
       {q.data.characters.length === 0 ? <p className="muted">{t('settings.featuredEmpty')}</p> : (
         <div className="field">
           <label htmlFor="featured-char">{t('settings.featuredPick')}</label>
@@ -61,6 +63,6 @@ export function FeaturedCharacter() {
           {save.isError && <Alert kind="error">{errorText(save.error)}</Alert>}
         </div>
       )}
-    </section>
+    </Section>
   );
 }

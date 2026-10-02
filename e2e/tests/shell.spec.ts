@@ -182,7 +182,7 @@ test.describe('themes', () => {
     await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'off'); // effects start off
     await expect(page.locator('html')).toHaveAttribute('data-glow', 'off');
 
-    await win.getByRole('checkbox', { name: /^Scanlines/ }).check();
+    await win.getByRole('switch', { name: /^Scanlines/ }).check();
     await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'on');
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'terminal');

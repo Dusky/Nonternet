@@ -59,24 +59,37 @@ export function resizeFrom(edge: Edge, start: Geometry, dx: number, dy: number):
   return { x, y, w, h };
 }
 
-export type SnapZone = 'left' | 'right' | 'max';
+export type SnapZone = 'left' | 'right' | 'max' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type SnapSide = Exclude<SnapZone, 'max'>;
 const SNAP_MARGIN = 6;
+const CORNER = 48;
 
-// Where a window being dragged will land if let go with the pointer here: against the left or right edge of
-// the screen it takes that half, against the top edge it fills the desktop. Null elsewhere.
+// Where a window being dragged will land if let go with the pointer here: in a corner of the screen it takes
+// that quarter, against the left or right edge that half, against the top edge it fills the desktop. Null elsewhere.
 export function snapZone(pointer: { x: number; y: number }, v: Viewport): SnapZone | null {
+  const left = pointer.x <= SNAP_MARGIN || (pointer.x <= CORNER && pointer.y <= TASKBAR_HEIGHT + SNAP_MARGIN);
+  const right = pointer.x >= v.w - SNAP_MARGIN || (pointer.x >= v.w - CORNER && pointer.y <= TASKBAR_HEIGHT + SNAP_MARGIN);
+  const top = pointer.y <= TASKBAR_HEIGHT + CORNER;
+  const bottom = pointer.y >= v.h - CORNER;
+  if (left && top) return 'top-left';
+  if (right && top) return 'top-right';
+  if (left && bottom) return 'bottom-left';
+  if (right && bottom) return 'bottom-right';
   if (pointer.y <= TASKBAR_HEIGHT + SNAP_MARGIN) return 'max';
-  if (pointer.x <= SNAP_MARGIN) return 'left';
-  if (pointer.x >= v.w - SNAP_MARGIN) return 'right';
+  if (left) return 'left';
+  if (right) return 'right';
   return null;
 }
 
-// The place a snap zone gives a window: half the desktop, or all of it.
+// The place a snap zone gives a window: a quarter, a half, or all of the desktop.
 export function snapGeometry(zone: SnapZone, v: Viewport): Geometry {
   const a = area(v);
   if (zone === 'max') return { x: 0, y: 0, w: a.w, h: a.h };
   const half = Math.max(Math.floor(a.w / 2), Math.min(MIN_W, a.w));
-  return { x: zone === 'left' ? 0 : a.w - half, y: 0, w: half, h: a.h };
+  const x = zone.endsWith('left') ? 0 : a.w - half;
+  if (zone === 'left' || zone === 'right') return { x, y: 0, w: half, h: a.h };
+  const halfH = Math.max(Math.floor(a.h / 2), Math.min(MIN_H, a.h));
+  return { x, y: zone.startsWith('top') ? 0 : a.h - halfH, w: half, h: halfH };
 }
 
 const safeStorage = () => {
@@ -113,7 +126,7 @@ interface State {
   focus(id: AppId): void;
   minimize(id: AppId): void;
   toggleMaximize(id: AppId): void;
-  snap(id: AppId, side: 'left' | 'right'): void;
+  snap(id: AppId, side: SnapSide): void;
   cycle(): AppId | null;
   move(id: AppId, x: number, y: number): void;
   resize(id: AppId, geometry: Geometry): void;
@@ -196,7 +209,7 @@ export const useWindows = create<State>((set, get) => ({
     };
   }),
 
-  // Fill the left or right half of the desktop. Un-maximizing (or snapping again) puts it back.
+  // Fill a half or a quarter of the desktop. Un-maximizing (or snapping again) puts it back.
   snap: (id, side) => set((s) => {
     const z = s.zTop + 1;
     const g = snapGeometry(side, s.viewport);

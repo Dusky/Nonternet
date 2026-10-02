@@ -32,6 +32,10 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
     { label: win.maximized ? t('window.restore', { app: title }) : t('window.maximize', { app: title }), onSelect: () => toggleMaximize(win.id) },
     { label: t('window.snapLeft'), onSelect: () => snap(win.id, 'left') },
     { label: t('window.snapRight'), onSelect: () => snap(win.id, 'right') },
+    { label: t('window.snapTopLeft'), onSelect: () => snap(win.id, 'top-left') },
+    { label: t('window.snapTopRight'), onSelect: () => snap(win.id, 'top-right') },
+    { label: t('window.snapBottomLeft'), onSelect: () => snap(win.id, 'bottom-left') },
+    { label: t('window.snapBottomRight'), onSelect: () => snap(win.id, 'bottom-right') },
     { label: t('window.close', { app: title }), onSelect: () => { close(win.id); focusFront(win.id); }, danger: true },
   ];
   const ctx = useContextMenu(items);
@@ -74,10 +78,14 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
     ctx.bind.onKeyDown(e);
     if (e.defaultPrevented) return;
     if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); snap(win.id, e.key === 'ArrowLeft' ? 'left' : 'right'); return; }
+    if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); if (!win.maximized) toggleMaximize(win.id); return; }
+    if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); if (win.maximized) toggleMaximize(win.id); return; }
     const d = { ArrowLeft: [-STEP, 0], ArrowRight: [STEP, 0], ArrowUp: [0, -STEP], ArrowDown: [0, STEP] }[e.key];
     if (!d || win.maximized) return;
     e.preventDefault();
-    if (e.shiftKey) resize(win.id, { x: win.x, y: win.y, w: win.w + d[0]!, h: win.h + d[1]! });
+    // Shift: the right or bottom edge moves. Ctrl+Shift: the left or top edge moves.
+    if (e.shiftKey && (e.ctrlKey || e.metaKey)) resize(win.id, resizeFrom(d[0] ? 'w' : 'n', { x: win.x, y: win.y, w: win.w, h: win.h }, d[0]!, d[1]!));
+    else if (e.shiftKey) resize(win.id, { x: win.x, y: win.y, w: win.w + d[0]!, h: win.h + d[1]! });
     else move(win.id, win.x + d[0]!, win.y + d[1]!);
   };
   // In the window itself the same keys mean Back and Forward, as in a browser.
@@ -97,7 +105,7 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
       <header
         ref={titleBar} className="window-title" tabIndex={0} onPointerDown={onTitleDown} onPointerMove={onTitleMove} onPointerUp={onTitleUp}
         onDoubleClick={() => toggleMaximize(win.id)} onKeyDown={onKey} onContextMenu={ctx.bind.onContextMenu}
-        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown Alt+ArrowLeft Alt+ArrowRight Shift+F10"
+        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown Control+Shift+ArrowLeft Control+Shift+ArrowUp Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Shift+F10"
       >
         <div className="window-buttons">
           <button type="button" className="is-nav" aria-label={t('window.back', { app: title })} disabled={win.cursor === 0} onClick={() => back(win.id)}><Icon name="back" /></button>

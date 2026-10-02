@@ -11,7 +11,7 @@ export default function MudApp() {
   useEffect(() => { connect(); return () => disconnect(); }, [connect, disconnect]);
   const [help, setHelp] = useState(false);
   return (
-    <div className="app-content mud">
+    <div className="app-content mud app-fill">
       {status === 'error' && <Alert kind="error">{error ?? t('mud.failed')}</Alert>}
       {status === 'closed' && <Alert kind="info">{t('mud.closed')} <button type="button" className="link" onClick={() => { disconnect(); connect(); }}>{t('mud.reconnect')}</button></Alert>}
       {status === 'connecting' && <p className="hint" role="status">{t('mud.connecting')}</p>}

@@ -4,6 +4,7 @@ import { changePasswordSchema, type Me } from '@app/shared';
 import { api } from '../../api';
 import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, useT } from '../../hooks';
+import { Section } from './Section';
 import { TotpSetup } from '../../pages/Setup2fa';
 
 export function Password() {
@@ -24,6 +25,7 @@ export function Password() {
     change.mutate();
   };
   return (
+    <Section id="password-h" title={t('settings.tab.password')} scope="account">
     <form onSubmit={submit} noValidate>
       <TextField label={t('field.currentPassword')} value={current} onChange={setCurrent} type="password" autoComplete="current-password" required />
       <TextField label={t('field.newPassword')} value={next} onChange={setNext} type="password" hint={t('auth.signup.passwordHint')} autoComplete="new-password" required />
@@ -31,6 +33,7 @@ export function Password() {
       {change.isSuccess && !error && <Alert kind="success">{t('settings.password.changed')}</Alert>}
       <button className="btn btn-primary" type="submit" disabled={change.isPending}>{t('settings.tab.password')}</button>
     </form>
+    </Section>
   );
 }
 
@@ -50,19 +53,19 @@ export function TwoFactor({ me }: { me: Me }) {
   // Stay on the setup until the person has seen their recovery codes, even after /me says two-factor is on.
   if (!me.totp_enabled || inSetup) {
     return (
-      <>
+      <Section id="twofa-h" title={t('settings.tab.twofa')} scope="account">
         {!me.totp_enabled && <p>{t('settings.twofa.off')}</p>}
         <TotpSetup onStart={() => setInSetup(true)} onDone={() => { setInSetup(false); void qc.invalidateQueries({ queryKey: ['me'] }); }} />
-      </>
+      </Section>
     );
   }
   return (
-    <>
+    <Section id="twofa-h" title={t('settings.tab.twofa')} scope="account">
       <p>{t('settings.twofa.on')}</p>
       <p>{t('settings.twofa.codesLeft', { count: me.recovery_codes_remaining })}</p>
       {codes ? (
         <section aria-labelledby="new-codes">
-          <h2 id="new-codes">{t('twofa.codes.title')}</h2>
+          <h3 id="new-codes">{t('twofa.codes.title')}</h3>
           <p>{t('twofa.codes.body')}</p>
           <ul className="codes">{codes.map((c) => <li key={c}><code>{c}</code></li>)}</ul>
           <CopyButton text={codes.join('\n')} />
@@ -74,6 +77,6 @@ export function TwoFactor({ me }: { me: Me }) {
           <button className="btn" type="submit" disabled={regen.isPending || code.length !== 6}>{t('settings.twofa.regen')}</button>
         </form>
       )}
-    </>
+    </Section>
   );
 }

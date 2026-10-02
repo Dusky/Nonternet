@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, TextField, EmptyState } from '../../components/ui';
+import { Section } from './Section';
 import { errorText, formatWhen, useSite, useT } from '../../hooks';
 
 // A separate password for IRC clients and, later, telnet and the MUD (docs/02). Leaking it doesn't
@@ -20,8 +21,7 @@ export function TerminalPassword() {
   const remove = useMutation({ mutationFn: () => api.post('/me/terminal-password/remove', { password }), onSuccess: () => done(t('terminal.removed')), onError: (e) => setMsg({ ok: false, text: errorText(e) }) });
   const submit = (e: FormEvent) => { e.preventDefault(); setMsg(null); save.mutate(); };
   return (
-    <>
-      <p>{t('terminal.intro')}</p>
+    <Section id="term-pass-h" title={t('settings.terminal.password')} scope="account" intro={t('terminal.intro')}>
       {site.services.irc && <p className="hint">{t('chat.native', { host: site.irc.host, port: site.irc.port })}</p>}
       {state.data && <p><strong>{state.data.set ? t('terminal.isSet', { when: formatWhen(state.data.set_at) ?? '' }) : t('terminal.notSet')}</strong></p>}
       <form onSubmit={submit} noValidate>
@@ -33,7 +33,7 @@ export function TerminalPassword() {
           {state.data?.set && <button className="btn" type="button" disabled={remove.isPending} onClick={() => { setMsg(null); remove.mutate(); }}>{t('terminal.remove')}</button>}
         </div>
       </form>
-    </>
+    </Section>
   );
 }
 
@@ -51,8 +51,7 @@ export function SshKeys() {
   const add = useMutation({ mutationFn: () => api.post('/me/ssh-keys', { name, public_key: key }), onSuccess: () => { setName(''); setKey(''); refresh(); } });
   const remove = useMutation({ mutationFn: (id: string) => api.del(`/me/ssh-keys/${id}`), onSuccess: refresh });
   return (
-    <section className="panel" aria-labelledby="ssh-h">
-      <h2 id="ssh-h">{t('ssh.title')}</h2>
+    <Section id="ssh-h" title={t('ssh.title')} scope="account">
       <p className="hint">{t('ssh.intro')}</p>
       {q.data && q.data.keys.length === 0 && <EmptyState>{t('ssh.none')}</EmptyState>}
       <ul className="rows">
@@ -73,7 +72,7 @@ export function SshKeys() {
         {add.isError && <Alert kind="error">{errorText(add.error)}</Alert>}
         <button type="submit" className="btn" disabled={add.isPending || !key.trim()}>{t('ssh.add')}</button>
       </form>
-    </section>
+    </Section>
   );
 }
 
@@ -104,8 +103,7 @@ export function OfflineMail() {
     onError: (e) => setMsg({ ok: false, text: errorText(e) }),
   });
   return (
-    <section className="panel" aria-labelledby="qwk-h">
-      <h2 id="qwk-h">{t('qwk.title')}</h2>
+    <Section id="qwk-h" title={t('qwk.title')} scope="account">
       <p className="hint">{t('qwk.intro')}</p>
       {q.data && (
         <p className="hint">{t('qwk.boards', { boards: q.data.conferences.map((c) => `${c.conf} ${c.name}`).join(', ') || '-' })}</p>
@@ -118,6 +116,6 @@ export function OfflineMail() {
         <input id="rep-file" type="file" accept=".rep,.REP,application/zip" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setMsg(null); upload.mutate(f); e.target.value = ''; } }} disabled={upload.isPending} />
       </div>
       {msg && <Alert kind={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>}
-    </section>
+    </Section>
   );
 }

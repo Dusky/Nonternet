@@ -122,7 +122,7 @@ export default function TerminalApp() {
   }, [prefs.fontSize]);
 
   return (
-    <div className="app-content terminal-app">
+    <div className="app-content terminal-app app-fill">
       {error && <Alert kind="error">{error}</Alert>}
       {status === 'connecting' && <p className="hint" role="status">{t('terminal.connecting')}</p>}
       {status === 'reconnecting' && <p className="hint" role="status">{t('terminal.reconnecting')}</p>}
