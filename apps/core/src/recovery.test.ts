@@ -17,6 +17,7 @@ describe.skipIf(!dbAvailable)('TOTP replay, recovery codes and password reset', 
   beforeAll(async () => {
     ({ db, drop } = await createTestDb());
     ctx = await makeApp(db);
+    ctx.deps.config.security.require_admin_2fa = true; // these tests are about the site that requires it (docs/02)
   });
   afterAll(async () => drop());
 

@@ -65,5 +65,8 @@ mud:
   # public_host: mud.example.net   # default mud.{site.domain}
   public_port: 4000                # telnet for native MUD clients
 
+# Two-factor sign-in is optional; set true to require it for admins (also in the console under Settings).
+security:
+  require_admin_2fa: false
 moderation:
   public_modlog: true   # each board's mod log can be read by anyone who can read the board

@@ -221,8 +221,8 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
 
   await requireSecondFactor(deps, u, input, ctx);
 
-  // Admins must have TOTP (docs/15). Until they set it up their session is limited.
-  const limited = u.role === 'admin' && !u.totp_enabled_at;
+  // When the site requires it (security.require_admin_2fa, docs/02), an admin without TOTP gets a limited session until they set it up.
+  const limited = deps.config.security.require_admin_2fa && u.role === 'admin' && !u.totp_enabled_at;
   const token = randomToken();
   await deps.db.tx(async (q) => {
     await q.query(
@@ -248,11 +248,11 @@ export async function resolveSession(deps: AppDeps, rawToken: string): Promise<S
   }>(
     // `limited` is worked out from the user's CURRENT role, not just the session's flag: someone
     // promoted to admin mid-session must set up TOTP before they can use any admin power.
-    `SELECT s.id AS sid, s.kind, (s.limited OR (u.role = 'admin' AND u.totp_enabled_at IS NULL)) AS limited, u.role_rev,
+    `SELECT s.id AS sid, s.kind, ($2::boolean AND (s.limited OR (u.role = 'admin' AND u.totp_enabled_at IS NULL))) AS limited, u.role_rev,
             COALESCE((SELECT array_agg(o.scope_type || ':' || o.scope_id ORDER BY o.scope_type, o.scope_id) FROM scoped_roles o WHERE o.user_id = u.id), '{}') AS ops,
             (SELECT count(*)::int FROM recovery_codes r WHERE r.user_id = u.id AND r.used_at IS NULL) AS recovery_remaining, u.id, u.handle, u.display_name, u.bio, u.theme, u.theme_variant, u.email, u.role, u.email_verified_at, u.totp_enabled_at
        FROM sessions s JOIN users u ON u.id = s.user_id
-      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken)]);
+      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(rawToken), deps.config.security.require_admin_2fa]);
   const row = r.rows[0];
   if (!row) return null;
   // BBS sessions count as the BBS when it signs in (bbs/service.ts), not as web visits.

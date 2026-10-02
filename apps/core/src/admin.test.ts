@@ -14,6 +14,7 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
   beforeAll(async () => {
     ({ db, drop } = await createTestDb());
     ctx = await makeApp(db);
+    ctx.deps.config.security.require_admin_2fa = true; // these tests are about the site that requires it (docs/02)
     await createAdmin(ctx.deps, { handle: 'boss', email: 'boss@example.test', password: PASSWORD });
   });
   afterAll(async () => drop());
@@ -33,6 +34,18 @@ describe.skipIf(!dbAvailable)('admin, TOTP and invites', () => {
     expect(u.email_verified_at).not.toBeNull();
     const a = first(await db.query(`SELECT actor_kind, origin FROM audit_log WHERE target_id = $1`, [u.id]));
     expect(a).toEqual({ actor_kind: 'cli', origin: 'cli' });
+  });
+
+  it('by default (two-factor optional) gives an admin without TOTP a full session, and limits it once the site requires it', async () => {
+    ctx.deps.config.security.require_admin_2fa = false;
+    try {
+      const { c, r } = await loginAdmin();
+      expect(r.body.user).toMatchObject({ role: 'admin', limited: false, totp_enabled: false });
+      expect((await c.post('/api/v1/admin/invites', {})).status).toBeLessThan(300);
+      // Turned on: the same session is limited at once, without logging in again.
+      ctx.deps.config.security.require_admin_2fa = true;
+      expect((await c.post('/api/v1/admin/invites', {})).body.error.code).toBe('totp_setup_required');
+    } finally { ctx.deps.config.security.require_admin_2fa = true; }
   });
 
   it('gives an admin without TOTP a limited session that cannot use admin calls', async () => {

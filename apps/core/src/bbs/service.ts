@@ -24,7 +24,7 @@ async function openSession(deps: AppDeps, user: { id: string; handle: string; ro
   await deps.db.tx(async (q) => {
     last = (await q.query<{ at: Date | null }>(`SELECT max(connected_at) AS at FROM bbs_calls WHERE user_id = $1`, [user.id])).rows[0]?.at ?? null;
     const t = await q.query<{ totp_enabled_at: Date | null }>(`SELECT totp_enabled_at FROM users WHERE id = $1`, [user.id]);
-    const limited = user.role === 'admin' && !t.rows[0]?.totp_enabled_at;
+    const limited = deps.config.security.require_admin_2fa && user.role === 'admin' && !t.rows[0]?.totp_enabled_at;
     await q.query(
       `INSERT INTO sessions (id, user_id, token_hash, user_agent, ip_hash, limited, expires_at, kind)
        VALUES ($1, $2, $3, $4, $5, $6, now() + $7 * interval '1 hour', 'bbs')`,

@@ -13,6 +13,7 @@ describe.skipIf(!dbAvailable)('roles, suspension, ops and the audit log', () => 
   beforeAll(async () => {
     ({ db, drop } = await createTestDb());
     ctx = await makeApp(db);
+    ctx.deps.config.security.require_admin_2fa = true; // these tests are about the site that requires it (docs/02)
     boss = await makeAdmin(ctx, 'boss');
     // Ops are granted for boards and rings that exist, so make the ones these tests use.
     for (let i = 1; i <= 50; i++) {

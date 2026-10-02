@@ -26,7 +26,7 @@
 - New accounts start as **guest** until email verified and (if application mode) approved,
   then become **user**.
 - Password: argon2id, 10–128 characters, no composition rules (length is what counts).
-  TOTP is optional for users and **required for admins** (below). Passkeys later.
+  TOTP is optional for everyone; a site can require it for admins (below, decided 2026-10-02). Passkeys later.
 - **Invite codes**: `XXXX-XXXX-XXXX`, single use, 14 days by default, created by admins.
   Unknown, used and expired codes all give the same error so codes can't be probed.
 - **Application mode is not built yet.** It needs the review queue in the admin console;
@@ -50,8 +50,10 @@
   cookie-bearing one with no `Origin` at all. Plain API clients with no cookie are unaffected.
 - **Rate limits**: login (per address and account), signup, verification and TOTP calls.
   In-memory for now, so they are per instance; move to Redis before running more than one core.
-- **Admin 2FA**: an admin who has no TOTP gets a *limited* session that can only reach `/me`
-  and the TOTP setup calls. Once they confirm a code the limit is lifted. Every later login needs
+- **Admin 2FA** (optional since 2026-10-02): two-factor is optional for admins too, unless the site turns on
+  `security.require_admin_2fa` in the console (off by default; turning it on shows how many admins it affects). When it
+  is on, an admin who has no TOTP gets a *limited* session that can only reach `/me`
+  and the TOTP setup calls. The admin status page mentions admins without two-factor either way. Once they confirm a code the limit is lifted. Every later login needs
   a code. The TOTP secret is encrypted at rest with `APP_SECRET_KEY`.
 - **Bootstrap and recovery** are operator commands run on the server (`apps/core` `cli`):
   `create-admin --handle … --email …` (password from `ADMIN_PASSWORD`, or generated and shown
@@ -80,7 +82,7 @@
 - Guardrails: an admin cannot change their own role or suspend themselves (so the site can't be
   left without an admin), and `trusted` or `admin` needs a confirmed email address.
 - Roles are read from the database on every request, so a change applies to sessions that are
-  already logged in. Someone promoted to admin mid-session is *limited* until they set up TOTP.
+  already logged in. When the site requires admin two-factor, someone promoted to admin mid-session is *limited* until they set up TOTP.
 - Ops (`scoped_roles`) are granted by admins for now, to any user, not only trusted ones. They
   show up as `ops` claims like `board:b_…`, `ring:r_…`, `channel:#synths`. Existence checks for
   boards and rings arrive with M2 and M3; until then only the ID's shape is checked.

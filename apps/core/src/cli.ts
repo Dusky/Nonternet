@@ -79,7 +79,7 @@ async function main() {
       const id = await createAdmin(deps, { handle, email, password });
       console.log(`Created admin ${handle} (${id}).`);
       if (!supplied) console.log(`Password (shown once): ${password}`);
-      console.log('On first login the admin is asked to set up two-factor authentication.');
+      console.log('Two-factor sign-in is recommended: set it up under Settings, Two-factor (the console can require it for admins).');
     } else if (command === 'seed-demo') {
       // A small community to look at (docs/19): needs a running core to talk to (--url, default http://127.0.0.1:3000).
       const r = await seedDemo(deps, arg('url') ?? 'http://127.0.0.1:3000');

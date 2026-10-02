@@ -110,7 +110,7 @@ Pinned versions of Ergo and the MUD engine; integration suite must pass before b
 - Audit log append-only: database triggers refuse UPDATE, DELETE and TRUNCATE for every role. In
   production also run core as a database role with INSERT and SELECT on `audit_log` only, so the
   guarantee doesn't rest on a trigger alone (set up with the production compose file, later).
-- Admin accounts require 2FA.
+- Two-factor is optional; a site can require it for admin accounts (`security.require_admin_2fa`, recommended for a public site).
 - Custom domains: TXT verification before on-demand TLS; allowlist endpoint for Caddy.
 
 ### Launch review (2026-09-30)

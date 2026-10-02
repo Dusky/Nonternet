@@ -8,7 +8,7 @@ describe.skipIf(!dbAvailable)('profile and password', () => {
   let db: Awaited<ReturnType<typeof createTestDb>>['db'];
   let ctx: Awaited<ReturnType<typeof makeApp>>;
 
-  beforeAll(async () => { ({ db, drop } = await createTestDb()); ctx = await makeApp(db); });
+  beforeAll(async () => { ({ db, drop } = await createTestDb()); ctx = await makeApp(db); ctx.deps.config.security.require_admin_2fa = true; });
   afterAll(async () => drop());
 
   describe('editing your profile', () => {

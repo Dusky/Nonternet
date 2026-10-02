@@ -7,7 +7,7 @@ import { errorText, useT } from '../hooks';
 
 // Turning on two-factor: scan or type the key, prove it with a code, then save the recovery codes.
 // The recovery codes are shown once, so the person must say they have saved them before moving on.
-export function TotpSetup({ onDone }: { onDone: () => void }) {
+export function TotpSetup({ onDone, onStart }: { onDone: () => void; onStart?: () => void }) {
   const t = useT();
   const qc = useQueryClient();
   const [code, setCode] = useState('');
@@ -21,7 +21,7 @@ export function TotpSetup({ onDone }: { onDone: () => void }) {
     onSuccess: (r) => { setCodes(r.recovery_codes); void qc.invalidateQueries({ queryKey: ['me'] }); },
   });
 
-  useEffect(() => { if (!start.isPending && !start.data && !start.isError) start.mutate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onStart?.(); if (!start.isPending && !start.data && !start.isError) start.mutate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (start.data) void QRCode.toDataURL(start.data.otpauth_url, { margin: 1, width: 200 }).then(setQr);
   }, [start.data]);

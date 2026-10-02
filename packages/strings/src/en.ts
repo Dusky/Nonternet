@@ -221,7 +221,7 @@ export const en = {
   'auth.backToLogin': 'Back to log in',
   // ---- two-factor setup
   'twofa.title': 'Set up two-factor authentication',
-  'twofa.required': 'Admins need two-factor authentication before they can continue.',
+  'twofa.required': 'This site asks admins to set up two-factor sign-in before they continue.',
   'twofa.scan': 'Scan this code with an authenticator app, or type the key in.',
   'twofa.key': 'Key',
   'twofa.qrAlt': 'QR code for your authenticator app',
@@ -739,6 +739,8 @@ export const en = {
   'setting.ui.default_theme.terminal': 'Terminal',
   'setting.ui.default_theme.platinum': 'Platinum',
   'setting.ui.default_theme.aqua': 'Aqua',
+  'admin.status.no2fa': '{count} admin has not set up two-factor sign-in. It is optional; you can require it under Settings.|{count} admins have not set up two-factor sign-in. It is optional; you can require it under Settings.',
+  'setting.security.require_admin_2fa': 'Admins must use two-factor sign-in',
   'setting.moderation.public_modlog': 'Show each board’s mod log to everyone who can read the board',
   'admin.ann.new': 'New announcement',
   'admin.ann.title': 'Title',

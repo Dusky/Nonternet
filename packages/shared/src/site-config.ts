@@ -92,6 +92,8 @@ export const siteConfigSchema = z
       .default({}),
     // The look people get until they pick one in Settings → Appearance (docs/10). Admin-editable.
     ui: z.object({ default_theme: themeSchema.default(DEFAULT_THEME_NAME) }).default({}),
+    // Two-factor sign-in (docs/02). Optional for everyone; an admin can make it required for admins (decided 2026-10-02).
+    security: z.object({ require_admin_2fa: z.boolean().default(false) }).default({}),
     moderation: z
       .object({
         // The mod log of each board is readable by anyone who can read the board (docs/03).

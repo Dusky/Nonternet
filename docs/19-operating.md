@@ -24,7 +24,7 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
    away from the server**: without them backups can't be read and admins lose two-factor.
 4. `./sitectl up` builds and starts everything. The first start takes a few minutes; Caddy gets certificates
    as soon as DNS points at the server.
-5. `./sitectl create-admin <handle> <email>`, then sign in on the web and set up two-factor (admins must).
+5. `./sitectl create-admin <handle> <email>`, then sign in on the web and set up two-factor (recommended; the console can require it for all admins).
 6. `./sitectl doctor` should end with "All good."
 7. Add the cron jobs below.
 

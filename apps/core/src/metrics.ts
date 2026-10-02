@@ -81,7 +81,7 @@ export async function getStatus(deps: AppDeps) {
   const dbMs = Date.now() - t0;
   const one = async <T extends Record<string, string | number | null>>(sql: string, params: unknown[] = []) => (await deps.db.query<T>(sql, params)).rows[0]!;
   const [users, posts, content, homepages, reports, outbox, exportsQ, backups, redis, homesDisk, exportsDisk] = await Promise.all([
-    one<{ total: string; active: string; suspended: string; fresh: string }>(`SELECT count(*) FILTER (WHERE status <> 'deleted') AS total, count(*) FILTER (WHERE status = 'active') AS active, count(*) FILTER (WHERE status = 'suspended') AS suspended, count(*) FILTER (WHERE created_at > $1) AS fresh FROM users`, [new Date(now - 86_400_000)]),
+    one<{ total: string; active: string; suspended: string; fresh: string; admins_no_2fa: string }>(`SELECT count(*) FILTER (WHERE status <> 'deleted') AS total, count(*) FILTER (WHERE status = 'active') AS active, count(*) FILTER (WHERE status = 'suspended') AS suspended, count(*) FILTER (WHERE created_at > $1) AS fresh, count(*) FILTER (WHERE status = 'active' AND role = 'admin' AND totp_enabled_at IS NULL) AS admins_no_2fa FROM users`, [new Date(now - 86_400_000)]),
     one<{ n: string }>(`SELECT count(*) AS n FROM posts WHERE posted_at > $1 AND deleted_at IS NULL`, [new Date(now - 86_400_000)]),
     one<{ boards: string; rings: string }>(`SELECT (SELECT count(*) FROM boards WHERE archived_at IS NULL) AS boards, (SELECT count(*) FROM rings WHERE archived_at IS NULL) AS rings`),
     one<{ n: string; bytes: string }>(`SELECT count(*) AS n, COALESCE(sum(size_bytes), 0) AS bytes FROM homepages WHERE has_index`),
@@ -106,6 +106,8 @@ export async function getStatus(deps: AppDeps) {
       reports: { open: Number(reports.open), escalated: Number(reports.escalated) },
     },
     backups,
+    // Not a warning (two-factor is optional, docs/02): the console mentions it quietly.
+    security: { require_admin_2fa: deps.config.security.require_admin_2fa, admins_without_2fa: Number(users.admins_no_2fa) },
     warnings: [] as string[],
   };
   // Plain codes; the console words them.

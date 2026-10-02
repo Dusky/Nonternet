@@ -115,6 +115,7 @@ describe.skipIf(!dbAvailable)('OIDC provider', () => {
     const port = await freePort();
     base = `http://127.0.0.1:${port}`;
     ctx = await makeApp(db, { oidcClients: CLIENTS, publicUrl: base });
+    ctx.deps.config.security.require_admin_2fa = true; // these tests are about the site that requires it (docs/02)
     await ctx.app.listen({ port, host: '127.0.0.1' });
     boss = await makeAdmin(ctx, 'boss');
   });

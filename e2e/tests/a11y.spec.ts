@@ -117,8 +117,9 @@ for (const theme of THEMES) {
     test('two-factor setup and its recovery codes', async ({ page }) => {
       await useTheme(page, theme);
       const admin = await makeAdmin(page, { withTotp: false });
-      await loginViaUi(page, admin.handle, PASSWORD); // held at setup, so there is no account menu to wait for
-      await expect(page).toHaveURL(/\/setup-2fa$/);
+      await loginViaUi(page, admin.handle, PASSWORD);
+      await expect(page.getByRole('button', { name: `Account menu for ${admin.handle}` })).toBeVisible();
+      await page.goto('/settings/two-factor');
       await expect(page.getByAltText('QR code for your authenticator app')).toBeVisible();
       await scan(page, `two-factor setup (${theme})`);
     });

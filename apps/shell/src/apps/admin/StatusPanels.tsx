@@ -10,6 +10,7 @@ interface Status {
   disk: { homes: { free_bytes: number; total_bytes: number } | null; exports: { free_bytes: number; total_bytes: number } | null };
   counts: { users: { total: number; active: number; suspended: number; new_24h: number }; posts_24h: number; boards: number; rings: number; homepages: { count: number; bytes: number }; reports: { open: number; escalated: number } };
   backups: { lastBackup: { at: string; size_bytes: number | null } | null; backupOverdue: boolean; backupGrace: boolean; lastRestoreTest: { at: string; ok: boolean } | null; restoreTestOverdue: boolean; restoreTestGrace: boolean };
+  security: { require_admin_2fa: boolean; admins_without_2fa: number };
   warnings: string[];
 }
 interface Series { metric: string; points: { at: string; value: number }[] }
@@ -60,6 +61,7 @@ export function StatusPanel() {
       {s.warnings.length === 0
         ? <Alert kind="success">{t('admin.status.allGood')}</Alert>
         : <div role="alert" className="alert alert-error"><strong>{t('admin.status.attention')}</strong><ul>{s.warnings.map((w) => <li key={w}>{t(`admin.status.warn.${w}` as StringKey)}</li>)}</ul></div>}
+      {s.security.admins_without_2fa > 0 && <Alert kind="info">{t('admin.status.no2fa', { count: s.security.admins_without_2fa })}</Alert>}
       <div className="tiles">
         <Tile title={t('admin.status.tile.users')} value={String(c.users.total)} detail={t('admin.status.tile.usersDetail', { active: c.users.active, suspended: c.users.suspended, fresh: c.users.new_24h })} />
         <Tile title={t('admin.status.tile.posts')} value={String(c.posts_24h)} />

@@ -47,12 +47,26 @@ test.describe('logging in', () => {
     await expect(page.getByRole('alert')).toContainText('not right, or it was already used');
   });
 
-  test('an admin without two-factor is held at its setup and cannot open the admin console', async ({ page }) => {
+  test('two-factor is optional for admins until the site requires it; then an admin without it is held at its setup', async ({ page, browser }) => {
+    const chief = await makeAdmin(page); // an admin with two-factor, who will make it required
     const admin = await makeAdmin(page, { withTotp: false });
     await loginViaUi(page, admin.handle, PASSWORD);
-    await expect(page).toHaveURL(/\/setup-2fa$/);
+    await expect(page.getByRole('button', { name: `Account menu for ${admin.handle}` })).toBeVisible();
     await page.goto('/admin');
-    await expect(page).toHaveURL(/\/setup-2fa$/);
+    await expect(page.getByRole('heading', { name: 'Admin console' })).toBeVisible();
+    const other = await browser.newContext({ baseURL: BASE_URL });
+    const api = other.request;
+    const h = { origin: BASE_URL };
+    await api.post('/api/v1/auth/login', { data: { identifier: chief.handle, password: PASSWORD, totp: await totp(chief.secret, 1) }, headers: h });
+    const set = (value: boolean) => api.put('/api/v1/admin/settings/security.require_admin_2fa', { data: { value, reason: 'testing the two-factor rule', confirm: true }, headers: h });
+    expect((await set(true)).ok()).toBe(true);
+    try {
+      await page.goto('/admin');
+      await expect(page).toHaveURL(/\/setup-2fa$/);
+    } finally {
+      expect((await set(false)).ok()).toBe(true);
+      await other.close();
+    }
   });
 });
 

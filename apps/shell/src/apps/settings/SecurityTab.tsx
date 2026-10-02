@@ -40,17 +40,19 @@ export function TwoFactor({ me }: { me: Me }) {
   const [code, setCode] = useState('');
   const [codes, setCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inSetup, setInSetup] = useState(false);
   const regen = useMutation({
     mutationFn: () => api.post<{ recovery_codes: string[] }>('/me/totp/recovery-codes', { code }),
     onSuccess: (r) => { setCodes(r.recovery_codes); setCode(''); void qc.invalidateQueries({ queryKey: ['me'] }); },
     onError: (e) => setError(errorText(e)),
   });
 
-  if (!me.totp_enabled) {
+  // Stay on the setup until the person has seen their recovery codes, even after /me says two-factor is on.
+  if (!me.totp_enabled || inSetup) {
     return (
       <>
-        <p>{t('settings.twofa.off')}</p>
-        <TotpSetup onDone={() => void qc.invalidateQueries({ queryKey: ['me'] })} />
+        {!me.totp_enabled && <p>{t('settings.twofa.off')}</p>}
+        <TotpSetup onStart={() => setInSetup(true)} onDone={() => { setInSetup(false); void qc.invalidateQueries({ queryKey: ['me'] }); }} />
       </>
     );
   }

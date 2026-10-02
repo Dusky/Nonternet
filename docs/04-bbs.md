@@ -82,7 +82,7 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   (`POST /api/v1/bbs/ticket`, 60 s) or an SSH key (the BBS verifies the signature with `ssh2`, core checks the
   fingerprint belongs to that handle), and answers with an ordinary session (`sessions.kind = 'bbs'`, 12 h)
   that the BBS sends as the `sid` cookie on the public API. Logging out revokes it. Admins without
-  two-factor get a limited session, as on the web.
+  two-factor get a limited session when the site requires admin two-factor, as on the web.
 - **Nodes and drops:** every 3 s the BBS reports its nodes (session, where, how connected). Core answers per
   node whether the session is still valid and the caller's role; an invalid one (suspended, deleted, signed
   out) is dropped at once. Core keeps the report for who's online (`GET /api/v1/online`: web, chat, BBS).

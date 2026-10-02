@@ -27,7 +27,7 @@ users (
 handle_aliases (handle text pk, user_id fk, expires_at)   -- built as handle_history (migration 0009)
 ssh_keys (id, user_id fk, public_key, fingerprint unique, label)
 sessions (id, user_id fk, token_hash unique, user_agent, ip_hash, limited bool, expires_at, revoked_at)
-                                   -- token_hash = sha256 of the cookie value; limited = admin still setting up TOTP
+                                   -- token_hash = sha256 of the cookie value; limited = admin still setting up TOTP while the site requires it
 email_verifications (token_hash pk, user_id fk, expires_at, used_at)   -- 24 h, single use
 password_resets (token_hash pk, user_id fk, expires_at, used_at)       -- 1 h, single use, newest wins
 recovery_codes (code_hash pk, user_id fk, used_at)                     -- 10 per user, single use, hashed

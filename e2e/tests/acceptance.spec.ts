@@ -36,14 +36,14 @@ test('an admin invites someone, they sign up, and the admin promotes them', asyn
   const admin = await makeAdmin(page, { withTotp: false });
   const reason = `active for ${uniq('weeks')}`; // both projects share a database, so the audit log holds both runs
 
-  // -- the admin's first login stops at two-factor setup
+  // -- the admin logs in (two-factor is optional, docs/02) and turns it on in Settings
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'E2E Test Site' })).toBeVisible();
   await shot(page, '01-landing', project);
   await noSidewaysScroll(page);
   await loginViaUi(page, admin.handle, PASSWORD);
-  await expect(page).toHaveURL(/\/setup-2fa$/);
-  await expect(page.getByRole('heading', { name: 'Set up two-factor authentication' })).toBeVisible();
+  await expect(page.getByRole('button', { name: `Account menu for ${admin.handle}` })).toBeVisible();
+  await page.goto('/settings/two-factor');
   await expect(page.getByAltText('QR code for your authenticator app')).toBeVisible();
   await shot(page, '02-setup-2fa', project);
   await noSidewaysScroll(page);
@@ -60,7 +60,8 @@ test('an admin invites someone, they sign up, and the admin promotes them', asyn
   await page.getByLabel('I have saved these codes').check();
   await shot(page, '03-recovery-codes', project);
   await proceed.click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByText('Two-factor authentication is on.')).toBeVisible();
+  await page.goto('/');
 
   // -- the admin creates an invite
   let scope = await openApp(page, isMobile, 'Admin console');

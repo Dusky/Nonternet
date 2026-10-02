@@ -42,6 +42,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'homes.max_domains', schema: int(0, 20), risky: false, get: (c) => c.homes.max_domains, set: (c, v) => { c.homes.max_domains = v as number; } },
   { key: 'bbs.motd', schema: z.string().max(2000), risky: false, get: (c) => c.bbs.motd, set: (c, v) => { c.bbs.motd = v as string; } },
   { key: 'ui.default_theme', schema: themeSchema, risky: false, get: (c) => c.ui.default_theme, set: (c, v) => { c.ui.default_theme = v as ThemeName; } },
+  { key: 'security.require_admin_2fa', schema: z.boolean(), risky: true, get: (c) => c.security.require_admin_2fa, set: (c, v) => { c.security.require_admin_2fa = v as boolean; },
+    impact: async (deps, next) => (next ? { affected: Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM users WHERE role = 'admin' AND status = 'active' AND totp_enabled_at IS NULL`)).rows[0]!.n), note: 'admins without two-factor will only be able to set it up until they do' } : { affected: 0, note: '' }) },
   { key: 'moderation.public_modlog', schema: z.boolean(), risky: false, get: (c) => c.moderation.public_modlog, set: (c, v) => { c.moderation.public_modlog = v as boolean; } },
 ];
 export const settingDef = (key: string): SettingDef | undefined => SETTINGS.find((s) => s.key === key);

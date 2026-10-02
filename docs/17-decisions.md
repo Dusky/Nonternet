@@ -103,6 +103,8 @@
 
 - 2026-10-02: terminal sign-up (owners' choice): the emailed code confirms in the terminal; telnet allowed with a plain warning; website and terminal passwords must differ; 3 accounts an hour per caller address. Nothing about agreeing to the terms is stored, on the web or in the terminal (unchanged).
 
+- 2026-10-02: admin two-factor is optional (owners' choice). New console setting `security.require_admin_2fa`, off by default; when on, the old rule applies (limited sessions until TOTP is set up, including someone promoted mid-session). Supersedes the 'required for admins' line in `02`/`15`.
+
 ## Verify list
 | # | Fact | Affects |
 |---|---|---|
