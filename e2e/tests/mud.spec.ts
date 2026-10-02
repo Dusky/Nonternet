@@ -39,6 +39,79 @@ test.describe('the MUD', () => {
     });
   }
 
+  test('the client: gauges, map and exits, an alias, a trigger that colours and captures, a button, kept on the account', async ({ page, isMobile }) => {
+    const u = await makeUser(page, { handle: uniq('rogue') });
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/mud');
+    await expect(world(page).getByText('You have no character yet.', { exact: false })).toBeVisible({ timeout: 20_000 });
+    await type(page, 'charcreate');
+    await expect(world(page).getByText('Accept and create character').last()).toBeVisible();
+    await type(page, '3');
+    const ready = world(page).getByText(/ is ready\./);
+    await expect(ready).toBeVisible();
+    const name = /^(\S+) is ready\./.exec((await ready.textContent()) ?? '')![1]!;
+    await type(page, `ic ${name}`);
+
+    // The side panel hears from the game: health, the room, the ways out.
+    const side = page.getByRole('complementary', { name: 'Your character and surroundings' });
+    await expect(side.getByRole('meter', { name: /^Health: \d+ of \d+$/ })).toBeVisible({ timeout: 10_000 });
+    await expect(side.getByText('Level 1')).toBeVisible();
+    await expect(side.getByRole('heading', { name: 'Map: Town' })).toBeVisible();
+    await expect(side.locator('.mud-here')).toHaveText('Town square');
+    // Clicking a way out walks.
+    await side.getByRole('list', { name: /Ways out/ }).getByRole('button', { name: 'east' }).click();
+    await expect(side.locator('.mud-here')).toHaveText('The tavern');
+    await expect(side.getByRole('img', { name: /You know 2 rooms in this area/ })).toBeVisible();
+
+    // Rules: an alias, a trigger, a button.
+    await page.getByRole('button', { name: 'Client rules' }).click();
+    const ed = page.getByRole('region', { name: 'Client rules' });
+    await ed.getByRole('button', { name: 'Add one' }).click();
+    await ed.getByLabel('When you type').fill('ww');
+    await ed.getByLabel('Send', { exact: true }).fill('west;look');
+    await ed.getByRole('button', { name: 'Save' }).click();
+    await expect(ed.getByText('west;look')).toBeVisible();
+
+    await ed.getByRole('tab', { name: 'Triggers' }).click();
+    await ed.getByRole('button', { name: 'Add one' }).click();
+    await ed.getByLabel('When a line').fill('Town square');
+    await ed.getByLabel('Colour', { exact: true }).selectOption('green');
+    await ed.getByRole('button', { name: 'Add an action' }).click();
+    await ed.getByLabel('Action 2').selectOption('capture');
+    await ed.getByLabel('Window name').fill('Places');
+    await ed.getByRole('button', { name: 'Save' }).click();
+    await expect(ed.getByText(/colour green, copy to "Places"/)).toBeVisible();
+
+    await ed.getByRole('tab', { name: 'Buttons' }).click();
+    await ed.getByRole('button', { name: 'Add one' }).click();
+    await ed.getByLabel('Label').fill('Look');
+    await ed.getByLabel('Send', { exact: true }).fill('look');
+    await ed.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+
+    await type(page, 'ww');
+    await expect(world(page).getByText('ww  → west; look')).toBeVisible();
+    await expect(world(page).locator('.mud-hl-green').filter({ hasText: 'Town square' }).first()).toBeVisible();
+    await expect(side.getByRole('log', { name: 'Places' }).getByText('Town square').first()).toBeVisible();
+    await page.getByRole('group', { name: 'Your buttons' }).getByRole('button', { name: 'Look' }).click();
+    await expect(world(page).locator('.mud-you').filter({ hasText: /^> look$/ }).first()).toBeVisible();
+
+    // Speedwalk, and the history comes back after a reload (it is on the account).
+    await type(page, '#e');
+    await expect(side.locator('.mud-here')).toHaveText('The tavern');
+    await page.waitForTimeout(1500); // the settings save a moment after a change
+    await page.reload();
+    await expect(page.getByLabel('Type a command, like look or north')).toBeEnabled({ timeout: 20_000 });
+    await page.getByLabel('Type a command, like look or north').press('ArrowUp');
+    await expect(page.getByLabel('Type a command, like look or north')).toHaveValue('#e');
+    const saved = await (await page.request.get('/api/v1/me/client-settings/mud')).json();
+    expect(saved.settings.aliases[0]).toMatchObject({ pattern: 'ww', send: 'west;look' });
+    expect(saved.settings.triggers[0].actions).toEqual([{ type: 'highlight', colour: 'green', line: false }, { type: 'capture', window: 'Places' }]);
+    if (!isMobile) await scan(page, 'the MUD client with its panel');
+    await page.getByRole('button', { name: 'Client rules' }).click();
+    await scan(page, 'the MUD client rules');
+  });
+
   test('a character made in the MUD shows on the profile and, featured, beside posts on the boards', async ({ page }) => {
     const u = await makeUser(page, { handle: uniq('bard') });
     await setRole(u.handle, 'trusted'); // to start a board

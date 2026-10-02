@@ -14,9 +14,13 @@ describe('Evennia markup', () => {
     expect(plainText('x|-y|_z')).toBe('x    y z');
   });
 
-  it('keeps the text of links and drops backgrounds and effects', () => {
+  it('keeps the text of links (with the command), backgrounds and effects', () => {
     expect(plainText('go |lcnorth|ltNorth|le now')).toBe('go North now');
+    expect(parseMarkup('go |lc|wnorth|n|ltNorth|le now')).toEqual([[{ text: 'go ' }, { text: 'North', link: 'north' }, { text: ' now' }]]);
     expect(plainText('|[rred background|n |hhi|H')).toBe('red background hi');
+    expect(parseMarkup('|[rred|n')).toEqual([[{ text: 'red', bg: 'red' }]]);
+    expect(parseMarkup('|=agrey|n|iital')).toEqual([[{ text: 'grey', grey: 0 }, { text: 'ital', italic: true }]]);
+    expect(parseMarkup('\x1b[38;5;196mhot\x1b[48;5;21mblue')).toEqual([[{ text: 'hot', rgb: [5, 0, 0], grey: undefined, fg: undefined, bright: undefined }, { text: 'blue', rgb: [5, 0, 0], grey: undefined, fg: undefined, bright: undefined, bg: undefined, bgRgb: [0, 0, 5] }]]);
     expect(parseMarkup('|uunder|n')).toEqual([[{ text: 'under', underline: true }]]);
   });
 

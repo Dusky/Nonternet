@@ -41,6 +41,31 @@ ANSI codes its menus carry (VERIFIED) are parsed into styled text, drawn toward 
 stay readable. No server HTML reaches the shell's origin. A command line with history. Native clients use
 telnet on `mud.public_port` (default 4000). (Was PROPOSED: xterm.js, which would have needed an ANSI layer.)
 
+### The client, as built in the polish phase (P6), measured against Mudlet
+Owners' choices: **rules, no code**, and the rules **kept on the account** (`client_settings`, client `mud`, zod schema `mudClientSchema` in
+`@app/shared`; exported as `mud/client.json`, brought back by import, erased with the account; at most 256 KB).
+- **Log**: Evennia markup and ANSI drawn in full (16 colours, xterm-256 and greys, backgrounds, italic, inverse, underline), always pulled toward the
+  theme so every theme stays readable. `|lc…|lt…|le` links are buttons that send their command. 2000 lines kept. Scrolling back splits the screen:
+  the newest lines stay in view below. **Find** marks matches and steps through them. **Save the log** as plain text or as a coloured web page
+  (everything escaped).
+- **Input**: history kept on the account (200, newest first; Up and Down), a command separator (default `;`, doubled to send it as text),
+  **speedwalk** (`#3n 2e`) and **repeat** (`#5 kill rat`), a line starting with a space is sent exactly as typed. One line sends at most 50 commands.
+- **Aliases**: starts with / is exactly / regular expression; `$1`… `$*` for what follows, `@name` for variables; aliases may use aliases, 8 deep.
+- **Triggers**: contains / starts with / is exactly / regular expression over each line (colours removed), with up to 8 actions: send, colour
+  the match or the line, hide the line, copy it to a named side window, chime, desktop notice when the tab is in the background, set a variable
+  from a capture. Triggers may send at most 40 commands per 10 seconds; past that they pause and say so.
+- **Timers** (every N seconds while playing, start off), **keys** (F-keys, Ctrl/Alt combinations, the number pad; the number pad walks by
+  default), **buttons** under the log, **variables**, and **groups** to turn several rules on or off at once.
+- **Side panel**: health and experience gauges (`<meter>` with words), level, coins, fighting and weakened; a mini-map of the rooms this
+  character has been in, drawn from `room_info`/`area_map` with the room you are in marked, and the ways out as buttons (the map in words);
+  captured-line windows as tabs with unread counts. It can be hidden, and on a narrow screen it goes under the log.
+- **Options**: separator, speedwalk, echo, number pad, side panel, screen reader mode (Evennia's own `client_options`), text size.
+- **Share**: rules saved as a JSON file (history left out) and brought back in, either added to yours or replacing them.
+- Not built, compared with Mudlet: Lua scripting (decided: rules only), a full mapper that you edit by hand, multiple profiles per
+  account, sound packs and MSP, and multi-session tabs.
+- Tests: `engine.test.ts`, `markup.test.ts`, `log.test.ts` in the shell; e2e `mud.spec.ts` (gauges, map, exits, alias, trigger, button,
+  speedwalk, history after reload, axe).
+
 ## What the MUD tells a client besides text (as built, P5)
 Two Evennia outputfuncs (`services/mud/world/oob.py`), so the web client gets `["vitals", [], {...}]` and `["room_info", [], {...}]` frames, and a telnet
 client gets them over GMCP (`TELNET_OOB_ENABLED = True`, for Mudlet and friends):
