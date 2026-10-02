@@ -4,11 +4,15 @@ import type { AppDeps } from './deps';
 // proved to work. The backups themselves are made and checked by the operator commands in backup.ts.
 export const BACKUP_MAX_AGE_HOURS = 26;      // nightly, with a little room
 export const RESTORE_TEST_MAX_AGE_DAYS = 35; // monthly, with a little room
+// A site that has only just started has not had time to make its first backup or prove a restore, so for a while that is
+// "not yet", not a warning (PROPOSED, docs/17). Counted from the first account; once the first one exists the usual rules apply.
+export const BACKUP_GRACE_DAYS = 2;
+export const RESTORE_TEST_GRACE_DAYS = 14;
 
 export interface BackupRunView { id: string; kind: 'backup' | 'restore_test'; status: 'running' | 'ok' | 'failed'; started_at: string; finished_at: string | null; size_bytes: number | null; location: string | null; detail: unknown; error: string | null }
 export interface BackupSummary {
-  lastBackup: { at: string; size_bytes: number | null } | null; backupOverdue: boolean;
-  lastRestoreTest: { at: string; ok: boolean } | null; restoreTestOverdue: boolean;
+  lastBackup: { at: string; size_bytes: number | null } | null; backupOverdue: boolean; backupGrace: boolean;
+  lastRestoreTest: { at: string; ok: boolean } | null; restoreTestOverdue: boolean; restoreTestGrace: boolean;
 }
 
 export async function listRuns(deps: AppDeps, limit = 50): Promise<BackupRunView[]> {
@@ -23,11 +27,16 @@ export async function summary(deps: AppDeps): Promise<BackupSummary> {
     `SELECT started_at, size_bytes, status FROM backup_runs WHERE kind = $1 AND status <> 'running' ${okOnly ? `AND status = 'ok'` : ''} ORDER BY started_at DESC LIMIT 1`, [kind])).rows[0];
   const [b, t] = await Promise.all([last('backup', true), last('restore_test', false)]);
   const okTest = t ? (await deps.db.query<{ started_at: Date }>(`SELECT started_at FROM backup_runs WHERE kind = 'restore_test' AND status = 'ok' ORDER BY started_at DESC LIMIT 1`)).rows[0] : undefined;
+  const started = (await deps.db.query<{ t: Date | null }>(`SELECT min(created_at) AS t FROM users`)).rows[0]?.t;
+  const siteAgeMs = started ? now - started.getTime() : 0;
+  const backupGrace = !b && siteAgeMs < BACKUP_GRACE_DAYS * 86_400_000;
+  const restoreTestGrace = !t && siteAgeMs < RESTORE_TEST_GRACE_DAYS * 86_400_000;
   return {
     lastBackup: b ? { at: b.started_at.toISOString(), size_bytes: b.size_bytes === null ? null : Number(b.size_bytes) } : null,
-    backupOverdue: !b || now - b.started_at.getTime() > BACKUP_MAX_AGE_HOURS * 3_600_000,
+    backupGrace, restoreTestGrace,
+    backupOverdue: !backupGrace && (!b || now - b.started_at.getTime() > BACKUP_MAX_AGE_HOURS * 3_600_000),
     lastRestoreTest: t ? { at: t.started_at.toISOString(), ok: t.status === 'ok' } : null,
     // "Overdue" means no restore test has passed recently, however many have failed since.
-    restoreTestOverdue: !okTest || now - okTest.started_at.getTime() > RESTORE_TEST_MAX_AGE_DAYS * 86_400_000,
+    restoreTestOverdue: !restoreTestGrace && (!okTest || now - okTest.started_at.getTime() > RESTORE_TEST_MAX_AGE_DAYS * 86_400_000),
   };
 }

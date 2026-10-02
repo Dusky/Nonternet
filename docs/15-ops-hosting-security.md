@@ -89,7 +89,8 @@ monthly (cron or a systemd timer on the host, `docker compose exec core ...`). A
 plus a tar of the homes directory, a tar of the file-area uploads (`FILES_DIR`, M7) and the config, streamed through AES-256-GCM with `BACKUP_KEY` (`cli backup-key` makes one),
 with a manifest of hashes and row counts. The restore test decrypts the newest backup into a scratch database and compares
 counts, then records the result in `backup_runs`. The console warns when there is no good backup for 26 hours or no passing
-restore test for 35 days. Copying `/backups` off-site is the operator's job (rsync/rclone). `APP_SECRET_KEY` and `BACKUP_KEY`
+restore test for 35 days. A brand-new site is given time first: until its first account is 2 days old (backup) or 14 days old (restore test)
+the console says "None yet" instead of warning (PROPOSED, `17`); a failed restore test is never excused. Copying `/backups` off-site is the operator's job (rsync/rclone). `APP_SECRET_KEY` and `BACKUP_KEY`
 are deliberately not in the backups: store them separately. The core image includes `pg_dump` and `tar`.
 There is no "run backup now" button; backups are run on the host.
 

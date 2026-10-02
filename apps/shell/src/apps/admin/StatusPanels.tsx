@@ -9,7 +9,7 @@ interface Status {
   outbox: { backlog: number; oldest_age_s: number | null }; exports: { queued: number; running: number; failed_24h: number };
   disk: { homes: { free_bytes: number; total_bytes: number } | null; exports: { free_bytes: number; total_bytes: number } | null };
   counts: { users: { total: number; active: number; suspended: number; new_24h: number }; posts_24h: number; boards: number; rings: number; homepages: { count: number; bytes: number }; reports: { open: number; escalated: number } };
-  backups: { lastBackup: { at: string; size_bytes: number | null } | null; backupOverdue: boolean; lastRestoreTest: { at: string; ok: boolean } | null; restoreTestOverdue: boolean };
+  backups: { lastBackup: { at: string; size_bytes: number | null } | null; backupOverdue: boolean; backupGrace: boolean; lastRestoreTest: { at: string; ok: boolean } | null; restoreTestOverdue: boolean; restoreTestGrace: boolean };
   warnings: string[];
 }
 interface Series { metric: string; points: { at: string; value: number }[] }
@@ -71,8 +71,8 @@ export function StatusPanel() {
         <Tile title={t('admin.status.tile.events')} value={String(s.outbox.backlog)} detail={s.outbox.oldest_age_s === null ? t('admin.status.tile.eventsEmpty') : t('admin.status.tile.eventsDetail', { age: age(s.outbox.oldest_age_s) })} bad={s.warnings.includes('outbox_backlog')} />
         <Tile title={t('admin.status.tile.exports')} value={String(s.exports.queued + s.exports.running)} detail={t('admin.status.tile.exportsDetail', { queued: s.exports.queued, running: s.exports.running, failed: s.exports.failed_24h })} bad={s.exports.failed_24h > 0} />
         <Tile title={t('admin.status.tile.disk')} value={free(s.disk.homes)} detail={t('admin.status.tile.diskDetail', { homes: free(s.disk.homes), exports: free(s.disk.exports) })} bad={s.warnings.includes('disk_low')} />
-        <Tile title={t('admin.status.tile.backup')} value={s.backups.lastBackup ? formatWhen(s.backups.lastBackup.at) ?? '' : t('admin.status.tile.backupNever')} bad={s.backups.backupOverdue} />
-        <Tile title={t('admin.status.tile.restore')} value={s.backups.lastRestoreTest ? t(s.backups.lastRestoreTest.ok ? 'admin.status.tile.restoreOk' : 'admin.status.tile.restoreFailed', { when: formatWhen(s.backups.lastRestoreTest.at) ?? '' }) : t('admin.status.tile.restoreNever')} bad={s.backups.restoreTestOverdue} />
+        <Tile title={t('admin.status.tile.backup')} value={s.backups.lastBackup ? formatWhen(s.backups.lastBackup.at) ?? '' : t(s.backups.backupGrace ? 'admin.status.tile.backupSoon' : 'admin.status.tile.backupNever')} bad={s.backups.backupOverdue} />
+        <Tile title={t('admin.status.tile.restore')} value={s.backups.lastRestoreTest ? t(s.backups.lastRestoreTest.ok ? 'admin.status.tile.restoreOk' : 'admin.status.tile.restoreFailed', { when: formatWhen(s.backups.lastRestoreTest.at) ?? '' }) : t(s.backups.restoreTestGrace ? 'admin.status.tile.restoreSoon' : 'admin.status.tile.restoreNever')} bad={s.backups.restoreTestOverdue} />
       </div>
       <div className="sparks"><Spark metric="posts" /><Spark metric="signups" /></div>
       <p className="hint">{t('admin.status.refreshed', { when: formatWhen(s.at) ?? '' })}</p>

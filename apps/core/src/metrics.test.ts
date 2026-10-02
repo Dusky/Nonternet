@@ -41,10 +41,22 @@ describe.skipIf(!dbAvailable)('status board and metrics', () => {
     expect(s.uptime_s).toBeGreaterThanOrEqual(0);
   });
 
-  it('warns about overdue backups and restore tests, then calms down once they are recent', async () => {
+  it('does not warn about a backup or restore test on a site that has only just started', async () => {
+    const s = (await admin.client.get('/api/v1/admin/status')).body;
+    expect(s.warnings).not.toContain('backup_overdue');
+    expect(s.warnings).not.toContain('restore_test_overdue');
+    expect(s.backups).toMatchObject({ lastBackup: null, backupOverdue: false, backupGrace: true, lastRestoreTest: null, restoreTestOverdue: false, restoreTestGrace: true });
+  });
+
+  it('warns about overdue backups and restore tests once the site is past its first days, then calms down once they are recent', async () => {
     const t0 = ctx.clock.ms; // put the clock back at the end: later tests compare it with database time
+    await db.query(`UPDATE users SET created_at = created_at - interval '30 days'`);
     let s = (await admin.client.get('/api/v1/admin/status')).body;
+    expect(s.backups).toMatchObject({ backupGrace: false, restoreTestGrace: false });
     expect(s.warnings).toEqual(expect.arrayContaining(['backup_overdue', 'restore_test_overdue']));
+    await db.query(`UPDATE users SET created_at = created_at + interval '29 days'`); // 1 day old: backup still inside its 2 days, restore test too
+    expect(((await admin.client.get('/api/v1/admin/status')).body.warnings as string[]).filter((w) => w.endsWith('_overdue'))).toEqual([]);
+    await db.query(`UPDATE users SET created_at = created_at - interval '29 days'`);
     await db.query(`INSERT INTO backup_runs (id, kind, status, started_at, finished_at, size_bytes) VALUES ('bk_a', 'backup', 'ok', $1, $1, 1234), ('bk_b', 'restore_test', 'ok', $1, $1, NULL)`, [new Date(ctx.clock.ms - 3600_000)]);
     s = (await admin.client.get('/api/v1/admin/status')).body;
     expect(s.warnings).not.toContain('backup_overdue');
