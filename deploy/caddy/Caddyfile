@@ -21,6 +21,13 @@
 
 {$CADDY_ADDRESS::80} {
 	import site_headers
+	# Health and readiness come from core itself, so `sitectl doctor` and `upgrade` test the real thing, not the shell's fallback page.
+	handle /healthz {
+		reverse_proxy core:3000
+	}
+	handle /readyz {
+		reverse_proxy core:3000
+	}
 	handle /api/* {
 		reverse_proxy core:3000
 	}

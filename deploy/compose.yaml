@@ -101,6 +101,12 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
     ports:
       - "${GOPHER_PORT:-7070}:7070"
+    # Same image as core, whose own check asks port 3000; this process only listens on the Gopher port.
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 7070 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - files-data:/data/files:ro
@@ -225,6 +231,9 @@ networks:
     ipam:
       config:
         - subnet: 172.30.0.0/24
+          # Docker hands out addresses from the top half only, so Caddy's fixed 172.30.0.10 is never taken by another container first
+          # (it starts last, and the ninth container started would otherwise get .10).
+          ip_range: 172.30.0.128/25
 
 volumes:
   ircd-data:

@@ -1,0 +1,12 @@
+# The images are built from the repo root (docker build -f apps/<name>/Dockerfile .). Dockerfiles copy source in and
+# install and build inside the image, so nothing built on this machine should go along: a host node_modules or dist would
+# be copied over the image's own.
+.git
+**/node_modules
+**/dist
+**/__pycache__
+**/.venv
+e2e/.tmp
+e2e/test-results
+e2e/playwright-report
+deploy/.env

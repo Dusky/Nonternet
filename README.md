@@ -92,9 +92,11 @@ configured name appears anywhere else in source or built output.
 
 Compose stack (Postgres, Redis, core, shell, Caddy):
 ```sh
-cp deploy/.env.example deploy/.env      # set POSTGRES_PASSWORD and APP_SECRET_KEY
+cp deploy/.env.example deploy/.env      # then fill in the five secrets: openssl rand -hex 24 for POSTGRES_PASSWORD,
+                                        # openssl rand -base64 32 for APP_SECRET_KEY, IRC_SECRET, MUD_SECRET and BBS_SECRET
 docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
-# then open http://localhost:8080
+# then open http://localhost:8080 (the first start of the MUD takes a minute or two)
+docker compose -f deploy/compose.yaml --env-file deploy/.env exec core node cli.cjs create-admin --handle you --email you@example.net
 ```
 
 ### See it without setting anything up (a demo community)
