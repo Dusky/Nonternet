@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
-import { loginViaUi, makeAdmin, makeUser, PASSWORD, signIn } from '../support/helpers';
+import { loginViaUi, makeAdmin, makeUser, PASSWORD, signIn, uniq } from '../support/helpers';
+import { BASE_URL } from '../support/stack';
 
 // Automated accessibility checks (WCAG 2.1 A and AA) on every main screen, in both themes. This
 // catches what a machine can: contrast, missing labels, bad ARIA. It does not replace using the
@@ -39,12 +40,45 @@ for (const theme of THEMES) {
       await scan(page, `second step with an error (${theme})`);
     });
 
+    test('the screens added in M9: inbox (searching, unread only, muted), people, a profile, bulletins, polls', async ({ page }) => {
+      await useTheme(page, theme);
+      const a = await makeUser(page);
+      const b = await makeUser(page);
+      const h = { origin: BASE_URL };
+      const api = page.context().request;
+      await api.post('/api/v1/auth/login', { data: { identifier: a.handle, password: PASSWORD }, headers: h });
+      const th = await (await api.post('/api/v1/mail', { data: { to: [b.handle], subject: `Inbox ${uniq('x')}`, body: 'hello there' }, headers: h })).json();
+      await api.post('/api/v1/auth/logout', { data: {}, headers: h });
+      await signIn(page, b.handle, PASSWORD);
+      await page.goto('/mail');
+      await expect(page.getByRole('link', { name: /Inbox/ })).toBeVisible();
+      await scan(page, `the inbox (${theme})`);
+      await page.getByLabel('Search your mail').fill('hello');
+      await expect(page.getByRole('link', { name: /Inbox/ })).toBeVisible();
+      await scan(page, `the inbox, searching (${theme})`);
+      await page.getByLabel('Search your mail').fill('');
+      await page.getByRole('button', { name: 'Unread only' }).click();
+      await expect(page.getByRole('link', { name: /Inbox/ })).toBeVisible();
+      await scan(page, `the inbox, unread only (${theme})`);
+      await api.post('/api/v1/auth/login', { data: { identifier: b.handle, password: PASSWORD }, headers: h });
+      await api.put(`/api/v1/mail/${th.id}/mute`, { data: {}, headers: h });
+      await page.goto('/mail');
+      await expect(page.getByText('Muted', { exact: true })).toBeVisible();
+      await scan(page, `the inbox with a muted conversation (${theme})`);
+      for (const path of ['/people', `/people/${a.handle}`, '/boards/bulletins', '/boards/polls', '/notifications']) {
+        await page.goto(path);
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expect(page.getByText('Loading')).toHaveCount(0);
+        await scan(page, `${path} (${theme})`);
+      }
+    });
+
     test('a signed-in user: home, settings', async ({ page, isMobile }) => {
       await useTheme(page, theme);
       const u = await makeUser(page);
       await signIn(page, u.handle, PASSWORD);
       await scan(page, `home (${theme})`);
-      for (const tab of ['profile', 'password', 'two-factor', 'appearance']) {
+      for (const tab of ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards']) {
         await page.goto(`/settings/${tab}`);
         await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
         await scan(page, `settings/${tab} (${theme})`);
