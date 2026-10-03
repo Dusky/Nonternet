@@ -60,7 +60,7 @@ class TowerStair(Exit):
 
         floor = self.db.floor
         if not floors.has_cleared(traversing_object, floor):
-            traversing_object.msg("The stair guard stands in the way. Beat it to go up.")
+            traversing_object.msg("The stair is guarded. Beat its guard to go up.")
             return
         up = floors.entry(floor + 1)
         self.destination = up

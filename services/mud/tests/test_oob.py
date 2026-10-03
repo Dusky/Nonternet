@@ -58,7 +58,7 @@ class OobTest(BaseEvenniaCommandTest):
         self.hero.coins = 42
         v = self.last("vitals")
         self.assertEqual(v["coins"], 42)
-        self.assertEqual(set(v), {"hp", "hp_max", "level", "xp", "xp_next", "coins", "weakened", "in_combat"})
+        self.assertEqual(set(v), {"hp", "hp_max", "level", "xp", "xp_prev", "xp_next", "coins", "weakened", "in_combat"})
         self.sent.clear()
         self.hero.coins = 42  # no change, nothing sent
         self.assertIsNone(self.last("vitals"))

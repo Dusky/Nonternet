@@ -127,7 +127,7 @@ The full plan is phases T1–T5 (`16`).
     what players carry.
 - **Rooms** (`world/tower/tables.py`): 15 kinds of room with two descriptions each, plus 19 optional details, written by hand.
 - **The stair guard**:
-  - each floor's stair up is held by a guard (stats grow with the floor; real enemy families come in T2);
+  - each floor's stair up is held by a guard (see T2 for who it is);
   - beating it opens the stair for everyone in the room at the time, and only for them (`TowerStair`, per character and per season);
   - the guard comes back after three minutes for the next person.
 - **Progress** (`db.tower`): the season, the floors whose stairs you opened, and your highest floor. It starts fresh each season and is in
@@ -140,6 +140,45 @@ The full plan is phases T1–T5 (`16`).
   - length caps;
   - no two lines starting the same way;
   - plain names.
+
+### As built (T2: enemies and difficulty)
+- **Families** (`tables.FAMILIES`), ten floors each, then the list starts again with higher numbers:
+  - vermin, bandits, constructs, undead, cultists, beasts;
+  - four members each (weak, normal, strong) with one-line descriptions;
+  - each family hits with its own weapon (teeth, blade…).
+- **Traits** make one enemy different and are in its name: armoured (+2 armour), hulking (more health), venomous (a hit burns for 1d4
+  more, half the time), fierce (+1 hit die).
+- **Who stands where** is part of the seed (`floors.enemy_plan`):
+  - rooms get 0–3 enemies, more often higher up;
+  - nobody waits at a floor's entry;
+  - the stair room has the guard: the family's strongest member (no trait below floor 10, one trait above, two on a boss floor).
+- **Bosses**: the Rat Mother (floor 10), Captain Hesk (20) and the Forge Engine (30), written by hand. Later boss floors use the family's
+  strongest member with two traits.
+- **All the numbers are in one file** (`world/tower/scaling.py`): enemy hit dice, armour, health, damage dice, xp and coins by floor, plus the
+  kit a climber is expected to have (the target for T3's loot).
+- **Rewards**: when an enemy falls, everyone in the room gets its xp and coins, each their own.
+- **Levels**:
+  - the next level needs level² × 50 xp in total (50, 200, 450…);
+  - each level raises your three weakest abilities by one (to +10 at most) and your health by 1d6;
+  - EvAdventure's own `level_up` is not used: it reads an attribute that doesn't exist.
+- **`rest`** (Knave's 1d8 + constitution) heals out of a fight, when no enemy is in the room, once every 20 seconds.
+- **Fix**: enemies, and the town's monsters, used to start at 4 health whatever their hit dice. They now start full.
+- **Balance**: `world/tower/balance.py` simulates an expected climber (the level the xp curve gives, the expected kit) against the enemies
+  of a floor. Run `python -m world.tower.balance`. The tuned curve, 1000 fights each, a fresh climber per fight:
+
+  | floor | level | room fight won | health lost | stair guard won (alone) |
+  |---|---|---|---|---|
+  | 1 | 1 | 88% | 26% | 89% |
+  | 5 | 2 | 94% | 22% | 97% |
+  | 10 | 3 | 84% | 37% | 46% (boss) |
+  | 20 | 6 | 78% | 49% | 60% (boss) |
+  | 30 | 11 | 76% | 57% | 74% (boss) |
+  | 50 | 19 | 80% | 56% | 88% (boss) |
+  | 80 | 31 | 74% | 62% | 76% |
+  | 100 | 39 | 52% | 75% | 52% (boss) |
+
+  Bosses are meant to be hard alone; bring friends. `tests/test_tower.py` keeps the first floors kind and the middle never hopeless.
+  The simulator is a model, not the game. Play-testing comes after T3, when the gear it assumes exists.
 
 ## Still open
 1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas.** Replaced 2026-10-03 by the tower (above).

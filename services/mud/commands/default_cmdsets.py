@@ -20,7 +20,7 @@ from evennia.contrib.tutorials.evadventure.commands import EvAdventureCmdSet
 
 from commands.characters import CmdBuildTown, CmdCharCreate
 from commands.duel_cmds import CmdAccept, CmdAttack, CmdDecline, CmdDuel, CmdYield
-from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdGuestbook, CmdPost, CmdRead, CmdSearch, CmdSell, CmdShop, CmdSign, CmdUnpost, CmdUnsign
+from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdGuestbook, CmdPost, CmdRead, CmdRest, CmdSearch, CmdSell, CmdShop, CmdSign, CmdUnpost, CmdUnsign
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -46,7 +46,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         for cmd in (CmdDuel, CmdAccept, CmdDecline, CmdYield):
             self.add(cmd())
         self.add(CmdBuildTown())
-        for cmd in (CmdRead, CmdSearch, CmdAsk, CmdShop, CmdBuy, CmdSell, CmdBoard, CmdPost, CmdUnpost, CmdGuestbook, CmdSign, CmdUnsign):
+        for cmd in (CmdRead, CmdSearch, CmdRest, CmdAsk, CmdShop, CmdBuy, CmdSell, CmdBoard, CmdPost, CmdUnpost, CmdGuestbook, CmdSign, CmdUnsign):
             self.add(cmd())
         #
 

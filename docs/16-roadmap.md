@@ -161,7 +161,7 @@ Details are in `10` ("As built (restyle)").
 ## The tower (2026-10-03, owners' choice)
 The MUD becomes a procedurally generated tower (`18`, `17` D22).
 - [x] **T1:** the generator: seeded floors, stair guards, the gate in town, a map per floor, retiring the woods and mine, and a text check.
-- [ ] **T2:** enemy families and scaling, bosses, and a fight simulator for balance.
+- [x] **T2:** enemy families and scaling, bosses, and a fight simulator for balance (also: rewards, levels, `rest`).
 - [ ] **T3:** gear: item bases, rarities, affixes and personal drops.
 - [ ] **T4:** checkpoints, losing run loot on defeat, and monthly seasons.
 - [ ] **T5:** a leaderboard on the site, export additions and the console view.

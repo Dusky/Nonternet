@@ -269,7 +269,7 @@ function Gauges() {
   const t = useT();
   const v = useMud((s) => s.vitals);
   if (!v) return <section className="panel mud-card"><h2>{t('mud.vitals')}</h2><p className="hint">{t('mud.noVitals')}</p></section>;
-  const prev = (v.level - 1) * (v.xp_next / Math.max(1, v.level));
+  const prev = v.xp_prev ?? (v.level - 1) * (v.xp_next / Math.max(1, v.level)); // older servers sent no xp_prev
   return (
     <section className="panel mud-card" aria-labelledby="mud-vitals-h">
       <h2 id="mud-vitals-h">{t('mud.vitals')}</h2>

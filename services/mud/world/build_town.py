@@ -104,6 +104,7 @@ def build_town(caller=None):
 
             mob.db.weapon = spawn(by_key(weapon))[0]
             mob.db.weapon.location = None
+        mob.hp = mob.hp_max  # health is set at creation, before the hit dice above are in place
         mob.tags.add(tag, category=BUILD)
         made += 1
     if not _find("exit:gate:tower"):

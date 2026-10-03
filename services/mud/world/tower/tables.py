@@ -96,5 +96,54 @@ FEATURES = [
 # Added to the room with the stair up.
 STAIR_LINE = "A stone stair climbs to the next floor."
 
-# The one thing guarding each floor's stair until the enemy tables arrive (T2): (key, description).
-GUARD = ("stair guard", "A guard in mismatched armour who stands in front of the stair and does not move aside.")
+# Who lives on the floors, ten floors to a family, in climbing order. Past the last family the list starts again, and the numbers in
+# scaling.py keep rising. Each member: (name, role, description). Role "weak", "normal" or "strong" moves its hit dice by -1, 0 or +1;
+# the strongest member guards the stair. "weapon" is what the family hits with.
+FAMILIES = [
+    {"name": "vermin", "weapon": "teeth", "members": [
+        ("giant rat", "weak", "A rat the size of a cat, missing an ear."),
+        ("bat swarm", "weak", "A dozen bats that move as one, squeaking."),
+        ("tunnel beetle", "normal", "A beetle as long as your arm, its shell scraped and dented."),
+        ("rat king", "strong", "Six rats with their tails knotted together, biting at anything in reach."),
+    ]},
+    {"name": "bandits", "weapon": "blade", "members": [
+        ("cutpurse", "weak", "A thin youth with quick hands and a short knife."),
+        ("bandit", "normal", "A bandit with a scarred chin and a club studded with nails."),
+        ("deserter", "normal", "A soldier in a torn uniform who still keeps his blade clean."),
+        ("bandit chief", "strong", "A tall woman in a captain's coat, holding a stolen sword."),
+    ]},
+    {"name": "constructs", "weapon": "fists", "members": [
+        ("clay servant", "weak", "A clay figure with a blank face, still carrying a tray."),
+        ("gear hound", "normal", "A dog built from springs and plates. It ticks when it runs."),
+        ("iron guard", "normal", "A suit of armour with nobody inside, walking a fixed route."),
+        ("door warden", "strong", "A stone figure twice the height of a man, stepping out of the wall it was part of."),
+    ]},
+    {"name": "undead", "weapon": "claws", "members": [
+        ("skeleton", "weak", "Old bones held together with wire."),
+        ("grave hound", "normal", "A dog with no fur left, only grey skin over its ribs."),
+        ("drowned man", "normal", "A man in a rotted coat, water running from his sleeves."),
+        ("bone knight", "strong", "A skeleton in full plate with the visor rusted shut."),
+    ]},
+    {"name": "cultists", "weapon": "knife", "members": [
+        ("acolyte", "weak", "A young man in a grey robe, holding a candle in one hand and a knife in the other."),
+        ("zealot", "normal", "A shaven-headed woman shouting the same word over and over."),
+        ("mask bearer", "normal", "Someone in a white clay mask with no eyeholes, who finds you anyway."),
+        ("high priest", "strong", "An old woman in red who leans on a staff and does not hurry."),
+    ]},
+    {"name": "beasts", "weapon": "talons", "members": [
+        ("storm crow", "weak", "A crow the size of an eagle, its feathers singed at the tips."),
+        ("wall lizard", "normal", "A grey lizard that clings to the ceiling and drops on people."),
+        ("gargoyle", "normal", "A stone gargoyle that has stopped staying on its ledge."),
+        ("wyvern", "strong", "A small wyvern with a torn wing. Its bite still works fine."),
+    ]},
+]
+
+# A trait makes one enemy different from the rest of its kind, and its name says which: "armoured bandit".
+TRAITS = ["armoured", "hulking", "venomous", "fierce"]
+
+# Hand-written bosses for the first boss floors. Past these, a boss floor's guard is the family's strongest member with two traits.
+BOSSES = {
+    10: ("Rat Mother", "A rat as big as a pony, with a dozen of her young around her feet."),
+    20: ("Captain Hesk", "The bandits' captain in stolen plate, with a sword in each hand."),
+    30: ("Forge Engine", "A furnace on four iron legs. Heat pours from its open door."),
+}

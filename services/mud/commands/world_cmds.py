@@ -64,6 +64,46 @@ class CmdSearch(Command):
         oob.send_room(char)  # the map can show the new way
 
 
+class CmdRest(Command):
+    """
+    Catch your breath and bind your cuts. Not in a fight, and not with an enemy in the room.
+
+    Usage:
+      rest
+    """
+
+    key = "rest"
+    aliases = ["sleep", "camp"]
+    help_category = "General"
+
+    def func(self):
+        import time
+
+        from evennia.contrib.tutorials.evadventure.rules import dice
+
+        char = self.caller
+        if char.ndb.combathandler:
+            self.msg("Not in the middle of a fight.")
+            return
+        if any(o.is_typeclass("typeclasses.monsters.Monster", exact=False) for o in char.location.contents):
+            self.msg("Not with an enemy in the room.")
+            return
+        if (char.hp or 0) >= (char.hp_max or 0):
+            self.msg("You are already at full health.")
+            return
+        wait = REST_SECONDS - (time.time() - (char.ndb.rested_at or 0))
+        if wait > 0:
+            self.msg(f"You rested a moment ago. Try again in {int(wait) + 1} seconds.")
+            return
+        char.ndb.rested_at = time.time()
+        gain = min(char.hp_max - char.hp, max(1, dice.roll("1d8") + (char.constitution or 0)))  # Knave's rest
+        char.hp += gain
+        self.msg(f"You rest for a while and recover {gain} health ({char.hp} of {char.hp_max}).")
+
+
+REST_SECONDS = 20
+
+
 class CmdAsk(Command):
     """
     Ask someone if they have anything for you.

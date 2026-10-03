@@ -7,7 +7,7 @@ Progress is kept per character for the current season: which floors' stairs they
 """
 from evennia import create_object, search_tag
 
-from world.tower import layout, seed, tables
+from world.tower import layout, scaling, seed, tables
 
 CAT = "tower"
 ROOM = "typeclasses.rooms.TowerRoom"
@@ -90,7 +90,7 @@ def ensure_floor(floor, s=None):
     # Up: kept shut for each person until they beat this floor's guard. It leads nowhere until the floor above exists.
     up = _exit(STAIR, "up", ["u", "upstairs", "climb"], made[stair], made[stair], season)
     up.db.floor = floor
-    _guard(made[stair], floor, season)
+    populate(floor, s, made, stair)
     return len(made)
 
 
@@ -105,12 +105,47 @@ def _gate():
     return found[0] if found else None
 
 
-def _guard(room, floor, season):
-    key, desc = tables.GUARD
+def enemy_plan(floor, seed_value, coords, stair):
+    """Who stands where on a floor: [(coord, name, description, role, traits, is_guard)]. Same seed, same enemies."""
+    rng = seed.rng(seed_value, "enemies", floor)
+    fam = scaling.family(floor)
+    common = [m for m in fam["members"] if m[1] != "strong"]
+    out = []
+    for coord in sorted(coords):
+        if coord in ((0, 0), stair):
+            continue
+        for _ in range(scaling.enemies_in_room(floor, rng)):
+            name, role, desc = rng.choice(common)
+            traits = (rng.choice(tables.TRAITS),) if rng.random() < scaling.trait_chance(floor) else ()
+            out.append((coord, name, desc, role, traits, False))
+    role, traits = scaling.guard(floor)
+    if floor in tables.BOSSES:
+        name, desc = tables.BOSSES[floor]
+    else:
+        name, _r, desc = [m for m in fam["members"] if m[1] == "strong"][0]
+    out.append((stair, name, desc, role, traits, True))
+    return out
+
+
+def populate(floor, s, rooms, stair):
+    fam = scaling.family(floor)
+    for coord, name, desc, role, traits, is_guard in enemy_plan(floor, s["seed"], rooms, stair):
+        boss = is_guard and floor in tables.BOSSES
+        key = name if boss else " ".join([*traits, name])
+        spawn_enemy(rooms[coord], floor, key, desc, role, traits, fam["weapon"], s["season"], is_guard, boss)
+
+
+def spawn_enemy(room, floor, key, desc, role, traits, weapon_name, season, is_guard=False, proper=False):
+    stats = scaling.enemy(floor, role, traits)
+    weapon = create_object("evennia.contrib.tutorials.evadventure.objects.EvAdventureWeapon", key=weapon_name,
+                           attributes=[("damage_roll", stats["damage"])])
+    weapon.location = None
+    weapon.tags.add(f"season:{season}", category=CAT)
     mob = create_object("typeclasses.monsters.Monster", key=key, location=room, home=room, attributes=[
-        ("desc", desc), ("hit_dice", 1 + floor // 3), ("armor", 1 + floor // 5), ("coins", 2 + floor),
-        ("warden_floor", floor), ("season", season),
-    ])
+        ("desc", desc), ("hit_dice", stats["hit_dice"]), ("armor", stats["armor"]), ("hp_multiplier", stats["hp_multiplier"]),
+        ("coins", stats["coins"]), ("xp", stats["xp"]), ("traits", list(traits)), ("weapon", weapon), ("season", season),
+    ] + ([("warden_floor", floor)] if is_guard else []) + ([("proper_name", True)] if proper else []))
+    mob.hp = mob.hp_max  # health is set at creation, before the hit dice above are in place
     mob.tags.add(f"season:{season}", category=CAT)
     return mob
 

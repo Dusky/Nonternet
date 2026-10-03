@@ -8,7 +8,10 @@ from evennia import search_tag
 from evennia.contrib.tutorials.evadventure.characters import EvAdventureCharacter
 from evennia.typeclasses.attributes import AttributeProperty
 
+from evennia.contrib.tutorials.evadventure.rules import dice
+
 from world import duels, oob, rules_patch
+from world.tower import scaling
 
 from .objects import ObjectParent
 
@@ -39,6 +42,33 @@ class Character(ObjectParent, EvAdventureCharacter):
     level = Watched(default=1)
     coins = Watched(default=0)
     xp = Watched(default=0)
+
+    def xp_for_next(self):
+        return scaling.xp_for_next(self.level or 1)
+
+    def add_xp(self, xp):
+        """Xp, and a level whenever it is enough: the three lowest abilities go up by one (to +10 at most), and health by 1d6."""
+        self.xp = (self.xp or 0) + xp
+        levelled = False
+        while self.xp >= self.xp_for_next():
+            self.level = (self.level or 1) + 1
+            names = ("strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma")
+            for name in sorted(names, key=lambda n: getattr(self, n) or 0)[:3]:
+                setattr(self, name, min(10, (getattr(self, name) or 0) + 1))
+            gain = dice.roll("1d6")
+            self.hp_max = (self.hp_max or 1) + gain
+            self.hp = (self.hp or 0) + gain
+            self.msg(f"|gYou reach level {self.level}. Your three weakest abilities go up by one, and your health by {gain}.|n")
+            levelled = True
+        return levelled
+
+    def at_damage(self, damage, attacker=None):
+        # A venomous enemy's hit burns a little more, half the time.
+        if attacker and "venomous" in (attacker.db.traits or []) and dice.roll("1d2") == 2:
+            extra = dice.roll("1d4")
+            self.msg(f"|rThe venom burns for {extra} more.|n")
+            damage += extra
+        super().at_damage(damage, attacker=attacker)
 
     def at_post_puppet(self, **kwargs):
         super().at_post_puppet(**kwargs)

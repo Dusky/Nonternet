@@ -20,7 +20,11 @@ def all_lines():
         if line:
             yield "feature", line, 100
     yield "stair", tables.STAIR_LINE, 100
-    yield "guard", tables.GUARD[1], 120
+    for fam in tables.FAMILIES:
+        for name, _role, desc in fam["members"]:
+            yield f"enemy {name}", desc, 120
+    for floor, (name, desc) in tables.BOSSES.items():
+        yield f"boss {name}", desc, 120
 
 
 class TowerTextTest(TestCase):
@@ -51,6 +55,9 @@ class TowerTextTest(TestCase):
             starts[key] = where
 
     def test_names_are_plain(self):
-        for kind in tables.ROOM_KINDS:
-            self.assertLessEqual(len(kind.split()), 2, kind)
-            self.assertNotIn(" of ", kind.lower(), kind)
+        names = list(tables.ROOM_KINDS) + [m[0] for f in tables.FAMILIES for m in f["members"]] + [b[0] for b in tables.BOSSES.values()]
+        names += tables.TRAITS + [f["weapon"] for f in tables.FAMILIES]
+        for name in names:
+            self.assertLessEqual(len(name.split()), 2, name)
+            self.assertNotIn(" of ", name.lower(), name)
+        self.assertEqual(len(names), len(set(names)))

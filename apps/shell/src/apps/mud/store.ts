@@ -18,7 +18,7 @@ export interface Line {
 }
 export interface CaptureLine { id: number; time: number; text: string }
 export type Status = 'idle' | 'connecting' | 'playing' | 'reconnecting' | 'closed' | 'error';
-export interface Vitals { hp: number; hp_max: number; level: number; xp: number; xp_next: number; coins: number; weakened: boolean; in_combat: boolean }
+export interface Vitals { hp: number; hp_max: number; level: number; xp: number; xp_prev?: number; xp_next: number; coins: number; weakened: boolean; in_combat: boolean }
 export interface Exit { name: string; aliases: string[]; to: number | null }
 export interface RoomInfo { id: number; name: string; area: { key: string; name: string } | null; coord: [number, number, number] | null; exits: Exit[] }
 export interface MapRoom { id: number; name: string; coord: [number, number, number]; exits: Exit[] }

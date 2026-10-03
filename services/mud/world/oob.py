@@ -2,7 +2,7 @@
 What the MUD tells a client besides text (docs/09). Two messages, sent as Evennia outputfuncs, so the web client gets
 `["vitals", [], {...}]` and `["room_info", [], {...}]`, and a telnet client with GMCP gets them too:
 
-- vitals: hp, hp_max, level, xp, xp_next, coins, weakened, in_combat. Sent on puppet and whenever one of them changes.
+- vitals: hp, hp_max, level, xp, xp_prev and xp_next (the totals for this level and the next), coins, weakened, in_combat. Sent on puppet and whenever one of them changes.
 - room_info: the room's id, name, area (key and name), coord, and the exits this person can see (a hidden exit only once
   they have found it), each with the destination's id. Sent on puppet, on every move, and after a search finds something.
 
@@ -10,6 +10,7 @@ A client can also ask (inputfuncs `vitals_get`, `room_get`, `area_map`); `area_m
 that this character has been in, with their exits, so the client can draw a map without ever seeing an unvisited room.
 """
 from world.mapdata import AREAS
+from world.tower import scaling
 
 VISITED_MAX = 2000
 
@@ -20,7 +21,8 @@ def vitals(char):
         "hp_max": char.hp_max or 0,
         "level": char.level or 1,
         "xp": char.xp or 0,
-        "xp_next": (char.level or 1) * getattr(char, "xp_per_level", 1000),
+        "xp_next": scaling.xp_for_next(char.level or 1),
+        "xp_prev": scaling.xp_for_next((char.level or 1) - 1) if (char.level or 1) > 1 else 0,
         "coins": char.coins or 0,
         "weakened": bool(getattr(char, "weakened", False)),
         "in_combat": bool(char.ndb.combathandler),

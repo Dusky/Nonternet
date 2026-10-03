@@ -5,7 +5,7 @@ from evennia.utils.test_resources import BaseEvenniaCommandTest
 
 from world.build_town import build_town
 from world.chargen import CharacterSheet
-from world.tower import floors, layout, seed
+from world.tower import floors, layout, scaling, seed
 
 GAME = override_settings(BASE_CHARACTER_TYPECLASS="typeclasses.characters.Character", BASE_ROOM_TYPECLASS="typeclasses.rooms.Room", MAX_NR_CHARACTERS=3)
 
@@ -115,3 +115,135 @@ class TowerTest(BaseEvenniaCommandTest):
         self.assertEqual(self.hero.location, room("square"))
         self.assertFalse(search_tag("room:woods_edge", category="build"))
         self.assertIsNone(rat.pk)
+
+
+@GAME
+class EnemyTest(BaseEvenniaCommandTest):
+    def setUp(self):
+        super().setUp()
+        build_town()
+        sheet = CharacterSheet()
+        sheet.name = "Wren"
+        self.hero = sheet.apply(self.account)
+        self.hero.db_account = self.account
+
+    def test_the_same_seed_puts_the_same_enemies_in_the_same_rooms(self):
+        cells, stair, _rooms = floors.plan(14, 77)
+        a = floors.enemy_plan(14, 77, cells, stair)
+        self.assertEqual(a, floors.enemy_plan(14, 77, cells, stair))
+        guards = [e for e in a if e[5]]
+        self.assertEqual(len(guards), 1)
+        self.assertEqual(guards[0][0], stair)
+        self.assertEqual(guards[0][1], "bandit chief")  # floors 11-20 are bandits
+        self.assertFalse([e for e in a if e[0] == (0, 0)])  # nobody waits at the entry
+
+    def test_boss_floors_have_their_boss_and_floors_past_the_bosses_still_have_a_guard(self):
+        for floor, name in ((10, "Rat Mother"), (20, "Captain Hesk"), (30, "Forge Engine")):
+            cells, stair, _ = floors.plan(floor, 5)
+            guard = [e for e in floors.enemy_plan(floor, 5, cells, stair) if e[5]][0]
+            self.assertEqual((guard[1], guard[4]), (name, ("armoured", "hulking")))
+        cells, stair, _ = floors.plan(40, 5)
+        guard = [e for e in floors.enemy_plan(40, 5, cells, stair) if e[5]][0]
+        self.assertEqual(guard[1], "bone knight")
+        cells, stair, _ = floors.plan(70, 5)  # past the last family, the list starts again
+        self.assertEqual([e for e in floors.enemy_plan(70, 5, cells, stair) if e[5]][0][1], "rat king")
+
+    def test_enemies_get_tougher_with_height(self):
+        low, high = scaling.enemy(1), scaling.enemy(60)
+        self.assertLess(low["hit_dice"], high["hit_dice"])
+        self.assertLess(low["armor"], high["armor"])
+        self.assertEqual(low["damage"], "1d4")
+        self.assertEqual(scaling.die(5), "2d4")
+        self.assertEqual(scaling.enemy(5, traits=("armoured",))["armor"], scaling.enemy(5)["armor"] + 2)
+
+    def test_a_built_floor_has_its_guard_and_named_traits(self):
+        floors.ensure_floor(12)
+        stair = floors.stair_room(12)
+        guard = [o for o in stair.contents if o.db.warden_floor == 12][0]
+        self.assertEqual(guard.key, "armoured bandit chief")
+        self.assertEqual(guard.db.weapon.damage_roll, scaling.enemy(12, "strong", ("armoured",))["damage"])
+        stats = scaling.enemy(12, "strong", ("armoured",))
+        self.assertEqual((guard.hit_dice, guard.armor, guard.hp_max), (stats["hit_dice"], stats["armor"], stats["hit_dice"] * stats["hp_multiplier"]))
+        self.assertEqual(guard.hp, guard.hp_max)  # starts at full health
+        for obj in search_tag(f"season:{seed.current()['season']}", category=floors.CAT):
+            if obj.is_typeclass("typeclasses.monsters.Monster", exact=False) and obj.db.traits and not obj.db.proper_name:
+                self.assertTrue(obj.key.startswith(obj.db.traits[0]))
+
+    def test_beating_an_enemy_pays_everyone_there_and_levels_them_up(self):
+        floors.ensure_floor(1)
+        room = floors.stair_room(1)
+        self.hero.move_to(room, quiet=True)
+        guard = [o for o in room.contents if o.db.warden_floor == 1][0]
+        coins = self.hero.coins
+        guard.db.xp = 60
+        guard.at_death()
+        self.assertEqual(self.hero.coins, coins + guard.coins)
+        self.assertEqual(self.hero.level, 2)  # 50 xp for level 2
+        self.assertGreater(self.hero.hp_max, 0)
+
+    def test_rest_heals_but_not_in_a_fight_or_next_to_an_enemy(self):
+        from commands.world_cmds import CmdRest
+
+        self.hero.move_to(room("square"), quiet=True)
+        self.hero.hp_max = 40
+        self.hero.hp = 1
+        out = self.call(CmdRest(), "", caller=self.hero)
+        self.assertIn("recover", out)
+        self.assertGreater(self.hero.hp, 1)
+        self.assertIn("a moment ago", self.call(CmdRest(), "", caller=self.hero))
+        floors.ensure_floor(1)
+        self.hero.move_to(floors.stair_room(1), quiet=True)
+        self.hero.ndb.rested_at = 0
+        self.hero.hp = 1
+        self.assertIn("enemy in the room", self.call(CmdRest(), "", caller=self.hero))
+
+
+class BalanceTest(BaseEvenniaCommandTest):
+    """The difficulty curve, from the simulator (world/tower/balance.py). If tuning breaks these, look at the table in docs/18."""
+
+    def test_the_first_floors_are_kind_to_a_new_character(self):
+        from world.tower import balance
+
+        for floor in (1, 2, 3, 5):
+            self.assertGreaterEqual(balance.simulate(floor, trials=400)["win"], 0.8, floor)
+            self.assertGreaterEqual(balance.simulate(floor, "guard", trials=400)["win"], 0.75, floor)
+
+    def test_it_gets_harder_but_never_hopeless_before_floor_eighty(self):
+        from world.tower import balance
+
+        for floor in (10, 20, 30, 50, 70):
+            r = balance.simulate(floor, trials=400)
+            self.assertGreaterEqual(r["win"], 0.6, floor)
+        self.assertLess(balance.simulate(100, trials=400)["win"], balance.simulate(5, trials=400)["win"])
+        self.assertLess(balance.simulate(10, "guard", trials=400)["win"], 0.7)  # a boss is meant to be hard alone
+
+
+@GAME
+class FightTest(BaseEvenniaCommandTest):
+    def test_a_real_turn_based_fight_with_a_generated_enemy_ends_in_rewards(self):
+        """Through EvAdventure's own combat handler: the enemy's weapon, health and the rewards all work for real."""
+        from evennia.contrib.tutorials.evadventure.combat_turnbased import _get_combathandler
+
+        build_town()
+        sheet = CharacterSheet()
+        sheet.name = "Wren"
+        hero = sheet.apply(self.account)
+        hero.db_account = self.account
+        floors.ensure_floor(1)
+        room_ = floors.stair_room(1)
+        hero.move_to(room_, quiet=True)
+        hero.strength, hero.hp_max, hero.hp = 10, 200, 200
+        guard = [o for o in room_.contents if o.db.warden_floor == 1][0]
+        xp = hero.xp
+        combat = _get_combathandler(hero, 30, 3)
+        combat.add_combatant(hero)
+        combat.add_combatant(guard)
+        for _ in range(60):
+            if guard.location != room_:
+                break
+            combat.queue_action(hero, {"key": "attack", "target": guard})
+            combat.queue_action(guard, {"key": "attack", "target": hero})
+            combat.at_repeat()
+        self.assertIsNone(guard.location)  # beaten, out of the world until it comes back
+        self.assertGreater(hero.xp, xp)
+        self.assertTrue(floors.has_cleared(hero, 1))
