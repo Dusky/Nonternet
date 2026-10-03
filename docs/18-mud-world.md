@@ -45,7 +45,7 @@ with our own tests, and pin the Evennia version.
 ## What people do
 - **Adventure**: quests, dungeons, monsters, loot.
 - **Talk**: `say`, `emote`, `whisper`, `ooc`; the tavern is always safe.
-- **Explore**: readable notes, hidden exits, small puzzles.
+- **Climb**: the tower's floors, their guards and bosses, the gear they drop, and the season's leaderboard. No puzzle rooms (owner, 2026-10-03).
 - **Leave traces**: sign a guestbook in the tavern, pin notes to the town noticeboard (moderated like
   posts and included in your export).
 
@@ -230,5 +230,6 @@ The full plan is phases T1–T5 (`16`).
 - **Export**: `mud/characters.json` already carries each character's `tower` and `spoils` (T1, T3).
 
 ## Still open
+- ~~Puzzle rooms in the tower?~~ **Ruled out 2026-10-03 (owner).** The tower is fighting, gear and climbing. Still open: traps and merchants inside the tower, and sharing loot within a party.
 1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas.** Replaced 2026-10-03 by the tower (above).
 2. Who builds the first areas?

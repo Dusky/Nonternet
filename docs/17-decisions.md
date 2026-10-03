@@ -24,7 +24,7 @@
 | D19 | Admin two-factor is a site setting, `security.require_admin_2fa`, **off by default** (owners, 2026-10-02). When on, an admin without 2FA gets a limited session until they set it up | DECIDED |
 | D20 | MUD client automation is **rules only, never code**: aliases, triggers with a fixed set of actions, timers, keys, buttons, variables (owners, 2026-10-02) | DECIDED |
 | D21 | Chat and MUD client settings are **kept on the account** (`client_settings`), exported, imported and erased with it; device-only display choices stay on the device (owners, 2026-10-02) | DECIDED |
-| D22 | The MUD is a procedurally generated tower: one shared, endless tower rebuilt monthly (seasons), personal loot, defeat returns you to your last checkpoint, the town is the hub, content from hand-written tables combined by a seed with no live AI text (owners, 2026-10-03; `18`). Replaces the M9-E3 woods, mine and quest | DECIDED |
+| D22 | The MUD is a procedurally generated tower: one shared, endless tower rebuilt monthly (seasons), personal loot, defeat returns you to your last checkpoint, the town is the hub, content from hand-written tables combined by a seed with no live AI text (owners, 2026-10-03; `18`). Replaces the M9-E3 woods, mine and quest. No puzzle rooms (owner, 2026-10-03) | DECIDED |
 
 ### Superseded from earlier planning
 | Earlier | Now |
