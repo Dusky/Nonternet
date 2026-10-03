@@ -15,6 +15,8 @@ class Monster(ObjectParent, EvAdventureMob):
     def at_death(self):
         if self.location:
             self.location.msg_contents(f"|g{self.key} falls and is still.|n")
+            if self.db.warden_floor:
+                self._open_stair()
         self.db.lair = self.db.lair or self.home or self.location
         self.location = None  # out of the world until it comes back
         delay(self.respawn_seconds, self.respawn)
@@ -25,3 +27,12 @@ class Monster(ObjectParent, EvAdventureMob):
         if lair:
             self.move_to(lair, quiet=True, move_type="teleport")
             lair.msg_contents(f"{self.key} is back.")
+
+    def _open_stair(self):
+        """A floor's guard is down: the stair opens for everyone who was there for the fight."""
+        from world.tower import floors
+
+        for obj in self.location.contents:
+            if obj.is_typeclass("typeclasses.characters.Character", exact=False):
+                floors.mark_cleared(obj, self.db.warden_floor)
+                obj.msg("|gThe way up is open.|n")

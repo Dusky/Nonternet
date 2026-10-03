@@ -209,6 +209,7 @@ def export(request):
             "location": c.location.key if c.location else None,
             "carrying": [_item(o) for o in c.contents],
             "quests": deserialize(a.get("quests") or {}),  # Evennia hands back its own dict type; send a plain one
+            "tower": deserialize(a.get("tower") or {}),  # this season's climb: stairs opened, highest floor
         })
     board = _tavern_board()
     notes = [{"text": n["text"], "pinned": datetime.fromtimestamp(n["at"], timezone.utc).isoformat(), "as": n["author"]}

@@ -39,8 +39,6 @@ CHAIN = _armor("chain", 4, 60, "A long shirt of iron rings.")
 HELMET = _armor("helmet", 1, 10, "A simple iron cap.", "EvAdventureHelmet")
 SHIELD = _armor("shield", 1, 10, "A round wooden shield with an iron boss.", "EvAdventureShield")
 
-# The tavern keeper's ledger, found at the bandit camp (the quest in world/quests.py).
-LEDGER = _gear("tavern ledger", 0, "A fat, damp account book with MARTA'S TAVERN stamped on the cover.")
 
 # Food
 RATION = {"prototype_key": "ration", "key": "ration", "typeclass": f"{_EV}.EvAdventureConsumable", "value": 1, "uses": 1,

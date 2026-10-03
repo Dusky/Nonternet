@@ -158,6 +158,14 @@ Details are in `10` ("As built (restyle)").
 - **P5–P6:** the MUD sends vitals, room info and a map of visited rooms (also over GMCP), and the web client gained gauges, a mini-map, exits as buttons, full colour, links, split scrollback, find, saving the log, and rules (aliases, triggers, timers, keys, buttons, variables) kept on the account (`09`, `17` D20–D21).
 - **P7:** chat and MUD follow the size of their own window; logging back into the MUD enters the character you made instead of an error.
 
+## The tower (2026-10-03, owners' choice)
+The MUD becomes a procedurally generated tower (`18`, `17` D22).
+- [x] **T1:** the generator: seeded floors, stair guards, the gate in town, a map per floor, retiring the woods and mine, and a text check.
+- [ ] **T2:** enemy families and scaling, bosses, and a fight simulator for balance.
+- [ ] **T3:** gear: item bases, rarities, affixes and personal drops.
+- [ ] **T4:** checkpoints, losing run loot on defeat, and monthly seasons.
+- [ ] **T5:** a leaderboard on the site, export additions and the console view.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

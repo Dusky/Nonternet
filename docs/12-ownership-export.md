@@ -117,3 +117,6 @@ Ring banners go in the export of the people who run the ring (`rings/<slug>/bann
 
 ## As built (M9-E3)
 `mud/characters.json` also holds each character's quest progress `noticeboard_notes` (the text, when it was pinned and the name it was pinned under) and `guestbook_entries` (the text, when it was signed and the name). Erasing the account removes the notes and guestbook lines from the tavern.
+
+## As built (tower, T1)
+`mud/characters.json`: each character also carries `tower`, this season's climb (the floors whose stairs you opened and your highest floor).

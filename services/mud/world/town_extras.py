@@ -1,6 +1,6 @@
 """
-People and fittings in the town that the commands in commands/world_cmds.py talk to (docs/18): Marta in the tavern (who has
-a job for someone), the tavern's noticeboard, and the market's shopkeeper. Idempotent, like the rest of the town builder.
+People and fittings in the town that the commands in commands/world_cmds.py talk to (docs/18): Marta in the tavern (who knows
+the tower), the tavern's noticeboard, and the market's shopkeeper. Idempotent, like the rest of the town builder.
 """
 from evennia import create_object, search_tag
 
@@ -9,7 +9,7 @@ BUILD = "build"
 # room, tag, typeclass, key, aliases, description
 FITTINGS = [
     ("tavern", "npc:marta", "typeclasses.objects.Object", "Marta", ["landlady", "keeper"],
-     "A stout woman with flour to the elbows and a ring of keys at her belt. Her eyes keep drifting to a bare hook behind the bar. Try 'ask marta'."),
+     "A stout woman with flour to the elbows and a ring of keys at her belt. She has watched a lot of people climb the tower. Try 'ask marta'."),
     ("tavern", "board:tavern", "typeclasses.objects.Object", "noticeboard", ["board", "notices"],
      "A cork board by the door, thick with pinned scraps. 'board' shows what is pinned; 'post <words>' pins a note of your own."),
     ("tavern", "book:tavern", "typeclasses.objects.Object", "guestbook", ["book", "visitors book"],
@@ -26,6 +26,7 @@ def build_extras(rooms):
         if found:
             if key[0].isupper():
                 found[0].db.proper_name = True  # towns built before this existed get it too
+            found[0].db.desc = desc  # and the current description
             continue
         obj = create_object(typeclass, key=key, aliases=aliases, location=rooms[room], attributes=[("desc", desc)])
         obj.locks.add("get:false()")

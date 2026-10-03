@@ -39,7 +39,8 @@ with our own tests, and pin the Evennia version.
 - **Temple**: where you wake after defeat; healing for a few coins.
 - **Market**: a weapon smith, an outfitter and a general store (EvAdventure shops).
 - **Training yard**: a sign tells new people the basics (movement, inventory, wielding), and it is the one place for friendly duels (below). There is no practice dummy; the first real fight is the wild dog on the road.
-- **The old road and the cellar dungeon**: the first adventure for new characters.
+- **The old road and the cellar dungeon**: a first fight for new characters.
+- **Tower gate** (northeast of the square, `tower`): the way into the tower (below). The tower is now what the MUD is about.
 
 ## What people do
 - **Adventure**: quests, dungeons, monsters, loot.
@@ -78,6 +79,9 @@ action audited in core (`03`). Suspension drops MUD sessions within 5 s (`02`).
   changing rolls (below). Not built yet: duels between players and the tavern guestbook.
 
 ### As built (M9-E3)
+- **Retired 2026-10-03** (for the tower, below): the Bandit Woods, the Flooded Mine and the lost ledger quest. A world built before then loses
+  them on the next build (`retire_old_areas`); anyone standing there is moved to the square and keeps what they carry. Old quest records stay
+  on the character and in the export. What follows is kept for the record.
 - **Areas** (`world/areas.py`): the **Bandit Woods** (9 rooms, from the old road: `woods`) and the **Flooded Mine** (9 rooms, from the old
   road: `mine`), with readable notes (`read <thing>`), wolves, bandits and a bandit chief, rats, spiders, a rubble crawler and a drowned miner.
   One way in each is hidden: `search` finds it for the person who searched (stored on the character), and until then the exit
@@ -101,6 +105,42 @@ action audited in core (`03`). Suspension drops MUD sessions within 5 s (`02`).
   turn-based handler fights two people in such a room.
 - **Weakened** (`world/rules_patch.py`): for five minutes after a defeat every roll, attack or save, is one lower.
 
+## The tower (owners' choice, 2026-10-03)
+One shared tower that everyone climbs, built from rules instead of by hand. The owners' choices:
+- endless, harder as you go;
+- rebuilt each month (seasons), with characters, levels and gear kept;
+- personal loot and timed respawns;
+- a defeat sends you back to your last checkpoint;
+- the town stays as the hub;
+- variety comes from hand-written parts combined by a seed, with no live AI text.
+
+The full plan is phases T1–T5 (`16`).
+
+### As built (T1: the generator)
+- **Seasons and seeds** (`world/tower/seed.py`): the season number and its seed live in Evennia's `ServerConfig` (`tower_season`). The same seed
+  always gives the same floors.
+- **Floors** (`world/tower/layout.py`, `floors.py`):
+  - a floor is built the first time anyone climbs to it, as 5 rooms low down, growing to 9 by floor 20;
+  - rooms are grown on a grid from the entry at (0, 0), with an occasional loop;
+  - the stair up is in the room farthest from the entry;
+  - everything carries `tower`-category tags (`season:<n>`, `room:<season>:<floor>:<x>:<y>`), so a season can be cleared without touching
+    what players carry.
+- **Rooms** (`world/tower/tables.py`): 15 kinds of room with two descriptions each, plus 19 optional details, written by hand.
+- **The stair guard**:
+  - each floor's stair up is held by a guard (stats grow with the floor; real enemy families come in T2);
+  - beating it opens the stair for everyone in the room at the time, and only for them (`TowerStair`, per character and per season);
+  - the guard comes back after three minutes for the next person.
+- **Progress** (`db.tower`): the season, the floors whose stairs you opened, and your highest floor. It starts fresh each season and is in
+  the export (`characters[].tower`).
+- **Map**: each floor is its own area ("Floor 3"), so the client's map shows one floor at a time.
+- **Writing rules** ("keep AI slop low"), checked by `tests/test_tower_text.py`:
+  - one or two plain, physical sentences;
+  - no stock filler words ("ancient", "mysterious", "whispers"…);
+  - no dashes or exclamation marks for effect;
+  - length caps;
+  - no two lines starting the same way;
+  - plain names.
+
 ## Still open
-1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas** (the Bandit Woods and the Flooded Mine, nine rooms each). Logged in `17`.
+1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas.** Replaced 2026-10-03 by the tower (above).
 2. Who builds the first areas?

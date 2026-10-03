@@ -39,7 +39,7 @@ def _exits(room, char):
 
 def _area(room):
     key = room.db.area
-    return {"key": key, "name": AREAS.get(key, key)} if key else None
+    return {"key": key, "name": room.db.area_name or AREAS.get(key, key)} if key else None
 
 
 def room_info(char):

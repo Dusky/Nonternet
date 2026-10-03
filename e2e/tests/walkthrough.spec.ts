@@ -50,7 +50,7 @@ test('a newcomer, a player and an admin walk the site', async ({ page, isMobile 
     await type(page, `ic ${name}`);
     await expect(world(page).getByText('Town square').last()).toBeVisible();
     await shot('mud-town-square');
-    for (const [cmd, wait, label] of [['east', 'The tavern', 'mud-tavern'], ['ask marta', 'lost ledger', 'mud-quest-start'], ['board', 'Pinned to the board|board is bare', 'mud-noticeboard'], ['post Looking for a group to try the Flooded Mine', 'pin your note', 'mud-posted-a-note'], ['quests', 'lost ledger', 'mud-quest-log'], ['west', 'Town square', 'mud-back-to-square'], ['west', 'Market', 'mud-market'], ['shop', "Odo's", 'mud-shop'], ['buy dagger', 'You buy a dagger', 'mud-bought'], ['inventory', 'dagger', 'mud-inventory']] as const) {
+    for (const [cmd, wait, label] of [['east', 'The tavern', 'mud-tavern'], ['ask marta', 'The tower\\?', 'mud-ask-marta'], ['board', 'Pinned to the board|board is bare', 'mud-noticeboard'], ['post Looking for a group to climb the tower', 'pin your note', 'mud-posted-a-note'], ['west', 'Town square', 'mud-back-to-square'], ['west', 'Market', 'mud-market'], ['shop', "Odo's", 'mud-shop'], ['buy dagger', 'You buy a dagger', 'mud-bought'], ['inventory', 'dagger', 'mud-inventory']] as const) {
       await type(page, cmd);
       await expect(world(page).getByText(new RegExp(wait)).last()).toBeVisible({ timeout: 10_000 });
       await shot(label);

@@ -112,6 +112,28 @@ test.describe('the MUD', () => {
     await scan(page, 'the MUD client rules');
   });
 
+  test('the tower: the gate is off the square, and up leads to a generated floor with its own map', async ({ page }) => {
+    const u = await makeUser(page, { handle: uniq('climber') });
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/mud');
+    await expect(world(page).getByText('You have no character yet.', { exact: false })).toBeVisible({ timeout: 20_000 });
+    await type(page, 'charcreate');
+    await expect(world(page).getByText('Accept and create character').last()).toBeVisible();
+    await type(page, '3');
+    const ready = world(page).getByText(/ is ready\./);
+    await expect(ready).toBeVisible();
+    await type(page, `ic ${/^(\S+) is ready\./.exec((await ready.textContent()) ?? '')![1]!}`);
+    await expect(world(page).getByText('Town square').last()).toBeVisible();
+    await type(page, 'tower');
+    await expect(world(page).getByText('Tower gate').last()).toBeVisible();
+    await type(page, 'up');
+    const side = page.getByRole('complementary', { name: 'Your character and surroundings' });
+    await expect(side.getByRole('heading', { name: 'Map: Floor 1' })).toBeVisible({ timeout: 10_000 });
+    await expect(side.getByRole('list', { name: /Ways out/ }).getByRole('button', { name: 'down' })).toBeVisible();
+    await type(page, 'down');
+    await expect(side.locator('.mud-here')).toHaveText('Tower gate');
+  });
+
   test('a character made in the MUD shows on the profile and, featured, beside posts on the boards', async ({ page }) => {
     const u = await makeUser(page, { handle: uniq('bard') });
     await setRole(u.handle, 'trusted'); // to start a board

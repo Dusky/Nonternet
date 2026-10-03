@@ -76,10 +76,12 @@ class InternalApiTest(BaseEvenniaTest):
         guestbook.sign(book, "u_CAT", "Tansy", "Thank you for the stew", now=1000)
         guestbook.sign(book, "u_OTHER", "Someone", "Not hers", now=1000)
         cat.characters.all()[0].db.quests = {"ledger": {"step": 2}}
+        cat.characters.all()[0].db.tower = {"season": 1, "cleared": [1, 2], "best": 3}
         out = self.post("/internal/export", {"core_id": "u_CAT"}).json()
         self.assertEqual([n["text"] for n in out["noticeboard_notes"]], ["Looking for a group"])
         self.assertEqual([e["text"] for e in out["guestbook_entries"]], ["Thank you for the stew"])
         self.assertEqual(out["characters"][0]["quests"], {"ledger": {"step": 2}})
+        self.assertEqual(out["characters"][0]["tower"], {"season": 1, "cleared": [1, 2], "best": 3})
         with patch("web.internal._disconnect", return_value=0):
             res = self.post("/internal/accounts/sync", {"accounts": [{"core_id": "u_CAT", "handle": "deleted-1", "status": "deleted", "role": "user", "builder": False}]}).json()
         self.assertEqual(res["deleted"], 1)

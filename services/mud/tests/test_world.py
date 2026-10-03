@@ -7,8 +7,8 @@ from evennia import search_tag
 from evennia.utils.test_resources import BaseEvenniaCommandTest
 
 from commands import world_cmds
-from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdGuestbook, CmdPost, CmdQuests, CmdRead, CmdSearch, CmdSell, CmdShop, CmdSign, CmdUnpost, CmdUnsign
-from world import areas, audit, guestbook, noticeboard, quests, shop
+from commands.world_cmds import CmdAsk, CmdBoard, CmdBuy, CmdGuestbook, CmdPost, CmdRead, CmdSearch, CmdSell, CmdShop, CmdSign, CmdUnpost, CmdUnsign
+from world import audit, guestbook, noticeboard, shop
 from world.build_town import build_town
 from world.chargen import CharacterSheet
 
@@ -57,75 +57,36 @@ class WorldTest(BaseEvenniaCommandTest):
         self.assertNotIn("a Marta", look)
         self.assertNotIn("an Marta", look)
 
-    # ---------------------------------------------------------------- areas
-    def test_two_areas_of_nine_rooms_each_are_built_once(self):
-        woods = [k for k in areas.ROOMS if k in ("woods_edge", "fern_path", "hollow_oak", "stream", "clearing", "ridge", "lookout", "camp", "tent")]
-        mine = [k for k in areas.ROOMS if k in ("mine_gate", "adit", "cart_hall", "landing", "pump_room", "gallery", "stope", "foreman", "lake")]
-        self.assertEqual((len(woods), len(mine)), (9, 9))
-        for k in woods + mine:
-            self.assertEqual(len(search_tag(f"room:{k}", category="build")), 1, k)
-        self.assertEqual(build_town(), 0)  # nothing left to make
-        self.assertTrue([o for o in room("camp").contents if o.key == "bandit"])
-
+    # ---------------------------------------------------------------- reading and searching
     def test_notes_can_be_read_and_signs_say_so(self):
-        self.go("hollow_oak")
-        self.says(CmdRead(), "paper", "chest at the camp")
+        from evennia import create_object
+
+        create_object("typeclasses.objects.Readable", key="scrap of paper", aliases=["paper"], location=room("square"),
+                      attributes=[("text", "Meet at the gate at dawn.")])
+        self.says(CmdRead(), "paper", "Meet at the gate")
         self.says(CmdRead(), "", "Read what?")
-        self.go("fern_path")
         self.says(CmdRead(), "moon", "nothing to read")
 
     def test_hidden_ways_are_found_by_searching_and_only_by_the_one_who_searched(self):
-        self.go("lookout")
-        exit_ = [e for e in room("lookout").contents if e.tags.has("hidden", category="world")][0]
+        from evennia import create_object
+
+        exit_ = create_object("typeclasses.exits.HiddenExit", key="crack", location=room("square"), destination=room("road"))
+        exit_.tags.add("hidden", category="world")
         other = CharacterSheet()
         other.name = "Moss"
         other_char = other.apply(self.account2)
         self.assertFalse(exit_.access(self.hero, "view"))
         self.assertFalse(exit_.access(self.hero, "traverse"))  # not usable by name either
-        self.says(CmdSearch(), "", "You find a way through: thorns")
+        self.says(CmdSearch(), "", "You find a way through: crack")
         self.assertTrue(exit_.access(self.hero, "view"))
         self.assertTrue(exit_.access(self.hero, "traverse"))
         self.assertFalse(exit_.access(other_char, "view"))  # theirs alone
         self.says(CmdSearch(), "", "nothing new")
 
-    # ---------------------------------------------------------------- the ledger
-    def test_the_lost_ledger_takes_three_steps_and_pays_once(self):
-        self.says(CmdQuests(), "", "not on any quest")
+    def test_marta_points_people_at_the_tower(self):
         self.go("tavern")
-        self.says(CmdAsk(), "marta", "Quest started: the lost ledger")
-        self.assertEqual(quests.step_of(self.hero), 1)
-        self.says(CmdAsk(), "marta", "Find the chest")
-        self.says(CmdQuests(), "", "lost ledger")
-        # Searching somewhere else does not find it.
-        self.go("woods_edge")
-        self.says(CmdSearch(), "", "nothing new")
-        self.assertEqual(quests.step_of(self.hero), 1)
-        self.go("camp")
-        self.says(CmdSearch(), "", "Marta's ledger")
-        self.assertEqual(quests.step_of(self.hero), 2)
-        self.assertEqual([o.key for o in self.hero.equipment.all(only_objs=True) if o.key == "tavern ledger"], ["tavern ledger"])
-        self.says(CmdSearch(), "", "nothing new")  # not twice
-        self.assertEqual(len([o for o in self.hero.contents if o.key == "tavern ledger"]), 1)
-        before = self.hero.coins
-        self.go("tavern")
-        self.says(CmdAsk(), "marta", "Quest done: the lost ledger")
-        self.assertEqual(quests.step_of(self.hero), 3)
-        self.assertEqual(self.hero.coins, before + quests.REWARD_COINS)
-        self.assertFalse([o for o in self.hero.contents if o.key == "tavern ledger"])
-        self.says(CmdAsk(), "marta", "on me")
-        self.assertEqual(self.hero.coins, before + quests.REWARD_COINS)  # paid once
-
-    def test_a_lost_ledger_sends_you_back_to_find_another(self):
-        self.go("tavern")
-        self.says(CmdAsk(), "marta", "Quest started")
-        self.go("camp")
-        self.says(CmdSearch(), "", "ledger")
-        ledger = [o for o in self.hero.contents if o.key == "tavern ledger"][0]
-        self.hero.equipment.remove(ledger)
-        ledger.delete()
-        self.go("tavern")
-        self.says(CmdAsk(), "marta", "haven't got it")
-        self.assertEqual(quests.step_of(self.hero), 1)
+        self.says(CmdAsk(), "marta", "The tower?")
+        self.says(CmdAsk(), "nobody", "Ask whom?")
 
     # ---------------------------------------------------------------- the shop
     def test_buying_and_selling_move_coins_and_items(self):
@@ -141,19 +102,13 @@ class WorldTest(BaseEvenniaCommandTest):
         self.says(CmdBuy(), "sword", "costs 10 coins and you have 1")
         self.says(CmdSell(), "moonbeam", "not carrying")
 
-    def test_selling_cannot_make_coins_from_nothing_and_quest_items_are_not_for_sale(self):
+    def test_selling_cannot_make_coins_from_nothing(self):
         self.go("market")
         start = self.hero.coins
         for _ in range(3):
             self.says(CmdBuy(), "club", "You buy")
             self.says(CmdSell(), "club", "pays you")
         self.assertLess(self.hero.coins, start)  # buy at 2, sell at 1
-        self.go("tavern")
-        self.says(CmdAsk(), "marta", "Quest started")
-        self.go("camp")
-        self.says(CmdSearch(), "", "ledger")
-        self.go("market")
-        self.says(CmdSell(), "tavern ledger", "worth nothing")
 
     def test_the_shop_only_works_in_the_market(self):
         self.go("square")

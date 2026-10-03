@@ -27,3 +27,14 @@ class YardRoom(Room):
 class WildRoom(Room):
     """Outside town: monsters can be fought here."""
     allow_combat = AttributeProperty(True, autocreate=False)
+
+
+class TowerRoom(WildRoom):
+    """A room on a tower floor (world/tower). Walking in counts toward your highest floor this season."""
+
+    def at_object_receive(self, obj, source_location, **kwargs):
+        super().at_object_receive(obj, source_location, **kwargs)
+        if self.db.floor and obj.is_typeclass("typeclasses.characters.Character", exact=False):
+            from world.tower import floors
+
+            floors.reached(obj, self.db.floor)

@@ -6,7 +6,7 @@ from evennia import search_tag
 from evennia.utils.test_resources import BaseEvenniaCommandTest
 
 from server.conf import inputfuncs
-from world import mapdata, oob, quests
+from world import mapdata, oob
 from world.build_town import build_town
 from world.chargen import CharacterSheet
 
@@ -50,9 +50,9 @@ class OobTest(BaseEvenniaCommandTest):
             self.assertEqual(list(r.db.coord), [x, y, z])
             self.assertNotIn((area, x, y, z), seen, key)
             seen.add((area, x, y, z))
-        from world import areas, build_town as town
+        from world import build_town as town
 
-        self.assertEqual(set(mapdata.COORDS), set(town.ROOMS) | set(areas.ROOMS))
+        self.assertEqual(set(mapdata.COORDS), set(town.ROOMS))
 
     def test_a_change_to_hp_or_coins_sends_vitals(self):
         self.hero.coins = 42
@@ -74,20 +74,31 @@ class OobTest(BaseEvenniaCommandTest):
         self.assertIn({"name": "west", "aliases": info["exits"][0]["aliases"], "to": room("square").id}, info["exits"])
 
     def test_a_hidden_exit_shows_only_after_it_is_found(self):
-        self.hero.move_to(room("lookout"), quiet=True)
-        names = [e["name"] for e in self.last("room_info")["exits"]]
-        self.assertNotIn("thorns", names)
-        quests.search_room(self.hero)  # (self.call would swap out msg while it runs)
-        names = [e["name"] for e in self.last("room_info")["exits"]]
-        self.assertIn("thorns", names)
+        from evennia import create_object
+
+        hidden = create_object("typeclasses.exits.HiddenExit", key="crack", location=room("market"), destination=room("road"))
+        self.hero.move_to(room("market"), quiet=True)
+        self.assertNotIn("crack", [e["name"] for e in self.last("room_info")["exits"]])
+        self.hero.db.found_exits = [hidden.id]
+        oob.send_room(self.hero)
+        self.assertIn("crack", [e["name"] for e in self.last("room_info")["exits"]])
 
     def test_the_area_map_lists_only_rooms_this_character_has_been_in(self):
-        for key in ("woods_edge", "fern_path", "stream"):
+        for key in ("tavern", "square", "market"):
             self.hero.move_to(room(key), quiet=True)
         m = oob.area_map(self.hero)
-        self.assertEqual(m["area"]["key"], "woods")
-        self.assertEqual({r["id"] for r in m["rooms"]}, {room(k).id for k in ("woods_edge", "fern_path", "stream")})
-        self.assertNotIn(room("square").id, {r["id"] for r in m["rooms"]})  # another area
+        self.assertEqual(m["area"]["key"], "town")
+        self.assertEqual({r["id"] for r in m["rooms"]}, {room(k).id for k in ("tavern", "square", "market")})
+        self.assertNotIn(room("temple").id, {r["id"] for r in m["rooms"]})  # never been there
+
+    def test_a_tower_floor_is_its_own_area_with_its_own_name(self):
+        from world.tower import floors
+
+        self.hero.move_to(floors.entry(2), quiet=True)
+        info = self.last("room_info")
+        self.assertEqual(info["area"], {"key": "floor2", "name": "Floor 2"})
+        self.assertEqual(info["coord"], [0, 0, 0])
+        self.assertEqual(oob.area_map(self.hero)["area"]["key"], "floor2")
 
     def test_the_client_can_ask(self):
         class Session:

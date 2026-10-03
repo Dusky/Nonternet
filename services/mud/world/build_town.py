@@ -1,6 +1,6 @@
 """
-The starting town (docs/18). Idempotent: each thing carries a build tag, so running this again only makes
-what is missing. It runs on the first start (server/conf/at_initial_setup.py); a developer can run it
+The starting town at the foot of the tower (docs/18). Idempotent: each thing carries a build tag, so running this again
+only makes what is missing. It runs on the first start (server/conf/at_initial_setup.py); a developer can run it
 again with `buildtown`. Builders extend the world in-game; this only lays the first stones.
 """
 from evennia import DefaultExit, create_object, search_object, search_tag
@@ -26,9 +26,11 @@ ROOMS = {
              "A square of packed earth behind the temple, with straw targets and a rack of blunt practice weapons. "
              "A sign reads: TYPE 'help' TO LEARN. TYPE 'inventory' TO SEE WHAT YOU CARRY. 'wield' A WEAPON BEFORE THE ROAD. "
              "TO TEST YOURSELF AGAINST A FRIEND, 'duel <name>': BOTH MUST AGREE, AND NOBODY IS HURT FOR REAL.", []),
+    "gate": ("typeclasses.rooms.Room", "Tower gate",
+             "An iron door stands open in the base of the tower. Past it, a stone stair goes up into the dark.", []),
     "road": ("typeclasses.rooms.WildRoom", "The old road",
              "Past the last cottages the road turns to ruts between hedges. Something rustles in the ditch. "
-             "Further on, a collapsed farmhouse has a cellar door hanging open.", []),
+             "A collapsed farmhouse has a cellar door hanging open.", []),
     "cellar": ("typeclasses.rooms.WildRoom", "Farmhouse cellar",
                "Damp stone, the smell of rot and old apples. Barrels lie smashed. Scratching comes from deeper in.", []),
     "den": ("typeclasses.rooms.WildRoom", "The goblins' den",
@@ -42,6 +44,7 @@ EXITS = [
     ("square", "market", "west", ["w", "market"], "east", ["e", "out", "square"]),
     ("temple", "yard", "back", ["yard", "training"], "temple", ["out"]),
     ("square", "road", "south", ["s", "road"], "north", ["n", "town"]),
+    ("square", "gate", "tower", ["northeast", "ne", "gate"], "out", ["southwest", "sw", "square", "town"]),
     ("road", "cellar", "cellar", ["down", "d"], "up", ["u", "out"]),
     ("cellar", "den", "deeper", ["in", "den"], "back", ["out"]),
 ]
@@ -103,13 +106,40 @@ def build_town(caller=None):
             mob.db.weapon.location = None
         mob.tags.add(tag, category=BUILD)
         made += 1
-    from world.areas import build_areas
+    if not _find("exit:gate:tower"):
+        up = create_object("typeclasses.exits.TowerEntrance", key="up", aliases=["u", "upstairs", "climb"],
+                           location=rooms["gate"], destination=rooms["gate"])  # leads to floor 1 once it is built
+        up.tags.add("exit:gate:tower", category=BUILD)
+        made += 1
     from world.town_extras import build_extras
 
-    made += build_areas(rooms)
+    retire_old_areas(rooms["square"])
     made += build_extras(rooms)
     from world.mapdata import apply_map
 
     apply_map(rooms)  # positions are not "new things", so they don't count
     say(f"Town built: {made} new things.")
     return made
+
+
+# The Bandit Woods and the Flooded Mine came before the tower (2026-10-03). A world built back then loses them on the next
+# build: whoever stands there is moved to the square, and what they carry stays theirs.
+RETIRED = ["woods_edge", "fern_path", "hollow_oak", "stream", "clearing", "ridge", "lookout", "camp", "tent",
+           "mine_gate", "adit", "cart_hall", "landing", "pump_room", "gallery", "stope", "foreman", "lake"]
+
+
+def retire_old_areas(square):
+    gone = 0
+    for key in RETIRED:
+        room = _find(f"room:{key}")
+        if not room:
+            continue
+        for obj in list(room.contents):
+            if obj.is_typeclass("typeclasses.characters.Character", exact=False):
+                obj.move_to(square, quiet=True, move_type="teleport")
+                obj.msg("|yThe woods and the mine are gone. You find yourself back in the square.|n")
+            else:
+                obj.delete()
+        room.delete()  # exits leading here go with it
+        gone += 1
+    return gone

@@ -1,7 +1,7 @@
-"""World commands (docs/18): reading, searching, asking, the shop and the noticeboard."""
+"""World commands (docs/18): reading, searching, asking, the shop, the noticeboard and the guestbook."""
 from evennia import Command, search_tag
 
-from world import audit, guestbook, noticeboard, quests, shop
+from world import audit, guestbook, noticeboard, oob, shop
 
 BUILD = "build"
 
@@ -52,8 +52,16 @@ class CmdSearch(Command):
         if char.ndb.combathandler:
             self.msg("You are in the middle of a fight.")
             return
-        for line in quests.search_room(char):
-            self.msg(line)
+        room = char.location
+        found = list(char.db.found_exits or [])
+        new = [e for e in room.contents if e.tags.has("hidden", category="world") and e.id not in found]
+        if not new:
+            self.msg("You search carefully and find nothing new.")
+            return
+        char.db.found_exits = found + [e.id for e in new]
+        for e in new:
+            self.msg(f"|gYou find a way through: {e.key}.|n")
+        oob.send_room(char)  # the map can show the new way
 
 
 class CmdAsk(Command):
@@ -71,28 +79,12 @@ class CmdAsk(Command):
         char = self.caller
         who = self.args.strip().lower()
         if who and _here(char, "npc:marta") and who in ("marta", "landlady", "keeper"):
-            self.msg(quests.ask_marta(char))
+            self.msg("Marta nods at the window. \"The tower? The gate is northeast of the square. Every floor has a guard by the "
+                     "stair up, and it won't let you past until you beat it. The higher you go, the worse they get.\"")
         elif who and _here(char, "npc:shop") and who in ("odo", "shopkeeper"):
             self.msg("Odo grins. \"Type 'shop' and I'll show you.\"")
         else:
             self.msg("Ask whom? There is nobody like that here.")
-
-
-class CmdQuests(Command):
-    """
-    See what you are working on.
-
-    Usage:
-      quests
-    """
-
-    key = "quests"
-    aliases = ["quest", "journal"]
-    help_category = "General"
-
-    def func(self):
-        for line in quests.log(self.caller):
-            self.msg(line)
 
 
 class _ShopCmd(Command):
