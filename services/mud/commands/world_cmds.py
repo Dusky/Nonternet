@@ -104,6 +104,38 @@ class CmdRest(Command):
 REST_SECONDS = 20
 
 
+class CmdSpoils(Command):
+    """
+    Finds you had no room for. They wait here, up to ten, until you make room and claim one.
+
+    Usage:
+      spoils
+      claim <number>
+    """
+
+    key = "spoils"
+    aliases = ["claim"]
+    help_category = "General"
+
+    def func(self):
+        from world.tower import loot
+
+        char = self.caller
+        if self.cmdstring == "claim":
+            if not self.args.strip().isdigit():
+                self.msg("Claim which? Type 'spoils' to see them, then 'claim' and the number.")
+                return
+            self.msg(loot.claim(char, int(self.args.strip())))
+            return
+        spoils = char.db.spoils or []
+        if not spoils:
+            self.msg("You have no spoils waiting.")
+            return
+        self.msg("|wSpoils waiting for room in your pack:|n")
+        for i, item in enumerate(spoils, 1):
+            self.msg(f"  {i}. {item['name']} ({item['rarity']})")
+
+
 class CmdAsk(Command):
     """
     Ask someone if they have anything for you.

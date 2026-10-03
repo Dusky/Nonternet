@@ -38,12 +38,28 @@ class Monster(ObjectParent, EvAdventureMob):
                 floors.mark_cleared(obj, self.db.warden_floor)
                 obj.msg("|gThe way up is open.|n")
 
+    def at_damage(self, damage, attacker=None):
+        # The attacker's weapon affixes (world/tower/tables.py): brutal hits harder, leeching heals its wielder.
+        affixes = (getattr(getattr(attacker, "weapon", None), "db", None) and attacker.weapon.db.affixes) or []
+        if damage > 0 and "brutal" in affixes:
+            damage += 2
+        super().at_damage(damage, attacker=attacker)
+        if damage > 0 and "leeching" in affixes and attacker.hp < attacker.hp_max:
+            attacker.hp += 1
+
     def _reward(self):
-        """Everyone in the room for the fight gets the xp and coins, each their own (docs/18: personal rewards)."""
+        """Everyone in the room for the fight gets the xp and coins and their own roll for a drop (docs/18: personal loot)."""
+        import random
+
+        from world.tower import loot
+
         xp = self.db.xp or self.hit_dice * 8
         coins = self.coins or 0
+        floor = self.location.db.floor
         for obj in self.location.contents:
             if obj.is_typeclass("typeclasses.characters.Character", exact=False):
                 obj.coins = (obj.coins or 0) + coins
                 obj.msg(f"|g+{xp} xp, +{coins} coins.|n")
                 obj.add_xp(xp)
+                if floor and (self.db.warden_floor or random.random() < loot.DROP_CHANCE):
+                    loot.give(obj, loot.roll(floor))

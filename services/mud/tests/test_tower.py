@@ -1,4 +1,6 @@
 """The tower (docs/18, world/tower): seeded floors, the stair guard, and the way between town and floor 1."""
+from unittest.mock import patch
+
 from django.test import override_settings
 from evennia import search_tag
 from evennia.utils.test_resources import BaseEvenniaCommandTest
@@ -247,3 +249,98 @@ class FightTest(BaseEvenniaCommandTest):
         self.assertIsNone(guard.location)  # beaten, out of the world until it comes back
         self.assertGreater(hero.xp, xp)
         self.assertTrue(floors.has_cleared(hero, 1))
+
+
+@GAME
+class LootTest(BaseEvenniaCommandTest):
+    def setUp(self):
+        super().setUp()
+        build_town()
+        sheet = CharacterSheet()
+        sheet.name = "Wren"
+        self.hero = sheet.apply(self.account)
+        self.hero.db_account = self.account
+        self.hero.move_to(room("square"), quiet=True)
+
+    def test_drops_follow_the_floor_and_their_names_say_what_they_are(self):
+        import random
+
+        from world.tower import loot, tables
+
+        rng = random.Random(1)
+        items = [loot.roll(f, rng) for f in range(1, 200) for _ in range(3)]
+        for it in items:
+            self.assertLessEqual(len(it["name"].split()), 8, it["name"])
+            self.assertLessEqual(len(it["name"]), 48, it["name"])
+            for a in it["affixes"]:
+                self.assertIn(a.removeprefix("of "), it["name"])
+            if it["rarity"] in ("fine", "epic"):
+                self.assertTrue(it["name"].startswith("fine "))
+            self.assertIn(it["base"], it["name"])
+        low = [it for it in items if it["floor"] < 10 and it["kind"] == "weapon"]
+        high = [it for it in items if it["floor"] > 150 and it["kind"] == "weapon"]
+        self.assertTrue(all("+" in it["name"] for it in high))  # past masterwork, a number counts up
+        self.assertLess(max(int(i["damage"].split("d")[0]) for i in low), max(int(i["damage"].split("d")[0]) for i in high))
+        # Rarer finds get likelier with height.
+        epic_low = sum(loot.rarity(1, random.Random(i)) == "epic" for i in range(2000))
+        epic_high = sum(loot.rarity(100, random.Random(i)) == "epic" for i in range(2000))
+        self.assertLess(epic_low, epic_high)
+        self.assertEqual({a for a in tables.WEAPON_AFFIXES} & {a for a in tables.ARMOUR_AFFIXES}, set())
+
+    def test_a_drop_becomes_a_real_item_in_your_pack_or_waits_in_spoils(self):
+        from world.tower import loot
+
+        item = {"kind": "weapon", "base": "maul", "two_handed": True, "damage": "1d10", "desc": "A maul.", "name": "fine heavy iron maul",
+                "rarity": "epic", "affixes": ["heavy", "brutal"], "floor": 14, "value": 120}
+        obj = loot.give(self.hero, item)
+        self.assertEqual(obj.location, self.hero)
+        self.assertEqual(obj.damage_roll, "1d10")
+        self.assertTrue(obj.db.unbanked)
+        self.assertIn("2 more damage", obj.db.desc)
+        from world import shop
+
+        self.assertEqual(shop.sell_price(obj), 60)
+        # A full pack: it goes to spoils, and comes back with claim once there is room.
+        with patch.object(type(self.hero.equipment), "add", side_effect=__import__("evennia.contrib.tutorials.evadventure.equipment", fromlist=["EquipmentError"]).EquipmentError("full")):
+            self.assertIsNone(loot.give(self.hero, dict(item, name="spare maul")))
+        self.assertEqual([s["name"] for s in self.hero.db.spoils], ["spare maul"])
+        self.assertIn("You take spare maul", loot.claim(self.hero, 1))
+        self.assertEqual(self.hero.db.spoils, [])
+        self.assertIn("no spoil", loot.claim(self.hero, 3))
+
+    def test_every_affix_does_what_it_says(self):
+        from evennia import create_object
+
+        from world.tower import loot
+
+        mob = create_object("typeclasses.monsters.Monster", key="dummy", location=room("road"), attributes=[("hit_dice", 10)])
+        mob.hp = mob.hp_max
+        weapon = loot.make({"kind": "weapon", "base": "sword", "two_handed": False, "damage": "1d6", "desc": "x", "name": "brutal leeching sword",
+                            "rarity": "rare", "affixes": ["brutal", "leeching"], "floor": 3, "value": 10}, self.hero)
+        self.hero.equipment.add(weapon)
+        self.hero.equipment.move(weapon)
+        self.hero.hp_max, self.hero.hp = 20, 10
+        before = mob.hp
+        mob.at_damage(3, attacker=self.hero)
+        self.assertEqual(mob.hp, before - 5)  # brutal: 3 + 2
+        self.assertEqual(self.hero.hp, 11)  # leeching: +1
+        coat = loot.make({"kind": "body", "base": "quilted coat", "armor": 1, "desc": "x", "name": "quilted coat of warding of thorns",
+                          "rarity": "epic", "affixes": ["of warding", "of thorns"], "floor": 3, "value": 10}, self.hero)
+        self.hero.equipment.add(coat)
+        self.hero.equipment.move(coat)
+        self.hero.hp = 20
+        mob_hp = mob.hp
+        self.hero.at_damage(4, attacker=mob)
+        self.assertEqual(self.hero.hp, 17)  # warding: 4 - 1
+        self.assertEqual(mob.hp, mob_hp - 1)  # thorns
+
+    def test_a_beaten_guard_always_drops_something_for_each_person_there(self):
+        floors.ensure_floor(2)
+        stair = floors.stair_room(2)
+        self.hero.move_to(stair, quiet=True)
+        guard = [o for o in stair.contents if o.db.warden_floor == 2][0]
+        before = len(self.hero.contents)
+        guard.at_death()
+        found = [o for o in self.hero.contents if o.db.found_floor == 2]
+        self.assertEqual(len(found), 1)
+        self.assertEqual(len(self.hero.contents), before + 1)

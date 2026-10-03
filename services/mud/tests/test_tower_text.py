@@ -25,6 +25,12 @@ def all_lines():
             yield f"enemy {name}", desc, 120
     for floor, (name, desc) in tables.BOSSES.items():
         yield f"boss {name}", desc, 120
+    for name, (_s, _t, desc) in tables.WEAPONS.items():
+        yield f"weapon {name}", desc, 100
+    for name, desc in tables.BODY_ARMOUR + [tables.HELMET, tables.SHIELD]:
+        yield f"armour {name}", desc, 100
+    for name, desc in {**tables.WEAPON_AFFIXES, **tables.ARMOUR_AFFIXES}.items():
+        yield f"affix {name}", desc, 80
 
 
 class TowerTextTest(TestCase):
@@ -57,6 +63,7 @@ class TowerTextTest(TestCase):
     def test_names_are_plain(self):
         names = list(tables.ROOM_KINDS) + [m[0] for f in tables.FAMILIES for m in f["members"]] + [b[0] for b in tables.BOSSES.values()]
         names += tables.TRAITS + [f["weapon"] for f in tables.FAMILIES]
+        names += list(tables.WEAPONS) + [n for n, _d in tables.BODY_ARMOUR] + [tables.HELMET[0], tables.SHIELD[0]]
         for name in names:
             self.assertLessEqual(len(name.split()), 2, name)
             self.assertNotIn(" of ", name.lower(), name)

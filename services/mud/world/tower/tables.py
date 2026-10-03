@@ -124,7 +124,7 @@ FAMILIES = [
         ("drowned man", "normal", "A man in a rotted coat, water running from his sleeves."),
         ("bone knight", "strong", "A skeleton in full plate with the visor rusted shut."),
     ]},
-    {"name": "cultists", "weapon": "knife", "members": [
+    {"name": "cultists", "weapon": "ritual knife", "members": [
         ("acolyte", "weak", "A young man in a grey robe, holding a candle in one hand and a knife in the other."),
         ("zealot", "normal", "A shaven-headed woman shouting the same word over and over."),
         ("mask bearer", "normal", "Someone in a white clay mask with no eyeholes, who finds you anyway."),
@@ -146,4 +146,45 @@ BOSSES = {
     10: ("Rat Mother", "A rat as big as a pony, with a dozen of her young around her feet."),
     20: ("Captain Hesk", "The bandits' captain in stolen plate, with a sword in each hand."),
     30: ("Forge Engine", "A furnace on four iron legs. Heat pours from its open door."),
+}
+
+
+# ---------------------------------------------------------------- gear (T3)
+# Every 12 floors gear moves up a tier, and the tier word is in its name. Past the last tier the best word stays and a number counts up:
+# "masterwork sword +2".
+WEAPON_TIERS = ["rough", "iron", "steel", "tempered", "masterwork"]
+# name: (damage step against the floor's expected weapon, two-handed?, description)
+WEAPONS = {
+    "knife": (-1, False, "A short blade with a plain wooden grip."),
+    "sword": (0, False, "A straight blade, sharpened on both edges."),
+    "mace": (0, False, "A flanged iron head on a short haft."),
+    "hand axe": (0, False, "A bearded axe head on a haft the length of your forearm."),
+    "spear": (1, True, "A leaf-shaped blade on a long ash pole."),
+    "maul": (1, True, "A heavy block of metal on a long handle, for both hands."),
+}
+# Body armour by tier (its tier is in the name already), then helmets and shields with a tier word.
+BODY_ARMOUR = [
+    ("quilted coat", "A thick coat of stitched linen layers."),
+    ("leather coat", "Boiled leather, stiff at first, shaped to whoever wears it."),
+    ("mail shirt", "A shirt of riveted rings that reaches to the thigh."),
+    ("scale coat", "Overlapping metal scales sewn onto a leather backing."),
+    ("plate coat", "Steel plates riveted inside a canvas coat."),
+]
+HELMET = ("helm", "A round helmet with a strap under the chin.")
+SHIELD = ("shield", "A round shield with a metal rim and boss.")
+ARMOUR_TIERS = ["leather", "iron", "steel", "tempered", "masterwork"]
+
+# Better finds: (name, weight on floor 1, weight on floor 100). The weights slide between the two with height.
+RARITIES = [("common", 70, 40), ("fine", 20, 30), ("rare", 9, 22), ("epic", 1, 8)]
+
+# What an affix does is in its name, and every one of them does something real (see typeclasses/monsters.py and characters.py).
+WEAPON_AFFIXES = {
+    "heavy": "Its damage dice are one step bigger.",
+    "brutal": "Each hit does 2 more damage.",
+    "leeching": "Each hit heals you by 1.",
+}
+ARMOUR_AFFIXES = {
+    "reinforced": "Its armour is 1 higher.",
+    "of warding": "Each hit you take does 1 less damage.",
+    "of thorns": "Whoever hits you takes 1 damage.",
 }

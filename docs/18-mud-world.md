@@ -180,6 +180,29 @@ The full plan is phases T1–T5 (`16`).
   Bosses are meant to be hard alone; bring friends. `tests/test_tower.py` keeps the first floors kind and the middle never hopeless.
   The simulator is a model, not the game. Play-testing comes after T3, when the gear it assumes exists.
 
+### As built (T3: gear and loot)
+- **Personal drops** (`world/tower/loot.py`):
+  - when an enemy falls on a tower floor, each person in the room rolls their own find: a 25% chance from an ordinary enemy, always from
+    the stair guard;
+  - nothing lies on the floor for anyone to grab;
+  - a find that won't fit in the pack waits in your **spoils** (up to ten; `spoils`, then `claim <number>`).
+- **What drops**: weapons (knife, sword, mace, hand axe, and the two-handed spear and maul), body armour, helmets and shields.
+  - Gear moves up a tier every 12 floors, and the tier is in the name (rough, iron, steel, tempered, masterwork; body armour goes quilted
+    coat, leather coat, mail shirt, scale coat, plate coat).
+  - Past the last tier a number counts up: "masterwork sword +2".
+  - Strength follows the kit in `scaling.py`, so drops match what the balance simulator assumed.
+- **Rarity**: common, fine (+1 damage step or armour), rare (one affix), epic (fine plus two affixes). Rarer finds get likelier with height.
+- **Affixes**: what each does is in its name and its description, and each does something real:
+  - heavy: damage dice one step bigger;
+  - brutal: +2 damage per hit;
+  - leeching: each hit heals you 1;
+  - reinforced: +1 armour;
+  - of warding: each hit taken does 1 less;
+  - of thorns: whoever hits you takes 1.
+- **Selling**: Odo pays half an item's value, and value rises with floor and rarity.
+- **Run loot**: finds are marked `unbanked`; T4 decides what a defeat costs.
+- **Export**: carried gear was already in it; waiting spoils are too now (`characters[].spoils`).
+
 ## Still open
 1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas.** Replaced 2026-10-03 by the tower (above).
 2. Who builds the first areas?

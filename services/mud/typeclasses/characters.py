@@ -62,13 +62,25 @@ class Character(ObjectParent, EvAdventureCharacter):
             levelled = True
         return levelled
 
+    def worn_affixes(self):
+        from evennia.contrib.tutorials.evadventure.enums import WieldLocation
+
+        slots = self.equipment.slots
+        worn = [slots.get(s) for s in (WieldLocation.BODY, WieldLocation.HEAD, WieldLocation.SHIELD_HAND)]
+        return [a for obj in worn if obj for a in (obj.db.affixes or [])]
+
     def at_damage(self, damage, attacker=None):
         # A venomous enemy's hit burns a little more, half the time.
         if attacker and "venomous" in (attacker.db.traits or []) and dice.roll("1d2") == 2:
             extra = dice.roll("1d4")
             self.msg(f"|rThe venom burns for {extra} more.|n")
             damage += extra
+        affixes = self.worn_affixes()
+        damage = max(0, damage - affixes.count("of warding"))
         super().at_damage(damage, attacker=attacker)
+        thorns = affixes.count("of thorns")
+        if thorns and attacker and attacker != self and hasattr(attacker, "at_damage"):
+            attacker.at_damage(thorns)  # no attacker given back, so thorns never bounce
 
     def at_post_puppet(self, **kwargs):
         super().at_post_puppet(**kwargs)
