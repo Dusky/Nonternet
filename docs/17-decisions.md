@@ -109,6 +109,7 @@
 
 - 2026-10-02: admin two-factor is optional (owners' choice). New console setting `security.require_admin_2fa`, off by default; when on, the old rule applies (limited sessions until TOTP is set up, including someone promoted mid-session). Supersedes the 'required for admins' line in `02`/`15`.
 - 2026-10-03: homepage links 404'd when running locally, because the example config's `homes_domain: example-homes.net` sent browsers to the public internet. The example now uses `homes.localhost` (browsers resolve `*.localhost` to this machine), `sitectl doctor` fails while a real site still has a `localhost` domain or one that differs from `.env`, and `doctor` no longer stops silently at the first missing `.env` key (`07`, `19`).
+- 2026-10-03: updates and restarts from the console go through a host agent (`sitectl agent`) reading request files from a shared folder, rather than giving any container the Docker socket: a compromised core can only ask for a fixed action, never run a command (`19`).
 
 ## Verify list
 | # | Fact | Affects |

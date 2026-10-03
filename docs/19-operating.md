@@ -50,6 +50,28 @@ site answers. Migrations run when core starts (forward-only, `13`). If core does
 `./sitectl logs core`. To go back, check out the previous commit and `./sitectl up`; a migration that already
 ran stays (forward-only), so restore the backup from before the upgrade if a migration must be undone.
 
+### From the admin console (built 2026-10-03)
+Admins can check for updates, update the site and restart services from **Admin console → Updates**, once the agent is set
+up on the server: run `./sitectl install-agent` in `deploy/` (it creates `deploy/ops/` and a `sitectl-agent` system service,
+using `sudo` once).
+- **How it works**: core never touches Docker. It writes a small request file into `deploy/ops/requests/` (mounted into core as
+  `/ops`, `OPS_DIR`). The agent on the host takes the oldest one, checks it against a fixed list, runs it, and writes the job's
+  state and log to `deploy/ops/jobs/`, which the console shows. Nothing in a request is ever run as a command.
+- **The fixed list**:
+  - *check for updates*: `git fetch`, then the waiting commits are listed. The agent also does this every ten minutes;
+  - *update*: exactly `./sitectl upgrade`, so backup first, then pull, rebuild, restart and the health check;
+  - *restart* one of `core homes shell caddy bbs gopher mud ergo`, or everything, then wait until healthy. The database and Redis
+    are never restarted from the web.
+- **Safety**:
+  - updating and restarting ask for the admin's password again;
+  - one job at a time, rate-limited;
+  - each request is audited (`ops.check`, `ops.upgrade`, `ops.restart`);
+  - the agent keeps the last 50 jobs.
+
+  The most a stolen admin session can do here is ask for one of these actions.
+- **While core restarts** the page says so and catches up by itself. If the agent stops, the page says when it was last seen
+  (`systemctl status sitectl-agent` on the server).
+
 ## When something is wrong
 - `./sitectl doctor` first: it checks configuration, DNS, services, TLS and ports and says what failed.
 - `./sitectl ps` and `./sitectl logs <service>` (core, caddy, ergo, mud, bbs, homes, gopher, postgres).

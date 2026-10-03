@@ -9,6 +9,7 @@ import * as widgets from '../homes/widgets';
 import { ctxOf, requireAdmin } from '../http';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
+import { OPS_ACTIONS, OPS_SERVICES, opsLog, opsStatus, requestOp } from '../ops';
 
 const inviteSchema = z.object({ expires_in_days: z.number().int().min(1).max(90).optional() }).default({});
 const userIdParam = z.object({ id: z.string().regex(/^u_[0-9A-Z]{26}$/, 'not a user ID') });
@@ -38,6 +39,15 @@ const userListQuery = z.object({
 });
 
 export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
+  // Updates and restarts (docs/19): the request goes to `sitectl agent` on the host, which does the work.
+  app.get('/api/v1/admin/ops', async (req) => { requireAdmin(req); return opsStatus(deps); });
+  app.get('/api/v1/admin/ops/:id/log', async (req) => { requireAdmin(req); return opsLog(deps, z.object({ id: z.string().max(40) }).parse(req.params).id); });
+  app.post('/api/v1/admin/ops', { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req, reply) => {
+    const who = requireAdmin(req);
+    const body = z.object({ action: z.enum(OPS_ACTIONS), service: z.enum(OPS_SERVICES).optional(), password: z.string().max(200).optional() }).parse(req.body);
+    return reply.code(202).send(await requestOp(deps, who, body, ctxOf(deps, req)));
+  });
+
   app.post('/api/v1/admin/invites', async (req, reply) => {
     const who = requireAdmin(req);
     const { expires_in_days } = inviteSchema.parse(req.body ?? {});

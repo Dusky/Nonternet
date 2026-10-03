@@ -88,6 +88,7 @@ oidc:
     HOMES_PORT: String(HOMES_PORT),
     BBS_SECRET: randomBytes(24).toString('base64url'),
     RATE_LIMIT: 'off', // the tests sign up far more people than one address may in an hour
+    OPS_DIR: join(TMP, 'ops'), // updates and restarts: tests/updates.spec.ts plays the host agent
     ...(process.env.TEST_REDIS_URL ? { REDIS_URL: process.env.TEST_REDIS_URL } : {}),
     ...(ERGO_BIN ? { IRC_SECRET: randomBytes(24).toString('base64url'), IRC_HOST: '127.0.0.1', IRC_PORT: String(IRC_PORT), IRC_API_URL: `http://127.0.0.1:${IRC_API_PORT}` } : {}),
     ...(EVENNIA_BIN ? { MUD_SECRET: randomBytes(24).toString('base64url'), MUD_URL: `http://127.0.0.1:${MUD_WEB_PORT}` } : {}),

@@ -131,3 +131,6 @@ command console. The console should grow continuously; plan for it.
 ## As built (M9-E1)
 Bulletins, polls and oneliners are managed where they appear (Boards → Bulletins and Voting booth, and the wall on Home) rather than in a console
 panel: admins see Write, Edit and Take down there. Each of those actions is in the audit log.
+
+## As built (updates, 2026-10-03)
+**Updates** tab (Site group): the running version, updates waiting on the branch with their commit subjects, *check for updates*, *update* (backup, pull, rebuild, restart) and *restart a service*, with the recent jobs and their logs. The work is done on the server by `sitectl agent` (`19`); updating and restarting ask for the password again and are audited.

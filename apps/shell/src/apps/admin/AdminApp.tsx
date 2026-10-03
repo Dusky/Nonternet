@@ -8,13 +8,14 @@ import { AuditReplay, CommandConsole, StatsPanel } from './ConsoleDepth';
 import { ReportQueue } from '../boards/ReportQueue';
 import { AnnouncementsPanel, LegalPanel, SettingsPanel } from './ConfigPanels';
 import { BackupsPanel, StatusPanel } from './StatusPanels';
+import { UpdatesPanel } from './UpdatesPanel';
 import { IrcPanel } from './IrcPanel';
 import { MudPanel } from './MudPanel';
 import { Audit } from './AuditPanel';
 import { BoardsTable, HomepagesTable, RingsTable } from './ContentPanels';
 import { Invites, UserPage, Users } from './UsersPanels';
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id', 'bbs'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id', 'bbs', 'updates'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -32,6 +33,7 @@ export default function AdminApp() {
         { to: 'announcements', label: t('admin.tab.announcements') },
         { to: 'legal', label: t('admin.tab.legal') },
         { to: 'backups', label: t('admin.tab.backups') },
+        { to: 'updates', label: t('admin.tab.updates') },
       ] },
       { label: t('admin.group.people'), items: [
         { to: 'users', label: t('admin.tab.users') },
@@ -61,6 +63,7 @@ export default function AdminApp() {
       {route?.pattern === 'mud' && <MudPanel />}
       {route?.pattern === 'bbs' && <BbsPanel />}
       {route?.pattern === 'backups' && <BackupsPanel />}
+      {route?.pattern === 'updates' && <UpdatesPanel />}
       {route?.pattern === 'users' && <Users />}
       {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}
       {route?.pattern === 'invites' && <Invites />}

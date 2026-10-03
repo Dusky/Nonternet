@@ -59,6 +59,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     rateLimit: rateLimitEnabled(env, production),
     homesUrl: (handle) => `${publicUrl.startsWith('https://') ? 'https' : 'http'}://${handle.toLowerCase()}.${config.site.homes_domain}${env.HOMES_PUBLIC_PORT ? `:${env.HOMES_PUBLIC_PORT}` : ''}/`,
     exportsDir: resolve(env.EXPORTS_DIR ?? './data/exports'),
+    opsDir: env.OPS_DIR ? resolve(env.OPS_DIR) : undefined,
     filesDir: resolve(env.FILES_DIR ?? './data/files'),
     homes: new HomeStore(resolve(env.HOMES_DIR ?? './data/homes')),
     oidcClients: resolveOidcClients(config.oidc.clients, env),

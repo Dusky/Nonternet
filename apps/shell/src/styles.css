@@ -1095,3 +1095,8 @@ button.chat-person:hover { text-decoration: underline; }
   .mud-side > .mud-card { flex: 1 1 13rem; }
 }
 }
+
+/* Updates and restarts (docs/19). */
+.ops-pending { margin: 0 0 var(--space-3); }
+.ops-pending li { padding: 2px 0; overflow-wrap: anywhere; }
+.ops-log pre { max-height: 24rem; overflow: auto; padding: var(--space-2) var(--space-3); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--step--1); white-space: pre-wrap; overflow-wrap: anywhere; }

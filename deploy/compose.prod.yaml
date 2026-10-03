@@ -36,8 +36,10 @@ services:
       SMTP_URL: "${SMTP_URL:?set SMTP_URL in deploy/.env, production must send email}"
       MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM in deploy/.env}
       HOMES_PUBLIC_PORT: ""
+      OPS_DIR: /ops  # updates and restarts from the console, carried out by `./sitectl agent` on the host (docs/19)
     volumes:
       - ./backups:/backups
+      - ./ops:/ops
 
   homes:
     <<: *prod

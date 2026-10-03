@@ -5,6 +5,8 @@
 #   ./sitectl backup          encrypted backup into ./backups (run nightly from cron)
 #   ./sitectl restore-test    prove the newest backup restores (run monthly)
 #   ./sitectl upgrade         back up, pull the new version, rebuild, restart, check health
+#   ./sitectl agent           carry out updates and restarts asked for in the admin console (run by install-agent)
+#   ./sitectl install-agent   set the agent up as a system service, so the console's Updates page works
 #   ./sitectl irc-reload      make Ergo reload its TLS certificate (weekly, from cron)
 #   ./sitectl create-admin <handle> <email>     the first admin (asks for a password)
 #   ./sitectl logs [service]  ./sitectl ps
@@ -12,6 +14,9 @@ set -euo pipefail
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$SELF")"
 COMPOSE=(docker compose -f compose.yaml -f compose.prod.yaml --env-file .env)
+[ -n "${SITECTL_COMPOSE:-}" ] && read -ra COMPOSE <<< "$SITECTL_COMPOSE"  # tests swap in a stand-in
+OPS="${SITECTL_OPS_DIR:-$PWD/ops}"
+SERVICES="all core homes shell caddy bbs gopher mud ergo"  # the same list core accepts (apps/core/src/ops.ts)
 say() { printf '%s\n' "$*"; }
 ok() { printf '  \033[32mok\033[0m    %s\n' "$*"; }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; FAILED=1; }
@@ -71,6 +76,102 @@ doctor() {
   [ "$FAILED" = 0 ] && say "All good." || { say "Fix the FAIL lines above."; return 1; }
 }
 
+# ---------------------------------------------------------------- the agent (docs/19)
+# Core writes requests as ops/requests/<id>.req (key=value lines). The agent takes the oldest, checks it against a fixed list,
+# runs it and keeps ops/jobs/<id>.state and <id>.log for the console. Nothing in a request is ever run as a command.
+
+kv() { { grep -m1 "^$1=" "$2" || true; } | cut -d= -f2-; }
+put() { local f="$1"; shift; printf '%s\n' "$@" > "$f.tmp" && mv "$f.tmp" "$f"; }
+
+check_version() {
+  local repo=.. branch behind
+  git -C "$repo" fetch --quiet origin 2>/dev/null || true
+  branch=$(git -C "$repo" rev-parse --abbrev-ref HEAD)
+  behind=$(git -C "$repo" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
+  {
+    echo "commit=$(git -C "$repo" rev-parse HEAD)"
+    echo "subject=$(git -C "$repo" log -1 --format=%s | tr -d '\r\n')"
+    echo "date=$(git -C "$repo" log -1 --format=%cI)"
+    echo "branch=$branch"
+    echo "behind=$behind"
+    git -C "$repo" log --format='%H %s' "HEAD..origin/$branch" 2>/dev/null | head -50 | awk '{ printf "pending_%d=%s %s\n", NR, substr($1, 1, 12), substr($0, 42) }'
+    echo "checked_at=$(date +%s)"
+  } > "$OPS/version.tmp" && mv "$OPS/version.tmp" "$OPS/version"
+}
+
+run_job() {
+  local req="$1" id action service by requested state=done
+  id=$(basename "$req" .req)
+  action=$(kv action "$req"); service=$(kv service "$req"); by=$(kv by "$req"); requested=$(kv requested_at "$req")
+  [[ "$by" =~ ^[A-Za-z0-9_-]{1,40}$ ]] || by=unknown
+  [[ "$requested" =~ ^[0-9]{1,12}$ ]] || requested=$(date +%s)
+  local state_file="$OPS/jobs/$id.state" log="$OPS/jobs/$id.log"
+  local head=("action=$action" "service=$service" "by=$by" "requested_at=$requested" "started_at=$(date +%s)")
+  case "$action" in
+    restart) [[ " $SERVICES " == *" $service "* && -n "$service" ]] || { action=invalid; } ;;
+    upgrade|check) service="" ;;
+    *) action=invalid ;;
+  esac
+  rm -f "$req"
+  if [ "$action" = invalid ]; then
+    put "$state_file" "${head[@]}" "state=failed" "finished_at=$(date +%s)"
+    echo "Refused: not an action the agent knows." > "$log"
+    return
+  fi
+  put "$state_file" "${head[@]}" "state=running"
+  {
+    echo "== $action ${service} (asked for by $by), $(date -u '+%Y-%m-%d %H:%M UTC')"
+    case "$action" in
+      check) check_version && echo "Checked for updates." ;;
+      restart)
+        if [ "$service" = all ]; then "${COMPOSE[@]}" restart && "${COMPOSE[@]}" up -d --wait
+        else "${COMPOSE[@]}" restart "$service" && "${COMPOSE[@]}" up -d --wait "$service"; fi ;;
+      upgrade) "$SELF" upgrade && check_version ;;
+    esac
+  } > "$log" 2>&1 || state=failed
+  echo "== $state" >> "$log"
+  put "$state_file" "${head[@]}" "state=$state" "finished_at=$(date +%s)"
+}
+
+agent() {
+  mkdir -p "$OPS/requests" "$OPS/jobs"
+  local last_check=0
+  while true; do
+    put "$OPS/agent" "at=$(date +%s)"
+    if [ $(( $(date +%s) - last_check )) -ge 600 ]; then check_version || true; last_check=$(date +%s); fi
+    for req in $(ls "$OPS/requests" 2>/dev/null | grep -E '^op_[0-9A-Z]{26}\.req$' | sort || true); do
+      run_job "$OPS/requests/$req"
+    done
+    # Old jobs: keep the last 50.
+    { ls "$OPS/jobs"/*.state 2>/dev/null || true; } | sort | head -n -50 | while read -r f; do rm -f "$f" "${f%.state}.log"; done
+    [ "${1:-}" = --once ] && return
+    sleep 3
+  done
+}
+
+install_agent() {
+  mkdir -p "$OPS/requests" "$OPS/jobs"
+  chmod 1777 "$OPS/requests"  # core runs as another user inside its container and only ever adds files here
+  local unit=/etc/systemd/system/sitectl-agent.service
+  sudo tee "$unit" >/dev/null <<UNIT
+[Unit]
+Description=Site updates and restarts asked for in the admin console
+After=docker.service
+Requires=docker.service
+
+[Service]
+User=$(id -un)
+WorkingDirectory=$(dirname "$SELF")
+ExecStart=$SELF agent
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  sudo systemctl daemon-reload && sudo systemctl enable --now sitectl-agent
+  say "The agent is running. The console's Updates page should show it within a few seconds."
+}
+
 case "${1:-help}" in
   doctor) doctor ;;
   up) "${COMPOSE[@]}" up -d --build --wait ;;
@@ -82,8 +183,10 @@ case "${1:-help}" in
     "${COMPOSE[@]}" up -d --build --wait
     curl -fsS --max-time 20 "https://$(envval SITE_DOMAIN)/readyz" >/dev/null && say "Upgraded, and the site answers." || { say "The site does not answer after the upgrade: ./sitectl logs core"; exit 1; } ;;
   irc-reload) "${COMPOSE[@]}" kill -s HUP ergo ;;
+  agent) shift; agent "$@" ;;
+  install-agent) install_agent ;;
   create-admin) [ $# -eq 3 ] || { say "Usage: ./sitectl create-admin <handle> <email>"; exit 2; }; "${COMPOSE[@]}" exec core node cli.cjs create-admin --handle "$2" --email "$3" ;;
   logs) shift; "${COMPOSE[@]}" logs --tail 200 -f "$@" ;;
   ps) "${COMPOSE[@]}" ps ;;
-  *) sed -n '2,11p' "$SELF" | sed 's/^# \{0,1\}//' ;;
+  *) sed -n '2,13p' "$SELF" | sed 's/^# \{0,1\}//' ;;
 esac
