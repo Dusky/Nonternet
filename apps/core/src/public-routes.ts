@@ -11,7 +11,7 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['GET', /^\/api\/v1\/bbs\/motd$/, 'the BBS message of the day'],
   ['GET', /^\/api\/v1\/legal(\/.*)?$/, 'the site’s legal pages'],
   ['POST', /^\/api\/v1\/legal\/requests$/, 'takedown requests come from anyone'],
-  ['POST', /^\/api\/v1\/auth\/(signup|login|logout|verify-email|resend-verification|forgot-password|reset-password)$/, 'signing up and in, and forgotten passwords'],
+  ['POST', /^\/api\/v1\/auth\/(signup|login|logout|verify-email|confirm-email|resend-verification|forgot-password|reset-password)$/, 'signing up and in, and forgotten passwords'],
   ['GET', /^\/api\/v1\/oidc\/interaction\/:uid$/, 'the sign-in step of the OIDC flow'],
   ['GET', /^\/api\/v1\/boards(\/:slug(\/threads(\/:id)?)?)?$/, 'public boards read without logging in (docs/05)'],
   ['GET', /^\/api\/v1\/modlog$/, 'the public mod log (docs/03)'],

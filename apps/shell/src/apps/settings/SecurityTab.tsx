@@ -77,6 +77,34 @@ export function TwoFactor({ me }: { me: Me }) {
           <button className="btn" type="submit" disabled={regen.isPending || code.length !== 6}>{t('settings.twofa.regen')}</button>
         </form>
       )}
+      {!codes && <TurnOff />}
     </Section>
+  );
+}
+
+// Turning two-factor off: the password and a current code (or a recovery code). Other sessions are signed out.
+function TurnOff() {
+  const t = useT();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const off = useMutation({
+    mutationFn: () => api.post('/me/totp/disable', { password, ...(code.includes('-') ? { recovery_code: code } : { totp: code }) }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['me'] }),
+  });
+  if (!open) return <p><button type="button" className="btn btn-quiet" onClick={() => setOpen(true)}>{t('settings.twofa.turnOff')}</button></p>;
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); off.mutate(); }} aria-labelledby="twofa-off-h">
+      <h3 id="twofa-off-h">{t('settings.twofa.turnOff')}</h3>
+      <p className="hint">{t('settings.twofa.turnOffHint')}</p>
+      <TextField label={t('field.currentPassword')} value={password} onChange={setPassword} type="password" autoComplete="current-password" required />
+      <TextField label={t('settings.twofa.codeOrRecovery')} value={code} onChange={setCode} autoComplete="one-time-code" maxLength={11} required />
+      {off.error && <Alert kind="error">{errorText(off.error)}</Alert>}
+      <div className="toolbar">
+        <button className="btn btn-danger" type="submit" disabled={off.isPending || !password || code.length < 6}>{t('settings.twofa.turnOffGo')}</button>
+        <button type="button" className="btn btn-quiet" onClick={() => setOpen(false)}>{t('common.cancel')}</button>
+      </div>
+    </form>
   );
 }

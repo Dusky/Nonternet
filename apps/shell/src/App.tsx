@@ -20,6 +20,7 @@ const LegalPageRoute = lazy(() => import('./pages/Legal').then((m) => ({ default
 const ForgotPasswordPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.ResetPasswordPage })));
 const VerifyEmailPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.VerifyEmailPage })));
+const ConfirmEmailPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.ConfirmEmailPage })));
 const Setup2faPage = lazy(() => import('./pages/Setup2fa').then((m) => ({ default: m.Setup2faPage })));
 const ReportHomepagePage = lazy(() => import('./pages/ReportHomepage').then((m) => ({ default: m.ReportHomepagePage })));
 const GuestbookSignPage = lazy(() => import('./pages/GuestbookSign').then((m) => ({ default: m.GuestbookSignPage })));
@@ -124,6 +125,7 @@ export function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/confirm-email" element={<ConfirmEmailPage />} />
       <Route path="/setup-2fa" element={<Setup2faRoute />} />
       <Route path="/guestbook-sign" element={<RequireUser>{() => <GuestbookSignPage />}</RequireUser>} />
       <Route path="/report/homepage/:handle" element={<RequireUser>{() => <ReportHomepagePage />}</RequireUser>} />

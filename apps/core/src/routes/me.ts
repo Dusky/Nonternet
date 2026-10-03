@@ -8,9 +8,11 @@ import * as exports_ from '../exports/service';
 import * as imports from '../imports';
 import { ApiError } from '../errors';
 import { deleteOwnAccount } from '../deletion';
+import { renameUser, selfRenameAllowedAt } from '../admin';
 import { COOKIE } from '../http';
 import type { AppDeps } from '../deps';
 
+const secondFactor = { totp: z.string().trim().regex(/^\d{6}$/).optional(), recovery_code: z.string().trim().toLowerCase().max(40).optional() };
 const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, 'enter the 6-digit code') });
 
 export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -45,6 +47,32 @@ export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/me/totp/recovery-codes', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req) => {
     const { code } = codeSchema.parse(req.body);
     return { recovery_codes: await accounts.regenerateRecoveryCodes(deps, requireUser(req), code, ctxOf(deps, req)) };
+  });
+
+  // Turning two-factor off needs the password and a current code (or a recovery code).
+  app.post('/api/v1/me/totp/disable', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req, reply) => {
+    const body = z.object({ password: z.string().max(200), ...secondFactor }).parse(req.body);
+    await accounts.totpDisable(deps, requireUser(req), body, ctxOf(deps, req), (err) => req.log.error({ err }, 'totp-off email failed'));
+    return reply.code(204).send();
+  });
+
+  // Changing your email (docs/02): a link goes to the new address, and nothing changes until it is opened.
+  app.post('/api/v1/me/email', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
+    const body = z.object({ password: z.string().max(200), email: z.string().trim().email().max(254) }).parse(req.body);
+    await accounts.requestEmailChange(deps, requireUser(req), body, ctxOf(deps, req), (err) => req.log.error({ err }, 'email-change notice failed'));
+    return reply.code(202).send();
+  });
+
+  // Changing your handle (docs/02, docs/07): once every 90 days; the old homepage address redirects for 90 days.
+  app.get('/api/v1/me/handle', async (req) => {
+    const at = await selfRenameAllowedAt(deps.db, requireUser(req).userId);
+    return { changeable_at: at ? at.toISOString() : null };
+  });
+  app.post('/api/v1/me/handle', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req) => {
+    const user = requireUser(req);
+    const body = z.object({ password: z.string().max(200), handle: z.string().trim().max(40) }).parse(req.body);
+    await accounts.checkPassword(deps, user.userId, body.password);
+    return renameUser(deps, user, user.userId, body.handle, 'changed by themselves', ctxOf(deps, req), { self: true });
   });
 
   // Export (docs/12): asking needs the password again; the archive is built by a worker and kept for 7 days.

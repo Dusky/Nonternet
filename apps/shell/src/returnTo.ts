@@ -22,6 +22,6 @@ export function safeReturnTo(value: string | null | undefined, origin: string): 
   const to = `${url.pathname}${url.search}${url.hash}`;
   if (SERVER_PREFIXES.some((p) => url.pathname === p.replace(/\/$/, '') || url.pathname.startsWith(p))) return { kind: 'page', url: url.toString() };
   // Never bounce back to a page that only makes sense before logging in.
-  if (['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'].includes(url.pathname)) return null;
+  if (['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/confirm-email'].includes(url.pathname)) return null;
   return { kind: 'app', to };
 }

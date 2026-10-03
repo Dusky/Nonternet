@@ -42,6 +42,13 @@ export function authRoutes(app: FastifyInstance, deps: AppDeps): void {
     return reply.code(204).send();
   });
 
+  // The link from "change your email" (docs/02). It works without being signed in, as it may be opened on another device.
+  app.post('/api/v1/auth/confirm-email', { config: perIp(20, '1 hour') }, async (req, reply) => {
+    const { token } = verifySchema.parse(req.body);
+    await accounts.confirmEmailChange(deps, token, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+
   // Always answers 204, whether or not the email has an account (no way to probe for accounts).
   app.post('/api/v1/auth/forgot-password', {
     config: {

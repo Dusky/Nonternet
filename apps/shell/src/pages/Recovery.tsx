@@ -32,6 +32,29 @@ export function VerifyEmailPage() {
   );
 }
 
+// The link from "change your email" in Settings (docs/02). Works once, signed in or not.
+export function ConfirmEmailPage() {
+  const t = useT();
+  const [params] = useSearchParams();
+  const token = params.get('token');
+  const started = useRef(false);
+  const confirm = useMutation({ mutationFn: (tok: string) => api.post('/auth/confirm-email', { token: tok }) });
+  useEffect(() => {
+    if (!token || started.current) return;
+    started.current = true;
+    confirm.mutate(token);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Centered title={t('auth.confirmEmail.title')}>
+      {!token && <Alert kind="error">{t('auth.verify.missing')}</Alert>}
+      {token && confirm.isPending && <p role="status">{t('auth.verify.working')}</p>}
+      {confirm.isSuccess && <Alert kind="success">{t('auth.confirmEmail.ok')}</Alert>}
+      {confirm.isError && <Alert kind="error">{errorText(confirm.error)}</Alert>}
+      {(confirm.isSuccess || confirm.isError || !token) && <p className="links"><Link to="/">{t('auth.confirmEmail.back')}</Link></p>}
+    </Centered>
+  );
+}
+
 export function ForgotPasswordPage() {
   const t = useT();
   const [email, setEmail] = useState('');

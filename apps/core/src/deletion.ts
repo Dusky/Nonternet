@@ -83,6 +83,8 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`DELETE FROM board_members WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM ring_members WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM scoped_roles WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM email_changes WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM applications WHERE user_id = $1`, [userId]);
     exportIds = (await q.query<{ id: string }>(`DELETE FROM exports WHERE user_id = $1 RETURNING id`, [userId])).rows.map((x) => x.id);
     importIds = (await q.query<{ id: string }>(`DELETE FROM imports WHERE user_id = $1 RETURNING id`, [userId])).rows.map((x) => x.id);
     await q.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [userId]);

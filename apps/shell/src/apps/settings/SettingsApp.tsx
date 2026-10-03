@@ -8,9 +8,10 @@ import { OfflineMail, SshKeys, TerminalPassword } from './Terminal';
 import { BoardSettings, ChatAccountSettings, ChatSettings, NotificationChoices, PersonalProfile, TerminalDisplay } from './PersonalSettings';
 import { Profile, FeaturedCharacter } from './ProfileTab';
 import { Password, TwoFactor } from './SecurityTab';
+import { EmailAddress, Handle } from './AccountTab';
 import { Appearance, DeviceAlerts } from './AppearanceTab';
 
-const ROUTES = ['profile', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards'] as const;
+const ROUTES = ['profile', 'account', 'password', 'two-factor', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards'] as const;
 
 export default function SettingsApp() {
   const t = useT();
@@ -28,6 +29,7 @@ export default function SettingsApp() {
       { to: 'notifications', label: t('settings.tab.notifications') },
       ...(site.services.irc && me.role !== 'guest' ? [{ to: 'chat', label: t('settings.tab.chat') }] : []),
       ...(me.role !== 'guest' ? [{ to: 'boards', label: t('settings.tab.boards') }] : []),
+      { to: 'account', label: t('settings.tab.account') },
       { to: 'password', label: t('settings.tab.password') },
       { to: 'two-factor', label: t('settings.tab.twofa') },
       { to: 'terminal', label: t('settings.tab.terminal') },
@@ -35,6 +37,7 @@ export default function SettingsApp() {
       { to: 'data', label: t('settings.tab.data') },
     ] }]}>
       {route?.pattern === 'profile' && <><Profile me={me} />{me.role !== 'guest' && <PersonalProfile me={me} />}{site.services.mud && <FeaturedCharacter />}</>}
+      {route?.pattern === 'account' && <><EmailAddress me={me} /><Handle me={me} /></>}
       {route?.pattern === 'password' && <Password />}
       {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
       {route?.pattern === 'terminal' && <><TerminalDisplay /><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <><SshKeys /><OfflineMail /></>}</>}

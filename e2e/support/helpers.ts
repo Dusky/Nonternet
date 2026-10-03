@@ -13,7 +13,7 @@ export const uniq = (prefix: string) => `${prefix}${randomBytes(3).toString('hex
 export const totp = (secret: string, stepOffset = 0) => generate({ secret, epoch: Math.floor(Date.now() / 1000) + 30 * stepOffset });
 
 // Mail is written to core's log when there is no SMTP server: find the link in the mail to an address.
-export async function linkFor(email: string, kind: 'verify-email' | 'reset-password'): Promise<string> {
+export async function linkFor(email: string, kind: 'verify-email' | 'reset-password' | 'confirm-email'): Promise<string> {
   let link = '';
   await expect.poll(() => {
     const log = readFileSync(join(TMP, 'core.log'), 'utf8');

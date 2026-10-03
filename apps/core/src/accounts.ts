@@ -391,6 +391,81 @@ export async function regenerateRecoveryCodes(deps: AppDeps, user: SessionUser, 
   });
 }
 
+// Turning two-factor off (docs/02): as hard as logging in, so a stolen session alone can't do it. Other sessions are signed
+// out, as after a password change. A site that requires admin two-factor doesn't let an admin turn it off.
+export async function totpDisable(deps: AppDeps, user: SessionUser, input: { password: string; totp?: string; recovery_code?: string }, ctx: Ctx, onError: (err: unknown) => void = () => undefined): Promise<void> {
+  if (!user.totpEnabled) throw new ApiError(400, 'totp_not_enabled', 'Two-factor authentication is already off.');
+  if (deps.config.security.require_admin_2fa && user.role === 'admin') throw new ApiError(409, 'totp_required_here', 'This site requires admins to use two-factor authentication.');
+  const u = (await deps.db.query<{ id: string; password_hash: string; totp_enabled_at: Date | null; totp_secret_enc: string | null }>(
+    `SELECT id, password_hash, totp_enabled_at, totp_secret_enc FROM users WHERE id = $1`, [user.userId])).rows[0]!;
+  if (!(await verifyPassword(u.password_hash, input.password))) throw new ApiError(400, 'wrong_password', 'That is not your current password.');
+  await requireSecondFactor(deps, u, input, ctx);
+  await deps.db.tx(async (q) => {
+    await q.query(`UPDATE users SET totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = NULL, updated_at = now() WHERE id = $1`, [user.userId]);
+    await q.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [user.userId]);
+    await revokeAllSessions(q, user.userId, 'totp_disabled', user.sessionId);
+    await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.totp_disabled', targetType: 'user', targetId: user.userId, origin: 'web', ipHash: ctx.ipHash });
+  });
+  const t = makeT(toPublicSite(deps.config));
+  void deps.mailer.send({ to: user.email, subject: t('email.totpOff.subject'), text: t('email.totpOff.body', { handle: user.handle }) }).catch(onError);
+}
+
+// ---------------------------------------------------------------- changing your email
+
+export async function checkPassword(deps: AppDeps, userId: string, password: string): Promise<void> {
+  const r = await deps.db.query<{ password_hash: string }>(`SELECT password_hash FROM users WHERE id = $1`, [userId]);
+  if (!(await verifyPassword(r.rows[0]!.password_hash, password))) throw new ApiError(400, 'wrong_password', 'That is not your current password.');
+}
+
+// "ada@example.org" -> "a•••@example.org", for the notice to the old address.
+export const maskEmail = (email: string): string => {
+  const at = email.lastIndexOf('@');
+  return at < 1 ? '•••' : `${email[0]}•••${email.slice(at)}`;
+};
+
+// Asking to change your email (docs/02). Nothing changes until the new address is confirmed, so a typo can't lock anyone out.
+// The old address is told, in case it wasn't them. Only the newest link works.
+export async function requestEmailChange(deps: AppDeps, user: SessionUser, input: { password: string; email: string }, ctx: Ctx, onError: (err: unknown) => void = () => undefined): Promise<void> {
+  await checkPassword(deps, user.userId, input.password);
+  const email = input.email.trim();
+  if (email === user.email) throw new ApiError(409, 'no_change', 'That is already your email address.');
+  if ((await deps.db.query(`SELECT 1 FROM users WHERE lower(email) = lower($1) AND id <> $2`, [email, user.userId])).rowCount > 0) {
+    throw new ApiError(409, 'email_taken', 'That email address is already used by another account.');
+  }
+  const token = randomToken();
+  await deps.db.tx(async (q) => {
+    await q.query(`DELETE FROM email_changes WHERE user_id = $1`, [user.userId]);
+    await q.query(`INSERT INTO email_changes (token_hash, user_id, new_email, expires_at) VALUES ($1, $2, $3, now() + $4 * interval '1 hour')`,
+      [sha256(token), user.userId, email, VERIFY_HOURS]);
+    await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.email_change_requested', targetType: 'user', targetId: user.userId,
+      after: { email: maskEmail(email) }, origin: 'web', ipHash: ctx.ipHash });
+  });
+  const t = makeT(toPublicSite(deps.config));
+  const link = `${deps.publicUrl}/confirm-email?token=${encodeURIComponent(token)}`;
+  await deps.mailer.send({ to: email, subject: t('email.changeEmail.subject'), text: t('email.changeEmail.body', { handle: user.handle, link }) });
+  void deps.mailer.send({ to: user.email, subject: t('email.changeEmailOld.subject'), text: t('email.changeEmailOld.body', { handle: user.handle, email: maskEmail(email) }) }).catch(onError);
+}
+
+export async function confirmEmailChange(deps: AppDeps, token: string, ctx: Ctx): Promise<void> {
+  const invalid = new ApiError(400, 'token_invalid', 'That link has expired or was already used. Ask for a new one in Settings.');
+  await deps.db.tx(async (q) => {
+    const row = (await q.query<{ user_id: string; new_email: string; used_at: string | null; ok: boolean }>(
+      `SELECT user_id, new_email, used_at, expires_at > now() AS ok FROM email_changes WHERE token_hash = $1 FOR UPDATE`, [sha256(token)])).rows[0];
+    if (!row || row.used_at || !row.ok) throw invalid;
+    const u = (await q.query<{ email: string; status: string }>(`SELECT email, status FROM users WHERE id = $1 FOR UPDATE`, [row.user_id])).rows[0];
+    if (!u || u.status !== 'active') throw invalid;
+    await q.query(`UPDATE email_changes SET used_at = now() WHERE token_hash = $1`, [sha256(token)]);
+    try {
+      await q.query(`UPDATE users SET email = $2, email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1`, [row.user_id, row.new_email]);
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new ApiError(409, 'email_taken', 'That email address is already used by another account.');
+      throw err;
+    }
+    await audit(q, { actorId: row.user_id, actorKind: 'user', action: 'user.email_changed', targetType: 'user', targetId: row.user_id,
+      before: { email: maskEmail(u.email) }, after: { email: maskEmail(row.new_email) }, origin: 'web', ipHash: ctx.ipHash });
+  });
+}
+
 // ---------------------------------------------------------------- password reset
 
 // Always returns quietly, whether or not the email belongs to an account, so this can't be used

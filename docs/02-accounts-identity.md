@@ -18,6 +18,10 @@
   bot names, the site short name.
 - **Renames**: user can rename once per 90 days (PROPOSED); old handle kept as a redirecting
   alias for 90 days and then released. IRC and MUD are renamed via events; boards and the BBS read handles from core.
+  Built 2026-10-03:
+  - **Settings → Email and handle**, `POST /me/handle {password, handle}`, using the admin rename underneath.
+  - Renames someone makes themselves are marked in `handle_history.by_user`, and only those count toward the 90 days. An admin's rename doesn't, and a change of letter case never does.
+  - `GET /me/handle` says when the next change is possible.
 
 ## Signup
 - Modes (admin setting): **open**, **invite** (PROPOSED default at launch), **application**
@@ -72,7 +76,13 @@
   who resets their password still needs their code (or a recovery code) to log in.
 - **Changing your password** (`PUT /me/password`) needs the current one, signs out every *other*
   session, ends the grants services hold, audits it and sends a notice. This session stays signed in.
-- **Not built yet**: turning TOTP off by choice, and changing your email address or handle.
+- **Turning two-factor off** (built 2026-10-03): `POST /me/totp/disable` needs the password and a current code or a recovery code.
+  - It clears the secret and the recovery codes, signs out the other sessions, audits `user.totp_disabled` and emails the person.
+  - An admin can't turn it off while the site requires admin two-factor (`totp_required_here`).
+- **Changing your email** (built 2026-10-03): `POST /me/email {password, email}` stores the change in `email_changes` and mails a link to the new address (24 hours, once; only the newest works).
+  - The old address is told, with the new one masked (`n•••@example.org`).
+  - Nothing changes until the link is opened (`POST /auth/confirm-email`, which works signed in or not), so a typo can't lock anyone out.
+  - Audited as `user.email_change_requested` and `user.email_changed`, with masked addresses.
 
 ## Roles, ops and `role_rev` (built in M1)
 - An admin changes a role with a reason (`POST /admin/users/:id/role`). Role, ops and suspension

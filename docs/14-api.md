@@ -4,10 +4,10 @@ JSON over HTTPS under `/api/v1`. Schemas in `packages/shared`. Session cookie (s
 bearer token. Errors: `{ "error": { "code", "message" } }`. The admin console uses only these APIs.
 
 ## Auth & me
-`POST /auth/signup` · `POST /auth/login` · `POST /auth/logout` · `POST /auth/verify-email` · `POST /auth/resend-verification`
+`POST /auth/signup` · `POST /auth/login` · `POST /auth/logout` · `POST /auth/verify-email` · `POST /auth/confirm-email` (new email address, docs/02) · `POST /auth/resend-verification`
 `POST /auth/forgot-password` (always 204) · `POST /auth/reset-password`
 `GET /me` (401 when signed out) · `GET /session` (public: the same `{user}`, or `{user: null}` with a 200, so a visitor's page load is not an error; the shell uses this) · `PATCH /me` (display name, bio, theme) · `PUT /me/password` (needs the current password) — all built · `PUT /me/terminal-password` · `GET/POST/DELETE /me/ssh-keys`
-`POST /me/totp/setup` · `POST /me/totp/enable` (returns the recovery codes, once) · `POST /me/totp/recovery-codes` (regenerate; needs a current code) — all built
+`POST /me/totp/setup` · `POST /me/totp/enable` (returns the recovery codes, once) · `POST /me/totp/recovery-codes` (regenerate; needs a current code) — all built · `POST /me/totp/disable {password, totp | recovery_code}` · `POST /me/email {password, email}` (link to the new address) · `GET/POST /me/handle` (once every 90 days) — built 2026-10-03
 `POST /tickets {service}` → one-time login ticket (bbs | mud)
 `POST /me/export` · `GET /me/exports` · `DELETE /me` (after confirm)
 Internal (BBS token): `POST /internal/bbs/signup` · `POST /internal/bbs/verify-code` · `POST /internal/bbs/resend-code` (terminal sign-up, `04`)

@@ -50,14 +50,20 @@ export async function changeRole(q: Queryable, admin: SessionUser, targetId: str
 
 // Changing a handle (docs/02, docs/07). Everything a person owns is keyed by their ID, so nothing else moves.
 // The old handle is kept for 90 days: their homepage address redirects, and nobody else can take it.
-export async function renameUser(deps: AppDeps, admin: SessionUser, targetId: string, newHandle: string, reason: string, ctx: Ctx): Promise<{ handle: string; role_rev: number }> {
+// A person can rename themselves once every 90 days (docs/02, PROPOSED); `self` applies that limit. A change of letter case doesn't count.
+export const SELF_RENAME_DAYS = 90;
+export async function renameUser(deps: AppDeps, admin: SessionUser, targetId: string, newHandle: string, reason: string, ctx: Ctx, opts: { self?: boolean } = {}): Promise<{ handle: string; role_rev: number }> {
   const parsed = handleSchema.safeParse(newHandle);
   if (!parsed.success) throw new ApiError(400, 'invalid_handle', parsed.error.issues[0]!.message);
   if (isReservedHandle(newHandle, deps.config.site.short_name)) throw new ApiError(409, 'handle_unavailable', 'That handle is not available.');
   return deps.db.tx(async (q) => {
     const t = await lockTarget(q, targetId);
-    if (t.handle === newHandle) throw new ApiError(409, 'no_change', 'That is already their handle.');
+    if (t.handle === newHandle) throw new ApiError(409, 'no_change', opts.self ? 'That is already your handle.' : 'That is already their handle.');
     const caseOnly = t.handle.toLowerCase() === newHandle.toLowerCase();
+    if (!caseOnly && opts.self) {
+      const next = await selfRenameAllowedAt(q, targetId);
+      if (next) throw new ApiError(409, 'rename_too_soon', `You can change your handle again on ${next.toISOString().slice(0, 10)}.`);
+    }
     if (!caseOnly) {
       const held = await q.query(`SELECT 1 FROM handle_history WHERE handle = lower($1) AND user_id <> $2 AND changed_at > now() - interval '90 days'`, [newHandle, targetId]);
       if (held.rowCount > 0) throw new ApiError(409, 'handle_unavailable', 'Someone gave that handle up recently, so it is held for them.');
@@ -68,13 +74,20 @@ export async function renameUser(deps: AppDeps, admin: SessionUser, targetId: st
       if (isUniqueViolation(err)) throw new ApiError(409, 'handle_unavailable', 'That handle is taken.');
       throw err;
     }
-    if (!caseOnly) await q.query(`INSERT INTO handle_history (user_id, handle) VALUES ($1, lower($2))`, [targetId, t.handle]);
+    if (!caseOnly) await q.query(`INSERT INTO handle_history (user_id, handle, by_user) VALUES ($1, lower($2), $3)`, [targetId, t.handle, Boolean(opts.self)]);
     // Services cache the handle claim, so the role revision goes up like any other identity change.
     const u = await q.query<{ role_rev: number }>(`UPDATE users SET role_rev = role_rev + 1 WHERE id = $1 RETURNING role_rev`, [targetId]);
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.renamed', targetType: 'user', targetId, before: { handle: t.handle }, after: { handle: newHandle, reason }, origin: 'web', ipHash: ctx.ipHash });
     await emit(q, 'user.renamed', { user_id: targetId, handle: newHandle, previous_handle: t.handle, role_rev: u.rows[0]!.role_rev });
     return { handle: newHandle, role_rev: u.rows[0]!.role_rev };
   });
+}
+
+// When the person may next rename themselves, or null if they may now.
+export async function selfRenameAllowedAt(q: Queryable, userId: string): Promise<Date | null> {
+  const r = await q.query<{ at: Date | null }>(
+    `SELECT at FROM (SELECT max(changed_at) + $2 * interval '1 day' AS at FROM handle_history WHERE user_id = $1 AND by_user) x WHERE at > now()`, [userId, SELF_RENAME_DAYS]);
+  return r.rows[0]?.at ? new Date(r.rows[0].at) : null;
 }
 
 // ---------------------------------------------------------------- suspension
