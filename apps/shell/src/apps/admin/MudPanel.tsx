@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, TextField, Loading } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
+import { TowerBoard } from '../../shell/TowerBoard';
 
 interface Overview {
   configured: boolean; reachable: boolean;
@@ -42,6 +43,7 @@ export function MudPanel() {
           {s.rooms.length > 0 && <><h3>{t('admin.mud.busy')}</h3><ul>{s.rooms.map((r) => <li key={r.room}>{r.room}: {t('admin.mud.people', { count: r.people })}</li>)}</ul></>}
         </>
       )}
+      <TowerBoard limit={20} headingId="admin-tower" />
       <Builders />
     </>
   );

@@ -14,7 +14,11 @@ export interface CharacterView {
   coins: number;
   abilities: Record<Ability, number>;
   created_at: string;
+  tower: { season: number; best: number; checkpoint: number } | null; // this season's climb (docs/18)
 }
+
+// The tower's leaderboard (docs/18).
+export interface TowerLeaderboard { season: number | null; leaders: { name: string; level: number; best: number; handle: string }[] }
 
 // The short form shown beside a name, e.g. on a board post.
 export interface CharacterBadge { id: string; name: string; level: number }

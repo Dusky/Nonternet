@@ -191,6 +191,9 @@ def reached(char, floor):
     if floor > p["best"]:
         p["best"] = floor
         char.db.tower = p
+        from server.conf.core_auth import tell_core_characters_changed
+
+        tell_core_characters_changed()  # the site's leaderboard follows within a moment
 
 
 def set_checkpoint(char, floor):

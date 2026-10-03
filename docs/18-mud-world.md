@@ -219,6 +219,16 @@ The full plan is phases T1–T5 (`16`).
   - everyone online is told.
 - **`season`** shows the season, days until the rebuild, your highest floor and checkpoint, and the five highest climbers.
 
+### As built (T5: the tower on the site)
+- **The MUD reports each character's climb** (`/internal/characters`: `tower {season, best, checkpoint}`), and nudges core whenever someone's
+  highest floor rises, so the site follows within a moment.
+- **Core keeps the climb** on its copy of each character (`mud_characters.tower_season`, `tower_best`, `tower_checkpoint`, migration 0035).
+- **Leaderboard**: `GET /api/v1/mud/leaderboard`, signed in only. It ranks the highest floors of the latest season anyone has climbed in, ties
+  going to the higher level, active people only.
+- **Shown** on the home panel (top five, when the MUD is on), in the console's MUD page (top twenty), and on each character's card on a
+  profile ("Tower: floor 12 in season 2").
+- **Export**: `mud/characters.json` already carries each character's `tower` and `spoils` (T1, T3).
+
 ## Still open
 1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas.** Replaced 2026-10-03 by the tower (above).
 2. Who builds the first areas?

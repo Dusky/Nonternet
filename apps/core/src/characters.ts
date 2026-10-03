@@ -1,5 +1,5 @@
 import { coarseLastSeen } from './personal';
-import type { CharacterView, PublicProfile } from '@app/shared';
+import type { CharacterView, PublicProfile, TowerLeaderboard } from '@app/shared';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import type { SessionUser } from './accounts';
@@ -7,7 +7,10 @@ import type { SessionUser } from './accounts';
 // MUD characters for the rest of the site (docs/09). The MUD is the source of truth; core keeps a copy,
 // pulled after each sync pass and every two minutes, so boards and profiles never wait on the MUD.
 
-interface MudCharacter { id: string; core_id: string; name: string; created: string; level: number; xp: number; hp: number; hp_max: number; coins: number; abilities: Record<string, number> }
+interface MudCharacter {
+  id: string; core_id: string; name: string; created: string; level: number; xp: number; hp: number; hp_max: number; coins: number; abilities: Record<string, number>;
+  tower?: { season: number | null; best: number | null; checkpoint: number | null };
+}
 
 export async function pullCharacters(deps: AppDeps): Promise<{ saved: number; removed: number }> {
   const mud = deps.mud!;
@@ -20,10 +23,12 @@ export async function pullCharacters(deps: AppDeps): Promise<{ saved: number; re
     for (const c of characters) {
       if (!known.has(c.core_id)) continue;
       await q.query(
-        `INSERT INTO mud_characters (id, user_id, name, level, xp, hp, hp_max, coins, abilities, created_at, synced_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
-         ON CONFLICT (id) DO UPDATE SET user_id = $2, name = $3, level = $4, xp = $5, hp = $6, hp_max = $7, coins = $8, abilities = $9, synced_at = now()`,
-        [c.id, c.core_id, c.name, c.level, c.xp, c.hp, c.hp_max, c.coins, JSON.stringify(c.abilities), c.created]);
+        `INSERT INTO mud_characters (id, user_id, name, level, xp, hp, hp_max, coins, abilities, created_at, tower_season, tower_best, tower_checkpoint, synced_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
+         ON CONFLICT (id) DO UPDATE SET user_id = $2, name = $3, level = $4, xp = $5, hp = $6, hp_max = $7, coins = $8, abilities = $9,
+           tower_season = $11, tower_best = $12, tower_checkpoint = $13, synced_at = now()`,
+        [c.id, c.core_id, c.name, c.level, c.xp, c.hp, c.hp_max, c.coins, JSON.stringify(c.abilities), c.created,
+          c.tower?.season ?? null, c.tower?.best ?? 0, c.tower?.checkpoint ?? 0]);
       saved++;
     }
     // A character the MUD no longer has is gone (deleted in-game, or its account was).
@@ -32,15 +37,30 @@ export async function pullCharacters(deps: AppDeps): Promise<{ saved: number; re
   });
 }
 
-interface Row { id: string; name: string; level: number; xp: number; hp: number; hp_max: number; coins: number; abilities: Record<string, number>; created_at: Date }
+interface Row {
+  id: string; name: string; level: number; xp: number; hp: number; hp_max: number; coins: number; abilities: Record<string, number>; created_at: Date;
+  tower_season: number | null; tower_best: number; tower_checkpoint: number;
+}
 const view = (r: Row): CharacterView => ({
   id: r.id, name: r.name, level: r.level, xp: r.xp, hp: r.hp, hp_max: r.hp_max, coins: r.coins,
   abilities: { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0, ...r.abilities },
   created_at: r.created_at.toISOString(),
+  tower: r.tower_season ? { season: r.tower_season, best: r.tower_best, checkpoint: r.tower_checkpoint } : null,
 });
+const COLS = 'id, name, level, xp, hp, hp_max, coins, abilities, created_at, tower_season, tower_best, tower_checkpoint';
+
+// The tower's leaderboard (docs/18): the highest floors of the latest season anyone has climbed in. Characters of active people only.
+export async function towerLeaderboard(deps: AppDeps, limit = 20): Promise<TowerLeaderboard> {
+  const r = await deps.db.query<{ name: string; level: number; best: number; handle: string; season: number }>(
+    `SELECT c.name, c.level, c.tower_best AS best, u.handle, c.tower_season AS season
+       FROM mud_characters c JOIN users u ON u.id = c.user_id
+      WHERE c.tower_season = (SELECT max(tower_season) FROM mud_characters) AND c.tower_best > 0 AND u.status = 'active'
+      ORDER BY c.tower_best DESC, c.level DESC, c.name LIMIT $1`, [limit]);
+  return { season: r.rows[0]?.season ?? null, leaders: r.rows.map(({ season: _s, ...row }) => row) };
+}
 
 export async function charactersOf(deps: AppDeps, userId: string): Promise<CharacterView[]> {
-  const r = await deps.db.query<Row>(`SELECT id, name, level, xp, hp, hp_max, coins, abilities, created_at FROM mud_characters WHERE user_id = $1 ORDER BY created_at`, [userId]);
+  const r = await deps.db.query<Row>(`SELECT ${COLS} FROM mud_characters WHERE user_id = $1 ORDER BY created_at`, [userId]);
   return r.rows.map(view);
 }
 

@@ -165,6 +165,7 @@ def _sheet(c):
         "level": a.get("level", 1) or 1, "xp": a.get("xp", 0) or 0,
         "hp": a.get("hp", 0) or 0, "hp_max": a.get("hp_max", 0) or 0, "coins": a.get("coins", 0) or 0,
         "abilities": {k: a.get(k, 0) or 0 for k in ("strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma")},
+        "tower": {k: (a.get("tower") or {}).get(k) for k in ("season", "best", "checkpoint")},  # this season's climb (docs/18)
     }
 
 

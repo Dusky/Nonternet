@@ -164,7 +164,7 @@ The MUD becomes a procedurally generated tower (`18`, `17` D22).
 - [x] **T2:** enemy families and scaling, bosses, and a fight simulator for balance (also: rewards, levels, `rest`).
 - [x] **T3:** gear: item bases, rarities, affixes and personal drops (with spoils for a full pack).
 - [x] **T4:** checkpoints, losing run loot on defeat, and monthly seasons (with landings, `ascend` and `season`).
-- [ ] **T5:** a leaderboard on the site, export additions and the console view.
+- [x] **T5:** a leaderboard on the site (home panel, console, profiles), export additions.
 
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with

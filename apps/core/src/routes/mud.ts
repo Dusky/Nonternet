@@ -5,7 +5,7 @@ import { mudStatus, mudSyncSoon } from '../mud/sync';
 import { z } from 'zod';
 import { ctxOf } from '../http';
 import { grantOp, revokeOp } from '../admin';
-import { charactersOf, publicProfile, setFeatured } from '../characters';
+import { charactersOf, publicProfile, setFeatured, towerLeaderboard } from '../characters';
 import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import { issueTicket } from '../irc/auth';
@@ -74,6 +74,8 @@ export function mudRoutes(app: FastifyInstance, deps: AppDeps): void {
     return reply.code(204).send();
   });
   // Characters for the rest of the site (docs/09): public profiles, and your own list and featured one.
+  // The tower's leaderboard (docs/18), for anyone signed in.
+  app.get('/api/v1/mud/leaderboard', async () => towerLeaderboard(deps));
   app.get('/api/v1/users/:handle', async (req) => publicProfile(deps, z.object({ handle: z.string().max(40) }).parse(req.params).handle));
   app.get('/api/v1/me/characters', async (req) => {
     const who = requireUser(req);

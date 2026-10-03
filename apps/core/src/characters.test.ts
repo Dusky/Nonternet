@@ -48,13 +48,36 @@ describe.skipIf(!dbAvailable)('MUD characters around the site', () => {
     expect(mud.calls.at(-1)).toBe(`Bearer ${secrets.controlToken}`);
   });
 
+  it('keeps each character\u2019s climb and ranks the latest season\u2019s highest floors, active people only', async () => {
+    const cy = await makeUser(ctx, { handle: 'cyclimb' });
+    const di = await makeUser(ctx, { handle: 'diclimb' });
+    const gone = await makeUser(ctx, { handle: 'goneclimb' });
+    const climb = (s: object, season: number | null, best: number) => ({ ...s, tower: { season, best, checkpoint: best >= 10 ? 10 : 0 } });
+    characters = [
+      climb(sheet('c_30', cy.id, 'Ash', 4), 2, 12), climb(sheet('c_31', di.id, 'Birch', 6), 2, 12), climb(sheet('c_32', di.id, 'Cedar', 2), 2, 3),
+      climb(sheet('c_33', cy.id, 'Old', 9), 1, 40), climb(sheet('c_34', gone.id, 'Gone', 5), 2, 50), sheet('c_35', cy.id, 'Never'),
+    ];
+    await pullCharacters(ctx.deps);
+    await db.query(`UPDATE users SET status = 'suspended' WHERE id = $1`, [gone.id]);
+    const board = (await (await loginAs(ctx, cy.handle)).get('/api/v1/mud/leaderboard')).body;
+    expect(board.season).toBe(2);
+    expect(board.leaders).toEqual([
+      { name: 'Birch', level: 6, best: 12, handle: 'diclimb' }, // ties go to the higher level
+      { name: 'Ash', level: 4, best: 12, handle: 'cyclimb' },
+      { name: 'Cedar', level: 2, best: 3, handle: 'diclimb' },
+    ]); // last season's climb and a suspended person are left out
+    expect((await client(ctx.app).get('/api/v1/mud/leaderboard')).status).toBe(401); // signed in only
+    const p = (await client(ctx.app).get('/api/v1/users/cyclimb')).body;
+    expect(p.characters.find((c: { name: string }) => c.name === 'Ash').tower).toEqual({ season: 2, best: 12, checkpoint: 10 });
+  });
+
   it('shows characters on a public profile, to anyone, and nothing for guests or suspended people', async () => {
     const bo = await makeUser(ctx, { handle: 'bochars' });
     characters = [sheet('c_20', bo.id, 'Rook', 2)];
     await pullCharacters(ctx.deps);
     const p = (await client(ctx.app).get('/api/v1/users/BOCHARS')).body;
     expect(p).toMatchObject({ handle: 'bochars', role: 'user', featured_character_id: null, homepage_url: null, rings: [] });
-    expect(p.characters).toEqual([{ id: 'c_20', name: 'Rook', level: 2, xp: 200, hp: 7, hp_max: 9, coins: 12, abilities: { strength: 2, dexterity: 1, constitution: 3, intelligence: 1, wisdom: 2, charisma: 1 }, created_at: '2026-09-30T10:00:00.000Z' }]);
+    expect(p.characters).toEqual([{ id: 'c_20', name: 'Rook', level: 2, xp: 200, hp: 7, hp_max: 9, coins: 12, abilities: { strength: 2, dexterity: 1, constitution: 3, intelligence: 1, wisdom: 2, charisma: 1 }, created_at: '2026-09-30T10:00:00.000Z', tower: null }]);
     expect(p).not.toHaveProperty('email');
     const guest = await makeUser(ctx, { role: 'guest', verified: false });
     expect((await client(ctx.app).get(`/api/v1/users/${guest.handle}`)).status).toBe(404);

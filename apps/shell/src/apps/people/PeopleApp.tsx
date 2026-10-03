@@ -166,6 +166,7 @@ function CharacterCard({ c, featured }: { c: CharacterView; featured: boolean })
     <li className={`char-card${featured ? ' is-featured' : ''}`} aria-label={t('people.characterLabel', { name: c.name, level: c.level })}>
       <h4>{c.name} {featured && <span className="badge">{t('people.featured')}</span>}</h4>
       <p className="muted">{t('people.level', { level: c.level })} · {t('people.hp', { hp: c.hp, max: c.hp_max })} · {t('people.coins', { coins: c.coins })}</p>
+      {c.tower && c.tower.best > 0 && <p className="muted">{t('people.tower', { floor: c.tower.best, season: c.tower.season })}</p>}
       <dl className="abilities">
         {ABILITIES.map((a) => <div key={a}><dt>{t(`people.ability.${a}` as StringKey)}</dt><dd>{c.abilities[a] >= 0 ? `+${c.abilities[a]}` : c.abilities[a]}</dd></div>)}
       </dl>
