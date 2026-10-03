@@ -5,7 +5,10 @@ site:
   name: Nonternet            # placeholder — change freely
   short_name: nonternet
   domain: example.net
-  homes_domain: example-homes.net
+  # People's homepages live at {handle}.{homes_domain}. Browsers send every *.localhost name to this machine, so
+  # locally http://{handle}.homes.localhost:8081/ works with no setup (Chrome, Firefox; Safari needs a hosts line).
+  # In production set your real homes domain, with a wildcard DNS record (*.example-homes.net); sitectl doctor checks it.
+  homes_domain: homes.localhost
 
 signup:
   mode: invite               # open | invite | application

@@ -5,6 +5,9 @@ Every user gets a homepage: a static site they fully control.
 ## v1 features
 - **URL**: `https://{handle}.{homes_domain}/` (PROPOSED subdomain per user for isolation).
   Stable fallback `https://{homes_domain}/u/{user_id}/` redirects to the current handle.
+  Locally the example config uses `homes_domain: homes.localhost`, so pages are at `http://{handle}.homes.localhost:8081/`
+  with no DNS setup (browsers resolve `*.localhost` to this machine; Safari needs a hosts line). Someone who has not
+  published a front page yet gets "{handle} hasn't published a homepage yet." rather than the bare "no homepage here".
 - **Homepage studio** (shell app): file manager (upload, folders, rename, delete), HTML/CSS
   editor with live preview, starter templates, drag-drop uploads.
 - **Asset library**: original or properly licensed classic-style GIFs — dividers, buttons,

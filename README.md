@@ -55,8 +55,11 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
 # then open http://localhost:8080 (the first start of the MUD takes a minute or two)
 docker compose -f deploy/compose.yaml --env-file deploy/.env exec core node cli.cjs create-admin --handle you --email you@example.net
 ```
-Verification links are printed in core's log until `SMTP_URL` is set. The first admin login asks
-for two-factor setup. This stack was run end to end and checked (sign-in, all three WebSocket
+Verification links are printed in core's log until `SMTP_URL` is set. Two-factor sign-in is optional
+(an admin can make it required for admins in the console). Homepages are at `http://{handle}.homes.localhost:8081/`:
+browsers send every `*.localhost` name to your own machine, so that works with no setup in Chrome and Firefox (Safari
+needs a line like `127.0.0.1 you.homes.localhost` in `/etc/hosts`). A real site sets its own `homes_domain` in its
+site config; `./sitectl doctor` refuses the local default. This stack was run end to end and checked (sign-in, all three WebSocket
 routes, restarts, backup and restore); what that did and did not cover is in `docs/17-decisions.md`.
 
 ## Run it for development

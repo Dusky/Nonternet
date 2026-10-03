@@ -30,6 +30,10 @@ describe('site config', () => {
     expect(() => parseSiteConfig(valid.replace('example-homes.test', 'example.test'))).toThrow(/homes_domain/);
   });
 
+  it('accepts homes.localhost, the local default (browsers send *.localhost to this machine)', () => {
+    expect(parseSiteConfig(valid.replace('example-homes.test', 'homes.localhost')).site.homes_domain).toBe('homes.localhost');
+  });
+
   it('rejects a bad short_name', () => {
     expect(() => parseSiteConfig(valid.replace('testsite', 'Test Site'))).toThrow(/short_name/);
   });

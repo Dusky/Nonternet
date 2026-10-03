@@ -16,7 +16,7 @@ say() { printf '%s\n' "$*"; }
 ok() { printf '  \033[32mok\033[0m    %s\n' "$*"; }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; FAILED=1; }
 warn() { printf '  \033[33mwarn\033[0m  %s\n' "$*"; }
-envval() { grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2-; }
+envval() { { grep -E "^$1=" .env 2>/dev/null || true; } | tail -1 | cut -d= -f2-; }
 
 doctor() {
   FAILED=0
@@ -31,6 +31,18 @@ doctor() {
   [ "$(envval POSTGRES_PASSWORD)" = "change-me" ] && bad "POSTGRES_PASSWORD is still change-me"
   cfg=$(envval SITE_CONFIG_FILE); [ -f "${cfg:-x}" ] && ok "site config $cfg exists" || bad "site config ${cfg:-?} is missing"
   domain=$(envval SITE_DOMAIN); homes=$(envval HOMES_DOMAIN)
+  if [ -f "${cfg:-x}" ]; then
+    # The example config's local default (homes.localhost) must not reach a real site: links would point at visitors' own machines.
+    for key in domain homes_domain; do
+      v=$(awk -v k="$key" '$1 == k":" {print $2; exit}' "$cfg")
+      want=$domain; [ "$key" = homes_domain ] && want=$homes
+      case "$v" in
+        *localhost|"") bad "site.$key in $cfg is '${v:-empty}': set it to your real domain ($want)" ;;
+        "$want") ok "site.$key is $v" ;;
+        *) bad "site.$key in $cfg is $v, but .env says $want" ;;
+      esac
+    done
+  fi
 
   say "DNS"
   me=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)

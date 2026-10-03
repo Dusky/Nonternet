@@ -16,7 +16,8 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
 
 ## First install
 1. `git clone` the repository on the server; `cd deploy`.
-2. `cp site.example.yaml site.yaml` and set the name, domains and which services are on. Point
+2. `cp site.example.yaml site.yaml` and set the name, domains (the example's `homes_domain: homes.localhost` is for running
+   locally only; `./sitectl doctor` fails until it matches `HOMES_DOMAIN`) and which services are on. Point
    `SITE_CONFIG_FILE=./site.yaml` in `.env`.
 3. `cp .env.example .env` and fill in every value, including the production block at the end. Database
    passwords in hex (`openssl rand -hex 24`), other secrets `openssl rand -base64 32`, and the backup key with

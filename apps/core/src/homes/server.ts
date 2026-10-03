@@ -158,6 +158,8 @@ export async function buildHomesApp(deps: AppDeps) {
       if (reply.sent) return reply;
       // A person's own 404.html is used when they have one, as on any old web host.
       if (await fileAt(owner.id, ['404.html'])) return serveFile(req, reply, owner, ['404.html'], 404);
+      // The front page of someone who has not put one up yet: say that, so it doesn't look like a broken link.
+      if (segs.length === 1 && segs[0] === 'index.html') return page(reply, 404, en['homes.notPublished'].replace('{handle}', owner.handle), en['homes.notPublishedHint']);
       return page(reply, 404, en['homes.notFound'], '');
     },
   });

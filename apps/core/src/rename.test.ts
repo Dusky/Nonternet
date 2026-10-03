@@ -82,6 +82,9 @@ describe.skipIf(!dbAvailable)('changing a handle', () => {
     const dana = await makeUser(ctx, { handle: 'dana' });
     expect((await rename(dana.id, 'Dana')).status).toBe(200);
     expect(first(await db.query(`SELECT count(*)::int AS n FROM handle_history WHERE user_id = $1`, [dana.id])).n).toBe(0);
-    expect((await home('dana.example-homes.test')).statusCode).toBe(404); // no page yet, and no redirect loop either
+    const page = await home('dana.example-homes.test');
+    expect(page.statusCode).toBe(404); // no page yet, and no redirect loop either
+    expect(page.body).toContain('Dana hasn&#39;t published a homepage yet.'); // said plainly, not "there is no homepage here"
+    expect((await home('dana.example-homes.test', '/missing.html')).body).toContain('There is no homepage here.');
   });
 });

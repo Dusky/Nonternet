@@ -456,6 +456,8 @@ export const en = {
   'homes.report': 'Report this page',
   'homes.notFound': 'There is no homepage here.',
   'homes.notFoundHint': 'The address may be misspelled, or the person may have moved or removed their page.',
+  'homes.notPublished': '{handle} hasn\'t published a homepage yet.',
+  'homes.notPublishedHint': 'Check back later. Homepages are made in the Studio app.',
   'homes.hidden': 'This homepage is not available.',
   'app.studio': 'Homepage studio',
   'studio.tab.files': 'Files',
