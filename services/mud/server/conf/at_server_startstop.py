@@ -30,7 +30,9 @@ def at_server_start():
     This is called every time the server starts up, regardless of
     how it was shut down.
     """
-    pass
+    from world.tower import seasons
+
+    seasons.ensure_script()  # the monthly rebuild of the tower (docs/18)
 
 
 def at_server_stop():

@@ -203,6 +203,22 @@ The full plan is phases T1–T5 (`16`).
 - **Run loot**: finds are marked `unbanked`; T4 decides what a defeat costs.
 - **Export**: carried gear was already in it; waiting spoils are too now (`characters[].spoils`).
 
+### As built (T4: checkpoints, defeat and seasons)
+- **Checkpoints**: beating a boss (floors 10, 20…) sets your checkpoint for the season and makes everything you carry safe.
+  `ascend` at the tower gate takes you to the floor above your checkpoint.
+- **Landings**: the floor after each boss (11, 21…) starts on a landing with Sela, a trader (`shop`, `buy`, `sell` at market prices), and a
+  `home` exit straight to the gate. Shop messages name whoever keeps the shop.
+- **Defeat**: you wake in the temple as before, keeping your character, level, coins and everything worn or wielded. Finds still in your
+  pack since your last checkpoint are lost, and the message lists them.
+- **Seasons** (`world/tower/seasons.py`, script `tower_season`, checked hourly):
+  - on a new month (UTC) the tower is rebuilt from a new seed and anyone inside is moved to the gate;
+  - everything tagged with the old season is deleted: rooms, exits, enemies, their weapons, the trader. Nothing a player carries has that
+    tag, so nothing carried is touched;
+  - the top ten of the season are kept in a short history (`ServerConfig` `tower_history`, the last 24 seasons);
+  - progress and checkpoints start again;
+  - everyone online is told.
+- **`season`** shows the season, days until the rebuild, your highest floor and checkpoint, and the five highest climbers.
+
 ## Still open
 1. ~~How many areas at launch?~~ **Answered 2026-10-01 (M9-E3): the town plus two adventure areas.** Replaced 2026-10-03 by the tower (above).
 2. Who builds the first areas?

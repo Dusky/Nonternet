@@ -91,7 +91,21 @@ def ensure_floor(floor, s=None):
     up = _exit(STAIR, "up", ["u", "upstairs", "climb"], made[stair], made[stair], season)
     up.db.floor = floor
     populate(floor, s, made, stair)
+    if floor % 10 == 1 and floor > 1:
+        _landing(made[(0, 0)], season)
     return len(made)
+
+
+def _landing(room, season):
+    """The floor after a boss: a trader, and a way straight home."""
+    trader = create_object("typeclasses.objects.Object", key="Sela", aliases=["trader", "sela"], location=room, attributes=[
+        ("desc", "A trader with her goods spread on a blanket by the stair. She buys and sells at market prices."), ("proper_name", True)])
+    trader.locks.add("get:false()")
+    trader.tags.add("npc:shop", category="build")
+    trader.tags.add(f"season:{season}", category=CAT)
+    gate = _gate()
+    if gate:
+        _exit(EXIT, "home", ["town", "gate"], room, gate, season)
 
 
 def _exit(typeclass, key, aliases, here, there, season):
@@ -157,7 +171,7 @@ def progress(char):
     season = seed.current()["season"]
     p = dict(char.db.tower or {})
     if p.get("season") != season:
-        p = {"season": season, "cleared": [], "best": 0}
+        p = {"season": season, "cleared": [], "best": 0, "checkpoint": 0}
     return p
 
 
@@ -177,3 +191,26 @@ def reached(char, floor):
     if floor > p["best"]:
         p["best"] = floor
         char.db.tower = p
+
+
+def set_checkpoint(char, floor):
+    """A boss beaten: the next climb can start above it, and everything carried is now safe from a defeat."""
+    p = progress(char)
+    p["checkpoint"] = max(p.get("checkpoint", 0), floor)
+    char.db.tower = p
+    for obj in char.contents:
+        if obj.db.unbanked:
+            obj.attributes.remove("unbanked")
+
+
+def lose_unbanked(char):
+    """After a defeat: finds carried since the last checkpoint and not worn or wielded are gone. Returns their names."""
+    from evennia.contrib.tutorials.evadventure.enums import WieldLocation
+
+    lost = []
+    for obj in list(char.contents):
+        if obj.db.unbanked and char.equipment.get_current_slot(obj) in (None, WieldLocation.BACKPACK):
+            char.equipment.remove(obj)
+            lost.append(obj.key)
+            obj.delete()
+    return lost

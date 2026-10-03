@@ -33,10 +33,14 @@ class Monster(ObjectParent, EvAdventureMob):
         """A floor's guard is down: the stair opens for everyone who was there for the fight."""
         from world.tower import floors
 
+        floor = self.db.warden_floor
         for obj in self.location.contents:
             if obj.is_typeclass("typeclasses.characters.Character", exact=False):
-                floors.mark_cleared(obj, self.db.warden_floor)
+                floors.mark_cleared(obj, floor)
                 obj.msg("|gThe way up is open.|n")
+                if floor % 10 == 0:
+                    floors.set_checkpoint(obj, floor)
+                    obj.msg(f"|gCheckpoint: floor {floor}. What you carry is safe now, and 'ascend' at the gate brings you back here.|n")
 
     def at_damage(self, damage, attacker=None):
         # The attacker's weapon affixes (world/tower/tables.py): brutal hits harder, leeching heals its wielder.

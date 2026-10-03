@@ -127,6 +127,11 @@ class Character(ObjectParent, EvAdventureCharacter):
         self.hp = max(1, self.hp_max // 2)
         self.db.weakened_until = time.time() + WEAKENED_SECONDS
         oob.send_vitals(self)
+        from world.tower import floors
+
+        lost = floors.lose_unbanked(self)
+        if lost:
+            self.msg(f"|rYou lost what you found since your last checkpoint: {', '.join(lost)}.|n")
         temple = respawn_room()
         if temple and self.location != temple:
             self.move_to(temple, quiet=True, move_type="teleport")

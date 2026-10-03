@@ -163,7 +163,7 @@ The MUD becomes a procedurally generated tower (`18`, `17` D22).
 - [x] **T1:** the generator: seeded floors, stair guards, the gate in town, a map per floor, retiring the woods and mine, and a text check.
 - [x] **T2:** enemy families and scaling, bosses, and a fight simulator for balance (also: rewards, levels, `rest`).
 - [x] **T3:** gear: item bases, rarities, affixes and personal drops (with spoils for a full pack).
-- [ ] **T4:** checkpoints, losing run loot on defeat, and monthly seasons.
+- [x] **T4:** checkpoints, losing run loot on defeat, and monthly seasons (with landings, `ascend` and `season`).
 - [ ] **T5:** a leaderboard on the site, export additions and the console view.
 
 ## Later phases (not scheduled)

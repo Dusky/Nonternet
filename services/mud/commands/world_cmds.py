@@ -136,6 +136,61 @@ class CmdSpoils(Command):
             self.msg(f"  {i}. {item['name']} ({item['rarity']})")
 
 
+class CmdAscend(Command):
+    """
+    At the tower gate: go straight to the floor above your last checkpoint (a beaten boss), instead of climbing from floor 1.
+
+    Usage:
+      ascend
+    """
+
+    key = "ascend"
+    help_category = "General"
+
+    def func(self):
+        from world.tower import floors
+
+        char = self.caller
+        if not char.location or not char.location.tags.has("room:gate", category=BUILD):
+            self.msg("You can only ascend from the tower gate, northeast of the square.")
+            return
+        checkpoint = floors.progress(char).get("checkpoint", 0)
+        if not checkpoint:
+            self.msg("You have no checkpoint this season yet. Beat the boss on floor 10 to make one; until then, 'up' starts at floor 1.")
+            return
+        char.msg(f"You climb the long stair to floor {checkpoint + 1}.")
+        char.move_to(floors.entry(checkpoint + 1), move_type="teleport")
+
+
+class CmdSeason(Command):
+    """
+    The tower's season: how long until it is rebuilt, and how far you have climbed in it.
+
+    Usage:
+      season
+    """
+
+    key = "season"
+    aliases = ["climb"]
+    help_category = "General"
+
+    def func(self):
+        from datetime import datetime, timezone
+
+        from world.tower import floors, seasons, seed
+
+        s = seed.current()
+        now = datetime.now(timezone.utc)
+        nxt = datetime(now.year + (now.month == 12), now.month % 12 + 1, 1, tzinfo=timezone.utc)
+        days = (nxt - now).days
+        p = floors.progress(self.caller)
+        self.msg(f"|wSeason {s['season']}|n. The tower is rebuilt in {days} day{'s' if days != 1 else ''} (on the 1st, UTC).")
+        self.msg(f"Your highest floor: {p['best'] or 'none yet'}. Your checkpoint: {p.get('checkpoint') or 'none yet'}.")
+        top = seasons.leaders(s["season"], 5)
+        if top:
+            self.msg("Highest this season: " + ", ".join(f"{r['name']} ({r['best']})" for r in top))
+
+
 class CmdAsk(Command):
     """
     Ask someone if they have anything for you.
@@ -163,15 +218,17 @@ class _ShopCmd(Command):
     help_category = "General"
 
     def in_shop(self):
-        if not _here(self.caller, "npc:shop"):
-            self.msg("There is no shop here. Odo's is in the market.")
-            return False
-        return True
+        """The shopkeeper here, or None (and says where the shops are)."""
+        found = _here(self.caller, "npc:shop")
+        if not found:
+            self.msg("There is no shop here. Odo's is in the market, and there is a trader on every tenth floor's landing.")
+            return None
+        return found[0]
 
 
 class CmdShop(_ShopCmd):
     """
-    See what Odo sells and what he pays.
+    See what the shop sells and what it pays.
 
     Usage:
       shop
@@ -181,9 +238,10 @@ class CmdShop(_ShopCmd):
     aliases = ["wares"]
 
     def func(self):
-        if not self.in_shop():
+        keeper = self.in_shop()
+        if not keeper:
             return
-        self.msg("|wFor sale at Odo's:|n")
+        self.msg(f"|wFor sale at {keeper.key}'s:|n")
         for shown, cost, _key in shop.catalogue():
             self.msg(f"  {shown:<14} {cost:>4} coins")
         self.msg(f"You have {self.caller.coins or 0} coins. 'sell <thing>' pays half what an item is worth.")
@@ -191,7 +249,7 @@ class CmdShop(_ShopCmd):
 
 class CmdBuy(_ShopCmd):
     """
-    Buy something from Odo.
+    Buy something from the shop.
 
     Usage:
       buy <thing>
@@ -200,14 +258,14 @@ class CmdBuy(_ShopCmd):
     key = "buy"
 
     def func(self):
-        if not self.in_shop():
-            return
-        self.msg(shop.buy(self.caller, self.args) if self.args.strip() else "Buy what? Type 'shop' to see.")
+        keeper = self.in_shop()
+        if keeper:
+            self.msg(shop.buy(self.caller, self.args, keeper.key) if self.args.strip() else "Buy what? Type 'shop' to see.")
 
 
 class CmdSell(_ShopCmd):
     """
-    Sell something you carry to Odo.
+    Sell something you carry to the shop.
 
     Usage:
       sell <thing>
@@ -216,9 +274,9 @@ class CmdSell(_ShopCmd):
     key = "sell"
 
     def func(self):
-        if not self.in_shop():
-            return
-        self.msg(shop.sell(self.caller, self.args) if self.args.strip() else "Sell what?")
+        keeper = self.in_shop()
+        if keeper:
+            self.msg(shop.sell(self.caller, self.args, keeper.key) if self.args.strip() else "Sell what?")
 
 
 def _core_id(char):

@@ -102,7 +102,7 @@ class TowerTest(BaseEvenniaCommandTest):
         from evennia.server.models import ServerConfig
 
         ServerConfig.objects.conf(seed.KEY, value={"season": s["season"] + 1, "seed": 5})
-        self.assertEqual(floors.progress(self.hero), {"season": s["season"] + 1, "cleared": [], "best": 0})
+        self.assertEqual(floors.progress(self.hero), {"season": s["season"] + 1, "cleared": [], "best": 0, "checkpoint": 0})
 
     def test_the_old_woods_and_mine_are_retired_and_whoever_stood_there_goes_to_the_square(self):
         from evennia import create_object
@@ -344,3 +344,95 @@ class LootTest(BaseEvenniaCommandTest):
         found = [o for o in self.hero.contents if o.db.found_floor == 2]
         self.assertEqual(len(found), 1)
         self.assertEqual(len(self.hero.contents), before + 1)
+
+
+@GAME
+class CheckpointSeasonTest(BaseEvenniaCommandTest):
+    def setUp(self):
+        super().setUp()
+        build_town()
+        sheet = CharacterSheet()
+        sheet.name = "Wren"
+        self.hero = sheet.apply(self.account)
+        self.hero.db_account = self.account
+
+    def _find(self, floor=5, name="iron sword"):
+        from world.tower import loot
+
+        return loot.give(self.hero, {"kind": "weapon", "base": "sword", "two_handed": False, "damage": "1d6", "desc": "A sword.",
+                                     "name": name, "rarity": "common", "affixes": [], "floor": floor, "value": 10})
+
+    def test_beating_a_boss_sets_the_checkpoint_and_makes_finds_safe(self):
+        found = self._find()
+        floors.ensure_floor(10)
+        boss_room = floors.stair_room(10)
+        self.hero.move_to(boss_room, quiet=True)
+        boss = [o for o in boss_room.contents if o.db.warden_floor == 10][0]
+        self.assertEqual(boss.key, "Rat Mother")
+        boss.at_death()
+        self.assertEqual(floors.progress(self.hero)["checkpoint"], 10)
+        self.assertFalse(found.db.unbanked)
+
+    def test_a_defeat_loses_unbanked_finds_in_the_pack_but_not_what_you_wear(self):
+        kept_old = self._find(name="old sword")
+        kept_old.attributes.remove("unbanked")  # from before the last checkpoint
+        worn = self._find(name="new sword")
+        self.hero.equipment.move(worn)  # wielded
+        lost = self._find(name="spare sword")
+        self.hero.move_to(floors.entry(3), quiet=True)
+        self.hero.at_defeat()
+        names = [o.key for o in self.hero.contents]
+        self.assertIn("old sword", names)
+        self.assertIn("new sword", names)
+        self.assertNotIn("spare sword", names)
+        self.assertIsNone(lost.pk)
+        self.assertEqual(self.hero.location, search_tag("respawn", category="world")[0])
+
+    def test_ascend_goes_to_the_floor_above_the_checkpoint_but_only_from_the_gate(self):
+        from commands.world_cmds import CmdAscend
+
+        self.hero.move_to(room("square"), quiet=True)
+        self.assertIn("only ascend from the tower gate", self.call(CmdAscend(), "", caller=self.hero))
+        self.hero.move_to(room("gate"), quiet=True)
+        self.assertIn("no checkpoint", self.call(CmdAscend(), "", caller=self.hero))
+        floors.set_checkpoint(self.hero, 10)
+        self.call(CmdAscend(), "", caller=self.hero)
+        self.assertEqual(self.hero.location, floors.entry(11))
+
+    def test_the_landing_after_a_boss_has_a_trader_and_a_way_home(self):
+        from commands.world_cmds import CmdBuy, CmdShop
+
+        landing = floors.entry(11)
+        self.assertTrue([o for o in landing.contents if o.key == "Sela"])
+        self.assertEqual([e for e in landing.exits if e.key == "home"][0].destination, room("gate"))
+        self.hero.move_to(landing, quiet=True)
+        self.hero.coins = 50
+        self.assertIn("For sale at Sela's", self.call(CmdShop(), "", caller=self.hero))
+        self.assertIn("You buy a dagger", self.call(CmdBuy(), "dagger", caller=self.hero))
+        self.assertFalse([o for o in floors.entry(5).contents if o.key == "Sela"])  # only after a boss
+
+    def test_a_new_month_rebuilds_the_tower_keeps_people_and_their_gear_and_remembers_the_leaders(self):
+        from evennia.server.models import ServerConfig
+
+        from world.tower import seasons
+
+        sword = self._find()
+        floors.ensure_floor(4)
+        inside = floors.entry(4)
+        self.hero.move_to(inside, quiet=True)
+        old = seed.current()
+        self.assertFalse(seasons.due())
+        ServerConfig.objects.conf(seed.KEY, value=dict(old, month="2000-01"))
+        self.assertTrue(seasons.due())
+        with patch("evennia.SESSION_HANDLER.announce_all"):
+            new = seasons.reset()
+        self.assertEqual(new, old["season"] + 1)
+        self.assertEqual(self.hero.location, room("gate"))
+        self.assertEqual(sword.location, self.hero)  # carried things are never touched
+        self.assertFalse(search_tag(f"season:{old['season']}", category=floors.CAT))
+        self.assertIsNone(inside.pk)
+        history = ServerConfig.objects.conf(seasons.HISTORY_KEY)
+        self.assertEqual(history[-1]["leaders"], [{"name": "Wren", "best": 4}])
+        self.assertEqual(floors.progress(self.hero)["best"], 0)  # a fresh season
+        self.assertEqual(floors.entry(1).db.season, new)  # and a fresh tower
+        self.assertFalse(seasons.due())
