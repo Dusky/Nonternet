@@ -33,8 +33,15 @@
   TOTP is optional for everyone; a site can require it for admins (below, decided 2026-10-02). Passkeys later.
 - **Invite codes**: `XXXX-XXXX-XXXX`, single use, 14 days by default, created by admins.
   Unknown, used and expired codes all give the same error so codes can't be probed.
-- **Application mode is not built yet.** It needs the review queue in the admin console;
-  until then the API says so plainly.
+- **Application mode** (built 2026-10-03; an admin setting, `signup.mode`):
+  - The sign-up form, on the web and in the terminal, asks "Why do you want to join?" (20–1000 characters). The answer is stored in `applications`.
+  - The account starts as a guest. Confirming the email doesn't make it a user while the application is pending. A pending person can log in, look around and is told the application is waiting.
+  - Admins read the queue in **Admin console → Applications**, oldest first (`GET /admin/applications`, `POST /admin/applications/:id {decision, reason}`).
+    - *Approve* makes them a user once their email is confirmed (straight away if it already is).
+    - *Decline* needs a reason, suspends the account (so the handle and address aren't simply reused) and emails them the reason.
+    - Both are audited (`application.approved`, `application.declined`).
+  - Only admins review for now. The doc's "admin/op review" waits on a site-wide op scope (TODO).
+  - The application, its outcome and the reason are in the person's export (`profile.json`), and are deleted with the account.
 - **From the terminal** (built 2026-10-02, `04`):
   - Type `new` at the BBS handle prompt, or log in over SSH as the user `new`.
   - The rules are the same as the web: mode, invite, the age question, handle, email and password. The terms of service can be read as text, and the caller must agree to them and the privacy policy.
@@ -44,7 +51,7 @@
   - Typing the code confirms the account and signs the caller in. A new code can be sent, three an hour.
   - Three new accounts an hour per caller address. The `user.created` audit entry has origin `bbs`.
 - Signup tells you when an email is already registered (`email_taken`). That lets someone probe
-  for accounts, which is acceptable while signup is invite-only; revisit before opening signup.
+  for accounts. That is acceptable for invite-only and application sign-up (a person must write an application to try); revisit before opening signup.
 
 ## Sessions, CSRF and admin 2FA (built in M1)
 - **Sessions**: a random 256-bit token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` when the

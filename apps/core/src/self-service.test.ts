@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { client, createTestDb, dbAvailable, first, loginAs, makeAdmin, makeApp, makeUser, TEST_PASSWORD, tokenFromMail, waitForMail } from './test/harness';
 import { currentTotp } from './totp';
+import { EXPORTERS, type ExportUser } from './exports/exporters';
 
 // What people can now do for themselves (docs/02): change their email or handle, and turn two-factor off.
 describe.skipIf(!dbAvailable)('self-service', () => {
@@ -130,6 +131,67 @@ describe.skipIf(!dbAvailable)('self-service', () => {
       } finally {
         ctx.deps.config.security.require_admin_2fa = false;
       }
+    });
+  });
+
+  describe('signing up by application', () => {
+    let apps: Awaited<ReturnType<typeof makeApp>>;
+    beforeAll(async () => { apps = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: application }` }); });
+    const apply = async (handle: string) => {
+      const r = await client(apps.app).post('/api/v1/auth/signup', { handle, email: `${handle}@example.test`, password: TEST_PASSWORD, age_confirmed: true, application: 'I make tracker music and want somewhere quiet to post it.' });
+      expect(r.status).toBe(201);
+      return r.body.id as string;
+    };
+    const confirm = async (email: string) => {
+      const mail = apps.mailer.sent.filter((m) => m.to === email && m.text.includes('/verify-email?token=')).at(-1)!;
+      expect((await client(apps.app).post('/api/v1/auth/verify-email', { token: tokenFromMail(mail.text) })).status).toBe(204);
+    };
+    const role = async (id: string) => first(await db.query(`SELECT role, status FROM users WHERE id = $1`, [id]));
+
+    it('stays a guest after confirming the email until an admin approves; then is a user, told, and it is in the export', async () => {
+      const admin = await makeAdmin(apps);
+      const id = await apply('nora');
+      await confirm('nora@example.test');
+      expect(await role(id)).toMatchObject({ role: 'guest', status: 'active' });
+      const c = await loginAs(apps, 'nora');
+      expect((await c.get('/api/v1/me/application')).body.application).toMatchObject({ state: 'pending' });
+
+      const queue = (await admin.client.get('/api/v1/admin/applications')).body.applications;
+      expect(queue).toEqual([expect.objectContaining({ user_id: id, handle: 'nora', email_verified: true, text: expect.stringContaining('tracker music') })]);
+      expect((await c.get('/api/v1/admin/applications')).status).toBe(403);
+      const n = apps.mailer.sent.length;
+      expect((await admin.client.post(`/api/v1/admin/applications/${id}`, { decision: 'approve' })).status).toBe(204);
+      expect(await role(id)).toMatchObject({ role: 'user' });
+      expect((await admin.client.post(`/api/v1/admin/applications/${id}`, { decision: 'approve' })).body.error.code).toBe('no_change');
+      expect((await admin.client.get('/api/v1/admin/applications')).body.applications).toEqual([]);
+      expect(first(await db.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'application.approved' AND target_id = $1`, [id])).n).toBe(1);
+      await waitForMail(apps.mailer, n + 1);
+      expect(apps.mailer.sent.at(-1)!.text).toContain('you are in');
+
+      const files: Record<string, string> = {};
+      const u = first<ExportUser>(await db.query(`SELECT id, handle, display_name, bio, email, role, theme, theme_variant, created_at, NULL AS public_key FROM users WHERE id = $1`, [id]));
+      await EXPORTERS.find((e) => e.id === 'profile')!.run({ deps: apps.deps, user: u, add: (p, d) => { files[p] = String(d); } });
+      expect(JSON.parse(files['profile.json']!).application).toMatchObject({ state: 'approved', text: expect.stringContaining('tracker music') });
+    });
+
+    it('approving before the email is confirmed promotes on confirmation', async () => {
+      const admin = await makeAdmin(apps);
+      const id = await apply('otto');
+      await admin.client.post(`/api/v1/admin/applications/${id}`, { decision: 'approve' });
+      expect(await role(id)).toMatchObject({ role: 'guest' });
+      await confirm('otto@example.test');
+      expect(await role(id)).toMatchObject({ role: 'user' });
+    });
+
+    it('declining needs a reason, suspends the account and tells the person why', async () => {
+      const admin = await makeAdmin(apps);
+      const id = await apply('pip');
+      expect((await admin.client.post(`/api/v1/admin/applications/${id}`, { decision: 'decline' })).body.error.code).toBe('reason_required');
+      const n = apps.mailer.sent.length;
+      expect((await admin.client.post(`/api/v1/admin/applications/${id}`, { decision: 'decline', reason: 'We are full for now.' })).status).toBe(204);
+      expect(await role(id)).toMatchObject({ role: 'guest', status: 'suspended' });
+      await waitForMail(apps.mailer, n + 1);
+      expect(apps.mailer.sent.at(-1)!.text).toContain('We are full for now.');
     });
   });
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { handleSchema, passwordSchema } from '@app/shared';
+import { APPLICATION_MAX, APPLICATION_MIN, handleSchema, passwordSchema } from '@app/shared';
 import { CoreError, type LoginResult } from '../core';
 import type { Session } from '../session';
 import { page } from './pager';
@@ -17,7 +17,6 @@ export async function signUp(s: Session): Promise<LoginResult | null> {
   const t = s.term;
   s.at('Signing up');
   const site = await s.ctx.core.publicGet<Site>('/site');
-  if (site.signup_mode === 'application') { t.line(`Sign-ups are not open right now. See ${s.ctx.siteUrl} for news.`); return null; }
   t.line('\n\x1b[1mNew account\x1b[0m');
   if (s.via === 'telnet') t.line(dim('What you type over telnet is not encrypted. If that matters to you, sign up over SSH or on the website instead.'));
   t.line(dim('Press Escape at any prompt to stop.'));
@@ -49,7 +48,7 @@ export async function signUp(s: Session): Promise<LoginResult | null> {
     if (!old) { if (old === false) t.line(`Sorry, you need to be at least ${site.minimum_age} to have an account here.`); return null; }
   }
 
-  const f = { invite: '', handle: '', email: '', password: '', terminal: '' };
+  const f = { invite: '', handle: '', email: '', password: '', terminal: '', application: '' };
   const askInvite = async () => { for (;;) { const v = await ask('Invite code'); if (v === null) return false; if (v) { f.invite = v; return true; } t.line('This site is invite only. Ask someone who is already here for a code.'); } };
   const askHandle = async () => {
     for (;;) {
@@ -58,6 +57,16 @@ export async function signUp(s: Session): Promise<LoginResult | null> {
       const ok = handleSchema.safeParse(v.replace(/^@/, ''));
       if (ok.success) { f.handle = ok.data; return true; }
       t.line(red('A handle is 2 to 20 letters, digits, _ or -, starting with a letter.'));
+    }
+  };
+  // Sign-up by application (docs/02): a few sentences for the admins, on one line.
+  const askApplication = async () => {
+    t.line(dim('The admins read every application. Tell them in a few sentences what you would like to do here.'));
+    for (;;) {
+      const v = await ask('Why do you want to join?', { max: APPLICATION_MAX });
+      if (v === null) return false;
+      if (v.length >= APPLICATION_MIN) { f.application = v; return true; }
+      t.line(red(`Say a little more: at least ${APPLICATION_MIN} characters.`));
     }
   };
   const askEmail = async () => {
@@ -84,6 +93,7 @@ export async function signUp(s: Session): Promise<LoginResult | null> {
 
   if (site.signup_mode === 'invite' && !(await askInvite())) return null;
   if (!(await askHandle()) || !(await askEmail())) return null;
+  if (site.signup_mode === 'application' && !(await askApplication())) return null;
   t.line(dim('Your website password is for the website. Your terminal password is for here, IRC and the MUD.'));
   if (!(await askPassword('Website password', 'password')) || !(await askPassword('Terminal password', 'terminal'))) return null;
 
@@ -92,7 +102,7 @@ export async function signUp(s: Session): Promise<LoginResult | null> {
     try {
       created = await s.ctx.core.signup({
         handle: f.handle, email: f.email, password: f.password, terminal_password: f.terminal, age_confirmed: site.minimum_age > 0 ? true : undefined,
-        invite: site.signup_mode === 'invite' ? f.invite : undefined, ip_hash: s.ipHash,
+        invite: site.signup_mode === 'invite' ? f.invite : undefined, application: site.signup_mode === 'application' ? f.application : undefined, ip_hash: s.ipHash,
       });
     } catch (e) {
       if (!(e instanceof CoreError) || e.status === 0 || e.status === 429) { t.line(red((e as Error).message)); return null; }
@@ -118,7 +128,9 @@ export async function signUp(s: Session): Promise<LoginResult | null> {
     }
     if (!/^\d{6}$/.test(v)) { t.line(red('The code is six digits.')); continue; }
     try {
-      return await s.ctx.core.verifyCode({ user_id: created.id, code: v, via: s.via, node: s.node, ip_hash: s.ipHash });
+      const done = await s.ctx.core.verifyCode({ user_id: created.id, code: v, via: s.via, node: s.node, ip_hash: s.ipHash });
+      if (site.signup_mode === 'application') t.line('Your email is confirmed. Your application is waiting for an admin to read it; we will email you when they have. Until then you can look around, but not post.');
+      return done;
     } catch (e) {
       t.line(red((e as Error).message));
       if (e instanceof CoreError && e.status === 0) return null;

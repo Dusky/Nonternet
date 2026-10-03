@@ -15,7 +15,11 @@ describe('getting started', () => {
   });
 
   it('asks a guest to confirm their email first', () => {
-    expect(gettingStarted({ me: me({ role: 'guest' }), homepageUpdated: false, watchesABoard: false })[0]).toEqual({ key: 'verify', done: false });
+    expect(gettingStarted({ me: me({ role: 'guest', email_verified: false }), homepageUpdated: false, watchesABoard: false })[0]).toEqual({ key: 'verify', done: false });
+  });
+
+  it("doesn't ask a guest who has confirmed and is waiting on their application", () => {
+    expect(gettingStarted({ me: me({ role: 'guest', email_verified: true }), homepageUpdated: false, watchesABoard: false }).map((s) => s.key)).not.toContain('verify');
   });
 
   it('ticks off what is already done, from what the person has', () => {

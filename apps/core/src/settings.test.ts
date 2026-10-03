@@ -59,7 +59,7 @@ describe.skipIf(!dbAvailable)('versioned settings', () => {
       if (value === null) continue;
       expect((await put('limits.trusted_ring_quota', value)).status, String(value)).toBe(400);
     }
-    expect((await put('signup.mode', 'application', { confirm: true })).status).toBe(400); // not built yet
+    expect((await put('signup.mode', 'closed', { confirm: true })).status).toBe(400);
     expect((await put('site.name', 'Hijacked')).status).toBe(404);
     expect((await put('limits.trusted_board_quota', 1)).body.error.code).toBe('no_change');
   });

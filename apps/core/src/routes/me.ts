@@ -63,6 +63,14 @@ export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
     return reply.code(202).send();
   });
 
+  // Someone who signed up by application can see where it stands (docs/02).
+  app.get('/api/v1/me/application', async (req) => {
+    const user = requireUser(req, { allowLimited: true });
+    const r = await deps.db.query<{ state: string; created_at: Date }>(`SELECT state, created_at FROM applications WHERE user_id = $1`, [user.userId]);
+    const a = r.rows[0];
+    return { application: a ? { state: a.state, created_at: new Date(a.created_at).toISOString() } : null };
+  });
+
   // Changing your handle (docs/02, docs/07): once every 90 days; the old homepage address redirects for 90 days.
   app.get('/api/v1/me/handle', async (req) => {
     const at = await selfRenameAllowedAt(deps.db, requireUser(req).userId);

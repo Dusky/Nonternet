@@ -134,3 +134,6 @@ panel: admins see Write, Edit and Take down there. Each of those actions is in t
 
 ## As built (updates, 2026-10-03)
 **Updates** tab (Site group): the running version, updates waiting on the branch with their commit subjects, *check for updates*, *update* (backup, pull, rebuild, restart) and *restart a service*, with the recent jobs and their logs. The work is done on the server by `sitectl agent` (`19`); updating and restarting ask for the password again and are audited.
+
+## As built (applications, 2026-10-03)
+**Applications** (People group; shown when sign-up is by application or anyone is waiting, with the count): each person's handle, whether their email is confirmed, when they applied and what they wrote. *Approve*, or *Decline* with a reason they receive by email (`02`). Sign-up by application is chosen under Settings → Who can sign up.

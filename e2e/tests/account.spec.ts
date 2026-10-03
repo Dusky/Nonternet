@@ -47,3 +47,43 @@ test('someone turns two-factor off', async ({ page }) => {
   await page.getByRole('button', { name: 'Turn off', exact: true }).click();
   await expect(page.getByText('Two-factor authentication is off.')).toBeVisible();
 });
+
+test('someone applies to join, confirms their email, and gets in when an admin approves', async ({ page, browser, isMobile }) => {
+  test.skip(isMobile, 'the sign-up mode is site-wide; one browser is enough');
+  const admin = await makeAdmin(page);
+  await signIn(page, admin.handle, admin.password, { totp: await totp(admin.secret, 1) });
+  const mode = (value: string) => page.request.put('/api/v1/admin/settings/signup.mode', { data: { value, reason: 'e2e: applications', confirm: true }, headers: { origin: new URL(page.url()).origin } });
+  expect((await mode('application')).ok()).toBe(true);
+  try {
+    const visitorContext = await browser.newContext();
+    const visitor = await visitorContext.newPage();
+    const handle = uniq('appl');
+    await visitor.goto('/signup');
+    await visitor.getByLabel('Handle').fill(handle);
+    await visitor.getByLabel('Email').fill(`${handle}@example.test`);
+    await visitor.getByLabel('Password', { exact: true }).fill(admin.password);
+    await visitor.getByLabel('Why do you want to join?').fill('I keep a list of old shareware and want to share it.');
+    const age = visitor.getByRole('checkbox');
+    if (await age.count()) await age.check();
+    expect(await axe(visitor)).toEqual([]);
+    await visitor.getByRole('button', { name: 'Sign up' }).click();
+    await expect(visitor.getByText('the admins will read your application', { exact: false })).toBeVisible();
+    await visitor.goto(await linkFor(`${handle}@example.test`, 'verify-email'));
+    await expect(visitor.getByText('Your email is confirmed.', { exact: false })).toBeVisible();
+    await signIn(visitor, handle, admin.password);
+    await expect(visitor.getByText('Your application is waiting for an admin to read it.', { exact: false })).toBeVisible();
+
+    await page.goto('/admin/applications');
+    const card = page.getByRole('region', { name: handle });
+    await expect(card.getByText('I keep a list of old shareware')).toBeVisible();
+    expect(await axe(page)).toEqual([]);
+    await card.getByRole('button', { name: 'Approve' }).click();
+    await expect(page.getByText('Nobody is waiting.')).toBeVisible();
+
+    await visitor.reload();
+    await expect(visitor.getByText('Your application is waiting', { exact: false })).toHaveCount(0);
+    await visitorContext.close();
+  } finally {
+    await mode('invite');
+  }
+});

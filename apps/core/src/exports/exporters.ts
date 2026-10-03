@@ -26,7 +26,7 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 const profile: Exporter = {
   id: 'profile',
-  tables: ['users', 'oneliners', 'polls', 'poll_options', 'poll_votes', 'bulletin_seen', 'handle_history', 'watches', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes'],
+  tables: ['users', 'oneliners', 'polls', 'poll_options', 'poll_votes', 'bulletin_seen', 'handle_history', 'watches', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes', 'applications'],
   async run({ deps, user, add }) {
     const q = deps.db;
     const [names, domains, rings, boards, watching, ops, history] = await Promise.all([
@@ -65,6 +65,9 @@ const profile: Exporter = {
       poll_votes: votes.rows.map((x) => ({ poll: x.question, choice: x.label, at: x.voted_at.toISOString() })),
       polls_asked: asked.rows.map((x) => ({ question: x.question, at: x.created_at.toISOString(), closes: iso(x.closes_at) })),
     }));
+    // What they wrote when they signed up by application (docs/02), and how it was decided. The admin's reason is theirs to know.
+    const app = (await q.query<{ text: string; state: string; created_at: Date; decided_at: Date | null; reason: string | null }>(
+      `SELECT text, state, created_at, decided_at, reason FROM applications WHERE user_id = $1`, [user.id])).rows[0];
     add('profile.json', json({
       id: user.id, handle: user.handle, display_name: user.display_name, bio: user.bio, email: user.email, joined_at: user.created_at.toISOString(),
       role: user.role, theme: user.theme, theme_variant: user.theme_variant, previous_handles: names.rows.map((n) => ({ handle: n.handle, until: n.changed_at.toISOString() })),
@@ -74,6 +77,7 @@ const profile: Exporter = {
       ops: ops.rows.map((o) => ({ scope: `${o.scope_type}:${o.scope_id}`, since: o.created_at.toISOString() })),
       // Role changes are kept without the admin's stated reason, which is an internal note.
       role_history: history.rows.map((h) => ({ at: h.created_at.toISOString(), action: h.action, before: h.before, after: h.after ? Object.fromEntries(Object.entries(h.after).filter(([k]) => k !== 'reason')) : null })),
+      ...(app ? { application: { text: app.text, state: app.state, sent_at: app.created_at.toISOString(), decided_at: iso(app.decided_at), reason: app.reason } } : {}),
     }));
   },
 };
@@ -287,6 +291,7 @@ export const EXEMPT: Record<string, string> = {
   irc_applied: 'a record of what the bot has told the IRC server',
   email_verifications: 'security state, not content',
   password_resets: 'security state, not content',
+  email_changes: 'a pending change of email address, security state rather than content',
   recovery_codes: 'security state, not content',
   invites: 'admin-issued sign-up codes',
   audit_log: 'append-only administrative record; role and handle changes are summarised in profile.json',

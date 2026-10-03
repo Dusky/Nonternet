@@ -20,7 +20,7 @@ export function Landing() {
   const t = useT();
   const site = useSite();
   const d = useQuery({ queryKey: ['landing'], queryFn: () => api.get<LandingData>('/landing'), staleTime: 30_000 }).data;
-  const note = site.signup_mode === 'invite' ? t('landing.invite') : site.signup_mode === 'open' ? t('landing.open') : t('landing.closed');
+  const note = site.signup_mode === 'invite' ? t('landing.invite') : site.signup_mode === 'open' ? t('landing.open') : t('landing.application');
   const ways = [
     { key: 'web', label: t('landing.connect.web'), how: site.domain },
     ...(site.services.bbs ? [
@@ -38,7 +38,7 @@ export function Landing() {
         <Link className="brand" to="/"><span className="brand-mark" aria-hidden="true" />{site.name}</Link>
         <span className="taskbar-account">
           <Link className="btn btn-quiet" to="/login">{t('auth.login')}</Link>
-          {site.signup_mode !== 'application' && <Link className="btn btn-primary" to="/signup">{t('auth.signup')}</Link>}
+          <Link className="btn btn-primary" to="/signup">{t(site.signup_mode === 'application' ? 'auth.apply' : 'auth.signup')}</Link>
         </span>
       </header>
       <AnnouncementBanner />

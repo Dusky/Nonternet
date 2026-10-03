@@ -1,4 +1,5 @@
-import { OP_ROLE, handleSchema, isReservedHandle, opClaim, type OpScope, type Role } from '@app/shared';
+import { OP_ROLE, handleSchema, toPublicSite, isReservedHandle, opClaim, type OpScope, type Role } from '@app/shared';
+import { makeT, type StringKey } from '@app/strings';
 import { audit } from './audit';
 import { newId } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
@@ -88,6 +89,48 @@ export async function selfRenameAllowedAt(q: Queryable, userId: string): Promise
   const r = await q.query<{ at: Date | null }>(
     `SELECT at FROM (SELECT max(changed_at) + $2 * interval '1 day' AS at FROM handle_history WHERE user_id = $1 AND by_user) x WHERE at > now()`, [userId, SELF_RENAME_DAYS]);
   return r.rows[0]?.at ? new Date(r.rows[0].at) : null;
+}
+
+// ---------------------------------------------------------------- applications
+
+// Sign-up by application (docs/02): the queue the admins read, oldest first.
+export interface ApplicationRow { user_id: string; handle: string; email_verified: boolean; text: string; created_at: string }
+export async function listApplications(deps: AppDeps): Promise<ApplicationRow[]> {
+  const r = await deps.db.query<{ user_id: string; handle: string; email_verified: boolean; text: string; created_at: Date }>(
+    `SELECT a.user_id, u.handle, u.email_verified_at IS NOT NULL AS email_verified, a.text, a.created_at
+       FROM applications a JOIN users u ON u.id = a.user_id
+      WHERE a.state = 'pending' AND u.status = 'active' ORDER BY a.created_at LIMIT 200`);
+  return r.rows.map((x) => ({ ...x, created_at: new Date(x.created_at).toISOString() }));
+}
+
+// Approving makes the person a user once their email is confirmed (straight away if it already is). Declining suspends
+// the account, with the reason, so the handle and address can't simply be used again. Either way the person is told.
+export async function decideApplication(deps: AppDeps, admin: SessionUser, targetId: string, decision: 'approve' | 'decline', reason: string | undefined, ctx: Ctx): Promise<void> {
+  const person = await deps.db.tx(async (q) => {
+    const t = await lockTarget(q, targetId);
+    const a = (await q.query<{ state: string }>(`SELECT state FROM applications WHERE user_id = $1 FOR UPDATE`, [targetId])).rows[0];
+    if (!a) throw notFound();
+    if (a.state !== 'pending') throw new ApiError(409, 'no_change', `${t.handle}'s application was already decided.`);
+    const state = decision === 'approve' ? 'approved' : 'declined';
+    await q.query(`UPDATE applications SET state = $2, decided_by = $3, decided_at = now(), reason = $4 WHERE user_id = $1`, [targetId, state, admin.userId, reason ?? null]);
+    await audit(q, { actorId: admin.userId, actorKind: 'user', action: `application.${state}`, targetType: 'user', targetId, after: reason ? { reason } : undefined, origin: 'web', ipHash: ctx.ipHash });
+    const u = (await q.query<{ email: string; verified: boolean }>(`SELECT email, email_verified_at IS NOT NULL AS verified FROM users WHERE id = $1`, [targetId])).rows[0]!;
+    if (decision === 'approve' && u.verified && t.role === 'guest') {
+      const r = await q.query<{ role_rev: number }>(`UPDATE users SET role = 'user', role_rev = role_rev + 1, updated_at = now() WHERE id = $1 RETURNING role_rev`, [targetId]);
+      await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.role_changed', targetType: 'user', targetId, before: { role: 'guest' }, after: { role: 'user', reason: 'application approved' }, origin: 'web', ipHash: ctx.ipHash });
+      await emit(q, 'user.role_changed', { user_id: targetId, role: 'user', previous_role: 'guest', role_rev: r.rows[0]!.role_rev });
+    }
+    if (decision === 'decline') {
+      await q.query(`UPDATE users SET status = 'suspended', updated_at = now() WHERE id = $1`, [targetId]);
+      await revokeAllSessions(q, targetId, 'suspended');
+      await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.suspended', targetType: 'user', targetId, before: { status: 'active' }, after: { status: 'suspended', reason: reason ?? 'application declined' }, origin: 'web', ipHash: ctx.ipHash });
+      await emit(q, 'user.suspended', { user_id: targetId });
+    }
+    return { handle: t.handle, email: u.email, verified: u.verified };
+  });
+  const t = makeT(toPublicSite(deps.config));
+  const key = decision === 'approve' ? (person.verified ? 'email.application.approved' : 'email.application.approvedConfirm') : 'email.application.declined';
+  void deps.mailer.send({ to: person.email, subject: t(`${key}.subject` as StringKey), text: t(`${key}.body` as StringKey, { handle: person.handle, reason: reason ?? '', url: deps.publicUrl }) }).catch(() => undefined);
 }
 
 // ---------------------------------------------------------------- suspension

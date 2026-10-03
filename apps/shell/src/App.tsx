@@ -74,7 +74,7 @@ function PublicFrame({ app }: { app: AppDef }) {
         <Link className="brand" to="/"><span className="brand-mark" aria-hidden="true" />{t('landing.title')}</Link>
         <span className="taskbar-account">
           <Link className="btn btn-quiet" to={`/login?return_to=${back}`}>{t('auth.login')}</Link>
-          {site.signup_mode !== 'application' && <Link className="btn btn-primary" to="/signup">{t('auth.signup')}</Link>}
+          <Link className="btn btn-primary" to="/signup">{t(site.signup_mode === 'application' ? 'auth.apply' : 'auth.signup')}</Link>
         </span>
       </header>
       <AnnouncementBanner />

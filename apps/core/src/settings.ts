@@ -24,7 +24,7 @@ const int = (min: number, max: number) => z.number().int().min(min).max(max);
 const MB = 1048576;
 
 export const SETTINGS: SettingDef[] = [
-  { key: 'signup.mode', schema: z.enum(['open', 'invite']), risky: true, get: (c) => c.signup.mode, set: (c, v) => { c.signup.mode = v as 'open' | 'invite'; } },
+  { key: 'signup.mode', schema: z.enum(['open', 'invite', 'application']), risky: true, get: (c) => c.signup.mode, set: (c, v) => { c.signup.mode = v as 'open' | 'invite' | 'application'; } },
   { key: 'signup.minimum_age', schema: int(0, 120), risky: true, get: (c) => c.signup.minimum_age, set: (c, v) => { c.signup.minimum_age = v as number; } },
   { key: 'limits.trusted_board_quota', schema: int(0, 100), risky: false, get: (c) => c.limits.trusted_board_quota, set: (c, v) => { c.limits.trusted_board_quota = v as number; },
     impact: async (deps, next) => ({ affected: Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM (SELECT owner_id FROM boards WHERE archived_at IS NULL AND ring_id IS NULL GROUP BY owner_id HAVING count(*) > $1) x`, [next])).rows[0]!.n), note: 'people who already own more boards than that keep them but cannot make new ones' }) },

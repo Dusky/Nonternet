@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { BoardSummary, Me } from '@app/shared';
 import { api } from '../api';
 import { Icon } from '../components/Icon';
-import { Avatar } from '../components/ui';
+import { Alert, Avatar } from '../components/ui';
 import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById } from './apps';
 import { Oneliners } from './Oneliners';
@@ -19,7 +19,7 @@ interface HomeSummary { homepage: { url: string; last_updated_at: string | null 
 export function gettingStarted(input: { me: Me; homepageUpdated: boolean; watchesABoard: boolean }) {
   const { me } = input;
   return [
-    ...(me.role === 'guest' ? [{ key: 'verify', done: false }] : []),
+    ...(me.role === 'guest' && !me.email_verified ? [{ key: 'verify', done: false }] : []),
     { key: 'bio', done: Boolean(me.bio?.trim()) },
     { key: 'homepage', done: input.homepageUpdated },
     { key: 'watch', done: input.watchesABoard },
@@ -44,6 +44,8 @@ export function HomePanel({ me }: { me: Me }) {
   const notes = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), staleTime: 15_000 }).data?.unread ?? 0;
   const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), enabled: confirmed, refetchInterval: 60_000 }).data?.people;
   const home = useQuery({ queryKey: ['homes', 'me'], queryFn: () => api.get<HomeSummary>('/homes/me'), staleTime: 60_000, retry: false }).data;
+  // Signed up by application and not approved yet (docs/02): say so, rather than leave them wondering.
+  const application = useQuery({ queryKey: ['me', 'application'], queryFn: () => api.get<{ application: { state: string } | null }>('/me/application'), enabled: !confirmed, staleTime: 60_000 }).data?.application;
   const [hideStart, setHideStart] = useState(dismissed);
 
   const go = (app: AppId, path = '') => {
@@ -65,6 +67,7 @@ export function HomePanel({ me }: { me: Me }) {
         <h2 id="home-title">{t('home.greeting', { name: me.display_name || me.handle })}</h2>
         <p>{unreadPosts + mail + notes > 0 ? t('home.summary') : t('home.quiet')}</p>
       </div>
+      {application?.state === 'pending' && <Alert kind="info">{me.email_verified ? t('home.application.waiting') : t('home.application.confirmFirst')}</Alert>}
 
       <ul className="home-stats">
         <li><button type="button" className={unreadPosts ? 'is-new' : ''} onClick={() => go('boards')}><span className="num">{unreadPosts}</span><span className="label">{t('home.stat.posts', { count: unreadPosts })}</span></button></li>

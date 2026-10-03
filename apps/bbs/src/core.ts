@@ -40,7 +40,7 @@ export class Core {
   async hasKeys(handle: string): Promise<boolean> {
     return (await this.call<{ keys: boolean }>('POST', '/internal/bbs/has-keys', { body: { handle }, bearer: this.bbsToken })).keys;
   }
-  signup(b: { handle: string; email: string; password: string; terminal_password: string; invite?: string; age_confirmed?: boolean; ip_hash?: string | null }) {
+  signup(b: { handle: string; email: string; password: string; terminal_password: string; invite?: string; application?: string; age_confirmed?: boolean; ip_hash?: string | null }) {
     return this.call<{ id: string; handle: string }>('POST', '/internal/bbs/signup', { body: b, bearer: this.bbsToken });
   }
   verifyCode(b: { user_id: string; code: string; via: NodeReport['via']; node: number; ip_hash?: string | null }) {

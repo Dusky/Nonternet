@@ -76,6 +76,20 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
     return admin.setRole(deps, who, id, body.role, body.reason, ctxOf(deps, req));
   });
 
+  // Sign-up by application (docs/02).
+  app.get('/api/v1/admin/applications', async (req) => {
+    requireAdmin(req);
+    return { applications: await admin.listApplications(deps) };
+  });
+  app.post('/api/v1/admin/applications/:id', async (req, reply) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    const body = z.object({ decision: z.enum(['approve', 'decline']), reason: z.string().trim().max(500).optional() }).parse(req.body);
+    if (body.decision === 'decline' && !body.reason) throw new ApiError(400, 'reason_required', 'Say why, so the person knows.');
+    await admin.decideApplication(deps, who, id, body.decision, body.reason, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+
   app.post('/api/v1/admin/users/:id/rename', async (req) => {
     const who = requireAdmin(req);
     const { id } = userIdParam.parse(req.params);

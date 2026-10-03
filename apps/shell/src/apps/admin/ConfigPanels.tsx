@@ -12,7 +12,7 @@ type Change = { changed: true; version: number } | { pending: true; current: unk
 interface HistoryRow { version: number; value: unknown; previous: unknown; reason: string; by: string | null; at: string; rolled_back_to: number | null }
 
 const label = (key: string) => `setting.${key}` as StringKey;
-const OPTIONS: Record<string, string[]> = { 'signup.mode': ['invite', 'open'], 'ui.default_theme': [...THEMES] };
+const OPTIONS: Record<string, string[]> = { 'signup.mode': ['invite', 'open', 'application'], 'ui.default_theme': [...THEMES] };
 const shown = (t: ReturnType<typeof useT>, key: string, v: unknown): string =>
   typeof v === 'boolean' ? t(v ? 'admin.config.on' : 'admin.config.off') : OPTIONS[key] ? t(`${label(key)}.${String(v)}` as StringKey) : String(v);
 

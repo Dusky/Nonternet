@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { signupInputSchema } from '@app/shared';
+import { APPLICATION_MAX, signupInputSchema } from '@app/shared';
 import { Alert, Centered, TextField } from '../components/ui';
 import { api, ApiError } from '../api';
 import { errorText, useSite, useT } from '../hooks';
 
-type Errors = Partial<Record<'handle' | 'email' | 'password' | 'invite' | 'display_name' | 'age', string>>;
+type Errors = Partial<Record<'handle' | 'email' | 'password' | 'invite' | 'display_name' | 'age' | 'application', string>>;
 
 export function SignupPage() {
   const t = useT();
@@ -20,8 +20,10 @@ export function SignupPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [age, setAge] = useState(false);
+  const [application, setApplication] = useState('');
   const [done, setDone] = useState(false);
   const inviteOnly = site.signup_mode === 'invite';
+  const byApplication = site.signup_mode === 'application';
   const asksAge = site.minimum_age > 0;
 
   const signup = useMutation({
@@ -33,6 +35,7 @@ export function SignupPage() {
         if (err.code === 'handle_unavailable') return setErrors({ handle: err.message });
         if (err.code === 'email_taken') return setErrors({ email: err.message });
         if (err.code === 'age_required') return setErrors({ age: err.message });
+        if (err.code === 'application_required') return setErrors({ application: err.message });
         if (err.code === 'invite_invalid' || err.code === 'invite_required') return setErrors({ invite: err.message });
       }
       setFormError(errorText(err));
@@ -48,6 +51,7 @@ export function SignupPage() {
       ...(displayName.trim() ? { display_name: displayName } : {}),
       ...(inviteOnly ? { invite } : {}),
       ...(asksAge ? { age_confirmed: age } : {}),
+      ...(byApplication ? { application } : {}),
     });
     if (!parsed.success) {
       const next: Errors = {};
@@ -55,15 +59,13 @@ export function SignupPage() {
       return setErrors(next);
     }
     if (asksAge && !age) return setErrors({ age: t('auth.signup.ageError') });
+    if (byApplication && !application.trim()) return setErrors({ application: t('auth.signup.applicationError') });
     setErrors({});
     signup.mutate(parsed.data);
   };
 
-  if (site.signup_mode === 'application') {
-    return <Centered title={t('auth.signup.title')}><Alert kind="info">{t('auth.signup.closed')}</Alert><p className="links"><Link to="/login">{t('auth.backToLogin')}</Link></p></Centered>;
-  }
   if (done) {
-    return <Centered title={t('auth.signup.title')}><Alert kind="success">{t('auth.signup.done')}</Alert><p className="links"><Link to="/login">{t('auth.backToLogin')}</Link></p></Centered>;
+    return <Centered title={t('auth.signup.title')}><Alert kind="success">{t(byApplication ? 'auth.signup.applied' : 'auth.signup.done')}</Alert><p className="links"><Link to="/login">{t('auth.backToLogin')}</Link></p></Centered>;
   }
 
   return (
@@ -74,6 +76,7 @@ export function SignupPage() {
         <TextField label={t('field.email')} value={email} onChange={setEmail} type="email" error={errors.email} autoComplete="email" required />
         <TextField label={t('field.password')} value={password} onChange={setPassword} type="password" hint={t('auth.signup.passwordHint')} error={errors.password} autoComplete="new-password" required />
         <TextField label={t('field.displayName')} value={displayName} onChange={setDisplayName} error={errors.display_name} maxLength={60} />
+        {byApplication && <TextField label={t('auth.signup.application')} value={application} onChange={setApplication} hint={t('auth.signup.applicationHint')} error={errors.application} multiline maxLength={APPLICATION_MAX} required />}
         {asksAge && (
           <div className="field">
             <label className="check"><input type="checkbox" checked={age} onChange={(e) => setAge(e.target.checked)} aria-describedby={errors.age ? 'age-error' : undefined} aria-invalid={errors.age ? true : undefined} />{t('auth.signup.age', { age: site.minimum_age })}</label>

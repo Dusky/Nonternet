@@ -9,13 +9,14 @@ import { ReportQueue } from '../boards/ReportQueue';
 import { AnnouncementsPanel, LegalPanel, SettingsPanel } from './ConfigPanels';
 import { BackupsPanel, StatusPanel } from './StatusPanels';
 import { UpdatesPanel } from './UpdatesPanel';
+import { ApplicationsPanel, useApplications } from './ApplicationsPanel';
 import { IrcPanel } from './IrcPanel';
 import { MudPanel } from './MudPanel';
 import { Audit } from './AuditPanel';
 import { BoardsTable, HomepagesTable, RingsTable } from './ContentPanels';
 import { Invites, UserPage, Users } from './UsersPanels';
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id', 'bbs', 'updates'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id', 'bbs', 'updates', 'applications'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -24,6 +25,7 @@ export default function AdminApp() {
   const nav = useAppNav();
   const route = matchRoute(nav.path, ROUTES);
   useEffect(() => { if (!route) nav.go('status', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
+  const waiting = useApplications(me?.role === 'admin').data?.applications.length ?? 0;
   if (me?.role !== 'admin') return <p className="pad">{t('admin.forbidden')}</p>;
   return (
     <SideNav label={t('app.admin')} groups={[
@@ -37,6 +39,7 @@ export default function AdminApp() {
       ] },
       { label: t('admin.group.people'), items: [
         { to: 'users', label: t('admin.tab.users') },
+        ...(site.signup_mode === 'application' || waiting > 0 ? [{ to: 'applications', label: waiting ? t('admin.tab.applicationsWaiting', { count: waiting }) : t('admin.tab.applications') }] : []),
         { to: 'invites', label: t('admin.tab.invites') },
         { to: 'vouches', label: t('admin.tab.vouches') },
       ] },
@@ -67,6 +70,7 @@ export default function AdminApp() {
       {route?.pattern === 'users' && <Users />}
       {route?.pattern === 'users/:id' && <UserPage myId={me.id} id={route.params.id!} />}
       {route?.pattern === 'invites' && <Invites />}
+      {route?.pattern === 'applications' && <ApplicationsPanel />}
       {route?.pattern === 'vouches' && <VouchesPanel />}
       {route?.pattern === 'reports' && <ReportQueue />}
       {route?.pattern === 'boards' && <BoardsTable />}

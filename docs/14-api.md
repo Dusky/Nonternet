@@ -11,6 +11,7 @@ bearer token. Errors: `{ "error": { "code", "message" } }`. The admin console us
 `POST /tickets {service}` → one-time login ticket (bbs | mud)
 `POST /me/export` · `GET /me/exports` · `DELETE /me` (after confirm)
 Internal (BBS token): `POST /internal/bbs/signup` · `POST /internal/bbs/verify-code` · `POST /internal/bbs/resend-code` (terminal sign-up, `04`)
+Admin (docs/02): `GET /admin/applications` · `POST /admin/applications/:id {decision: approve|decline, reason}` · `GET /me/application`
 Admin (docs/19): `GET /admin/ops` (agent, version, waiting updates, recent jobs) · `POST /admin/ops {action: check|upgrade|restart, service?, password}` · `GET /admin/ops/:id/log`
 `GET /mud/leaderboard` (the tower's highest floors this season, signed in; `18`)
 `GET /me/client-settings/:client` · `PUT /me/client-settings/:client {settings}` (client `chat` or `mud`; validated, at most 256 KB; `12`)

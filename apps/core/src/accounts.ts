@@ -71,9 +71,7 @@ async function sendVerification(deps: AppDeps, user: { email: string; handle: st
 
 export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin: 'web' | 'bbs' = 'web'): Promise<{ id: string; handle: string }> {
   const { mode } = deps.config.signup;
-  // TODO(M1 task 3, application mode): the roadmap only calls for invite mode. Application mode
-  // (docs/02) needs the review queue in the admin console first.
-  if (mode === 'application') throw new ApiError(501, 'not_available', 'Signing up by application is not available yet.');
+  if (mode === 'application' && !input.application) throw new ApiError(400, 'application_required', 'Tell the admins a little about why you want to join.');
   if (mode === 'invite' && !input.invite) throw new ApiError(400, 'invite_required', 'This site is invite only. Enter your invite code.');
   const minAge = deps.config.signup.minimum_age;
   if (minAge > 0 && input.age_confirmed !== true) throw new ApiError(400, 'age_required', `You need to confirm that you are at least ${minAge} to sign up.`);
@@ -107,11 +105,12 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8::text IS NULL THEN NULL ELSE now() END)`,
         [id, input.handle, input.display_name ?? null, input.email, passwordHash, minAge > 0 ? new Date(deps.now()) : null, minAge > 0 ? minAge : null, terminalHash]);
       await ensureKeypair(q, deps.secretKey, id); // the person's signing key, made at signup (docs/02)
+      if (mode === 'application') await q.query(`INSERT INTO applications (user_id, text) VALUES ($1, $2)`, [id, input.application]);
       if (mode === 'invite') {
         await q.query(`UPDATE invites SET used_by = $1, used_at = now() WHERE code = $2`, [id, input.invite!.toUpperCase()]);
       }
       await audit(q, { actorId: id, actorKind: 'user', action: 'user.created', targetType: 'user', targetId: id,
-        after: { handle: input.handle, role: 'guest', age_confirmed_min: minAge > 0 ? minAge : undefined, invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined }, origin, ipHash: ctx.ipHash });
+        after: { handle: input.handle, role: 'guest', age_confirmed_min: minAge > 0 ? minAge : undefined, invite: mode === 'invite' ? input.invite!.toUpperCase() : undefined, application: mode === 'application' ? true : undefined }, origin, ipHash: ctx.ipHash });
       await emit(q, 'user.created', { user_id: id, handle: input.handle, role: 'guest' });
       return issueVerification(q, id);
     });
@@ -170,15 +169,17 @@ export async function verifyEmail(deps: AppDeps, token: string, ctx: Ctx): Promi
   });
 }
 
-// Confirms the email and makes a guest a user (docs/02). Anyone with a higher role keeps it.
+// Confirms the email and makes a guest a user (docs/02). Anyone with a higher role keeps it. Someone who signed up by
+// application stays a guest until an admin approves it (approving first and confirming later works too).
 async function confirmEmail(q: Queryable, userId: string, ctx: Ctx, origin: 'web' | 'bbs'): Promise<void> {
-  const u = (await q.query<{ role: string; status: string }>(`SELECT role, status FROM users WHERE id = $1 FOR UPDATE`, [userId])).rows[0];
+  const u = (await q.query<{ role: string; status: string; application: string | null }>(
+    `SELECT u.role, u.status, a.state AS application FROM users u LEFT JOIN applications a ON a.user_id = u.id WHERE u.id = $1 FOR UPDATE OF u`, [userId])).rows[0];
   if (!u || u.status !== 'active') throw new ApiError(400, 'token_invalid', 'That link has expired or was already used. Request a new one.');
-  const promote = u.role === 'guest';
+  const promote = u.role === 'guest' && (u.application === null || u.application === 'approved');
   const updated = await q.query<{ role_rev: number }>(
     `UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()),
-            role = CASE WHEN role = 'guest' THEN 'user' ELSE role END,
-            role_rev = role_rev + $2, updated_at = now() WHERE id = $1 RETURNING role_rev`, [userId, promote ? 1 : 0]);
+            role = CASE WHEN $2 THEN 'user' ELSE role END,
+            role_rev = role_rev + CASE WHEN $2 THEN 1 ELSE 0 END, updated_at = now() WHERE id = $1 RETURNING role_rev`, [userId, promote]);
   await audit(q, { actorId: userId, actorKind: 'user', action: 'user.email_verified', targetType: 'user', targetId: userId, origin, ipHash: ctx.ipHash });
   if (promote) {
     await audit(q, { actorKind: 'system', action: 'user.role_changed', targetType: 'user', targetId: userId,

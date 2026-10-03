@@ -139,10 +139,11 @@ describe.skipIf(!dbAvailable)('accounts', () => {
       expect(r.status).toBe(201);
     });
 
-    it('says plainly that application signup is not available yet', async () => {
+    it('asks why the person wants to join when the site takes applications', async () => {
       const apps = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: application }` });
       const r = await client(apps.app).post('/api/v1/auth/signup', await valid());
-      expect(r.status).toBe(501);
+      expect(r.body.error.code).toBe('application_required');
+      expect((await client(apps.app).post('/api/v1/auth/signup', await valid({ application: 'I run a small synth forum and want a home for it.' }))).status).toBe(201);
     });
 
     it('writes user.created to the audit log', async () => {

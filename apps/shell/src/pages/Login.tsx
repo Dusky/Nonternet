@@ -85,7 +85,7 @@ export function LoginPage() {
       </form>
       <p className="links">
         <Link to="/forgot-password">{t('auth.login.forgot')}</Link>
-        {site.signup_mode !== 'application' && <Link to="/signup">{t('auth.login.needAccount')}</Link>}
+        <Link to="/signup">{t('auth.login.needAccount')}</Link>
       </p>
     </Centered>
   );

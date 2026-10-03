@@ -19,6 +19,9 @@ export const PASSWORD_MIN = 10;
 export const PASSWORD_MAX = 128;
 export const passwordSchema = z.string().min(PASSWORD_MIN, `password must be at least ${PASSWORD_MIN} characters`).max(PASSWORD_MAX);
 
+export const APPLICATION_MIN = 20;
+export const APPLICATION_MAX = 1000;
+
 export const signupInputSchema = z.object({
   handle: handleSchema,
   email: z.string().email().max(254),
@@ -29,6 +32,8 @@ export const signupInputSchema = z.object({
   age_confirmed: z.boolean().optional(),
   // Signing up from the terminal (docs/04) sets the terminal password too; it must differ from the website one.
   terminal_password: z.string().min(10).max(128).optional(),
+  // Sign-up by application (docs/02): why the person wants to join, read by the admins.
+  application: z.string().trim().min(APPLICATION_MIN, `say a little more: at least ${APPLICATION_MIN} characters`).max(APPLICATION_MAX).optional(),
 });
 export type SignupInput = z.infer<typeof signupInputSchema>;
 
