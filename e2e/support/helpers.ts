@@ -150,6 +150,6 @@ export async function signIn(page: Page, handle: string, password: string, secon
 
 // Answers the site's confirm dialog (it replaced window.confirm) by clicking its action button.
 export async function confirmDialog(page: Page, button: string) {
-  await page.locator('dialog[open]').getByRole('button', { name: button, exact: true }).click();
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await page.getByRole('alertdialog').getByRole('button', { name: button, exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
 }
