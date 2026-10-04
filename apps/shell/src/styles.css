@@ -571,7 +571,13 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 .chat-users-toggle { display: none; }
 @media (max-width: 899px) {
   .chat-grid { grid-template-columns: 1fr; height: auto; }
-  .chat-buffers { max-height: none; } /* a clipped, scrolling list of channels looked broken on a phone */
+  /* On a phone the conversation comes first: channels are a row of buttons above it, and joining one is below it. */
+  .chat-buffers { display: contents; }
+  .chat-buffers > ul { order: 1; display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: 2px; }
+  .chat-buffers > ul .chat-buf { width: auto; white-space: nowrap; border-color: var(--border); background: var(--surface); }
+  .chat-main { order: 2; }
+  .chat-users { order: 3; }
+  .chat-join { order: 4; margin-top: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: var(--space-2) var(--space-3); }
   .chat-log { height: 58dvh; flex: none; }
   .chat-users { display: none; }
   .chat-users.is-open { display: block; }
@@ -1102,3 +1108,5 @@ button.chat-person:hover { text-decoration: underline; }
 .ops-pending li { padding: 2px 0; overflow-wrap: anywhere; }
 .ops-log pre { max-height: 24rem; overflow: auto; padding: var(--space-2) var(--space-3); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--step--1); white-space: pre-wrap; overflow-wrap: anywhere; }
 .application-text { margin: 0 0 var(--space-3); padding-left: var(--space-3); border-left: 3px solid var(--line-strong); white-space: pre-wrap; }
+/* Keyboard hints mean nothing on a touch screen with no keyboard. */
+@media (pointer: coarse) and (hover: none) { .keys-hint { display: none; } }

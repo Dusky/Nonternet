@@ -204,7 +204,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
       ) : (
         <p className="muted">{locked && board.can_post ? t('boards.locked') : postNote(t, board, Boolean(me))}</p>
       )}
-      <p className="hint">{t(me ? 'boards.keys' : 'boards.keysVisitor')}</p>
+      <p className="hint keys-hint">{t(me ? 'boards.keys' : 'boards.keysVisitor')}</p>
     </div>
   );
 }

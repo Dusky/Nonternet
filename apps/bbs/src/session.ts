@@ -5,6 +5,7 @@ import { CoreError, type Core, type LoginResult, type UserApi } from './core';
 import type { NodeHolder, Nodes } from './nodes';
 import type { Term } from './term';
 import { SCREENS } from './screens';
+import { cut } from './screens/util';
 import { newBulletinNote, recentOneliners } from './screens/classics';
 import { signUp } from './screens/signup';
 
@@ -134,7 +135,7 @@ export class Session implements NodeHolder {
       if (first) t.line(); else t.clear();
       first = false;
       t.write(this.ctx.art.render('main', { handle: this.user!.handle, node: this.node }, { cols: this.term.cols - 1 }));
-      for (const item of menu.items) t.line(`  \x1b[1m${item.key.toUpperCase()}\x1b[0m  ${item.label}`);
+      for (const item of menu.items) t.line(`  \x1b[1m${item.key.toUpperCase()}\x1b[0m  ${cut(item.label, Math.max(10, t.cols - 7))}`); // a narrow screen (a phone) cuts long labels rather than wrapping them
       t.write(`\n${menu.title} [${menu.items.map((i) => i.key.toUpperCase()).join('')}]: `);
       const k = await t.choose(menu.items.map((i) => i.key).join(''));
       if (k === null) return;

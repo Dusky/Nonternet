@@ -26,6 +26,7 @@ export function SettingsPanel() {
   const r = q.data.readonly;
   return (
     <>
+      <h2>{t('admin.tab.config')}</h2>
       <p className="hint">{t('admin.config.readonly', { name: r.name, domain: r.domain, homes: r.homes_domain })}</p>
       {q.data.settings.map((s) => <Setting key={s.key} s={s} />)}
     </>
@@ -147,6 +148,7 @@ export function AnnouncementsPanel() {
   const end = useMutation({ mutationFn: (id: string) => api.del(`/admin/announcements/${id}`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
   return (
     <>
+      <h2>{t('admin.tab.announcements')}</h2>
       <form className="panel" onSubmit={(e) => { e.preventDefault(); setError(null); create.mutate(); }}>
         <h2>{t('admin.ann.new')}</h2>
         <TextField label={t('admin.ann.title')} value={f.title} onChange={(v) => setF({ ...f, title: v })} maxLength={120} required />

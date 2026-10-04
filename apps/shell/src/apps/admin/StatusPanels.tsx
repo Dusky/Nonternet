@@ -65,7 +65,7 @@ export function StatusPanel() {
       <div className="tiles">
         <Tile title={t('admin.status.tile.users')} value={String(c.users.total)} detail={t('admin.status.tile.usersDetail', { active: c.users.active, suspended: c.users.suspended, fresh: c.users.new_24h })} />
         <Tile title={t('admin.status.tile.posts')} value={String(c.posts_24h)} />
-        <Tile title={t('admin.status.tile.content')} value={String(c.boards + c.rings)} detail={t('admin.status.tile.contentDetail', { boards: c.boards, rings: c.rings })} />
+        <Tile title={t('admin.status.tile.content')} value={String(c.boards + c.rings)} detail={`${t('admin.status.tile.boards', { count: c.boards })}, ${t('admin.status.tile.rings', { count: c.rings })}`} />
         <Tile title={t('admin.status.tile.homepages')} value={String(c.homepages.count)} detail={t('admin.status.tile.homepagesDetail', { size: size(c.homepages.bytes) })} />
         <Tile title={t('admin.status.tile.reports')} value={String(c.reports.open)} detail={t('admin.status.tile.reportsDetail', { count: c.reports.escalated })} bad={c.reports.escalated > 0} />
         <Tile title={t('admin.status.tile.database')} value={s.db.ok ? 'OK' : '!'} detail={t('admin.status.tile.databaseDetail', { ms: s.db.ms })} bad={s.warnings.includes('db_slow')} />

@@ -45,6 +45,7 @@ export function Audit() {
   const entries = query.data?.pages.flatMap((p) => p.entries) ?? [];
   return (
     <>
+      <h2>{t('admin.tab.audit')}</h2>
       <TextField label={t('admin.audit.filter')} value={action} onChange={setAction} hint={t('admin.audit.filterHint')} autoCapitalize="none" spellCheck={false} />
       {query.isError && <Alert kind="error" retry={() => void query.refetch()}>{errorText(query.error)}</Alert>}
       {query.isSuccess && entries.length === 0 && <EmptyState>{t('admin.audit.none')}</EmptyState>}

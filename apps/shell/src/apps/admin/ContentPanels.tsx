@@ -18,6 +18,7 @@ export function BoardsTable() {
   const boards = q.data.boards;
   return (
     <>
+      <h2>{t('admin.tab.boards')}</h2>
       <p className="hint">{t('admin.boards.hint')}</p>
       {boards.length === 0 && <EmptyState>{t('admin.boards.none')}</EmptyState>}
       {boards.length > 0 && (
@@ -69,6 +70,7 @@ export function HomepagesTable() {
   const d = list.data;
   return (
     <>
+      <h2>{t('admin.tab.homepages')}</h2>
       <TextField label={t('admin.homepages.search')} value={q} onChange={setQ} type="search" autoCapitalize="none" spellCheck={false} />
       {d && <p className="hint">{t('admin.homepages.totals', { count: d.totals.homepages, size: mb(Number(d.totals.bytes)), hidden: d.totals.hidden })}</p>}
       {d && d.homepages.length === 0 && <EmptyState>{t('admin.homepages.none')}</EmptyState>}
@@ -124,6 +126,7 @@ export function RingsTable() {
   const rings = list.data?.rings ?? [];
   return (
     <>
+      <h2>{t('admin.tab.rings')}</h2>
       <TextField label={t('admin.rings.search')} value={q} onChange={setQ} type="search" autoCapitalize="none" spellCheck={false} />
       {list.data && rings.length === 0 && <EmptyState>{t('admin.rings.none')}</EmptyState>}
       {rings.length > 0 && (

@@ -106,7 +106,7 @@ export function StatsPanel() {
       <p className="hint">{t('admin.stats.utc')}</p>
       {!s ? <Loading /> : (
         <>
-          <ul className="inline-list stat-totals">{Object.entries(s.totals).map(([k, v]) => <li key={k}><strong>{v}</strong> {t(`admin.stats.total.${k}` as StringKey)}</li>)}</ul>
+          <ul className="inline-list stat-totals">{Object.entries(s.totals).map(([k, v]) => <li key={k}><strong>{v}</strong> {t(`admin.stats.total.${k}` as StringKey, { count: v })}</li>)}</ul>
           <h3>{t('admin.stats.active')}</h3>
           <LineChart label={t('admin.stats.activeLabel')} days={s.days.map((d) => d.day)} series={[
             { name: t('admin.stats.mau'), values: s.days.map((d) => d.mau), cls: 's3' },

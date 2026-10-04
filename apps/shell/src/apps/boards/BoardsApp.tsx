@@ -207,7 +207,7 @@ function BoardPage({ slug }: { slug: string }) {
         ))}
       </ul>
       {threads.hasNextPage && <button className="btn" onClick={() => void threads.fetchNextPage()} disabled={threads.isFetchingNextPage}>{t('boards.more')}</button>}
-      <p className="hint">{t(me ? 'boards.keys' : 'boards.keysVisitor')}</p>
+      <p className="hint keys-hint">{t(me ? 'boards.keys' : 'boards.keysVisitor')}</p>
     </div>
   );
 }

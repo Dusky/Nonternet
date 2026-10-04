@@ -43,6 +43,7 @@ export function Users() {
 
   return (
     <>
+      <h2>{t('admin.tab.users')}</h2>
       <div className="filters">
         <TextField label={t('admin.users.search')} value={q} onChange={setQ} type="search" autoCapitalize="none" spellCheck={false} />
         <div className="field">
@@ -280,6 +281,7 @@ export function Invites() {
 
   return (
     <>
+      <h2>{t('admin.tab.invites')}</h2>
       <form onSubmit={(e) => { e.preventDefault(); setError(null); create.mutate(); }} className="panel">
         <TextField label={t('admin.invites.days')} value={days} onChange={setDays} type="number" min={1} max={90} inputMode="numeric" required />
         {error && <Alert kind="error">{error}</Alert>}
