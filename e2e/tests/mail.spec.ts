@@ -45,7 +45,7 @@ test.describe('mail', () => {
     await bp.getByLabel('Reply').fill('Yes! Bring snacks.');
     await bp.getByRole('button', { name: 'Send reply' }).click();
     await expect(bp.getByText('Yes! Bring snacks.')).toBeVisible();
-    await bp.getByText('People and leaving').click();
+    await bp.getByText('Add someone, mute or leave').click();
     await bp.getByLabel('Add someone').fill(c.handle);
     await bp.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(bp.getByText(`${c.handle} joined`)).toBeVisible();

@@ -1675,7 +1675,7 @@ export const en = {
   'mail.addHint': 'They will see messages from now on, not the ones before.',
   'mail.addButton': 'Add',
   'mail.leave': 'Leave this conversation',
-  'mail.manage': 'People and leaving',
+  'mail.manage': 'Add someone, mute or leave',
   'mail.leaveConfirm': 'Leave this conversation? You will stop getting its messages and cannot rejoin unless someone adds you back.',
   'mail.youLeft': 'You left this conversation. You can still read what was said while you were in it.',
   'mail.joined': '{name} joined',

@@ -632,7 +632,12 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 /* ---- mail (docs/10) */
 .mail-row { display: flex; gap: var(--space-3); align-items: flex-start; }
 .mail-row > div { flex: 1; min-width: 0; }
-details.panel > summary { cursor: pointer; font-weight: 600; min-height: var(--control-h); display: flex; align-items: center; }
+details.panel > summary { cursor: pointer; font-weight: 600; min-height: var(--control-h); display: flex; align-items: center; gap: var(--space-2); list-style: none; }
+details.panel > summary::-webkit-details-marker { display: none; }
+/* A flex summary loses the browser's arrow, so it gets its own: without it nothing says the panel opens. */
+details.panel > summary::before { content: ''; width: .5em; height: .5em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; flex: none; }
+details.panel[open] > summary::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { details.panel > summary::before { transition: none; } }
 details.panel[open] > summary { margin-bottom: var(--space-3); }
 .mail-excerpt { margin: var(--space-1) 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .mail-event { list-style: none; padding: var(--space-1) 0; font-size: var(--step--1); color: var(--muted); text-align: center; }

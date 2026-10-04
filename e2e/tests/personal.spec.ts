@@ -121,7 +121,7 @@ test('a muted mail conversation is marked in the inbox', async ({ page }) => {
   await api.post('/api/v1/auth/logout', { data: {}, headers: h });
   await signIn(page, b.handle, PASSWORD);
   await page.goto(`/mail/${th.id}`);
-  await page.getByText('People and leaving').click();
+  await page.getByText('Add someone, mute or leave').click();
   await page.getByRole('button', { name: 'Mute this conversation' }).click();
   await page.goto('/mail');
   await expect(page.getByText('Muted', { exact: true })).toBeVisible();
