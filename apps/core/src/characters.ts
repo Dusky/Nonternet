@@ -12,27 +12,45 @@ interface MudCharacter {
   tower?: { season: number | null; best: number | null; checkpoint: number | null };
 }
 
-export async function pullCharacters(deps: AppDeps): Promise<{ saved: number; removed: number }> {
+// Pulls run one at a time in this process: the MUD's nudge, the five-minute pass and the two-minute timer all queue here, so
+// a slow, older pull can't finish after a newer one. Each pull also stamps rows with the database time taken just before
+// it asked the MUD, and never overwrites or removes a row stamped later: an older list can't undo a newer one even across
+// more than one core.
+let queue: Promise<unknown> = Promise.resolve();
+export function pullCharacters(deps: AppDeps): Promise<{ saved: number; removed: number }> {
+  const run = queue.then(() => pullOnce(deps));
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+// The two keys of pg_advisory_xact_lock for "copying characters from the MUD".
+const LOCK = [0x6d7564, 1] as const;
+
+// Also what a second core would run; tests use it to check the time stamps hold without the queue.
+export async function pullOnce(deps: AppDeps): Promise<{ saved: number; removed: number }> {
   const mud = deps.mud!;
+  const asOf = (await deps.db.query<{ t: Date }>(`SELECT clock_timestamp() AS t`)).rows[0]!.t;
   const res = await fetch(`${mud.url}/internal/characters`, { headers: { authorization: `Bearer ${mud.secrets.controlToken}` }, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`mud characters: HTTP ${res.status}`);
   const { characters } = (await res.json()) as { characters: MudCharacter[] };
   return deps.db.tx(async (q) => {
+    await q.query(`SELECT pg_advisory_xact_lock($1, $2)`, [...LOCK]);
     const known = new Set((await q.query<{ id: string }>(`SELECT id FROM users WHERE id = ANY($1)`, [[...new Set(characters.map((c) => c.core_id))]])).rows.map((r) => r.id));
     let saved = 0;
     for (const c of characters) {
       if (!known.has(c.core_id)) continue;
-      await q.query(
+      const r = await q.query(
         `INSERT INTO mud_characters (id, user_id, name, level, xp, hp, hp_max, coins, abilities, created_at, tower_season, tower_best, tower_checkpoint, synced_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          ON CONFLICT (id) DO UPDATE SET user_id = $2, name = $3, level = $4, xp = $5, hp = $6, hp_max = $7, coins = $8, abilities = $9,
-           tower_season = $11, tower_best = $12, tower_checkpoint = $13, synced_at = now()`,
+           tower_season = $11, tower_best = $12, tower_checkpoint = $13, synced_at = $14
+         WHERE mud_characters.synced_at <= $14`,
         [c.id, c.core_id, c.name, c.level, c.xp, c.hp, c.hp_max, c.coins, JSON.stringify(c.abilities), c.created,
-          c.tower?.season ?? null, c.tower?.best ?? 0, c.tower?.checkpoint ?? 0]);
-      saved++;
+          c.tower?.season ?? null, c.tower?.best ?? 0, c.tower?.checkpoint ?? 0, asOf]);
+      saved += r.rowCount ?? 0;
     }
-    // A character the MUD no longer has is gone (deleted in-game, or its account was).
-    const removed = await q.query(`DELETE FROM mud_characters WHERE NOT (id = ANY($1))`, [characters.map((c) => c.id)]);
+    // A character the MUD no longer has is gone (deleted in-game, or its account was) — unless a newer pull has seen it since.
+    const removed = await q.query(`DELETE FROM mud_characters WHERE NOT (id = ANY($1)) AND synced_at < $2`, [characters.map((c) => c.id), asOf]);
     return { saved, removed: removed.rowCount ?? 0 };
   });
 }

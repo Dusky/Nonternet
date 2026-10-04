@@ -113,6 +113,7 @@
 - 2026-10-03: people change their own email and handle and turn two-factor off from Settings (`02`). Only renames a person makes themselves count toward the once-every-90-days limit (`handle_history.by_user`), so an admin's correction doesn't use up their turn. A changed email is confirmed before it replaces the old one.
 - 2026-10-03: sign-up by application is built (`02`). Declining suspends the account rather than deleting it, so the same handle and address can't simply try again; the person is told why. Approval and email confirmation can happen in either order. Ops don't review applications yet.
 - 2026-10-04: BBS prompts. List prompts take letters as single keys (numbers still need Enter), and a screen that leaves something to read waits for a key before the menu returns (`04`). Classic BBS behaviour; both were missing, so options looked like they did nothing in the Terminal window.
+- 2026-10-04: the character copy from the MUD had a race. Two pulls on separate timers could overlap, and the older list, committing last, deleted a character the newer one had just saved, which also cleared the owner's featured choice (`ON DELETE SET NULL`). Pulls now queue in-process, take an advisory lock, and stamp rows with the database time taken before asking; an older pull never updates or deletes a row stamped later (`09`). Found as a flaky e2e test.
 
 ## Verify list
 | # | Fact | Affects |

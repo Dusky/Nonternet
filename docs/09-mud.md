@@ -84,7 +84,7 @@ client gets them over GMCP (`TELNET_OOB_ENABLED = True`, for Mudlet and friends)
 The point of the MUD for the rest of the site is that characters show up elsewhere. Core keeps a copy of every
 character in `mud_characters` (name, level, XP, HP, coins, the six abilities; keyed `c_<MUD object id>`), pulled from
 the MUD's `/internal/characters` after each sync pass, every two minutes, and at once when the MUD says a character was
-made (`/internal/mud/characters-changed`). Not copied: where a character is (that would say where the person is right
+made (`/internal/mud/characters-changed`). Pulls run one at a time, and each stamps rows with the time it asked the MUD: an older list arriving late never removes or rolls back what a newer one saved (fixed 2026-10-04, when a late list could delete a new character and clear someone's featured choice). Not copied: where a character is (that would say where the person is right
 now) and what it carries. Any part of the site reads characters from core, never from the MUD:
 - **Profiles** (`GET /api/v1/users/:handle`, public, the People app): the person's characters with their stats.
 - **Featured character**: a person picks one in Settings → Profile (`PUT /api/v1/me/featured-character`); board posts

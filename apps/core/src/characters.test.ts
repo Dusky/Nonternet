@@ -1,19 +1,21 @@
 import { createServer, type Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { client, createTestDb, dbAvailable, loginAs, makeApp, makeUser } from './test/harness';
-import { pullCharacters } from './characters';
+import { pullCharacters, pullOnce } from './characters';
 import { mudSecrets } from './mud/secrets';
 
 const secrets = mudSecrets('characters-test-secret-0123456789abcdefghij');
 
 // A stand-in for the MUD's /internal/characters, so these tests need no Evennia (the real one is covered
 // by mud/sync.test.ts).
-function fakeMud(answer: () => object): Promise<{ url: string; server: Server; calls: string[] }> {
+function fakeMud(answer: () => object, delay: () => number = () => 0): Promise<{ url: string; server: Server; calls: string[] }> {
   const calls: string[] = [];
   const server = createServer((req, res) => {
     calls.push(req.headers.authorization ?? '');
     if (req.headers.authorization !== `Bearer ${secrets.controlToken}`) { res.writeHead(403).end(); return; }
-    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(answer()));
+    // The answer is taken when the request arrives; a delay holds it back, like a slow MUD.
+    const body = JSON.stringify(answer());
+    setTimeout(() => res.writeHead(200, { 'content-type': 'application/json' }).end(body), delay());
   });
   return new Promise((ok) => server.listen(0, '127.0.0.1', () => ok({ url: `http://127.0.0.1:${(server.address() as { port: number }).port}`, server, calls })));
 }
@@ -29,10 +31,11 @@ describe.skipIf(!dbAvailable)('MUD characters around the site', () => {
   let ctx: Awaited<ReturnType<typeof makeApp>>;
   let mud: Awaited<ReturnType<typeof fakeMud>>;
   let characters: object[] = [];
+  let delays: number[] = [];
 
   beforeAll(async () => {
     ({ db, drop } = await createTestDb());
-    mud = await fakeMud(() => ({ characters }));
+    mud = await fakeMud(() => ({ characters }), () => delays.shift() ?? 0);
     ctx = await makeApp(db, { mud: { secrets, url: mud.url } });
   });
   afterAll(async () => { mud.server.close(); await drop(); });
@@ -109,5 +112,41 @@ describe.skipIf(!dbAvailable)('MUD characters around the site', () => {
     expect((await client(ctx.app).get(`/api/v1/boards/tavern/threads/${post.id}`)).body.posts[0].author.character).toBeNull();
     expect((await c.get('/api/v1/me/characters')).body.featured_character_id).toBeNull();
     expect((await c.put('/api/v1/me/featured-character', { character_id: null })).status).toBe(204);
+  });
+
+  it('an older list arriving late never removes a newer character, or the choice to feature it', async () => {
+    const eve = await makeUser(ctx, { handle: 'evechars' });
+    characters = [sheet('c_50', eve.id, 'Fern')];
+    await pullCharacters(ctx.deps);
+    // A pull starts and the MUD is slow to answer, with the list as it was: no Gale yet.
+    delays = [400, 0];
+    const older = pullCharacters(ctx.deps);
+    await new Promise((r) => setTimeout(r, 50));
+    // Gale is made; the MUD nudges core, and that pull answers at once.
+    characters = [sheet('c_50', eve.id, 'Fern'), sheet('c_51', eve.id, 'Gale')];
+    const newer = pullCharacters(ctx.deps);
+    await Promise.all([older, newer]);
+    await db.query(`UPDATE users SET featured_character_id = 'c_51' WHERE id = $1`, [eve.id]);
+    // Another round in the same order must not undo it either.
+    delays = [400, 0];
+    const again = pullCharacters(ctx.deps);
+    await new Promise((r) => setTimeout(r, 50));
+    await Promise.all([again, pullCharacters(ctx.deps)]);
+    expect((await db.query(`SELECT id FROM mud_characters WHERE user_id = $1 ORDER BY id`, [eve.id])).rows.map((r) => r.id)).toEqual(['c_50', 'c_51']);
+    expect((await db.query(`SELECT featured_character_id AS f FROM users WHERE id = $1`, [eve.id])).rows[0]!.f).toBe('c_51');
+  });
+
+  it('even without the queue (two cores at once), an older list neither removes nor rolls back what a newer one saved', async () => {
+    const fay = await makeUser(ctx, { handle: 'faychars' });
+    characters = [sheet('c_60', fay.id, 'Hazel', 1)];
+    await pullCharacters(ctx.deps);
+    delays = [400, 0];
+    const older = pullOnce(ctx.deps); // asks first, answered last, with the old list
+    await new Promise((r) => setTimeout(r, 50));
+    characters = [sheet('c_60', fay.id, 'Hazel', 2), sheet('c_61', fay.id, 'Ivy')];
+    const newer = pullOnce(ctx.deps);
+    await Promise.all([older, newer]);
+    const rows = (await db.query(`SELECT id, level FROM mud_characters WHERE user_id = $1 ORDER BY id`, [fay.id])).rows;
+    expect(rows).toEqual([{ id: 'c_60', level: 2 }, { id: 'c_61', level: 1 }]);
   });
 });
