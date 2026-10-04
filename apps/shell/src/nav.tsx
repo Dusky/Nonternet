@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWindows, type AppId } from './shell/windows';
 
@@ -22,6 +23,14 @@ export function useAppNav(): Nav {
 
 const trim = (s: string) => s.replace(/^\/+|\/+$/g, '');
 
+// Moving between an app's screens (a list and what's in it) cross-fades briefly with the View Transitions API, where the
+// browser has it and the person hasn't asked for less motion. Everywhere else it simply changes.
+export function withTransition(change: () => void): void {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+  if (!doc.startViewTransition || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { change(); return; }
+  doc.startViewTransition(() => flushSync(change));
+}
+
 // On a page of its own: the app lives under `base` (e.g. /admin) and follows the address bar.
 export function PageNav({ base, id, children }: { base: string; id: AppId; children: ReactNode }) {
   const location = useLocation();
@@ -31,7 +40,7 @@ export function PageNav({ base, id, children }: { base: string; id: AppId; child
     return {
       id,
       path: inside ? trim(location.pathname.slice(base.length)) : '',
-      go: (to, opts) => navigate(`${base}/${trim(to)}`, opts),
+      go: (to, opts) => withTransition(() => { void navigate(`${base}/${trim(to)}`, opts); }),
       href: (to) => `${base}/${trim(to)}`,
     };
   }, [base, id, location.pathname, navigate]);
@@ -44,7 +53,7 @@ export function PageNav({ base, id, children }: { base: string; id: AppId; child
 export function WindowNav({ id, base, children }: { id: AppId; base: string; children: ReactNode }) {
   const path = useWindows((s) => s.wins.find((w) => w.id === id)?.path ?? '');
   const setPath = useWindows((s) => s.setPath);
-  const nav = useMemo<Nav>(() => ({ id, path: trim(path), go: (to, opts) => setPath(id, trim(to), opts?.replace), href: (to) => (trim(to) ? `${base}/${trim(to)}` : base) }), [id, base, path, setPath]);
+  const nav = useMemo<Nav>(() => ({ id, path: trim(path), go: (to, opts) => withTransition(() => setPath(id, trim(to), opts?.replace)), href: (to) => (trim(to) ? `${base}/${trim(to)}` : base) }), [id, base, path, setPath]);
   return <NavContext.Provider value={nav}>{children}</NavContext.Provider>;
 }
 
@@ -67,19 +76,22 @@ export function matchRoute<T extends string>(path: string, patterns: readonly T[
   return null;
 }
 
-type LinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & { to: string };
+type LinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & { to: string; prefetch?: () => void };
 
 // An ordinary link that moves inside the app. Middle-click, ctrl-click and "open in new tab" still
 // work on a page of its own because it has a real address.
-export function AppLink({ to, onClick, ...rest }: LinkProps) {
+// `prefetch` starts loading what the link opens when the pointer rests on it or it gets focus, so the next screen
+// usually has its content the moment it opens.
+export function AppLink({ to, onClick, prefetch, ...rest }: LinkProps) {
   const nav = useAppNav();
+  const warm = prefetch ? { onPointerEnter: prefetch, onFocus: prefetch } : {};
   const click = (e: MouseEvent<HTMLAnchorElement>) => {
     onClick?.(e);
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
     nav.go(to);
   };
-  return <a {...rest} href={nav.href(to)} onClick={click} />;
+  return <a {...warm} {...rest} href={nav.href(to)} onClick={click} />;
 }
 
 // A tab: marked as the current page when the app is showing that section.

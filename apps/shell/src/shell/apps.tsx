@@ -13,6 +13,7 @@ export interface AppDef {
   adminOnly: boolean;
   public?: boolean;        // readable without logging in (docs/05)
   service?: 'irc' | 'mud' | 'bbs'; // shown only when the site turns that service on
+  live?: boolean;          // holds a connection open (chat, the MUD, the terminal, an added app's bridge): keeps running while minimized
   Component: ComponentType;
 }
 
@@ -23,9 +24,9 @@ export const APPS: AppDef[] = [
   { id: 'people', title: 'app.people', path: '/people', adminOnly: false, public: true, Component: lazy(() => import('../apps/people/PeopleApp')) },
   { id: 'mail', title: 'app.mail', path: '/mail', adminOnly: false, Component: lazy(() => import('../apps/mail/MailApp')) },
   { id: 'files', title: 'app.files', path: '/files', adminOnly: false, public: true, Component: lazy(() => import('../apps/files/FilesApp')) },
-  { id: 'chat', title: 'app.chat', path: '/chat', adminOnly: false, service: 'irc', Component: lazy(() => import('../apps/chat/ChatApp')) },
-  { id: 'mud', title: 'app.mud', path: '/mud', adminOnly: false, service: 'mud', Component: lazy(() => import('../apps/mud/MudApp')) },
-  { id: 'terminal', title: 'app.terminal', path: '/terminal', adminOnly: false, service: 'bbs', Component: lazy(() => import('../apps/terminal/TerminalApp')) },
+  { id: 'chat', title: 'app.chat', path: '/chat', adminOnly: false, service: 'irc', live: true, Component: lazy(() => import('../apps/chat/ChatApp')) },
+  { id: 'mud', title: 'app.mud', path: '/mud', adminOnly: false, service: 'mud', live: true, Component: lazy(() => import('../apps/mud/MudApp')) },
+  { id: 'terminal', title: 'app.terminal', path: '/terminal', adminOnly: false, service: 'bbs', live: true, Component: lazy(() => import('../apps/terminal/TerminalApp')) },
   { id: 'homepages', title: 'app.homepages', path: '/homepages', adminOnly: false, public: true, Component: lazy(() => import('../apps/homepages/HomepagesApp')) },
   { id: 'studio', title: 'app.studio', path: '/studio', adminOnly: false, Component: lazy(() => import('../apps/studio/StudioApp')) },
   { id: 'addapps', title: 'app.addapps', path: '/add-apps', adminOnly: false, Component: lazy(() => import('../apps/addapps/AddAppsApp')) },
@@ -41,7 +42,7 @@ export function installedDef(x: CatalogApp): AppDef {
   const key = `${x.id}@${x.version}`;
   let d = defs.get(key);
   if (!d) {
-    d = { id: appKey(x.id), name: x.name, installed: x, path: `/apps/${x.id}`, adminOnly: false, Component: hostComponent(x.id, AppHost) };
+    d = { id: appKey(x.id), name: x.name, installed: x, path: `/apps/${x.id}`, adminOnly: false, live: true, Component: hostComponent(x.id, AppHost) };
     defs.set(key, d);
   }
   return d;
@@ -50,7 +51,7 @@ export function installedDef(x: CatalogApp): AppDef {
 // The def for an added app's own page: the real one, or (before the list arrives, or if it isn't added) one
 // whose host says so.
 export const installedOrPlaceholder = (catalogId: string, x: CatalogApp | undefined): AppDef =>
-  x ? installedDef(x) : { id: appKey(catalogId), name: catalogId, path: `/apps/${catalogId}`, adminOnly: false, Component: hostComponent(catalogId, AppHost) };
+  x ? installedDef(x) : { id: appKey(catalogId), name: catalogId, path: `/apps/${catalogId}`, adminOnly: false, live: true, Component: hostComponent(catalogId, AppHost) };
 
 // Built-in apps, then the ones this person added. An added app that is no longer added (or offered) has no def.
 export function appById(id: AppId): AppDef {

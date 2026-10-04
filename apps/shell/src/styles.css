@@ -1140,3 +1140,15 @@ button.chat-person:hover { text-decoration: underline; }
 .app-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
 @container (max-width: 34rem) { .app-card { grid-template-columns: auto 1fr; } .app-card-actions { grid-column: 1 / -1; justify-content: flex-start; } }
 @media (max-width: 34rem) { .app-card { grid-template-columns: auto 1fr; } .app-card-actions { grid-column: 1 / -1; justify-content: flex-start; } }
+
+/* Moving between an app's screens (nav.tsx withTransition): a short cross-fade, nothing that moves things around. */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 140ms; animation-timing-function: var(--ease); }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
+
+/* Long logs and threads (up to 2000 chat messages or MUD lines): the browser skips layout and painting for lines out
+   of view, but they stay in the page, so screen readers' live announcements, the browser's find and the MUD's own
+   find all keep working (chosen over a JavaScript virtual list, 2026-10-04). "auto" remembers each line's real size
+   once it has been seen, so scrolling back doesn't jump. */
+.chat-log > ol > .chat-line { content-visibility: auto; contain-intrinsic-size: auto 1.6em; }
+.mud-log > .mud-out, .mud-log > .mud-you, .mud-log > .mud-note { content-visibility: auto; contain-intrinsic-size: auto 2.5em; }
+.posts > li { content-visibility: auto; contain-intrinsic-size: auto 9rem; }

@@ -1,7 +1,7 @@
 import { PersonLink } from '../people/PersonLink';
 import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { JOIN_POLICIES, type RingDetail, type RingMemberView, type RingSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, TextField } from '../../components/ui';
@@ -40,6 +40,7 @@ function Directory() {
   const [error, setError] = useState<string | null>(null);
   const list = useInfiniteQuery({
     queryKey: ['rings', term, tag, sort, me?.id ?? null],
+    placeholderData: keepPreviousData, // the last results stay while new ones load, so typing doesn't flash "Loading"
     queryFn: ({ pageParam }) => api.get<{ rings: RingSummary[]; next: number | null }>(`/rings?sort=${sort}&offset=${pageParam}${term ? `&q=${encodeURIComponent(term)}` : ''}${tag ? `&tag=${encodeURIComponent(tag)}` : ''}`),
     initialPageParam: 0,
     getNextPageParam: (last) => last.next ?? undefined,

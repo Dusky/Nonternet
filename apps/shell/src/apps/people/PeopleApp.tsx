@@ -1,6 +1,6 @@
 import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ABILITIES, type CharacterView, type DirectoryEntry, type LastSeen, type MyVouch, type PublicProfile } from '@app/shared';
 import type { StringKey } from '@app/strings';
@@ -72,6 +72,7 @@ function Directory() {
   const term = useDebounced(q.trim(), 250);
   const list = useInfiniteQuery({
     queryKey: ['people', 'directory', term, role],
+    placeholderData: keepPreviousData, // the last results stay while new ones load, so typing doesn't flash "Loading"
     queryFn: ({ pageParam }) => api.get<{ people: DirectoryEntry[]; next: number | null }>(`/people?${new URLSearchParams({ ...(term ? { q: term } : {}), ...(role ? { role } : {}), offset: String(pageParam) })}`),
     initialPageParam: 0,
     getNextPageParam: (last) => last.next ?? undefined,

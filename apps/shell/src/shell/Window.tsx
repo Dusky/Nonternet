@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent, Activity } from 'react';
 import { AppBoundary } from '../components/Boundary';
 import { useContextMenu, type MenuItem } from '../components/Menu';
 import { Icon } from '../components/Icon';
@@ -120,9 +120,12 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
       </header>
       {ctx.menu}
       <div className="window-body" onKeyDown={onBodyKey}>
-        <WindowNav id={win.id} base={app.path}>
-          <AppBoundary><Suspense fallback={<Loading />}><app.Component /></Suspense></AppBoundary>
-        </WindowNav>
+        {/* A minimized window keeps its state but pauses its effects (polling, timers), unless the app holds a live connection. */}
+        <Activity mode={win.minimized && !app.live ? 'hidden' : 'visible'}>
+          <WindowNav id={win.id} base={app.path}>
+            <AppBoundary><Suspense fallback={<Loading />}><app.Component /></Suspense></AppBoundary>
+          </WindowNav>
+        </Activity>
       </div>
       {!win.maximized && EDGES.map((edge) => (
         <div key={edge} className={`edge edge-${edge}`} onPointerDown={onEdgeDown(edge)} onPointerMove={onEdgeMove} onPointerUp={onEdgeUp} />

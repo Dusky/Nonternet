@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, BackLink, EmptyState, NotFound, TextField } from '../../components/ui';
 import { errorText, formatWhen, useMe, useT } from '../../hooks';
@@ -25,6 +25,7 @@ function Directory() {
   const [error, setError] = useState<string | null>(null);
   const list = useInfiniteQuery({
     queryKey: ['homepages', term, sort],
+    placeholderData: keepPreviousData, // the last results stay while new ones load, so typing doesn't flash "Loading"
     queryFn: ({ pageParam }) => api.get<{ homepages: Entry[]; next: number | null }>(`/homepages?sort=${sort}&offset=${pageParam}${term ? `&q=${encodeURIComponent(term)}` : ''}`),
     initialPageParam: 0,
     getNextPageParam: (last) => last.next ?? undefined,

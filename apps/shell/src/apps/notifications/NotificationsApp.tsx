@@ -17,15 +17,41 @@ export default function NotificationsApp() {
     getNextPageParam: (last) => last.next ?? undefined,
   });
   const refresh = () => qc.invalidateQueries({ queryKey: ['notifications'] });
-  const markOne = useMutation({ mutationFn: (id: string) => api.post('/notifications/read', { ids: [id] }), onSuccess: () => void refresh() });
-  const markAll = useMutation({ mutationFn: () => api.post('/notifications/read', { all: true }), onSuccess: () => void refresh() });
+  // Read marks show at once (the list and the bell); the server catches up, and a refusal puts them back.
+  const listKey = ['notifications', 'list'];
+  const markLocally = async (which: (n: NotificationView) => boolean) => {
+    await qc.cancelQueries({ queryKey: listKey });
+    const before = qc.getQueryData(listKey);
+    qc.setQueryData<{ pages: Page[]; pageParams: unknown[] }>(listKey, (d) => d && {
+      ...d,
+      pages: d.pages.map((p, i) => {
+        const notifications = p.notifications.map((n) => (which(n) ? { ...n, read: true } : n));
+        const cleared = p.notifications.filter((n) => which(n) && !n.read).length;
+        return { ...p, notifications, unread: i === 0 ? Math.max(0, p.unread - (which === all ? p.unread : cleared)) : p.unread };
+      }),
+    });
+    return { before };
+  };
+  const all = () => true;
+  const markOne = useMutation({
+    mutationFn: (id: string) => api.post('/notifications/read', { ids: [id] }),
+    onMutate: (id) => markLocally((n) => n.id === id),
+    onError: (_e, _id, c) => qc.setQueryData(listKey, c?.before),
+    onSettled: () => void refresh(),
+  });
+  const markAll = useMutation({
+    mutationFn: () => api.post('/notifications/read', { all: true }),
+    onMutate: () => markLocally(all),
+    onError: (_e, _v, c) => qc.setQueryData(listKey, c?.before),
+    onSettled: () => void refresh(),
+  });
   const items = q.data?.pages.flatMap((p) => p.notifications) ?? [];
   const unread = q.data?.pages[0]?.unread ?? 0;
 
   return (
     <div className="app-content">
       <div className="toolbar">
-        <button type="button" className="btn" onClick={() => markAll.mutate()} disabled={markAll.isPending || unread === 0}>{t('notifications.markAll')}</button>
+        <button type="button" className="btn" onClick={() => markAll.mutate()} disabled={unread === 0}>{t('notifications.markAll')}</button>
       </div>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {q.isSuccess && items.length === 0 && <EmptyState>{t('notifications.none')}</EmptyState>}

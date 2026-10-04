@@ -1,6 +1,6 @@
 import { useConfirm } from '../../components/feedback';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, type MailInbox, type MailMessageView, type MailPerson, type MailThreadView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
@@ -11,6 +11,8 @@ import { Editor } from '../../components/Editor';
 import { clearDraft } from '../../drafts';
 import { quoteReply } from '../../quote';
 import { useDebounced } from '../admin/useDebounced';
+import { useLiveQuery } from '@tanstack/react-db';
+import { conversationCollection, isPending, pendingId } from '../../collections';
 
 const ROUTES = ['', 'new', 'new/:to', ':id'] as const;
 
@@ -30,6 +32,7 @@ export default function MailApp() {
 
 const who = (t: ReturnType<typeof useT>, p: MailPerson) => p.display_name || p.handle || t('mail.deletedPerson');
 
+// No prefetch on conversation links: opening one marks it read on the server, so loading it early would too.
 function Inbox() {
   const t = useT();
   const [find, setFind] = useState('');
@@ -37,6 +40,7 @@ function Inbox() {
   const term = useDebounced(find.trim(), 250);
   const q = useInfiniteQuery({
     queryKey: ['mail', 'list', term, unreadOnly],
+    placeholderData: keepPreviousData, // the last results stay while new ones load, so typing doesn't flash "Loading"
     queryFn: ({ pageParam }) => api.get<MailInbox>(`/mail?${new URLSearchParams({ ...(term ? { q: term } : {}), ...(unreadOnly ? { unread: '1' } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
@@ -123,10 +127,27 @@ function Conversation({ id }: { id: string }) {
   const refresh = () => qc.invalidateQueries({ queryKey: ['mail'] });
   const [body, setBody] = useState('');
   const [adding, setAdding] = useState('');
-  const send = useMutation({ mutationFn: () => api.post(`/mail/${id}/messages`, { body }), onSuccess: () => { setBody(''); if (me) clearDraft(me.id, `mail:${id}`); void refresh(); } });
+  // Messages live in a TanStack DB collection: a reply shows at once (marked as sending) and the server's copy replaces
+  // it; if the server refuses, it disappears again and the text goes back in the box.
+  const coll = conversationCollection(id);
+  const live = useLiveQuery((qb) => qb.from({ m: coll }).orderBy(({ m }) => m.at, 'asc'), [id]);
+  const messages = (live.data ?? []) as MailMessageView[];
+  const [sendError, setSendError] = useState<string | null>(null);
+  const sendNow = () => {
+    const text = body;
+    if (!text.trim() || !me) return;
+    setBody('');
+    setSendError(null);
+    clearDraft(me.id, `mail:${id}`);
+    const tx = coll.insert({ id: pendingId(), kind: 'message', author: { id: me.id, handle: me.handle, display_name: me.display_name ?? null }, body: text, deleted: false, at: new Date().toISOString(), mine: true });
+    tx.isPersisted.promise.catch((e: unknown) => { setBody((b) => b || text); setSendError(errorText(e)); });
+  };
+  const deleteNow = (mid: string) => {
+    setSendError(null);
+    coll.update(mid, (d) => { d.deleted = true; d.body = ''; }).isPersisted.promise.catch((e: unknown) => setSendError(errorText(e)));
+  };
   const add = useMutation({ mutationFn: () => api.post(`/mail/${id}/people`, { handle: adding.trim().replace(/^@/, '') }), onSuccess: () => { setAdding(''); void refresh(); } });
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
-  const del = useMutation({ mutationFn: (mid: string) => api.del(`/mail/${id}/messages/${mid}`), onSuccess: () => void refresh() });
   const mute = useMutation({ mutationFn: (on: boolean) => (on ? api.put(`/mail/${id}/mute`, {}) : api.del(`/mail/${id}/mute`)), onSuccess: () => void refresh() });
 
   const inboxMuted = q.data?.muted ?? false;
@@ -137,11 +158,14 @@ function Conversation({ id }: { id: string }) {
     scrolled.current = true;
     end.current?.lastElementChild?.scrollIntoView({ block: 'nearest' });
   }, [q.data]);
+  // A reply of your own scrolls into view as soon as it is on screen.
+  const count = messages.length;
+  useEffect(() => { if (scrolled.current) end.current?.lastElementChild?.scrollIntoView({ block: 'nearest' }); }, [count]);
   useSubtitle(q.data?.subject);
   if (q.isError) return <><BackLink to="">{t('mail.inbox')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   const th = q.data;
   if (!th) return <Loading rows={4} />;
-  const lastTheirs = [...th.messages].reverse().find((m) => m.kind === 'message' && !m.mine && !m.deleted);
+  const lastTheirs = [...messages].reverse().find((m) => m.kind === 'message' && !m.mine && !m.deleted);
   return (
     <div>
       <BackLink to="">{t('mail.inbox')}</BackLink>
@@ -154,18 +178,17 @@ function Conversation({ id }: { id: string }) {
       </section>
       {th.left && <Alert kind="info">{t('mail.youLeft')}</Alert>}
       <ol className="posts mail-messages" ref={end}>
-        {th.messages.map((m) => <Message key={m.id} m={m} threadId={id} canAct={!th.left} onDelete={() => { void confirm({ message: t('mail.deleteConfirm'), confirmLabel: t('confirm.deleteMessage'), danger: true }).then((ok) => ok && del.mutate(m.id)); }} />)}
+        {messages.map((m) => <Message key={m.id} m={m} threadId={id} canAct={!th.left} onDelete={() => { void confirm({ message: t('mail.deleteConfirm'), confirmLabel: t('confirm.deleteMessage'), danger: true }).then((ok) => ok && deleteNow(m.id)); }} />)}
       </ol>
-      {del.isError && <Alert kind="error">{errorText(del.error)}</Alert>}
       {!th.left && (
         <>
-          <form className="panel" onSubmit={(e) => { e.preventDefault(); send.mutate(); }}>
+          <form className="panel" onSubmit={(e) => { e.preventDefault(); sendNow(); }}>
             <Editor label={t('mail.reply')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey={`mail:${id}`} mentions required
-              onSubmit={() => { if (body.trim() && !send.isPending) send.mutate(); }}>
+              onSubmit={sendNow}>
               {lastTheirs && lastTheirs.body && <button type="button" className="link" onClick={() => setBody((b) => quoteReply(who(t, lastTheirs.author), lastTheirs.body!) + b)}>{t('mail.quote')}</button>}
             </Editor>
-            {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
-            <button type="submit" className="btn btn-primary" disabled={send.isPending || !body.trim()}>{t('mail.replySend')}</button>
+            {sendError && <Alert kind="error">{sendError}</Alert>}
+            <button type="submit" className="btn btn-primary" disabled={!body.trim()}>{t('mail.replySend')}</button>
           </form>
           <details className="panel">
           <summary>{t('mail.manage')}</summary>
@@ -195,10 +218,10 @@ function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; thread
       <article className={`post${m.mine ? ' is-mine' : ''}`} aria-label={t('boards.by', { name })}>
         <header className="post-head">
           {m.author.handle ? <PersonLink app="people" to={m.author.handle} className="person"><Avatar id={m.author.id} name={name} size="sm" /><strong>{name}</strong></PersonLink> : <span className="person"><Avatar id={null} name={name} size="sm" /><strong>{name}</strong></span>}
-          <span className="muted">· <RelativeTime iso={m.at} /></span>
+          <span className="muted">· {isPending(m.id) ? t('mail.sending') : <RelativeTime iso={m.at} />}</span>
         </header>
         {m.deleted ? <p className="muted">{t('mail.deleted')}</p> : <pre className="post-body">{m.body}</pre>}
-        {!m.deleted && canAct && (
+        {!m.deleted && canAct && !isPending(m.id) && (
           <footer className="post-actions">
             {m.mine ? <button type="button" className="link" onClick={onDelete}>{t('mail.delete')}</button> : m.author.id && <ReportMessage threadId={threadId} messageId={m.id} />}
           </footer>

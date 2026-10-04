@@ -1,6 +1,6 @@
 import { useConfirm } from '../../components/feedback';
 import { Fragment, type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { infiniteQueryOptions, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, Loading, RelativeTime, useCopy } from '../../components/ui';
@@ -14,6 +14,15 @@ import { PostModTools, ReportPost } from './ModTools';
 import { CharacterBadge, PersonLink } from '../people/PersonLink';
 
 interface ThreadPage { board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }
+
+// One thread's pages: shared by the thread screen and the links that prefetch it.
+export const threadQuery = (slug: string, id: string, meId: string | null) => infiniteQueryOptions({
+  queryKey: ['thread', slug, id, meId],
+  queryFn: ({ pageParam }) => api.get<ThreadPage>(`/boards/${slug}/threads/${id}${pageParam ? `?after=${pageParam}` : ''}`),
+  initialPageParam: undefined as number | undefined,
+  getNextPageParam: (last) => last.next ?? undefined,
+  staleTime: 15_000,
+});
 
 // Puts replies under what they answer. Anything whose parent is not loaded stands at the top level.
 export function threadOrder(posts: PostView[]): { post: PostView; depth: number }[] {
@@ -47,12 +56,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const { copied, copy } = useCopy();
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const q = useInfiniteQuery({
-    queryKey: ['thread', slug, id, me?.id ?? null],
-    queryFn: ({ pageParam }) => api.get<ThreadPage>(`/boards/${slug}/threads/${id}${pageParam ? `?after=${pageParam}` : ''}`),
-    initialPageParam: undefined as number | undefined,
-    getNextPageParam: (last) => last.next ?? undefined,
-  });
+  const q = useInfiniteQuery(threadQuery(slug, id, me?.id ?? null));
   const posts = useMemo(() => q.data?.pages.flatMap((p) => p.posts) ?? [], [q.data]);
   const board = q.data?.pages[0]?.board;
   // Replies that arrive while this is open (pushed over the live channel) are counted in a pill, so they aren't missed.

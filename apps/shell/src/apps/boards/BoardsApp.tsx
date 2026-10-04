@@ -15,7 +15,10 @@ import { BulletinList, BulletinPage, PollList, PollPage } from './Classics';
 import { usePersonal } from '../settings/PersonalSettings';
 import { ModLog } from './ModLog';
 import { ReportQueue } from './ReportQueue';
-import { postNote, ThreadView } from './ThreadView';
+import { postNote, threadQuery, ThreadView } from './ThreadView';
+import { eq, useLiveQuery } from '@tanstack/react-db';
+import { boardsCollection } from '../../collections';
+import { toast } from '../../components/feedback';
 
 const ROUTES = ['', 'new', 'search', 'search/:q', 'reports', 'bulletins', 'bulletins/:n', 'polls', 'polls/:pid', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
 
@@ -150,15 +153,32 @@ function BoardPage({ slug }: { slug: string }) {
   };
   const personal = usePersonal(Boolean(me));
   const muted = Boolean(personal.data?.muted_boards.some((m) => m.slug === slug));
+  // Muting changes the button at once; a refusal puts it back.
+  const personalKey = ['me', 'personal'];
   const mute = useMutation({
     mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/mute`, {}) : api.del(`/boards/${slug}/mute`)),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['me', 'personal'] }),
+    onMutate: async (on) => {
+      await qc.cancelQueries({ queryKey: personalKey });
+      const before = qc.getQueryData(personalKey);
+      qc.setQueryData<{ muted_boards: { slug: string; name: string }[] }>(personalKey, (p) => p && { ...p, muted_boards: on ? [...p.muted_boards, { slug, name: board.data?.name ?? slug }] : p.muted_boards.filter((m) => m.slug !== slug) });
+      return { before };
+    },
+    onError: (e, _on, c) => { qc.setQueryData(personalKey, c?.before); toast(errorText(e), 'error'); },
+    onSettled: () => void qc.invalidateQueries({ queryKey: personalKey }),
   });
-  const watch = useMutation({
-    mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/watch`, {}) : api.del(`/boards/${slug}/watch`)),
-    onSuccess: refresh,
-  });
-  const markRead = useMutation({ mutationFn: () => api.put(`/boards/${slug}/read-pointer`, { all: true }), onSuccess: refresh });
+  // Watching and "mark all read" go through the board list's collection (TanStack DB): the change shows at once.
+  const coll = me ? boardsCollection(me.id) : null;
+  const live = useLiveQuery((qb) => (coll ? qb.from({ b: coll }).where(({ b }) => eq(b.slug, slug)) : undefined), [coll, slug]);
+  const liveBoard = (live.data as BoardSummary[] | undefined)?.[0];
+  const watching = liveBoard?.watching ?? board.data?.watching ?? false;
+  const unread = liveBoard ? liveBoard.unread : board.data?.unread ?? null;
+  const report = (tx: { isPersisted: { promise: Promise<unknown> } }) => tx.isPersisted.promise.catch((e: unknown) => toast(errorText(e), 'error'));
+  const toggleWatch = () => { if (coll && liveBoard) report(coll.update(slug, (d) => { d.watching = !watching; })); };
+  const markRead = () => {
+    if (!coll || !liveBoard) return;
+    qc.setQueryData<{ pages: { threads: ThreadSummary[]; next: number | null }[]; pageParams: unknown[] }>(['threads', slug, me?.id ?? null], (d) => d && { ...d, pages: d.pages.map((pg) => ({ ...pg, threads: pg.threads.map((th) => ({ ...th, unread: false })) })) });
+    report(coll.update(slug, (d) => { d.unread = 0; }));
+  };
   const nextUnread = () => { const n = list.find((x) => x.unread); if (n) nav.go(`${slug}/t/${n.id}`); };
   useListKeys(root, { n: nextUnread });
 
@@ -177,9 +197,9 @@ function BoardPage({ slug }: { slug: string }) {
       <p className="hint">{t('boards.ownedBy')} <PersonLink app="people" to={b.owner.handle}>@{b.owner.handle}</PersonLink></p>
       <div className="toolbar">
         {b.can_post && <AppLink className="btn btn-primary" to={`${slug}/new`}>{t('boards.newThread')}</AppLink>}
-        {me && <button className="btn" onClick={() => watch.mutate(!b.watching)} aria-pressed={b.watching} disabled={watch.isPending}>{b.watching ? t('boards.unwatch') : t('boards.watch')}</button>}
-        {me && me.role !== 'guest' && personal.data && <button className="btn" onClick={() => mute.mutate(!muted)} aria-pressed={muted} disabled={mute.isPending}>{muted ? t('boards.unmute') : t('boards.mute')}</button>}
-        {me && <button className="btn" onClick={() => markRead.mutate()} disabled={markRead.isPending || !b.unread}>{t('boards.markRead')}</button>}
+        {me && <button className="btn" onClick={toggleWatch} aria-pressed={watching} disabled={!liveBoard}>{watching ? t('boards.unwatch') : t('boards.watch')}</button>}
+        {me && me.role !== 'guest' && personal.data && <button className="btn" onClick={() => mute.mutate(!muted)} aria-pressed={muted}>{muted ? t('boards.unmute') : t('boards.mute')}</button>}
+        {me && <button className="btn" onClick={markRead} disabled={!liveBoard || !unread}>{t('boards.markRead')}</button>}
         {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
         {me && <span className="spacer" />}
         <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
@@ -193,7 +213,7 @@ function BoardPage({ slug }: { slug: string }) {
           <li key={th.id} className={th.unread ? 'is-unread' : undefined}>
             <div className="row-head">
               <span>
-                <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link"><strong>{th.subject || '…'}</strong></AppLink>
+                <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link" prefetch={() => void qc.prefetchInfiniteQuery(threadQuery(slug, th.id, me?.id ?? null))}><strong>{th.subject || '…'}</strong></AppLink>
                 {th.pinned && <>{' '}<span className="badge sticker">{t('pin.badge')}</span></>}
                 {th.locked && <>{' '}<span className="badge">{t('boards.badge.locked')}</span></>}
               </span>

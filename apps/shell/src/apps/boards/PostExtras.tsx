@@ -11,19 +11,31 @@ export function ReactionBar({ post, slug, signedIn, canReact }: { post: PostView
   const t = useT();
   const qc = useQueryClient();
   const [picking, setPicking] = useState(false);
+  // A reaction shows the moment it is pressed; the server catches up behind it, and a refusal puts it back.
+  const [local, setLocal] = useState<PostView['reactions'] | null>(null);
   const mutate = useMutation({
     mutationFn: ({ name, on }: { name: ReactionName; on: boolean }) =>
       on ? api.put(`/posts/${post.id}/reactions/${name}`, {}) : api.del(`/posts/${post.id}/reactions/${name}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['thread', slug] }),
+    onError: () => setLocal(null),
+    onSettled: async () => { await qc.invalidateQueries({ queryKey: ['thread', slug] }); if (!qc.isMutating({ mutationKey: ['react', post.id] })) setLocal(null); },
+    mutationKey: ['react', post.id],
   });
-  const shown = post.reactions ?? [];
+  const shown = local ?? post.reactions ?? [];
+  const react = (name: ReactionName, on: boolean) => {
+    const now = shown.find((r) => r.name === name);
+    const next = now
+      ? shown.map((r) => (r.name === name ? { ...r, mine: on, count: Math.max(0, r.count + (on ? 1 : -1)) } : r)).filter((r) => r.count > 0)
+      : [...shown, { name, count: 1, mine: true }];
+    setLocal(next);
+    mutate.mutate({ name, on });
+  };
   if (!shown.length && !(signedIn && canReact)) return null;
   const free = REACTIONS.filter((r) => !shown.some((s) => s.name === r));
   return (
     <div className="reactions" role="group" aria-label={t('react.label')}>
       {shown.map((r) => (
-        <button key={r.name} type="button" className={`chip${r.mine ? ' is-on' : ''}`} aria-pressed={r.mine} disabled={!signedIn || !canReact || mutate.isPending}
-          onClick={() => mutate.mutate({ name: r.name, on: !r.mine })}>
+        <button key={r.name} type="button" className={`chip${r.mine ? ' is-on' : ''}`} aria-pressed={r.mine} disabled={!signedIn || !canReact}
+          onClick={() => react(r.name, !r.mine)}>
           {t(`react.${r.name}`)} <span className="count">{r.count}</span>
         </button>
       ))}
@@ -31,7 +43,7 @@ export function ReactionBar({ post, slug, signedIn, canReact }: { post: PostView
         picking ? (
           <span className="reaction-picker">
             {free.map((name) => (
-              <button key={name} type="button" className="chip" onClick={() => { setPicking(false); mutate.mutate({ name, on: true }); }}>{t(`react.${name}`)}</button>
+              <button key={name} type="button" className="chip" onClick={() => { setPicking(false); react(name, true); }}>{t(`react.${name}`)}</button>
             ))}
             <button type="button" className="link" onClick={() => setPicking(false)}>{t('common.cancel')}</button>
           </span>

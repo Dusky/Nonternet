@@ -1,5 +1,5 @@
 import { Fragment, useState, type FormEvent } from 'react';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, keepPreviousData } from '@tanstack/react-query';
 import type { BoardSummary, PostView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, TextField, BackLink, EmptyState, RelativeTime } from '../../components/ui';
@@ -26,6 +26,7 @@ export function Search({ board: fixedBoard, initial = '' }: { board?: string; in
   const boards = useQuery({ queryKey: ['boards', me?.id ?? null], enabled: !fixedBoard, staleTime: 60_000, queryFn: () => api.get<{ boards: BoardSummary[] }>('/boards') }).data?.boards ?? [];
   const q = useInfiniteQuery({
     queryKey: ['search', term, board ?? null],
+    placeholderData: keepPreviousData, // the last results stay while new ones load, so typing doesn't flash "Loading"
     enabled: term.length >= 2,
     queryFn: ({ pageParam }) => api.get<{ hits: Hit[]; next: number | null }>(
       `/search?q=${encodeURIComponent(term)}${board ? `&board=${board}` : ''}${pageParam ? `&offset=${pageParam}` : ''}`),

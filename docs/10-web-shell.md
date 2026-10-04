@@ -313,3 +313,25 @@ The format is built for outside authors later (Q18), but only the site's own pac
 - Bundles: `vendor` (React, the router, TanStack), `widgets` (React Aria, Sonner, cmdk: about 81 KB gzipped) and the
   main chunk (about 91 KB gzipped) are separate files, so a release of our own code doesn't make browsers fetch the
   libraries again.
+
+## As built (instant feel, 2026-10-04)
+- **TanStack DB pilot** (`collections.ts`): a Mail conversation's messages and the board list are collections read with
+  `useLiveQuery`. A reply shows at once as "Sending…" and the server's copy replaces it; a refusal removes it, puts
+  the text back in the box and says why. Deleting a message marks it deleted at once. Watching a board and "Mark all
+  read" change at once. Collections use the same Query keys and response shapes as the rest of the app, so live
+  events and other screens refresh them as before.
+- **Optimistic updates elsewhere** (TanStack Query, with the change made in the click itself so a controlled input
+  never snaps back): reactions, muting a board, marking notifications read, the admin Apps checkbox. Settings
+  switches already worked this way. Not optimistic on purpose: joining a ring (it may need approval) and poll votes
+  (the tally comes from the server).
+- **No "Loading…" flash** on search and filter lists (mail, people, rings, homepages, board search): the last
+  results stay while new ones load.
+- **Prefetch**: resting the pointer on a thread link (or focusing it) loads the thread. Not for mail: opening a
+  conversation marks it read, so loading one early would too.
+- **Minimized windows** keep their state but pause their effects (polling, timers) with React's `<Activity>`. Apps
+  that hold a connection (Chat, MUD, Terminal, added apps) keep running.
+- **Moving between screens** cross-fades for 140 ms with the View Transitions API; nothing moves, and nothing at all
+  with reduced motion.
+- **Long logs** (chat and MUD, up to 2000 lines; long threads) use CSS `content-visibility: auto` rather than a
+  JavaScript virtual list, so screen readers' live announcements, the browser's find and the MUD's find still see
+  every line.

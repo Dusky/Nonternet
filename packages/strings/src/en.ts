@@ -1717,6 +1717,7 @@ export const en = {
   'mail.youLeft': 'You left this conversation. You can still read what was said while you were in it.',
   'mail.joined': '{name} joined',
   'mail.left': '{name} left',
+  'mail.sending': 'Sending…',
   'mail.deleted': 'Message deleted.',
   'mail.delete': 'Delete',
   'mail.deleteConfirm': 'Delete this message? Everyone in the conversation will see that it was deleted.',
