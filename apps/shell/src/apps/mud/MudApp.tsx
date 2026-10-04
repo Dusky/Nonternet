@@ -1,4 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
+import { MenuButton } from '../../components/Menu';
 import { Alert, Loading } from '../../components/ui';
 import { useSite, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
@@ -78,11 +80,11 @@ function Toolbar({ finding, onFind, panel, onPanel, editing, onRules }: { findin
       {narrow ? (
         <>
           {side}
-          <MoreMenu label={t('mud.more')} items={[
-            { label: t('mud.saveTextLong'), run: () => downloadLog(useMud.getState().lines, 'txt', note) },
-            { label: t('mud.saveHtmlLong'), run: () => downloadLog(useMud.getState().lines, 'html', note) },
-            { label: t('mud.clear'), run: clear },
-            { label: t('mud.rules'), run: onRules, expanded: editing },
+          <MenuButton label={t('mud.more')} placement="bottom end" items={[
+            { label: t('mud.saveTextLong'), onSelect: () => downloadLog(useMud.getState().lines, 'txt', note) },
+            { label: t('mud.saveHtmlLong'), onSelect: () => downloadLog(useMud.getState().lines, 'html', note) },
+            { label: t('mud.clear'), onSelect: clear },
+            { label: editing ? t('mud.rulesClose') : t('mud.rules'), onSelect: onRules },
           ]} />
         </>
       ) : (
@@ -97,41 +99,14 @@ function Toolbar({ finding, onFind, panel, onPanel, editing, onRules }: { findin
   );
 }
 
-// A small menu of buttons. Choosing one closes it; so do Escape (focus goes back to the button that opened it) and a
-// click anywhere else.
-function MoreMenu({ label, items }: { label: string; items: { label: string; run: () => void; expanded?: boolean }[] }) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) ref.current?.removeAttribute('open'); };
-    document.addEventListener('pointerdown', away);
-    return () => document.removeEventListener('pointerdown', away);
-  }, [open]);
-  const close = () => { ref.current?.removeAttribute('open'); ref.current?.querySelector('summary')?.focus(); };
-  return (
-    <details ref={ref} className="menu-details" onToggle={(e) => setOpen(e.currentTarget.open)} onKeyDown={(e) => { if (e.key === 'Escape' && open) { e.preventDefault(); close(); } }}>
-      <summary className="btn btn-quiet" aria-haspopup="menu">{label}</summary>
-      <div className="menu-pop menu-pop-end" role="group" aria-label={label}>
-        {items.map((it) => (
-          <button key={it.label} type="button" className="btn btn-quiet" aria-expanded={it.expanded} onClick={() => { close(); it.run(); }}>{it.label}</button>
-        ))}
-      </div>
-    </details>
-  );
-}
-
 function SaveLog() {
   const t = useT();
   const note = (l: Line) => (l.key ? t(l.key) : l.text);
   return (
-    <details className="menu-details">
-      <summary className="btn btn-quiet">{t('mud.saveLog')}</summary>
-      <div className="menu-pop">
-        <button type="button" className="btn btn-quiet" onClick={() => downloadLog(useMud.getState().lines, 'txt', note)}>{t('mud.saveText')}</button>
-        <button type="button" className="btn btn-quiet" onClick={() => downloadLog(useMud.getState().lines, 'html', note)}>{t('mud.saveHtml')}</button>
-      </div>
-    </details>
+    <MenuButton label={t('mud.saveLog')} items={[
+      { label: t('mud.saveText'), onSelect: () => downloadLog(useMud.getState().lines, 'txt', note) },
+      { label: t('mud.saveHtml'), onSelect: () => downloadLog(useMud.getState().lines, 'html', note) },
+    ]} />
   );
 }
 
@@ -411,14 +386,16 @@ function Windows() {
   return (
     <section className="panel mud-card" aria-labelledby="mud-win-h">
       <h2 id="mud-win-h">{t('mud.windows')}</h2>
-      <div className="tabs" role="tablist" aria-label={t('mud.windows')}>
-        {names.map((n) => (
-          <button key={n} type="button" role="tab" aria-selected={n === current} className={n === current ? 'is-active' : undefined} onClick={() => setOpen(n)}>
-            {n}{n !== current && (unseen[n] ?? 0) > 0 && <span className="badge">{unseen[n]}</span>}
-          </button>
-        ))}
-      </div>
-      {current && <CaptureList lines={windows[current]!} name={current} />}
+      <Tabs selectedKey={current} onSelectionChange={(k) => setOpen(String(k))}>
+        <TabList className="tabs" aria-label={t('mud.windows')}>
+          {names.map((n) => (
+            <Tab key={n} id={n}>
+              {n}{n !== current && (unseen[n] ?? 0) > 0 && <span className="badge">{unseen[n]}</span>}
+            </Tab>
+          ))}
+        </TabList>
+        {current && <TabPanel id={current}><CaptureList lines={windows[current]!} name={current} /></TabPanel>}
+      </Tabs>
     </section>
   );
 }

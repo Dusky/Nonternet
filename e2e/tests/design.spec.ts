@@ -143,7 +143,7 @@ test('confirming in the site dialog: Cancel leaves things alone and returns focu
   await page.goto(`/people/${b.handle}`);
   const block = page.getByRole('button', { name: 'Block', exact: true });
   await block.click();
-  const dialog = page.locator('dialog[open]');
+  const dialog = page.getByRole('alertdialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused(); // the safe choice for a risky action
   await scan(page, 'the confirm dialog');
@@ -151,7 +151,7 @@ test('confirming in the site dialog: Cancel leaves things alone and returns focu
   await expect(dialog).toHaveCount(0);
   await expect(block).toBeFocused();
   await block.click();
-  await page.locator('dialog[open]').getByRole('button', { name: 'Block', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Block', exact: true }).click();
   await expect(page.getByText('You have blocked this person.')).toBeVisible();
 });
 

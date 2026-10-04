@@ -8,7 +8,7 @@ import { parseFormatting, type Segment } from './format';
 import { usePrefs } from '../../devicePrefs';
 import { completeNick, dayKey, dayLabel, typingNow, foldPresence, type Completion } from './helpers';
 import { sortedUsers, useChat, type Buffer, type Msg } from './store';
-import { useContextMenu } from '../../components/ContextMenu';
+import { useContextMenu } from '../../components/Menu';
 import { useConfirm, useToast } from '../../components/feedback';
 import { nickColour, completeWord, splitPaste, COMMANDS } from './helpers';
 

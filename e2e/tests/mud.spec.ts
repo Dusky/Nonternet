@@ -12,8 +12,8 @@ const world = (page: Page) => page.getByRole('log', { name: 'What happens in the
 // A tool from the MUD's toolbar: on a narrow screen the less used ones are under "More".
 async function tool(page: Page, name: string) {
   const bar = page.getByRole('toolbar', { name: 'MUD tools' });
-  const more = bar.getByText('More', { exact: true });
-  if (await more.isVisible()) await more.click();
+  const more = bar.getByRole('button', { name: 'More', exact: true });
+  if (await more.isVisible()) { await more.click(); await page.getByRole('menuitem', { name, exact: true }).click(); return; }
   await bar.getByRole('button', { name, exact: true }).click();
 }
 async function type(page: Page, text: string) {
@@ -33,23 +33,25 @@ test.describe('the MUD', () => {
     await expect(find).toBeVisible();
     if (!isMobile) {
       await expect(bar.getByRole('button', { name: 'Clear the log' })).toBeVisible();
-      await expect(bar.getByText('More', { exact: true })).toHaveCount(0);
+      await expect(bar.getByRole('button', { name: 'More', exact: true })).toHaveCount(0);
       return;
     }
     const one = (await find.boundingBox())!.height;
     expect((await bar.boundingBox())!.height).toBeLessThan(one * 2); // a single row
     await expect(bar.getByRole('button', { name: 'Clear the log' })).toHaveCount(0);
-    const more = bar.getByText('More', { exact: true });
+    const more = bar.getByRole('button', { name: 'More', exact: true });
     await more.click();
-    const menu = bar.getByRole('group', { name: 'More' });
-    await expect(menu.getByRole('button', { name: 'Client rules' })).toBeVisible();
-    await expect(menu.getByRole('button', { name: 'Save the log as plain text' })).toBeVisible();
+    const menu = page.getByRole('menu', { name: 'More' });
+    await expect(menu.getByRole('menuitem').first()).toBeFocused();
+    await expect(menu.getByRole('menuitem', { name: 'Client rules' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Save the log as plain text' })).toBeVisible();
     await scan(page, 'the MUD with its More menu open');
     await page.keyboard.press('Escape');
-    await expect(menu.getByRole('button', { name: 'Client rules' })).toBeHidden();
+    await expect(menu).toHaveCount(0);
+    await expect(more).toBeFocused(); // focus goes back to the button
     await more.click();
-    await menu.getByRole('button', { name: 'Client rules' }).click();
-    await expect(menu.getByRole('button', { name: 'Client rules' })).toBeHidden(); // choosing closes the menu
+    await menu.getByRole('menuitem', { name: 'Client rules' }).click();
+    await expect(menu).toHaveCount(0); // choosing closes the menu
     await expect(page.getByRole('heading', { name: 'Client rules' }).first()).toBeVisible();
   });
 

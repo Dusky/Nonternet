@@ -6,7 +6,7 @@ import { HomePanel } from './HomePanel';
 import { AppTile } from './icons';
 import { focusedWindow, restoreSession, saveSession, snapGeometry, useWindows } from './windows';
 import { Window } from './Window';
-import { useContextMenu } from '../components/ContextMenu';
+import { useContextMenu } from '../components/Menu';
 import type { AppDef } from './apps';
 
 // The desktop for big screens: an icon per app and the home panel, with the open windows on top.

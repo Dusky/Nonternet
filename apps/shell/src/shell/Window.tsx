@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { AppBoundary } from '../components/Boundary';
-import { useContextMenu, type MenuItem } from '../components/ContextMenu';
+import { useContextMenu, type MenuItem } from '../components/Menu';
 import { Icon } from '../components/Icon';
 import { Loading } from '../components/ui';
 import { useT } from '../hooks';

@@ -4,6 +4,7 @@ import {
   type MudAction, type MudAlias, type MudButton, type MudClient, type MudKey, type MudTimer, type MudTrigger,
 } from '@app/shared';
 import type { StringKey } from '@app/strings';
+import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
 import { Alert, TextField } from '../../components/ui';
 import { useT } from '../../hooks';
 import { keyName, newId, validRegex } from './engine';
@@ -28,23 +29,21 @@ export default function ClientEditor({ onClose }: { onClose: () => void }) {
       </div>
       <p className="hint">{t('mud.ed.intro')}</p>
       {saveError && <Alert kind="error">{t('mud.ed.saveFailed')}</Alert>}
-      <div className="tabs" role="tablist" aria-label={t('mud.ed.title')}>
-        {TABS.map((k) => (
-          <button key={k} type="button" role="tab" id={`${id}-${k}`} aria-selected={tab === k} aria-controls={`${id}-panel`} className={tab === k ? 'is-active' : undefined} onClick={() => setTab(k)}>
-            {t(`mud.ed.tab.${k}` as StringKey)}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${tab}`} className="mud-editor-body">
-        {tab === 'aliases' && <Aliases />}
-        {tab === 'triggers' && <Triggers />}
-        {tab === 'timers' && <Timers />}
-        {tab === 'keys' && <Keys />}
-        {tab === 'buttons' && <Buttons />}
-        {tab === 'variables' && <Variables />}
-        {tab === 'options' && <Options />}
-        {tab === 'share' && <Share />}
-      </div>
+      <Tabs selectedKey={tab} onSelectionChange={(k) => setTab(k as Tab)}>
+        <TabList className="tabs" aria-label={t('mud.ed.title')}>
+          {TABS.map((k) => <Tab key={k} id={k}>{t(`mud.ed.tab.${k}` as StringKey)}</Tab>)}
+        </TabList>
+        <TabPanel id={tab} className="mud-editor-body">
+          {tab === 'aliases' && <Aliases />}
+          {tab === 'triggers' && <Triggers />}
+          {tab === 'timers' && <Timers />}
+          {tab === 'keys' && <Keys />}
+          {tab === 'buttons' && <Buttons />}
+          {tab === 'variables' && <Variables />}
+          {tab === 'options' && <Options />}
+          {tab === 'share' && <Share />}
+        </TabPanel>
+      </Tabs>
     </section>
   );
 }

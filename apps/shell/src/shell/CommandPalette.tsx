@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Command, defaultFilter } from 'cmdk';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { BoardSummary, MailThreadSummary, Me, RingSummary } from '@app/shared';
@@ -18,11 +19,13 @@ function remember(r: Recent) {
   try { localStorage.setItem(RECENT_KEY, JSON.stringify([r, ...loadRecent().filter((x) => x.key !== r.key)].slice(0, 6))); } catch { /* a convenience */ }
 }
 
-interface Item { key: string; label: string; kind: string; icon: ReactNode; run: () => void }
+// `found` items come from a server search or a guess at a handle: already matched, so always shown.
+interface Item { key: string; label: string; kind: string; icon: ReactNode; run: () => void; found?: boolean }
 
 // Ctrl+K (Cmd+K on a Mac): type a few letters to open an app, a board, a settings page or a
 // person's profile. A quicker way around for keyboard users; everything here is also reachable by
-// clicking. It searches only what this person can already see.
+// clicking. It searches only what this person can already see. cmdk does the matching (letters in order,
+// so "brd" finds Boards), the arrow keys and the screen reader wiring.
 export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; onClose: () => void }) {
   const t = useT();
   const site = useSite();
@@ -31,8 +34,6 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
   const openWin = useWindows((s) => s.open);
   const dialog = useRef<HTMLDialogElement>(null);
   const [q, setQ] = useState('');
-  const [sel, setSel] = useState(0);
-  const listId = useId();
   const boards = useQuery({
     queryKey: ['boards', me.id],
     queryFn: () => api.get<{ boards: BoardSummary[] }>('/boards'),
@@ -72,54 +73,42 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
       })),
     ];
     const remembered = (r: (typeof recent)[number]): Item => ({ key: `recent:${r.key}`, label: r.label, kind: r.kind, icon: <AppIcon id={r.app} size={20} />, run: () => { remember(r); go(r.app, r.path); } });
-    const found = term ? all.filter((i) => i.label.toLowerCase().includes(term)) : [...recent.map(remembered), ...all.filter((i) => !recent.some((r) => `recent:${r.key}` === i.key || r.key === i.key)).slice(0, Math.max(4, 12 - recent.length))];
-    const pick = (key: string, label: string, kind: string, app: AppId, path: string): Item => ({ key, label, kind, icon: <AppIcon id={app} size={20} />, run: () => { const r = { key, label, kind, app, path }; remember(r); setRecent(loadRecent()); go(app, path); } });
+    const found = term ? all : [...recent.map(remembered), ...all.filter((i) => !recent.some((r) => `recent:${r.key}` === i.key || r.key === i.key)).slice(0, Math.max(4, 12 - recent.length))];
+    const pick = (key: string, label: string, kind: string, app: AppId, path: string): Item => ({ key, label, kind, found: true, icon: <AppIcon id={app} size={20} />, run: () => { const r = { key, label, kind, app, path }; remember(r); setRecent(loadRecent()); go(app, path); } });
     if (term) {
       for (const h of threads) found.push(pick(`thread:${h.post.thread_id}`, h.post.subject || '…', `${t('palette.kind.thread')} · ${h.board.name}`, 'boards', `${h.board.slug}/t/${h.post.thread_id}`));
       for (const r of rings) found.push(pick(`ring:${r.slug}`, r.name, t('palette.kind.ring'), 'rings', r.slug));
       for (const m of mail) if (m.subject.toLowerCase().includes(term)) found.push(pick(`mail:${m.id}`, m.subject, t('palette.kind.mail'), 'mail', m.id));
     }
     if (term && /^[a-z0-9_-]{2,40}$/i.test(term)) {
-      found.push({ key: `person:${term}`, label: t('palette.person', { handle: term }), kind: t('palette.kind.person'), icon: <Icon name="user" size={20} />, run: () => go('people', term) });
+      found.push({ key: `person:${term}`, label: t('palette.person', { handle: term }), kind: t('palette.kind.person'), found: true, icon: <Icon name="user" size={20} />, run: () => go('people', term) });
     }
-    return found.slice(0, 30);
+    return found;
   }, [q, boards, threads, rings, mail, recent, me, site, desktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setSel(0); }, [q]);
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
     if (open && !d.open) { setQ(''); d.showModal(); }
     if (!open && d.open) d.close();
   }, [open]);
-  useEffect(() => { document.getElementById(`${listId}-${sel}`)?.scrollIntoView({ block: 'nearest' }); }, [sel, listId]);
-
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setSel((n) => Math.min(n + 1, items.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setSel((n) => Math.max(n - 1, 0)); }
-    else if (e.key === 'Enter') { e.preventDefault(); items[sel]?.run(); }
-  };
 
   return (
     <dialog ref={dialog} className="dialog palette" aria-label={t('palette.label')} onCancel={(e) => { e.preventDefault(); onClose(); }}
       onClick={(e) => { if (e.target === dialog.current) onClose(); }}>
       {open && (
-        <>
-          <input
-            role="combobox" aria-expanded="true" aria-controls={listId} aria-activedescendant={items[sel] ? `${listId}-${sel}` : undefined}
-            aria-label={t('palette.label')} placeholder={t('palette.placeholder')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} autoFocus
-            autoComplete="off" spellCheck={false}
-          />
-          <ul id={listId} role="listbox" aria-label={t('palette.results')}>
-            {items.map((i, n) => (
-              <li key={i.key} id={`${listId}-${n}`} role="option" aria-selected={n === sel} onMouseMove={() => setSel(n)} onClick={i.run}>
+        <Command label={t('palette.label')} loop filter={(value, search, keywords) => defaultFilter(keywords?.join(' ') ?? value, search)}>
+          <Command.Input aria-label={t('palette.label')} placeholder={t('palette.placeholder')} value={q} onValueChange={setQ} autoFocus autoComplete="off" spellCheck={false} />
+          <Command.List aria-label={t('palette.results')}>
+            {items.map((i) => (
+              <Command.Item key={i.key} value={i.key} keywords={[i.label]} forceMount={i.found} onSelect={i.run}>
                 {i.icon}<span>{i.label}</span><span className="kind">{i.kind}</span>
-              </li>
+              </Command.Item>
             ))}
-            {items.length === 0 && <li role="option" aria-selected="false" aria-disabled="true" className="muted">{t('palette.none')}</li>}
-          </ul>
+            <Command.Empty className="muted">{t('palette.none')}</Command.Empty>
+          </Command.List>
           <p className="palette-hint" aria-hidden="true"><span><kbd>↑</kbd> <kbd>↓</kbd> {t('palette.hint.move')}</span><span><kbd>Enter</kbd> {t('palette.hint.open')}</span><span><kbd>Esc</kbd> {t('palette.hint.close')}</span></p>
-        </>
+        </Command>
       )}
     </dialog>
   );

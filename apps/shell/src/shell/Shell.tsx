@@ -1,5 +1,5 @@
 import { clearAllDrafts } from '../drafts';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Me } from '@app/shared';
@@ -17,8 +17,7 @@ import type { OnlinePerson } from './HomePanel';
 import { AppIcon, AppTile } from './icons';
 import { ShortcutsSheet } from './ShortcutsSheet';
 import { StatusBanners } from './StatusBanners';
-import { useContextMenu } from '../components/ContextMenu';
-import { useMenuKeys } from './menuKeys';
+import { MenuButton, useContextMenu } from '../components/Menu';
 import { setFavicon, tabTitle } from './tabInfo';
 import { clearSession, focusedWindow, useWindows, type AppId, type Win } from './windows';
 import { useChatWaiting } from './chatBadge';
@@ -37,14 +36,8 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const location = useLocation();
   const { wins, open, cycle } = useWindows();
   const top = focusedWindow(wins);
-  const [menu, setMenu] = useState<'apps' | 'account' | null>(null);
   const [palette, setPalette] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
-  const bar = useRef<HTMLElement>(null);
-  const appsButton = useRef<HTMLButtonElement>(null);
-  const accountButton = useRef<HTMLButtonElement>(null);
-  const appsMenu = useRef<HTMLUListElement>(null);
-  const accountMenu = useRef<HTMLUListElement>(null);
   const confirmed = me.role !== 'guest';
   // Something arrived while the tab is in the background: a chime and/or a desktop notification, if turned on.
   useLiveEvents(me.id, (type) => arrive(
@@ -71,18 +64,6 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
     setFavicon(waiting > 0);
   }, [site.name, appHere?.id, subtitle, waiting, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useMenuKeys(appsMenu, menu === 'apps', () => setMenu(null), appsButton);
-  useMenuKeys(accountMenu, menu === 'account', () => setMenu(null), accountButton);
-
-  // Clicking elsewhere closes a menu, as people expect.
-  useEffect(() => {
-    if (!menu) return;
-    const onClick = (e: MouseEvent) => { if (!bar.current?.contains(e.target as Node)) setMenu(null); };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, [menu]);
-  useEffect(() => setMenu(null), [location.pathname]);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(true); return; }
@@ -104,7 +85,6 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
     window.location.assign('/');
   };
   const launch = (id: AppId, path?: string) => {
-    setMenu(null);
     if (desktop) { open(id, path); navigate('/'); } else navigate(`${appById(id).path}${path ? `/${path}` : ''}`);
   };
 
@@ -114,20 +94,15 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
     <div className="shell">
       <a className="skip" href="#main">{t('nav.skip')}</a>
       <div className="shell-top">
-      <header className="taskbar" ref={bar}>
+      <header className="taskbar">
         {!desktop && !onHome && <Link className="back" to="/" aria-label={t('nav.back')}><Icon name="back" /></Link>}
         <Link className="brand" to="/"><span className="brand-mark" aria-hidden="true" />{site.name}</Link>
 
         {desktop && (
           <div className="taskbar-apps">
-            <button ref={appsButton} type="button" className="btn btn-quiet" aria-haspopup="menu" aria-expanded={menu === 'apps'} onClick={() => setMenu(menu === 'apps' ? null : 'apps')}><Icon name="grid" />{t('nav.apps')}</button>
-            {menu === 'apps' && (
-              <ul ref={appsMenu} className="menu menu-grid" role="menu" aria-label={t('nav.apps')}>
-                {apps.map((a) => (
-                  <li key={a.id} role="none"><button type="button" role="menuitem" onClick={() => launch(a.id)}><AppTile id={a.id} /> {t(a.title)}</button></li>
-                ))}
-              </ul>
-            )}
+            <MenuButton label={t('nav.apps')} menuClassName="menu-grid" items={apps.map((a) => ({ label: t(a.title), icon: <AppTile id={a.id} />, onSelect: () => launch(a.id) }))}>
+              <Icon name="grid" />{t('nav.apps')}
+            </MenuButton>
             <button type="button" className="btn btn-quiet btn-icon" onClick={() => setPalette(true)} aria-label={t('palette.open')} aria-keyshortcuts="Control+K Meta+K" title={`${t('palette.open')} (Ctrl+K)`}><Icon name="search" /></button>
             <ul className="taskbar-windows" aria-label={t('nav.openWindows')}>
               {wins.map((w) => <li key={w.id}><TaskbarWindow win={w} front={top?.id === w.id} /></li>)}
@@ -158,18 +133,17 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
             <AppIcon id="notifications" size={22} />
             {unread > 0 && <span className="badge" aria-hidden="true">{unread > 99 ? t('common.lots') : unread}</span>}
           </button>
-          <button ref={accountButton} type="button" className="btn btn-quiet person" aria-haspopup="menu" aria-expanded={menu === 'account'} aria-label={t('nav.account', { handle: me.handle })} onClick={() => setMenu(menu === 'account' ? null : 'account')}>
+          <MenuButton
+            label={t('nav.account', { handle: me.handle })} ariaLabel={t('nav.account', { handle: me.handle })} className="btn btn-quiet person" placement="bottom end"
+            items={[
+              { label: t('nav.profile'), icon: <Icon name="user" />, onSelect: () => launch('people', me.handle) },
+              { label: t('app.settings'), icon: <AppIcon id="settings" size={22} />, onSelect: () => launch('settings') },
+              { label: t('shortcuts.menuItem'), onSelect: () => setShortcuts(true) },
+              { label: t('nav.logout'), onSelect: () => void logout(), separator: true },
+            ]}
+          >
             <Avatar id={me.id} name={me.display_name || me.handle} size="sm" />{desktop && me.handle}
-          </button>
-          {menu === 'account' && (
-            <ul ref={accountMenu} className="menu menu-right" role="menu" aria-label={t('nav.account', { handle: me.handle })}>
-              <li role="none"><button type="button" role="menuitem" onClick={() => launch('people', me.handle)}><Icon name="user" />{t('nav.profile')}</button></li>
-              <li role="none"><button type="button" role="menuitem" onClick={() => launch('settings')}><AppIcon id="settings" size={22} />{t('app.settings')}</button></li>
-              <li role="none"><button type="button" role="menuitem" onClick={() => { setMenu(null); setShortcuts(true); }}>{t('shortcuts.menuItem')}</button></li>
-              <li role="none" className="menu-sep" />
-              <li role="none"><button type="button" role="menuitem" onClick={() => void logout()}>{t('nav.logout')}</button></li>
-            </ul>
-          )}
+          </MenuButton>
         </div>
       </header>
       <StatusBanners />

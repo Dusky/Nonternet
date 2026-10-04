@@ -1,11 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { Toaster, toast as sonner } from 'sonner';
 import { useT } from '../hooks';
 
 // Two ways the interface talks back that every app shares:
 // - confirm(): a real dialog in place of window.confirm, styled like the rest of the site, with the
 //   action named on its button ("Delete post", not "OK"). Focus goes into it and comes back after.
+//   Keep it for what can't be taken back; for anything that can, act at once and offer Undo instead.
 // - toast(): a short note ("Saved.") at the bottom of the screen that a screen reader announces and
-//   that never moves the page around. It goes away by itself.
+//   that never moves the page around. It goes away by itself, and can carry an Undo button.
 
 export interface ConfirmOptions {
   message: string;
@@ -13,80 +16,70 @@ export interface ConfirmOptions {
   title?: string;
   danger?: boolean;
 }
-interface Toast { id: number; text: string; kind: 'ok' | 'error' }
-interface Feedback {
-  confirm: (o: ConfirmOptions) => Promise<boolean>;
-  toast: (text: string, kind?: Toast['kind']) => void;
+export interface ToastOptions {
+  /** Shows an Undo button; called if it is pressed before the note goes away. */
+  undo?: () => void;
 }
+type ToastFn = (text: string, kind?: 'ok' | 'error', options?: ToastOptions) => void;
 
-const Ctx = createContext<Feedback | null>(null);
+const Ctx = createContext<{ confirm: (o: ConfirmOptions) => Promise<boolean> } | null>(null);
+// Set while the provider is mounted, so toast() is a no-op in a unit test that renders one component.
+let mounted = 0;
+let undoLabel = 'Undo';
 
-export function useConfirm(): Feedback['confirm'] {
+export function useConfirm(): (o: ConfirmOptions) => Promise<boolean> {
   const ctx = useContext(Ctx);
   // Outside the provider (a unit test rendering one component), fall back to the browser's own.
   return ctx?.confirm ?? (async (o) => window.confirm(o.message));
 }
-export function useToast(): Feedback['toast'] {
-  return useContext(Ctx)?.toast ?? (() => undefined);
+
+export const toast: ToastFn = (text, kind = 'ok', options) => {
+  if (!mounted) return;
+  const action = options?.undo ? { label: undoLabel, onClick: options.undo } : undefined;
+  if (kind === 'error') sonner.error(text, { duration: 8000, action });
+  else sonner(text, { duration: action ? 6000 : 4000, action });
+};
+export function useToast(): ToastFn {
+  return toast;
 }
 
 export function FeedbackProvider({ children }: { children: ReactNode }) {
   const t = useT();
   const [ask, setAsk] = useState<(ConfirmOptions & { resolve: (ok: boolean) => void }) | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const dialog = useRef<HTMLDialogElement>(null);
-  const returnTo = useRef<HTMLElement | null>(null);
-  const titleId = useId();
-  const nextId = useRef(1);
+  undoLabel = t('common.undo');
 
-  const confirm = useCallback((o: ConfirmOptions) => new Promise<boolean>((resolve) => {
-    returnTo.current = document.activeElement as HTMLElement | null;
-    setAsk({ ...o, resolve });
-  }), []);
-
-  const toast = useCallback((text: string, kind: Toast['kind'] = 'ok') => {
-    const id = nextId.current++;
-    setToasts((all) => [...all.slice(-2), { id, text, kind }]);
-    setTimeout(() => setToasts((all) => all.filter((x) => x.id !== id)), kind === 'error' ? 8000 : 4000);
-  }, []);
-
-  useEffect(() => {
-    const d = dialog.current;
-    if (!d) return;
-    if (ask && !d.open) d.showModal();
-    if (!ask && d.open) d.close();
-  }, [ask]);
-
-  const answer = (ok: boolean) => {
-    ask?.resolve(ok);
-    setAsk(null);
-    // Back to whatever opened the dialog, so keyboard users don't lose their place.
-    setTimeout(() => returnTo.current?.focus?.(), 0);
-  };
+  const confirm = useCallback((o: ConfirmOptions) => new Promise<boolean>((resolve) => setAsk({ ...o, resolve })), []);
+  const answer = (ok: boolean) => { ask?.resolve(ok); setAsk(null); };
 
   return (
-    <Ctx.Provider value={{ confirm, toast }}>
+    <Ctx.Provider value={{ confirm }}>
       {children}
-      <dialog ref={dialog} className="dialog" aria-labelledby={titleId} onCancel={(e) => { e.preventDefault(); answer(false); }}>
-        {ask && (
-          <form method="dialog" className="dialog-body" onSubmit={(e) => { e.preventDefault(); answer(true); }}>
-            <h2 id={titleId}>{ask.title ?? ask.message}</h2>
-            {ask.title && <p>{ask.message}</p>}
-            <div className="actions">
-              <button type="button" className="btn" onClick={() => answer(false)} autoFocus={ask.danger}>{t('common.cancel')}</button>
-              <button type="submit" className={`btn ${ask.danger ? 'btn-danger btn-solid' : 'btn-primary'}`} autoFocus={!ask.danger}>{ask.confirmLabel}</button>
-            </div>
-          </form>
-        )}
-      </dialog>
-      <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((x) => (
-          <div key={x.id} className={`toast${x.kind === 'error' ? ' toast-error' : ''}`}>
-            <span>{x.text}</span>
-            <button type="button" className="btn btn-quiet btn-small" onClick={() => setToasts((all) => all.filter((y) => y.id !== x.id))}>{t('common.dismiss')}</button>
-          </div>
-        ))}
-      </div>
+      <ModalOverlay isOpen={ask !== null} onOpenChange={(open) => { if (!open) answer(false); }} isDismissable className="dialog-overlay">
+        <Modal className="dialog">
+          <Dialog role="alertdialog" className="dialog-body">
+            {ask && (
+              <form onSubmit={(e) => { e.preventDefault(); answer(true); }}>
+                <Heading slot="title">{ask.title ?? ask.message}</Heading>
+                {ask.title && <p>{ask.message}</p>}
+                <div className="actions">
+                  <button type="button" className="btn" onClick={() => answer(false)} autoFocus={ask.danger}>{t('common.cancel')}</button>
+                  <button type="submit" className={`btn ${ask.danger ? 'btn-danger btn-solid' : 'btn-primary'}`} autoFocus={!ask.danger}>{ask.confirmLabel}</button>
+                </div>
+              </form>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+      <Mounted />
+      <Toaster
+        position="bottom-center" visibleToasts={3} containerAriaLabel={t('toast.region')}
+        toastOptions={{ unstyled: true, closeButton: true, closeButtonAriaLabel: t('common.dismiss'), classNames: { toast: 'toast', error: 'toast-error', actionButton: 'btn btn-small', closeButton: 'toast-close', title: 'toast-text' } }}
+      />
     </Ctx.Provider>
   );
+}
+
+function Mounted() {
+  useEffect(() => { mounted++; return () => { mounted--; }; }, []);
+  return null;
 }

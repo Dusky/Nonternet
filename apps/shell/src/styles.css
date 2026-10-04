@@ -147,17 +147,23 @@ progress { width: 100%; height: 10px; accent-color: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
-/* Toasts: short confirmations ("Saved.") that don't push the page around. */
-.toasts { position: fixed; bottom: var(--space-4); left: 50%; transform: translateX(-50%); z-index: 9000; display: grid; gap: var(--space-2); width: min(26rem, calc(100vw - 32px)); pointer-events: none; }
-.toast { pointer-events: auto; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); color: var(--text); border: var(--line-width) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-pop); font-weight: 600; animation: rise .18s var(--ease); }
-.toast .btn-quiet { color: inherit; min-height: 32px; }
+/* Toasts: short confirmations ("Saved.") that don't push the page around. Sonner places and stacks them; the look is ours. */
+[data-sonner-toaster] { --width: min(26rem, calc(100vw - 32px)); font-family: inherit; }
+.toast { display: flex; align-items: center; gap: var(--space-3); width: var(--width); padding: var(--space-3) var(--space-4); background: var(--surface); color: var(--text); border: var(--line-width) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-pop); font-weight: 600; }
+.toast [data-content] { flex: 1; }
+.toast .btn { min-height: 32px; flex: none; }
+.toast-close { order: 3; flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; color: inherit; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.toast-close:hover { background: var(--surface2); }
+.toast-close svg { width: 14px; height: 14px; }
 .toast-error { border-color: var(--danger); color: var(--danger); }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 
-/* Dialogs (native <dialog>, opened with showModal). */
-dialog.dialog { border: var(--line-width) solid var(--line-strong); border-radius: var(--radius-lg); padding: 0; width: min(28rem, calc(100vw - 32px)); background: var(--surface); color: var(--text); box-shadow: var(--shadow-window); }
+/* Dialogs: native <dialog> opened with showModal, or React Aria's Modal (.dialog-overlay > .dialog). */
+dialog.dialog, .dialog-overlay .dialog { border: var(--line-width) solid var(--line-strong); border-radius: var(--radius-lg); padding: 0; width: min(28rem, calc(100vw - 32px)); background: var(--surface); color: var(--text); box-shadow: var(--shadow-window); }
 dialog.dialog::backdrop { background: color-mix(in srgb, var(--bg) 55%, transparent); }
-dialog.dialog[open] { animation: rise .16s var(--ease); }
+dialog.dialog[open], .dialog-overlay .dialog { animation: rise .16s var(--ease); }
+.dialog-overlay { position: fixed; inset: 0; z-index: 9800; display: grid; place-items: center; padding: var(--space-4); background: color-mix(in srgb, var(--bg) 55%, transparent); }
+.dialog-overlay .dialog-body:focus { outline: none; }
 .dialog-body { padding: var(--space-5); }
 .dialog-body h2 { font-size: var(--step-1); }
 .dialog-body .actions { justify-content: flex-end; margin-top: var(--space-5); }
@@ -224,9 +230,9 @@ button.badge.tag:hover { background: var(--accent-soft); }
 /* Tabs: boxes; the current one is filled and lifted. */
 .tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-1) 0 var(--space-2); margin: 0 0 var(--space-4); }
 .tabs a { display: inline-flex; align-items: center; min-height: var(--control-h); padding: 0 var(--space-3); color: var(--text); font-family: var(--font-display); font-weight: 700; text-decoration: none; background: var(--surface); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); }
-.tabs a:hover, .tabs button[role=tab]:hover { background: var(--surface2); }
-.tabs button[role=tab] { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--control-h); padding: 0 var(--space-3); color: var(--text); font: inherit; font-family: var(--font-display); font-weight: 700; background: var(--surface); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); cursor: pointer; }
-.tabs button[role=tab][aria-selected=true] { color: var(--fill-text); background: var(--fill); transform: translateY(-2px); box-shadow: var(--shadow-hard); }
+.tabs a:hover, .tabs [role=tab]:hover { background: var(--surface2); }
+.tabs [role=tab] { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--control-h); padding: 0 var(--space-3); color: var(--text); font: inherit; font-family: var(--font-display); font-weight: 700; background: var(--surface); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); cursor: pointer; }
+.tabs [role=tab][aria-selected=true] { color: var(--fill-text); background: var(--fill); transform: translateY(-2px); box-shadow: var(--shadow-hard); }
 .tabs a[aria-current=page] { color: var(--fill-text); background: var(--fill); transform: translateY(-2px); box-shadow: var(--shadow-hard); }
 
 .back-link { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px; margin: 0 0 var(--space-2); color: var(--muted); text-decoration: none; font-size: var(--step--1); font-weight: 550; }
@@ -366,12 +372,13 @@ button.badge.tag:hover { background: var(--accent-soft); }
 
 /* ---- command palette */
 .palette { width: min(36rem, calc(100vw - 32px)); margin-top: 12vh; }
-.palette input { border: 0 !important; border-bottom: 1px solid var(--border) !important; border-radius: 0 !important; min-height: 52px !important; font-size: var(--step-1) !important; padding: 0 var(--space-4) !important; }
-.palette ul { list-style: none; margin: 0; padding: var(--space-1); max-height: 50vh; overflow-y: auto; }
-.palette li { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
-.palette li[aria-selected=true] { background: var(--accent-soft); }
-.palette li svg { width: 20px; height: 20px; flex: none; }
-.palette li .kind { margin-left: auto; color: var(--muted); font-size: var(--step--2); text-transform: uppercase; letter-spacing: .06em; }
+.palette input { width: 100%;  border: 0 !important; border-bottom: 1px solid var(--border) !important; border-radius: 0 !important; min-height: 52px !important; font-size: var(--step-1) !important; padding: 0 var(--space-4) !important; }
+.palette [cmdk-list] { padding: var(--space-1); max-height: 50vh; overflow-y: auto; }
+.palette [cmdk-item] { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
+.palette [cmdk-item][data-selected=true] { background: var(--accent-soft); }
+.palette [cmdk-empty] { padding: var(--space-2) var(--space-3); }
+.palette [cmdk-item] svg { width: 20px; height: 20px; flex: none; }
+.palette [cmdk-item] .kind { margin-left: auto; color: var(--muted); font-size: var(--step--2); text-transform: uppercase; letter-spacing: .06em; }
 .palette-hint { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--step--2); display: flex; gap: var(--space-4); }
 
 /* ---- apps (settings, admin) */
@@ -757,7 +764,13 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 .banner .btn { min-height: 32px; }
 
 /* ---- context menus, snapping, window open */
-.context-menu { position: fixed; z-index: 9500; min-width: 12rem; }
+.context-menu { min-width: 12rem; }
+/* React Aria places the popover; the menu inside it sits in normal flow. */
+.menu .menu-item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-h); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; outline: none; }
+.menu .menu-item[data-focused], .menu .menu-item[data-hovered] { background: var(--accent-soft); }
+.menu .menu-item[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: -3px; }
+.menu .menu-item.is-danger { color: var(--danger); }
+.menu .menu-item[data-disabled] { opacity: .5; cursor: default; }
 .menu button.is-danger { color: var(--danger); }
 .menu button:disabled { opacity: .5; cursor: default; }
 .snap-preview { position: absolute; z-index: 4000; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 2px solid var(--accent); border-radius: var(--radius-lg); pointer-events: none; transition: all .12s var(--ease); }
@@ -1023,13 +1036,7 @@ button.chat-person:hover { text-decoration: underline; }
 
 /* MUD client (P6): log + side panel, split scrollback, find, buttons, gauges, map, captured lines, the rules editor. */
 .mud-toolbar { margin-bottom: var(--space-2); }
-.menu-details { position: relative; }
-.menu-details > summary { list-style: none; }
-.menu-details > summary::-webkit-details-marker { display: none; }
-.menu-pop { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; display: flex; flex-direction: column; min-width: 14rem; padding: var(--space-1); background: var(--surface); border: var(--line-width) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-card); }
-.menu-pop .btn { justify-content: flex-start; }
-summary[aria-haspopup="menu"]::after { content: ''; width: .4em; height: .4em; margin-left: .45em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-.15em) rotate(45deg); } /* says it opens a menu */
-.menu-pop-end { left: auto; right: 0; } /* a menu at the end of a row opens leftwards, inside the screen */
+.has-menu::after { content: ''; width: .4em; height: .4em; margin-left: .45em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-.15em) rotate(45deg); } /* says it opens a menu */
 .mud-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); flex: 1; min-height: 0; }
 .mud-layout.has-panel { grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem); }
 /* On its own page the client is a fixed height and the log scrolls inside it; in a window it fills the window. */
