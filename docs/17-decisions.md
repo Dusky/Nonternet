@@ -52,6 +52,7 @@
 | P9 | Quotas: 3 boards, 2 rings per trusted user; 50/100 MB homepages |
 | P10 | Ring boards: public read, members post |
 | P11 | Core stack: `pg` with plain SQL and forward-only migrations (no ORM), argon2id via `@node-rs/argon2`, `otplib` for TOTP, cookie sessions with hashed tokens, `Origin`-check CSRF, Fastify |
+| P13 | Shell interaction stack (2026-10-04, after comparing options): React Aria Components for menus, dialogs and tabs (chosen over Radix, Base UI and Ark for its accessibility and i18n depth); Sonner for toasts with Undo; cmdk for the palette; TanStack DB for client-side data, piloted on Boards and Mail (owners' choice, accepting that it is beta; fallback is React 19 `useOptimistic`); TanStack Form with zod 4 for forms; React 19.2 with the React Compiler; View Transitions for moving between screens. Background work in core moves to graphile-worker (Postgres, no new service). Not adopted: a rich-text editor (posts must read the same in the terminal), Better Auth (our auth already has audit, TOTP and OIDC; passkeys use SimpleWebAuthn directly), Tauri/Electron (the PWA covers installing), Meilisearch (Postgres search first; ParadeDB if ranking disappoints) |
 | P12 | Events use a transactional outbox in Postgres, relayed to Redis streams (at-least-once, idempotent consumers), rather than publishing straight from request handlers |
 
 ## Open questions
@@ -73,6 +74,7 @@
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
+| Q17 | Should boards or homepages federate over ActivityPub (e.g. Fedify), so people on Mastodon can follow them? Raised 2026-10-04 | not scheduled |
 
 ## Implementation notes
 - 2026-09-29: the shell has no nested routers. Full pages use the URL; windows use state (`10`).

@@ -116,10 +116,16 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **Taskbar**: apps menu with coloured app tiles, a search button, open windows with their icons,
   people online (opens People), a clock (Settings → Appearance can hide it, per device), mail,
   notifications, and an account menu with the person's avatar.
+- **Widgets come from libraries, styled by us** (2026-10-04): menus, context menus, tabs and the
+  confirm dialog use React Aria Components (`components/Menu.tsx`, `feedback.tsx`); toasts use Sonner,
+  and a toast can carry an Undo button (`toast(text, 'ok', { undo })`), so a reversible action can act
+  at once instead of asking first; the palette uses cmdk. All are unstyled and take our CSS, so the
+  themes are unchanged. Keep `confirm()` for what can't be taken back.
 - **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
-  person by handle). Alt+` brings the next window forward, minimized ones included. In a focused
-  title bar, Alt+Left and Alt+Right snap the window to half the screen. Menus follow the menu button
-  pattern (arrows, Home, End, Escape returns focus). Opening a window moves focus into it; closing
+  person by handle; letters in order match, so "stng" finds Settings). Alt+` brings the next window
+  forward, minimized ones included. In a focused title bar, Alt+Left and Alt+Right snap the window to
+  half the screen. Menus follow the menu button pattern (arrows, Home, End, typing a letter jumps to
+  an item, Escape returns focus). Opening a window moves focus into it; closing
   one gives focus to the window behind or the app's desktop icon.
 - **Home**: on the desktop a home panel sits beside the icons; on a phone it is above the app grid.
   It shows a greeting, counts (new posts, unread mail, notifications, people online), boards with
