@@ -24,13 +24,7 @@ export default function MudApp() {
       {status === 'closed' && <Alert kind="info">{t('mud.closed')} <button type="button" className="link" onClick={() => { disconnect(); connect(); }}>{t('mud.reconnect')}</button></Alert>}
       {status === 'connecting' && <p className="hint" role="status">{t('mud.connecting')}</p>}
       {status === 'reconnecting' && <p className="hint" role="status">{t('mud.reconnecting')}</p>}
-      <div className="toolbar mud-toolbar" role="toolbar" aria-label={t('mud.toolbar')}>
-        <button type="button" className="btn btn-quiet" aria-pressed={finding} onClick={() => setFinding(!finding)}>{t('mud.find')}</button>
-        <SaveLog />
-        <button type="button" className="btn btn-quiet" onClick={() => useMud.getState().clear()}>{t('mud.clear')}</button>
-        {settings.options.panel && <button type="button" className="btn btn-quiet" aria-pressed={panel} onClick={() => setPanel(!panel)}>{t('mud.panel')}</button>}
-        <button type="button" className="btn btn-quiet" aria-expanded={editing} onClick={() => setEditing(!editing)}>{t('mud.rules')}</button>
-      </div>
+      <Toolbar finding={finding} onFind={() => setFinding(!finding)} panel={settings.options.panel ? panel : null} onPanel={() => setPanel(!panel)} editing={editing} onRules={() => setEditing(!editing)} />
       {editing && <Suspense fallback={<Loading />}><ClientEditor onClose={() => setEditing(false)} /></Suspense>}
       {status !== 'error' && (
         <div className={`mud-layout${showPanel ? ' has-panel' : ''}`}>
@@ -54,6 +48,76 @@ function NativeHelp() {
       <p>{t('mud.nativeGmcp')}</p>
       <p><OpenAppLink app="settings" to="terminal">{t('chat.nativeSettings')}</OpenAppLink></p>
     </div>
+  );
+}
+
+// The tools above the log. On a wide screen every tool shows; when the MUD itself is narrow (a phone, a small window) the
+// ones used most stay (Find, the side panel) and the rest go into a "More" menu, so the toolbar stays one row and the
+// log keeps the room. Only one of the two layouts is drawn at a time.
+const NARROW_TOOLBAR = 680; // below this, all five tools no longer fit on one row
+function Toolbar({ finding, onFind, panel, onPanel, editing, onRules }: { finding: boolean; onFind: () => void; panel: boolean | null; onPanel: () => void; editing: boolean; onRules: () => void }) {
+  const t = useT();
+  const ref = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setNarrow(el.getBoundingClientRect().width < NARROW_TOOLBAR);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const note = (l: Line) => (l.key ? t(l.key) : l.text);
+  const find = <button type="button" className="btn btn-quiet" aria-pressed={finding} onClick={onFind}>{t('mud.find')}</button>;
+  const side = panel !== null && <button type="button" className="btn btn-quiet" aria-pressed={panel} onClick={onPanel}>{t('mud.panel')}</button>;
+  const clear = () => useMud.getState().clear();
+  return (
+    <div ref={ref} className="toolbar mud-toolbar" role="toolbar" aria-label={t('mud.toolbar')}>
+      {find}
+      {narrow ? (
+        <>
+          {side}
+          <MoreMenu label={t('mud.more')} items={[
+            { label: t('mud.saveTextLong'), run: () => downloadLog(useMud.getState().lines, 'txt', note) },
+            { label: t('mud.saveHtmlLong'), run: () => downloadLog(useMud.getState().lines, 'html', note) },
+            { label: t('mud.clear'), run: clear },
+            { label: t('mud.rules'), run: onRules, expanded: editing },
+          ]} />
+        </>
+      ) : (
+        <>
+          <SaveLog />
+          <button type="button" className="btn btn-quiet" onClick={clear}>{t('mud.clear')}</button>
+          {side}
+          <button type="button" className="btn btn-quiet" aria-expanded={editing} onClick={onRules}>{t('mud.rules')}</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// A small menu of buttons. Choosing one closes it; so do Escape (focus goes back to the button that opened it) and a
+// click anywhere else.
+function MoreMenu({ label, items }: { label: string; items: { label: string; run: () => void; expanded?: boolean }[] }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) ref.current?.removeAttribute('open'); };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [open]);
+  const close = () => { ref.current?.removeAttribute('open'); ref.current?.querySelector('summary')?.focus(); };
+  return (
+    <details ref={ref} className="menu-details" onToggle={(e) => setOpen(e.currentTarget.open)} onKeyDown={(e) => { if (e.key === 'Escape' && open) { e.preventDefault(); close(); } }}>
+      <summary className="btn btn-quiet" aria-haspopup="menu">{label}</summary>
+      <div className="menu-pop menu-pop-end" role="group" aria-label={label}>
+        {items.map((it) => (
+          <button key={it.label} type="button" className="btn btn-quiet" aria-expanded={it.expanded} onClick={() => { close(); it.run(); }}>{it.label}</button>
+        ))}
+      </div>
+    </details>
   );
 }
 

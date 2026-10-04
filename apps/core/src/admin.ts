@@ -225,6 +225,8 @@ export interface AuditFilter {
   from?: string; to?: string; before?: number; limit?: number;
 }
 
+const deletedName = (deps: AppDeps) => makeT(toPublicSite(deps.config))('account.deletedName');
+
 export async function listAudit(deps: AppDeps, f: AuditFilter) {
   const where: string[] = [];
   const params: unknown[] = [];
@@ -243,9 +245,15 @@ export async function listAudit(deps: AppDeps, f: AuditFilter) {
   const r = await deps.db.query<{
     id: string; created_at: Date; actor_id: string | null; actor_handle: string | null; actor_kind: string; action: string;
     target_type: string | null; target_id: string | null; before: unknown; after: unknown; origin: string;
+    target_label: string | null; target_slug: string | null; target_deleted: boolean | null;
   }>(
-    `SELECT a.id, a.created_at, a.actor_id, u.handle AS actor_handle, a.actor_kind, a.action, a.target_type, a.target_id, a.before, a.after, a.origin
+    // Who or what an entry is about, by its current name: the log keeps ids, so a renamed person reads correctly.
+    `SELECT a.id, a.created_at, a.actor_id, u.handle AS actor_handle, a.actor_kind, a.action, a.target_type, a.target_id, a.before, a.after, a.origin,
+            COALESCE(tu.handle, tb.name, tr.name) AS target_label, COALESCE(tb.slug, tr.slug) AS target_slug, tu.status = 'deleted' AS target_deleted
        FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
+       LEFT JOIN users tu ON a.target_type = 'user' AND tu.id = a.target_id
+       LEFT JOIN boards tb ON a.target_type = 'board' AND tb.id = a.target_id
+       LEFT JOIN rings tr ON a.target_type = 'ring' AND tr.id = a.target_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY a.id DESC LIMIT $${params.length}`, params);
   const page = r.rows.slice(0, limit);
@@ -253,6 +261,7 @@ export async function listAudit(deps: AppDeps, f: AuditFilter) {
     entries: page.map((e) => ({
       id: Number(e.id), at: new Date(e.created_at).toISOString(), actor_id: e.actor_id, actor_handle: e.actor_handle, actor_kind: e.actor_kind,
       action: e.action, target_type: e.target_type, target_id: e.target_id, before: e.before, after: e.after, origin: e.origin,
+      target_label: e.target_deleted ? deletedName(deps) : e.target_label, target_slug: e.target_slug,
     })),
     // Pass this back as ?before= for the next page. null when there are no more.
     next_before: r.rows.length > limit ? Number(page[page.length - 1]!.id) : null,

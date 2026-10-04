@@ -9,6 +9,13 @@ async function scan(page: Page, what: string) {
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `accessibility problems on ${what}`).toEqual([]);
 }
 const world = (page: Page) => page.getByRole('log', { name: 'What happens in the world' });
+// A tool from the MUD's toolbar: on a narrow screen the less used ones are under "More".
+async function tool(page: Page, name: string) {
+  const bar = page.getByRole('toolbar', { name: 'MUD tools' });
+  const more = bar.getByText('More', { exact: true });
+  if (await more.isVisible()) await more.click();
+  await bar.getByRole('button', { name, exact: true }).click();
+}
 async function type(page: Page, text: string) {
   await page.getByLabel('Type a command, like look or north').fill(text);
   await page.getByLabel('Type a command, like look or north').press('Enter');
@@ -16,6 +23,35 @@ async function type(page: Page, text: string) {
 
 test.describe('the MUD', () => {
   test.skip(!EVENNIA_BIN, 'needs Evennia (set EVENNIA_BIN)');
+
+  test('the toolbar stays on one row: on a phone the less used tools are under More', async ({ page, isMobile }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/mud');
+    const bar = page.getByRole('toolbar', { name: 'MUD tools' });
+    const find = bar.getByRole('button', { name: 'Find' });
+    await expect(find).toBeVisible();
+    if (!isMobile) {
+      await expect(bar.getByRole('button', { name: 'Clear the log' })).toBeVisible();
+      await expect(bar.getByText('More', { exact: true })).toHaveCount(0);
+      return;
+    }
+    const one = (await find.boundingBox())!.height;
+    expect((await bar.boundingBox())!.height).toBeLessThan(one * 2); // a single row
+    await expect(bar.getByRole('button', { name: 'Clear the log' })).toHaveCount(0);
+    const more = bar.getByText('More', { exact: true });
+    await more.click();
+    const menu = bar.getByRole('group', { name: 'More' });
+    await expect(menu.getByRole('button', { name: 'Client rules' })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Save the log as plain text' })).toBeVisible();
+    await scan(page, 'the MUD with its More menu open');
+    await page.keyboard.press('Escape');
+    await expect(menu.getByRole('button', { name: 'Client rules' })).toBeHidden();
+    await more.click();
+    await menu.getByRole('button', { name: 'Client rules' }).click();
+    await expect(menu.getByRole('button', { name: 'Client rules' })).toBeHidden(); // choosing closes the menu
+    await expect(page.getByRole('heading', { name: 'Client rules' }).first()).toBeVisible();
+  });
 
   for (const theme of ['webring', 'terminal']) {
     test(`a new player rolls a character and walks into town (${theme})`, async ({ page }) => {
@@ -64,7 +100,7 @@ test.describe('the MUD', () => {
     await expect(side.getByRole('img', { name: /You know 2 rooms in this area/ })).toBeVisible();
 
     // Rules: an alias, a trigger, a button.
-    await page.getByRole('button', { name: 'Client rules' }).click();
+    await tool(page, 'Client rules');
     const ed = page.getByRole('region', { name: 'Client rules' });
     await ed.getByRole('button', { name: 'Add one' }).click();
     await ed.getByLabel('When you type').fill('ww');
@@ -108,7 +144,7 @@ test.describe('the MUD', () => {
     expect(saved.settings.aliases[0]).toMatchObject({ pattern: 'ww', send: 'west;look' });
     expect(saved.settings.triggers[0].actions).toEqual([{ type: 'highlight', colour: 'green', line: false }, { type: 'capture', window: 'Places' }]);
     if (!isMobile) await scan(page, 'the MUD client with its panel');
-    await page.getByRole('button', { name: 'Client rules' }).click();
+    await tool(page, 'Client rules');
     await scan(page, 'the MUD client rules');
   });
 

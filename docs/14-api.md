@@ -63,7 +63,7 @@ Landing (`10`, design pass): `GET /landing` (public, cached 30 s): `{ online, th
 
 ## Admin
 `GET /admin/status` (tiles) · `GET /admin/metrics?metric=&from=&to=&step=`
-`GET /admin/audit?actor=&target_type=&target_id=&action=&origin=&from=&to=&before=&limit=` · `GET /admin/audit/object/:type/:id`
+`GET /admin/audit?actor=&target_type=&target_id=&action=&origin=&from=&to=&before=&limit=` · `GET /admin/audit/object/:type/:id` — each entry also carries `target_label` (a person's current handle, a board's or ring's name, or "Deleted user") and `target_slug` (boards and rings), looked up when read; the log itself keeps ids
 (built: newest first, `?before=` paging with `next_before`, `action=user.*` matches a family)
 `GET/PATCH /admin/settings` · `GET /admin/settings/:key/history` · `POST /admin/settings/:key/rollback`
 `GET/POST /admin/announcements` · `GET /admin/services/:name` · `GET /admin/jobs`

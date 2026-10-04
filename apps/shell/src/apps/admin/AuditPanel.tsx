@@ -4,9 +4,10 @@ import { api } from '../../api';
 import { Alert, EmptyState, TextField } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
 import { AppLink } from '../../nav';
+import { OpenAppLink } from '../../shell/OpenAppLink';
 import { useDebounced } from './useDebounced';
 
-export interface HistoryRow { id: number; at: string; actor_handle: string | null; actor_kind: string; action: string; target_type: string | null; target_id: string | null; before: Record<string, unknown> | null; after: Record<string, unknown> | null }
+export interface HistoryRow { id: number; at: string; actor_handle: string | null; actor_kind: string; action: string; target_type: string | null; target_id: string | null; target_label?: string | null; target_slug?: string | null; before: Record<string, unknown> | null; after: Record<string, unknown> | null }
 
 // ---------------------------------------------------------------- audit log
 
@@ -19,12 +20,23 @@ export function AuditItem({ entry }: { entry: HistoryRow }) {
     <li>
       <time dateTime={entry.at}>{formatWhen(entry.at)}</time>{' '}
       <strong>{entry.action}</strong> <span className="muted">{t('admin.audit.by', { actor: who })}</span>
-      {entry.target_type === 'user' && entry.target_id && <> <AppLink to={`users/${entry.target_id}`}>{entry.target_id.slice(0, 10)}</AppLink></>}
+      {entry.target_id && <> <Target entry={entry} /></>}
       {entry.target_type && entry.target_id && <> <AppLink to={`audit/replay/${encodeURIComponent(entry.target_type)}/${encodeURIComponent(entry.target_id)}`} aria-label={t('admin.replay.linkLabel', { id: entry.target_id })}>{t('admin.replay.link')}</AppLink></>}
       {change && <> <code>{change}</code></>}
       {reason && <> <q>{reason}</q></>}
     </li>
   );
+}
+
+// Who or what the entry is about, by name (the server looks up the current one), linked to where it lives.
+// The full id stays in the tooltip for copying; without a name, the short id is shown.
+function Target({ entry }: { entry: HistoryRow }) {
+  const id = entry.target_id!;
+  const label = entry.target_label ? (entry.target_type === 'user' ? `@${entry.target_label}` : entry.target_label) : id.slice(0, 10);
+  if (entry.target_type === 'user') return <AppLink to={`users/${id}`} title={id}>{label}</AppLink>;
+  if (entry.target_type === 'board' && entry.target_slug) return <OpenAppLink app="boards" to={entry.target_slug} title={id}>{label}</OpenAppLink>;
+  if (entry.target_type === 'ring' && entry.target_slug) return <OpenAppLink app="rings" to={entry.target_slug} title={id}>{label}</OpenAppLink>;
+  return entry.target_label ? <span title={id}>{label}</span> : null;
 }
 
 export function Audit() {

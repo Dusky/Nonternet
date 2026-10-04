@@ -137,3 +137,6 @@ panel: admins see Write, Edit and Take down there. Each of those actions is in t
 
 ## As built (applications, 2026-10-03)
 **Applications** (People group; shown when sign-up is by application or anyone is waiting, with the count): each person's handle, whether their email is confirmed, when they applied and what they wrote. *Approve*, or *Decline* with a reason they receive by email (`02`). Sign-up by application is chosen under Settings → Who can sign up.
+
+## As built (audit names, 2026-10-04)
+The audit log, replay and a person's history name who or what each entry is about: @handle for people (linked to their page), names for boards and rings (linked to them). Names are looked up when the log is read, so a renamed person reads correctly; the log keeps ids, and the full id is in the tooltip.
