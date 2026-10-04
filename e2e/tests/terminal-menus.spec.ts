@@ -41,7 +41,14 @@ test('every BBS menu option works from the Terminal window', async ({ page, isMo
     await expect(screen).toContainText('Main menu [');
     await expect(screen).not.toContainText(/Something went wrong|not answering/);
   };
-  const pauseThenMenu = async () => { await expect(screen).toContainText('press a key for the menu'); await term.type(' '); await backToMenu(); };
+  // A long list pages first ("-- press a key --"), then waits for the menu.
+  const pauseThenMenu = async () => {
+    await expect(screen).toContainText(/press a key/);
+    for (let i = 0; i < 20 && !(await screen.innerText()).includes('press a key for the menu'); i++) { await term.type(' '); await page.waitForTimeout(300); }
+    await expect(screen).toContainText('press a key for the menu');
+    await term.type(' ');
+    await backToMenu();
+  };
   const row = async (text: string) => (await screen.innerText()).split('\n').find((l) => l.includes(text))!.trim().split(/\s+/)[0]!;
 
   // Boards: the list lines up (colour codes never cut in half), a thread reads, a reply posts, and P acts at once.
@@ -65,10 +72,11 @@ test('every BBS menu option works from the Terminal window', async ({ page, isMo
   await term.type('qq');
   await backToMenu();
 
-  // New messages: nothing new for the reader now, said plainly and left on screen.
+  // New messages. The test site is shared, so other tests may have just posted: either it reads them out, or it says
+  // there is nothing new and waits for a key.
   await term.type('n');
-  await expect(screen).toContainText(/caught up|everything new/);
-  await pauseThenMenu();
+  await expect(screen).toContainText(/caught up|everything new|new messages/);
+  if (/Skip this board, Quit/.test(await screen.innerText())) { await term.type('q'); await backToMenu(); } else await pauseThenMenu();
 
   // Mail: read the conversation, then write one with W at once.
   await term.type('m');
