@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import type { Me } from '@app/shared';
 import { useSite, useT } from '../hooks';
-import { appById, visibleApps } from './apps';
+import { appById, appName, useVisibleApps, visibleApps } from './apps';
+import { useInstalled } from './installed';
 import { HomePanel } from './HomePanel';
 import { AppTile } from './icons';
 import { focusedWindow, restoreSession, saveSession, snapGeometry, useWindows } from './windows';
@@ -23,18 +24,22 @@ export function Desktop({ me }: { me: Me }) {
     return () => window.removeEventListener('resize', fit);
   }, [setViewport]);
 
-  // Reopen what was open last time, and keep remembering as windows come and go.
+  // Reopen what was open last time, and keep remembering as windows come and go. Waits for the list of added
+  // apps, so their windows come back too.
+  const installedLoaded = useInstalled((s) => s.loaded);
+  const apps = useVisibleApps(me, site);
   useEffect(() => {
+    if (!installedLoaded) return;
     const allowed = new Set(visibleApps(me, site).map((a) => a.id));
     restoreSession(me.id, (id) => allowed.has(id) && Boolean(appById(id)));
     return useWindows.subscribe(() => saveSession(me.id));
-  }, [me, site]);
+  }, [me, site, installedLoaded]);
 
   return (
     <div className="desktop" aria-label={t('nav.desktop')}>
       <div className="desktop-layout">
         <ul className="icons" aria-label={t('nav.apps')}>
-          {visibleApps(me, site).map((app) => (
+          {apps.map((app) => (
             <li key={app.id}><DesktopIcon app={app} /></li>
           ))}
         </ul>
@@ -50,7 +55,7 @@ export function Desktop({ me }: { me: Me }) {
 function DesktopIcon({ app }: { app: AppDef }) {
   const t = useT();
   const open = useWindows((s) => s.open);
-  const title = t(app.title);
+  const title = appName(app, t);
   const ctx = useContextMenu(() => [
     { label: t('app.openApp', { app: title }), onSelect: () => open(app.id) },
     { label: t('ctx.openPage'), onSelect: () => window.open(app.path, '_blank', 'noopener') },

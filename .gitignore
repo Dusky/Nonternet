@@ -10,3 +10,4 @@ test-results/
 playwright-report/
 data/
 deploy/ops/
+packs/build/

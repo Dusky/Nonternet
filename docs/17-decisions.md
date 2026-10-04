@@ -74,6 +74,7 @@
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
+| Q18 | Outside authors for installable apps: who may publish, how apps are reviewed, signed, reported and taken down, and how a sandboxed frame is kept from carrying data out by navigating itself (docs/15). The format is ready for it; nothing is decided | before anyone but the site publishes an app |
 | Q17 | Should boards or homepages federate over ActivityPub (e.g. Fedify), so people on Mastodon can follow them? Raised 2026-10-04 | not scheduled |
 
 ## Implementation notes
@@ -116,6 +117,8 @@
 - 2026-10-03: sign-up by application is built (`02`). Declining suspends the account rather than deleting it, so the same handle and address can't simply try again; the person is told why. Approval and email confirmation can happen in either order. Ops don't review applications yet.
 - 2026-10-04: BBS prompts. List prompts take letters as single keys (numbers still need Enter), and a screen that leaves something to read waits for a key before the menu returns (`04`). Classic BBS behaviour; both were missing, so options looked like they did nothing in the Terminal window.
 - 2026-10-04: the character copy from the MUD had a race. Two pulls on separate timers could overlap, and the older list, committing last, deleted a character the newer one had just saved, which also cleared the owner's featured choice (`ON DELETE SET NULL`). Pulls now queue in-process, take an advisory lock, and stamp rows with the database time taken before asking; an older pull never updates or deletes a row stamped later (`09`). Found as a flaky e2e test.
+
+- 2026-10-04: installable apps (owners' choice: the site's own apps first, outside authors later; each person picks what to add from what admins offer). Apps are packages run in a sandboxed, opaque-origin frame from the homes origin with no network, reaching the account only through a permission-checked bridge (Penpal). This follows the iframe-and-bridge model of Figma, Shopify and MCP Apps; Module Federation and Web Components were ruled out because they run app code on the shell's origin. All app data goes in one generic table, so export, import and deletion cover every app automatically. Todo is the first (`10`, `12`, `15`). Building it showed that Caddy's `ask` refused the bare homes domain, so the documented stable `/u/{id}/` links could never have had a certificate; it is now allowed.
 
 ## Verify list
 | # | Fact | Affects |

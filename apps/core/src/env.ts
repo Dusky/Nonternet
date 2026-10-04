@@ -28,6 +28,7 @@ function rateLimitEnabled(env: Record<string, string | undefined>, production: b
 //   SMTP_URL / MAIL_FROM   outgoing mail; without SMTP_URL mail is logged
 //   HOMES_DIR        where homepage files live; default ./data/homes
 //   HOMES_PUBLIC_PORT  port in homepage addresses, for local runs only
+//   APPS_DIR         installable app packages, one folder per app (docs/10); default ./data/apps
 //   TLS_ASK_SECRET   shared with Caddy's `ask` URL (?secret=…), optional
 //   FILES_DIR        where file-area uploads live; default ./data/files
 //   EXPORTS_DIR      where export archives are kept until they expire; default ./data/exports
@@ -58,6 +59,8 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     trustProxy: env.TRUST_PROXY === '1',
     rateLimit: rateLimitEnabled(env, production),
     homesUrl: (handle) => `${publicUrl.startsWith('https://') ? 'https' : 'http'}://${handle.toLowerCase()}.${config.site.homes_domain}${env.HOMES_PUBLIC_PORT ? `:${env.HOMES_PUBLIC_PORT}` : ''}/`,
+    appsDir: resolve(env.APPS_DIR ?? './data/apps'),
+    appsUrl: (path) => `${publicUrl.startsWith('https://') ? 'https' : 'http'}://${config.site.homes_domain}${env.HOMES_PUBLIC_PORT ? `:${env.HOMES_PUBLIC_PORT}` : ''}/apps/${path}`,
     exportsDir: resolve(env.EXPORTS_DIR ?? './data/exports'),
     opsDir: env.OPS_DIR ? resolve(env.OPS_DIR) : undefined,
     filesDir: resolve(env.FILES_DIR ?? './data/files'),

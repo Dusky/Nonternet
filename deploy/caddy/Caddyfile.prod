@@ -15,7 +15,8 @@
 }
 
 # Security headers for the site itself (docs/15). The shell's policy: only our own scripts; styles may be inline
-# (the editor and terminal inject them); the studio previews homepages from the homes domain in a frame;
+# (the editor and terminal inject them); the studio previews homepages from the homes domain in a frame, and
+# apps people add run in a sandboxed frame from the bare homes domain (docs/10, docs/15);
 # nothing may frame the site. Keep the policy in step with apps/shell/vite.config.ts (a test compares them).
 (site_headers) {
 	header {
@@ -24,7 +25,7 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 		X-Frame-Options "DENY"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; frame-src 'self' https://*.{$HOMES_DOMAIN}"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; frame-src 'self' https://{$HOMES_DOMAIN} https://*.{$HOMES_DOMAIN}"
 		-Server
 	}
 }

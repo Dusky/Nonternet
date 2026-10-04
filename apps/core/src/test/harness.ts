@@ -63,7 +63,7 @@ export function makeClock(start = Date.now()) {
 // TXT records the fake DNS knows about. A test sets one with dnsRecords.set(name, [values]).
 export const dnsRecords = new Map<string, string[]>();
 
-export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean; oidcClients?: AppDeps['oidcClients']; publicUrl?: string; irc?: AppDeps['irc']; mud?: AppDeps['mud'] } = {}) {
+export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean; oidcClients?: AppDeps['oidcClients']; publicUrl?: string; irc?: AppDeps['irc']; mud?: AppDeps['mud']; appsDir?: string } = {}) {
   const mailer = memoryMailer();
   const clock = makeClock();
   const deps: AppDeps = {
@@ -78,6 +78,8 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     dnsTxt: async (name) => { const r = dnsRecords.get(name.toLowerCase()); if (!r) throw Object.assign(new Error('not found'), { code: 'ENOTFOUND' }); return r.map((v) => [v]); },
     now: () => clock.ms,
     homesUrl: (handle) => `https://${handle.toLowerCase()}.example-homes.test/`,
+    appsDir: opts.appsDir,
+    appsUrl: (path) => `https://example-homes.test/apps/${path}`,
     exportsDir: mkdtempSync(join(tmpdir(), 'exports-test-')),
     filesDir: mkdtempSync(join(tmpdir(), 'files-test-')),
     homes: new HomeStore(mkdtempSync(join(tmpdir(), 'homes-test-'))),

@@ -79,7 +79,9 @@ role changes, suspensions, deletions.
 
 Minimum audited actions: user.created, user.role_changed, user.ops_changed, user.suspended,
 user.renamed, user.deleted, board.*, ring.*, homepage.hidden, mod.*, report.resolved,
-settings.changed, export.requested, custom_domain.*.
+settings.changed, export.requested, custom_domain.*, app.offered, app.withdrawn (an admin offering or
+withdrawing an installable app, docs/10). A person adding or removing an app, and what the app keeps for them,
+are their own private business and are not audited.
 
 ## As built (M9-D): avatars
 Avatars are re-encoded on upload (no metadata, 256×256 WebP). An admin can take one down with a reason; the person keeps their

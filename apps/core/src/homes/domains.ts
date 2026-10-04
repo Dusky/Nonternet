@@ -122,10 +122,12 @@ export async function removeDomain(deps: AppDeps, v: SessionUser, input: string,
 }
 
 // Caddy asks this before it gets a certificate for a name it has not seen (docs/15): only our own
-// people's homepage names and verified custom domains are worth one. Nothing else is.
+// people's homepage names, verified custom domains, and the bare homes domain (stable /u/ links and the apps
+// people add, docs/10) are worth one. Nothing else is.
 export async function mayHaveCertificate(deps: AppDeps, host: string): Promise<boolean> {
   const d = host.trim().toLowerCase();
   const homes = deps.config.site.homes_domain.toLowerCase();
+  if (d === homes) return true;
   if (d.endsWith(`.${homes}`)) {
     const label = d.slice(0, -(homes.length + 1));
     if (!/^[a-z][a-z0-9_-]{1,19}$/.test(label)) return false;

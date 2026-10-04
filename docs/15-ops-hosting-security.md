@@ -42,6 +42,7 @@ DB-backed versioned settings (`11`) override runtime keys; `site.*` only via con
 | `DB_RUNTIME_ROLE`, `DB_RUNTIME_PASSWORD` | the role core runs as: made if missing, granted everything except changing the audit log |
 | `IRC_HISTORY_DATABASE_URL` | Ergo's chat history database, read for exports and dumped by backups (Q9) |
 | `BBS_SECRET` | shared with the BBS (32+ characters); turns it on |
+| `APPS_DIR` | installable app packages, one folder per app with its `manifest.json` (docs/10); default `./data/apps`, `/app/apps` in the image. Core reads it at start to update the catalog; the homes server serves from it |
 
 ## Hosting costs & quotas
 - Budget drivers: homepage storage, bandwidth, backups, email sending.
@@ -145,3 +146,10 @@ report SLA breaches.
 - `homes-main.cjs` runs beside core (same image, port 3100, `HOMES_DIR` volume mounted read-only). It serves `{handle}.{homes_domain}` and verified custom domains and holds no cookies. In production it sits behind Caddy on-demand TLS (`deploy/caddy/Caddyfile.prod`).
 - `TLS_ASK_SECRET` (optional) is shared between core and Caddy's `ask` URL. `/internal/*` must not be reachable from outside.
 - `HOMES_PUBLIC_PORT` is only for local runs where homepage addresses carry a port.
+
+## Installable apps (built 2026-10-04, docs/10)
+- **Where they run.** Packages are served by the homes server at `{homes_domain}/apps/{id}@{version}/…` from `APPS_DIR` (the core image builds `packs/apps/*` into `/app/apps`), only while the site offers the app. Never on the shell's origin.
+- **Sandbox.** The shell frames an app with `sandbox="allow-scripts allow-forms"` and no `allow-same-origin`, so it has an opaque origin: no cookies, no storage, no access to the shell's page. Every app response also carries `Content-Security-Policy: sandbox allow-scripts allow-forms; default-src 'self'; connect-src 'none'; form-action 'none'; frame-ancestors {site}`, so the same holds if someone opens the address directly, and the app can't fetch anything or be framed by another site. Responses send `Access-Control-Allow-Origin: *` because a sandboxed frame's module scripts load with an opaque origin; the files are public and immutable (the address carries the version).
+- **Bridge.** The app reaches the account only through the shell (`shell/AppHost.tsx`, Penpal over `postMessage`). The shell listens to that frame's window alone, then both sides use a private `MessageChannel`. Each call is checked against the manifest's permissions (`storage`, `profile:read`, `notify`), and arguments are type- and length-checked. Data routes in core check again: the app must be offered, added by this person, and have asked for storage. Limits: 64 KB per document, 5 MB per app per person, 120 writes a minute.
+- **Certificates.** Caddy's `ask` now approves the bare `homes_domain` (it also carries the stable `/u/{id}/` homepage links, which could not get a certificate before). The shell's CSP allows framing `https://{homes_domain}` as well as `https://*.{homes_domain}`.
+- **Known limits (first-party apps only for now).** A sandboxed frame can still navigate itself, so a hostile app could carry data out in a URL; CSP has no way to stop that. Before outside authors can publish apps (Q18), apps need review and signing, and this needs a further control (for example, no navigation permission once browsers offer one). The site's fonts are not loaded inside apps (font-src 'self' on the homes origin); apps get the theme's font names and fall back to generic families.

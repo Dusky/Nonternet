@@ -1,0 +1,44 @@
+/* Todo uses only the theme's variables, which the shell sends over the bridge, so it matches every theme.
+   The fallbacks are for the moment before the theme arrives. */
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--surface, #fff); color: var(--text, #111); font-family: var(--font-body, system-ui, sans-serif);
+  font-size: var(--step-0, 1rem); line-height: 1.5;
+}
+main { max-width: 40rem; margin: 0 auto; padding: var(--space-4, 16px); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+input, button { font: inherit; color: inherit; }
+input:not([type=checkbox]) {
+  width: 100%; min-height: var(--control-h, 44px); padding: 0 var(--space-3, 12px); background: var(--bg, #fff);
+  border: var(--control-line, 2px) solid var(--line-strong, #111); border-radius: var(--radius-sm, 6px);
+}
+button {
+  min-height: var(--control-h, 44px); padding: 0 var(--space-3, 12px); cursor: pointer; font-weight: 700;
+  background: var(--fill, #111); color: var(--fill-text, #fff); border: var(--control-line, 2px) solid var(--line-strong, #111);
+  border-radius: var(--radius-sm, 6px);
+}
+button.quiet { background: none; color: var(--text, #111); border-color: transparent; font-weight: 600; }
+button.quiet:hover { background: var(--accent-soft, #eef); }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 3px solid var(--focus, #2563eb); outline-offset: 2px; }
+
+.add { display: flex; gap: var(--space-2, 8px); margin-bottom: var(--space-4, 16px); }
+.add button { flex: none; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: flex; align-items: center; gap: var(--space-2, 8px); min-height: var(--control-h, 44px); padding: var(--space-1, 4px) 0; border-bottom: 1px solid var(--border, #ddd); }
+.list li label { flex: 1; overflow-wrap: anywhere; cursor: pointer; }
+.list li.done label { color: var(--muted, #666); text-decoration: line-through; }
+.list input[type=checkbox] { width: 22px; height: 22px; flex: none; accent-color: var(--accent, #2563eb); }
+.list li button { flex: none; min-height: 36px; }
+
+.empty { color: var(--muted, #666); text-align: center; padding: var(--space-6, 32px) 0; }
+.foot { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3, 12px); color: var(--muted, #666); }
+.problem { margin-top: var(--space-3, 12px); padding: var(--space-2, 8px) var(--space-3, 12px); color: var(--danger, #b91c1c); border: var(--line-width, 2px) solid var(--danger, #b91c1c); border-radius: var(--radius-sm, 6px); }
+
+@media (max-width: 420px) {
+  .list li button { padding: 0 var(--space-2, 8px); }
+}

@@ -2,7 +2,8 @@ import { clearAllDrafts } from '../drafts';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import type { Me } from '@app/shared';
+import type { CatalogApp, Me } from '@app/shared';
+import { appKey, useInstalled } from './installed';
 import { api } from '../api';
 import { AnnouncementBanner } from '../components/Announcements';
 import { Icon } from '../components/Icon';
@@ -11,7 +12,7 @@ import { useIsDesktop, useSite, useT } from '../hooks';
 import { arrive } from '../alerts';
 import { pollMs, useLive, useLiveEvents } from '../live';
 import { clockPref } from '../theme';
-import { APPS, appById, visibleApps } from './apps';
+import { APPS, appById, appName, useVisibleApps } from './apps';
 import { CommandPalette } from './CommandPalette';
 import type { OnlinePerson } from './HomePanel';
 import { AppIcon, AppTile } from './icons';
@@ -49,6 +50,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   // (every minute when the stream is down).
   const unreadMail = useQuery({ queryKey: ['mail', 'unread', me.id], queryFn: () => api.get<{ unread: number }>('/mail/unread'), refetchInterval: poll, staleTime: 15_000, enabled: confirmed }).data?.unread ?? 0;
   const unread = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), refetchInterval: poll, staleTime: 15_000 }).data?.unread ?? 0;
+  useInstalledSync(me.id);
   const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), refetchInterval: 60_000, enabled: confirmed && desktop }).data?.people;
 
   // The tab says where you are and what is waiting.
@@ -59,7 +61,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const waiting = unreadMail + unread + chatWaiting;
   const subtitle = useWindows((w) => (appHere ? w.subtitles[appHere.id] : undefined));
   useEffect(() => {
-    const where = appHere ? [t(appHere.title), subtitle].filter(Boolean).join(' — ') : null;
+    const where = appHere ? [appName(appHere, t), subtitle].filter(Boolean).join(' — ') : null;
     document.title = tabTitle({ site: site.name, app: where, unread: waiting });
     setFavicon(waiting > 0);
   }, [site.name, appHere?.id, subtitle, waiting, t]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -89,7 +91,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   };
 
   const onHome = location.pathname === '/';
-  const apps = visibleApps(me, site);
+  const apps = useVisibleApps(me, site);
   return (
     <div className="shell">
       <a className="skip" href="#main">{t('nav.skip')}</a>
@@ -100,7 +102,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
 
         {desktop && (
           <div className="taskbar-apps">
-            <MenuButton label={t('nav.apps')} menuClassName="menu-grid" items={apps.map((a) => ({ label: t(a.title), icon: <AppTile id={a.id} />, onSelect: () => launch(a.id) }))}>
+            <MenuButton label={t('nav.apps')} menuClassName="menu-grid" items={apps.map((a) => ({ label: appName(a, t), icon: <AppTile id={a.id} />, onSelect: () => launch(a.id) }))}>
               <Icon name="grid" />{t('nav.apps')}
             </MenuButton>
             <button type="button" className="btn btn-quiet btn-icon" onClick={() => setPalette(true)} aria-label={t('palette.open')} aria-keyshortcuts="Control+K Meta+K" title={`${t('palette.open')} (Ctrl+K)`}><Icon name="search" /></button>
@@ -157,6 +159,25 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   );
 }
 
+// The apps this person added (docs/10): fetched once signed in, kept in the registry's store, and any window
+// for an app that has since been removed (or withdrawn) is closed.
+function useInstalledSync(meId: string) {
+  const q = useQuery({ queryKey: ['apps', 'installed', meId], queryFn: () => api.get<{ apps: CatalogApp[] }>('/me/apps'), staleTime: 60_000 });
+  const set = useInstalled((s) => s.set);
+  useEffect(() => {
+    if (q.data) set(q.data.apps);
+    else if (q.isError) set([]);
+  }, [q.data, q.isError, set]);
+  const apps = useInstalled((s) => s.apps);
+  const loaded = useInstalled((s) => s.loaded);
+  useEffect(() => {
+    if (!loaded) return;
+    const have = new Set(apps.map((a) => appKey(a.id)));
+    const w = useWindows.getState();
+    for (const win of w.wins) if (win.id.startsWith('app:') && !have.has(win.id)) w.close(win.id);
+  }, [apps, loaded]);
+}
+
 // The time, in the person's own format. Can be switched off in Settings → Appearance.
 function Clock() {
   const t = useT();
@@ -202,7 +223,7 @@ function TabBar({ me, mail, notes }: { me: Me; mail: number; notes: number }) {
 function TaskbarWindow({ win, front }: { win: Win; front: boolean }) {
   const t = useT();
   const { focus, minimize, toggleMaximize, snap, close } = useWindows();
-  const title = t(appById(win.id).title);
+  const title = appName(appById(win.id), t);
   const ctx = useContextMenu(() => [
     { label: win.minimized || !front ? t('window.focus', { app: title }) : t('window.minimize', { app: title }), onSelect: () => (win.minimized || !front ? focus(win.id) : minimize(win.id)) },
     { label: win.maximized ? t('window.restore', { app: title }) : t('window.maximize', { app: title }), onSelect: () => toggleMaximize(win.id) },

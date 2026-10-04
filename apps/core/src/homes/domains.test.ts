@@ -121,12 +121,13 @@ describe.skipIf(!dbAvailable)('custom domains', () => {
     await db.query(`UPDATE users SET status = 'active' WHERE id = $1`, [alice.id]);
   });
 
-  it('only certifies homepage names of real people and verified domains', async () => {
+  it('only certifies homepage names of real people, verified domains and the bare homes domain', async () => {
     expect((await ask('alice.example-homes.test')).statusCode).toBe(200);
     expect((await ask('nobody.example-homes.test')).statusCode).toBe(404);
     expect((await ask('a.b.example-homes.test')).statusCode).toBe(404);
     expect((await ask('random.example.org')).statusCode).toBe(404);
-    expect((await ask('example-homes.test')).statusCode).toBe(404);
+    // The bare homes domain carries the stable /u/{id}/ links and the apps people add (docs/07, docs/10).
+    expect((await ask('example-homes.test')).statusCode).toBe(200);
   });
 
   it('keeps Caddy’s question private when a secret is set', async () => {

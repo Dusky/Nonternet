@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { unzipSync } from 'fflate';
 import { CLIENT_NAMES, PREF_KINDS, homepageSettingsSchema, profileUpdateSchema } from '@app/shared';
 import { putClientSettings } from './client-settings';
+import { importAppData } from './apps';
 import { audit } from './audit';
 import { newId } from './crypto';
 import type { AppDeps } from './deps';
@@ -22,7 +23,7 @@ import { cleanPath } from './homes/files';
 // avatar, your homepage, your files and your SSH keys. Posts, mail, guestbooks, rings and the rest involve
 // other people or the site's own records, so they stay in the archive and the preview says why.
 
-export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys', 'clients'] as const;
+export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys', 'clients', 'apps'] as const;
 export type ImportPart = (typeof IMPORT_PARTS)[number];
 const SKIPPED = [
   ['posts', 'posts/posts.json'], ['mail', 'mail/conversations.json'], ['guestbook', 'guestbook.json'], ['rings', 'rings/'], ['boards', 'boards/'],
@@ -137,6 +138,11 @@ async function plan(deps: AppDeps, v: SessionUser, a: Archive): Promise<{ parts:
   if (keys.length) parts.push({ part: 'keys', count: keys.length, issues: [] });
   const clientFiles = CLIENT_NAMES.filter((n) => a.files.has(`${n}/client.json`));
   if (clientFiles.length) parts.push({ part: 'clients', count: clientFiles.length, issues: [] });
+  const appDocs = appDocsOf(a);
+  if (appDocs.length || appInstallsOf(a).length) {
+    const known = new Set((await deps.db.query<{ app_id: string }>(`SELECT app_id FROM app_catalog WHERE present`)).rows.map((r) => r.app_id));
+    parts.push({ part: 'apps', count: appDocs.length, issues: tally(appDocs.filter((d) => !known.has(d.app)).map(() => 'app_missing')) });
+  }
   const skipped: { kind: string; count: number }[] = [];
   for (const [kind, path] of SKIPPED) {
     if (path.endsWith('/')) { const n = [...a.files.keys()].filter((p) => p.startsWith(path)).length; if (n) skipped.push({ kind, count: n }); continue; }
@@ -262,6 +268,8 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
     return { restored, codes };
   });
 
+  await run('apps', async () => importAppData(deps, v, appInstallsOf(a), appDocsOf(a)));
+
   await deps.db.tx(async (q) => {
     await q.query(`UPDATE imports SET applied_at = now(), summary = $2 WHERE id = $1`, [id, JSON.stringify(result)]);
     await audit(q, { actorId: v.userId, actorKind: 'user', action: 'import.applied', targetType: 'user', targetId: v.userId,
@@ -269,6 +277,23 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
   });
   await fs.rm(join(dir(deps), `${id}.zip`), { force: true });
   return result;
+}
+
+// apps/installed.json and apps/{app}/{collection}.json, as the export writes them.
+function appInstallsOf(a: Archive): string[] {
+  const list = json<unknown>(a, 'apps/installed.json');
+  return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
+}
+function appDocsOf(a: Archive): { app: string; collection: string; id: string; data: unknown }[] {
+  const out: { app: string; collection: string; id: string; data: unknown }[] = [];
+  for (const path of a.files.keys()) {
+    const m = /^apps\/([^/]+)\/([^/]+)\.json$/.exec(path);
+    if (!m) continue;
+    const docs = json<unknown>(a, path);
+    if (!Array.isArray(docs)) continue;
+    for (const d of docs) if (d && typeof d === 'object' && typeof (d as { id?: unknown }).id === 'string') out.push({ app: m[1]!, collection: m[2]!, id: (d as { id: string }).id, data: (d as { data?: unknown }).data });
+  }
+  return out;
 }
 
 // Uploads nobody applied are deleted after an hour, with their archives.

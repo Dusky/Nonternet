@@ -52,7 +52,7 @@ export async function startStack(): Promise<() => Promise<void>> {
   const adminUrl = process.env.TEST_DATABASE_URL;
   if (!adminUrl) throw new Error('Set TEST_DATABASE_URL (a Postgres you can create databases on) to run the end-to-end tests.');
   const coreBundle = join(ROOT, 'apps/core/dist/main.cjs');
-  if (!existsSync(coreBundle) || !existsSync(join(ROOT, 'apps/shell/dist/index.html'))) throw new Error('Build first: pnpm build');
+  if (!existsSync(coreBundle) || !existsSync(join(ROOT, 'apps/shell/dist/index.html')) || !existsSync(join(ROOT, 'packs/build/todo/manifest.json'))) throw new Error('Build first: pnpm build');
 
   rmSync(TMP, { recursive: true, force: true });
   mkdirSync(TMP, { recursive: true });
@@ -86,6 +86,7 @@ oidc:
     HOMES_DIR: join(TMP, 'homes'),
     HOMES_PUBLIC_PORT: String(HOMES_PORT),
     HOMES_PORT: String(HOMES_PORT),
+    APPS_DIR: join(ROOT, 'packs/build'), // the built app packages (docs/10)
     BBS_SECRET: randomBytes(24).toString('base64url'),
     RATE_LIMIT: 'off', // the tests sign up far more people than one address may in an hour
     OPS_DIR: join(TMP, 'ops'), // updates and restarts: tests/updates.spec.ts plays the host agent

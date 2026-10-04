@@ -1,4 +1,5 @@
 import { buildApp } from './app';
+import { syncCatalog } from './apps';
 import { depsFromEnv } from './env';
 import { pruneOutbox, redisBus, startRelay, type Relay } from './events';
 import { grantRuntimeRole, migrate } from './migrate';
@@ -33,6 +34,7 @@ async function start() {
     await migrate(deps.db, console.log);
   }
   await loadSettings(deps); // saved settings go over the config file's values
+  await syncCatalog(deps, console.log); // the installable apps in APPS_DIR (docs/10)
   const app = await buildApp(deps);
 
   // Events are always written to the outbox. With REDIS_URL set, the relay publishes them to the

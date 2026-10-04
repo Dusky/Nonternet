@@ -71,6 +71,10 @@ README.txt               # human explanation of the archive
   included (PROPOSED), except as quoted context in thread files if we add that later (OPEN).
 - Ring founders get ring metadata and member lists (public info), not members' content.
 
+## Apps people add (built 2026-10-04, docs/10)
+- `apps/installed.json`: the ids of the apps the person has added.
+- `apps/{app}/{collection}.json`: everything each app kept for them, as `[{ id, data, updated_at }]`, whether or not the app is still added or still offered. Apps keep data only in core's one generic store (`app_data`), so every app's data is in the export and erased with the account without each app having to remember.
+
 ## Bringing back an export (built 2026-10-02)
 Settings, Your data, "Bring back an export". Upload the zip, see a preview, then bring it back with your password.
 - **What comes back**: only what is yours alone (and, since the polish phase, your chat and MUD client settings):
@@ -79,7 +83,8 @@ Settings, Your data, "Bring back an export". Upload the zip, see a preview, then
   - your picture;
   - your homepage files and settings;
   - your files in file areas that exist here;
-  - your SSH keys.
+  - your SSH keys;
+  - what your apps kept, and which apps you had added (for apps this site has; an app it doesn't have is reported and its data stays in the archive).
 
   Each goes through the same checks as doing it by hand: quotas, file types, upload rights, the 500-file cap and safe paths. So a file that doesn't fit is reported and the rest still comes back. Homepage files already here are kept unless you tick "replace".
 - **What stays in the archive**: posts, mail, guestbook entries, rings, boards, chat, MUD characters, vouches, and wall lines, polls and votes. They involve other people or the site's own records. The preview lists them with counts.

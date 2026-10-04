@@ -13,3 +13,4 @@ export * from './vouches';
 export * from './files';
 export * from './classics';
 export * from './clients';
+export * from './apps';

@@ -30,6 +30,7 @@ import { bbsRoutes } from './routes/bbs';
 import { landingRoutes } from './routes/landing';
 import { eventRoutes } from './routes/events';
 import { personalRoutes } from './routes/personal';
+import { appsRoutes } from './routes/apps';
 import { classicsRoutes } from './routes/classics';
 import { isPublicRoute } from './public-routes';
 
@@ -123,6 +124,7 @@ export async function buildApp(deps: AppDeps) {
   landingRoutes(app, deps);
   eventRoutes(app, deps);
   personalRoutes(app, deps);
+  appsRoutes(app, deps);
   classicsRoutes(app, deps);
   return app;
 }

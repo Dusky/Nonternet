@@ -149,3 +149,11 @@ Live hint `classics`.
 ## Homepage toys (M9-E2)
 Public: `GET /widgets/button.svg|png?text=&fg=&bg=`, `GET /rings/:slug/banners`, `GET /rings/:slug/banner/:kind`. Signed in: `POST /homes/:handle/guestbook-ticket {return_to}` → `{redirect}`;
 the widget guestbook `POST` also takes `ticket`. Ring ops/admins: `PUT|DELETE /rings/:slug/banner/:kind` (image bytes), `POST /rings/:slug/banner/:kind/hide|restore {reason}`.
+
+## Installable apps (2026-10-04, docs/10)
+All need a session. The data routes are what the shell's bridge calls on an app's behalf; an app never calls the API itself (it has no network).
+- `GET /api/v1/apps`: apps the site offers, with `installed` and `has_data` for the caller, and each app's `url` on the homes origin.
+- `GET /api/v1/me/apps`: the caller's added apps (still offered).
+- `PUT /api/v1/me/apps/{id}`: add. `DELETE /api/v1/me/apps/{id}`: remove, keeping data. `DELETE /api/v1/me/apps/{id}/data`: delete what it kept.
+- `GET /api/v1/me/apps/{id}/data/{collection}`, `PUT|DELETE /api/v1/me/apps/{id}/data/{collection}/{doc}` (`{ data }`). Refused unless the app is offered, added, and asked for `storage`. 64 KB per document, 5 MB per app per person (`413 too_large`), 120 writes a minute.
+- Admin: `GET /api/v1/admin/apps` (with `people` and `present`), `PUT /api/v1/admin/apps/{id}` `{ offered }` (audited).

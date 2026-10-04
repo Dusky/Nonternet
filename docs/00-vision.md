@@ -50,6 +50,7 @@ Use these words in all UI, docs and code comments. No invented metaphor or setti
 | Personal sites | **homepages** | |
 | The web UI | **the shell** | internal term; UI can just say the site name |
 | Control panel | **admin console** | |
+| Add-ons people put on their desktop | **apps** | "Add apps", "Remove". The site's own parts (Boards, Mail…) are apps too; the ones you add are just apps you chose (docs/10) |
 
 Retired terms from earlier planning: town, neighborhood, sysop (except where an external tool uses it
 internally), peer, handle@town.

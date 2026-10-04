@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, type ReactNode } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { Me } from '@app/shared';
 import { useIsDesktop, useMe, useSite, useT } from './hooks';
 import { PageNav } from './nav';
-import { APPS, type AppDef } from './shell/apps';
+import { APPS, appName, installedOrPlaceholder, type AppDef } from './shell/apps';
+import { useInstalled } from './shell/installed';
 import { Desktop } from './shell/Desktop';
 import { Launcher } from './shell/Launcher';
 import { Shell } from './shell/Shell';
@@ -51,7 +52,7 @@ function AppPage({ app, me }: { app: AppDef; me: Me }) {
   return (
     <Shell me={me}>
       <section className="app-page" aria-labelledby="app-title">
-        <h1 id="app-title">{t(app.title)}</h1>
+        <h1 id="app-title">{appName(app, t)}</h1>
         <PageNav base={app.path} id={app.id}>
           <AppBoundary><Suspense fallback={<Loading />}><app.Component /></Suspense></AppBoundary>
         </PageNav>
@@ -80,7 +81,7 @@ function PublicFrame({ app }: { app: AppDef }) {
       <AnnouncementBanner />
       <main className="stage" id="main">
         <section className="app-page" aria-labelledby="app-title">
-          <h1 id="app-title">{t(app.title)}</h1>
+          <h1 id="app-title">{appName(app, t)}</h1>
           <PageNav base={app.path} id={app.id}>
             <AppBoundary><Suspense fallback={<Loading />}><app.Component /></Suspense></AppBoundary>
           </PageNav>
@@ -99,6 +100,17 @@ function AppRoute({ app }: { app: AppDef }) {
     return <AppPage app={app} me={me.data} />;
   }
   return <RequireUser>{(user) => <AppPage app={app} me={user} />}</RequireUser>;
+}
+
+// An app someone added, on its own page (a phone, or a link). Before the list of added apps arrives it shows
+// nothing; an app that isn't added says so, with a way to add it.
+function InstalledAppRoute() {
+  const { id = '' } = useParams();
+  return <RequireUser>{(user) => <InstalledAppPage id={id} me={user} />}</RequireUser>;
+}
+function InstalledAppPage({ id, me }: { id: string; me: Me }) {
+  const app = useInstalled((s) => s.apps.find((a) => a.id === id));
+  return <AppPage app={installedOrPlaceholder(id, app)} me={me} />;
 }
 
 function Setup2faRoute() {
@@ -130,6 +142,7 @@ export function App() {
       <Route path="/guestbook-sign" element={<RequireUser>{() => <GuestbookSignPage />}</RequireUser>} />
       <Route path="/report/homepage/:handle" element={<RequireUser>{() => <ReportHomepagePage />}</RequireUser>} />
       {APPS.map((app) => <Route key={app.id} path={`${app.path}/*`} element={<AppRoute app={app} />} />)}
+      <Route path="/apps/:id/*" element={<InstalledAppRoute />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>

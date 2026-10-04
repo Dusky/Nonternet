@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon';
 import { Loading } from '../components/ui';
 import { useT } from '../hooks';
 import { WindowNav } from '../nav';
-import { appById } from './apps';
+import { appById, appName } from './apps';
 import { AppIcon } from './icons';
 import { resizeFrom, snapZone, useWindows, type Edge, type Win } from './windows';
 
@@ -23,7 +23,7 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
   const titleBar = useRef<HTMLElement>(null);
   useEffect(() => { titleBar.current?.focus({ preventScroll: true }); }, []);
   const app = appById(win.id);
-  const title = t(app.title);
+  const title = appName(app, t);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const sizing = useRef<{ edge: Edge; startX: number; startY: number; start: { x: number; y: number; w: number; h: number } } | null>(null);
 

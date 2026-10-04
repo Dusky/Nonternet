@@ -1,0 +1,12 @@
+{
+  "name": "@app/pack-todo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "@app/app-sdk": "workspace:*" },
+  "devDependencies": { "vite": "^6.4.3" }
+}

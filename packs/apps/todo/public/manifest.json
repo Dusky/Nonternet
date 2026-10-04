@@ -1,0 +1,9 @@
+{
+  "id": "todo",
+  "name": "Todo",
+  "version": "1.0.0",
+  "description": "A simple list of things to do, kept on your account.",
+  "icon": "M9 6h11v2H9zM9 11h11v2H9zM9 16h11v2H9zM4 5.5 5.5 7 7.8 4.6 6.9 3.8 5.5 5.3 4.8 4.7zM4 10.5 5.5 12 7.8 9.6 6.9 8.8 5.5 10.3 4.8 9.7zM4.5 15h2.5v2.5H4.5z",
+  "sticker": 2,
+  "permissions": ["storage"]
+}

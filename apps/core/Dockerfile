@@ -7,8 +7,10 @@ COPY packages ./packages
 # The lockfile covers every workspace package, so pnpm wants each one's manifest present.
 COPY e2e/package.json ./e2e/package.json
 COPY apps/core ./apps/core
-RUN pnpm install --frozen-lockfile --filter @app/core...
-RUN pnpm --filter @app/core build
+# The app packages people can add (docs/10), built here and served by the homes server from APPS_DIR.
+COPY packs ./packs
+RUN pnpm install --frozen-lockfile --filter @app/core... --filter "./packs/apps/*..."
+RUN pnpm --filter @app/core build && pnpm --filter "./packs/apps/*" build
 
 FROM node:22-alpine
 ENV NODE_ENV=production
@@ -16,6 +18,8 @@ ENV NODE_ENV=production
 RUN apk add --no-cache postgresql16-client tar
 WORKDIR /app
 COPY --from=build /repo/apps/core/dist ./
+COPY --from=build /repo/packs/build ./apps
+ENV APPS_DIR=/app/apps
 # Native modules (argon2, sharp) are installed here, not bundled.
 RUN npm install --omit=dev --no-audit --no-fund && chown -R node:node /app
 # Homepage files live here; a named volume mounted on it starts with these permissions.

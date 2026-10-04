@@ -37,6 +37,7 @@
     "cmdk": "1.1.1",
     "codemirror": "^6.0.2",
     "irc-framework": "4.14.0",
+    "penpal": "8.0.1",
     "qrcode": "^1.5.4",
     "react": "^18.3.0",
     "react-aria-components": "1.21.1",

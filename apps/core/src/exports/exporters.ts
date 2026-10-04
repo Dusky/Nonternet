@@ -6,6 +6,7 @@ import type { AppDeps } from '../deps';
 import { formatMbox } from './mbox';
 import { CLIENT_NAMES } from '@app/shared';
 import { getClientSettings } from '../client-settings';
+import { exportAppData } from '../apps';
 import { mudExport } from '../mud/sync';
 
 // Ownership is a feature (docs/12, CLAUDE.md): everything a person makes is in their export. Every
@@ -275,11 +276,24 @@ const clients: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients];
+// What apps people added kept for them (docs/10): apps/installed.json, and apps/{app}/{collection}.json for every
+// app with data, whether or not it is still added or still offered.
+const appsData: Exporter = {
+  id: 'apps',
+  tables: ['app_installs', 'app_data'],
+  async run({ deps, user, add }) {
+    const { installed, data } = await exportAppData(deps.db, user.id);
+    if (installed.length) add('apps/installed.json', json(installed));
+    for (const [app, cols] of data) for (const [col, docs] of cols) add(`apps/${app}/${col}.json`, json(docs));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.
 export const EXEMPT: Record<string, string> = {
+  app_catalog: 'the packages this site offers, chosen by admins; what an app keeps for a person is in app_data',
   legal_pages: 'site documents written by admins',
   imports: 'a record of archives the person uploaded to bring back; the content itself is in their export',
   guestbook_tickets: 'one-use sign-in passes, security state rather than content',

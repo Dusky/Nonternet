@@ -107,6 +107,42 @@ export async function buildHomesApp(deps: AppDeps) {
 
   app.get('/healthz', async () => ({ status: 'ok' }));
 
+  // Installable apps (docs/10, docs/15): homes_domain/apps/{id}@{version}/…, from the apps folder, only while the
+  // site offers the app. Every response carries a sandbox policy, so an app runs with an opaque origin even if
+  // someone opens its address directly, can't fetch anything (it talks only to the shell's bridge), and can only
+  // be framed by the site. The address carries the version, so files are cached for good.
+  const APP_PATH = /^\/apps\/([a-z][a-z0-9-]{1,30})@(\d+\.\d+\.\d+)(\/.*)?$/;
+  const APP_CSP = `sandbox allow-scripts allow-forms; default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors ${siteOrigin}`;
+  async function serveApp(req: FastifyRequest, reply: FastifyReply, id: string, version: string, rest: string): Promise<FastifyReply> {
+    const notFound = () => page(reply, 404, en['homes.notFound'], '');
+    if (!deps.appsDir) return notFound();
+    const row = await deps.db.query<{ version: string }>(`SELECT version FROM app_catalog WHERE app_id = $1 AND offered AND present`, [id]);
+    if (row.rows[0]?.version !== version) return notFound();
+    const segs = rest.split('/').filter(Boolean);
+    if (segs.length === 0 || segs.some((x) => x.startsWith('.') || x === '..')) return notFound();
+    const rel = segs.join('/');
+    const mime = MIME[extOf(rel)];
+    const root = posix.join(deps.appsDir.replace(/\\/g, '/'), id);
+    try { const st = await fs.lstat(posix.join(root, rel)); if (!st.isFile() || st.isSymbolicLink()) return notFound(); } catch { return notFound(); }
+    if (!mime) return notFound();
+    reply.hijack();
+    const stream = send(req.raw, encodeURI(rel), { root, dotfiles: 'deny', index: false, cacheControl: false, etag: true, lastModified: false });
+    stream.on('headers', (res) => {
+      res.setHeader('content-type', mime);
+      res.setHeader('x-content-type-options', 'nosniff');
+      res.setHeader('content-security-policy', APP_CSP);
+      res.setHeader('referrer-policy', 'no-referrer');
+      res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+      res.setHeader('cross-origin-resource-policy', 'cross-origin');
+      // A sandboxed frame's requests come from an opaque origin; module scripts need this to load.
+      res.setHeader('access-control-allow-origin', '*');
+      res.setHeader('cache-control', 'public, max-age=31536000, immutable');
+    });
+    stream.on('error', (err: { status?: number }) => { reply.raw.statusCode = err.status ?? 500; reply.raw.end(); });
+    stream.pipe(reply.raw);
+    return reply;
+  }
+
   app.route({
     method: ['GET', 'HEAD'], url: '/*',
     handler: async (req, reply) => {
@@ -118,6 +154,8 @@ export async function buildHomesApp(deps: AppDeps) {
 
       // The stable address: homes_domain/u/{user id}/… goes to whoever has that ID now.
       if (host === home) {
+        const app = APP_PATH.exec(pathname);
+        if (app) return serveApp(req, reply, app[1]!, app[2]!, app[3] ?? '/');
         const m = /^\/u\/(u_[0-9A-Z]{26})(\/.*)?$/.exec(pathname);
         if (m) {
           const r = await deps.db.query<{ handle: string }>(`SELECT handle FROM users WHERE id = $1 AND status = 'active'`, [m[1]]);

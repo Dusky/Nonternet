@@ -22,6 +22,8 @@ export interface AppDeps {
   filesDir: string;         // where file-area uploads live, one file per ID
   homes: HomeStore;         // where homepage files live
   homesUrl: (handle: string) => string; // a person's homepage address
+  appsDir?: string;         // installable app packages, one folder each (docs/10); none when unset
+  appsUrl: (path: string) => string; // an address under the apps area of the homes origin
   oidcClients: ResolvedOidcClient[]; // services allowed to sign users in (site config + env secrets)
   tlsAskSecret?: string;    // when set, Caddy's certificate question must carry it
   dnsTxt: (name: string) => Promise<string[][]>; // TXT lookup, injectable so tests need no network

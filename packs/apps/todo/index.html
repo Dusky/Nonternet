@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Todo</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <main id="app" aria-busy="true">
+      <form id="add" class="add" autocomplete="off">
+        <label class="visually-hidden" for="new">New task</label>
+        <input id="new" name="text" maxlength="500" placeholder="Add a task" required />
+        <button type="submit">Add</button>
+      </form>
+      <ul id="list" class="list" aria-label="Tasks"></ul>
+      <p id="empty" class="empty" hidden>Nothing to do.</p>
+      <footer id="foot" class="foot" hidden>
+        <span id="left" aria-live="polite"></span>
+        <button type="button" id="clear" class="quiet">Clear done</button>
+      </footer>
+      <p id="problem" class="problem" role="alert" hidden></p>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

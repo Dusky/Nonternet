@@ -3,7 +3,9 @@ import { create } from 'zustand';
 // The window manager (docs/10): desktop-style windows on large screens. This file is only the
 // state and the rules; it draws nothing, so the rules can be tested on their own.
 
-export type AppId = 'boards' | 'rings' | 'people' | 'mail' | 'files' | 'chat' | 'terminal' | 'mud' | 'homepages' | 'studio' | 'notifications' | 'settings' | 'admin';
+export type BuiltinAppId = 'boards' | 'rings' | 'people' | 'mail' | 'files' | 'chat' | 'terminal' | 'mud' | 'homepages' | 'studio' | 'addapps' | 'notifications' | 'settings' | 'admin';
+// An app someone added (docs/10) is `app:` and its id from the catalog.
+export type AppId = BuiltinAppId | `app:${string}`;
 
 export interface Win {
   id: AppId;
@@ -274,7 +276,7 @@ export function restoreSession(userId: string, valid: (id: AppId) => boolean): n
   if (!saved || saved.user !== userId || !Array.isArray(saved.wins)) return 0;
   const s = useWindows.getState();
   let n = 0;
-  for (const w of saved.wins.slice(0, 13)) {
+  for (const w of saved.wins.slice(0, 40)) { // a generous cap: built-in apps plus the ones someone added
     if (!w || typeof w.id !== 'string' || !valid(w.id) || typeof w.path !== 'string' || w.path.length > 300) continue;
     s.open(w.id, w.path);
     if (w.maximized) s.toggleMaximize(w.id);

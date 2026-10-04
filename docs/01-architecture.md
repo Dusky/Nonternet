@@ -54,8 +54,12 @@ repo/
 ├── packages/
 │   ├── shared/          # zod schemas, enums (roles, states), vocabulary strings
 │   ├── strings/         # all UI copy; name/domain interpolated from config
+│   ├── app-sdk/         # the app side of the bridge for installable apps (docs/10)
 │   ├── ftn/             # FTN text helpers (later, for federation)
 │   └── ui-themes/       # theme tokens
+├── packs/
+│   ├── apps/<id>/       # installable app packages (manifest + Vite build), e.g. todo
+│   └── build/<id>/      # built packages; APPS_DIR points here, the homes server serves them
 ├── services/
 │   ├── bbs/             # terminal BBS service + art pack (last milestone)
 │   ├── irc/             # Ergo config template + auth script

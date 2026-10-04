@@ -6,7 +6,7 @@ import type { BoardSummary, MailThreadSummary, Me, RingSummary } from '@app/shar
 import { api } from '../api';
 import { Icon } from '../components/Icon';
 import { useIsDesktop, useSite, useT } from '../hooks';
-import { appById, visibleApps } from './apps';
+import { appById, appName, useVisibleApps } from './apps';
 import { AppIcon } from './icons';
 import { useWindows, type AppId } from './windows';
 
@@ -63,9 +63,10 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
     if (desktop) { openWin(app, path); navigate('/'); } else navigate(`${appById(app).path}${path ? `/${path}` : ''}`);
   };
 
+  const apps = useVisibleApps(me, site);
   const items = useMemo<Item[]>(() => {
     const all: Item[] = [
-      ...visibleApps(me, site).map((a) => ({ key: `app:${a.id}`, label: t(a.title), kind: t('palette.kind.app'), icon: <AppIcon id={a.id} size={20} />, run: () => go(a.id) })),
+      ...apps.map((a) => ({ key: `app:${a.id}`, label: appName(a, t), kind: t('palette.kind.app'), icon: <AppIcon id={a.id} size={20} />, run: () => go(a.id) })),
       ...boards.map((b) => ({ key: `board:${b.slug}`, label: b.name, kind: t('palette.kind.board'), icon: <AppIcon id="boards" size={20} />, run: () => go('boards', b.slug) })),
       ...(['profile', 'appearance', 'password', 'two-factor', 'terminal', 'data'] as const).map((s) => ({
         key: `settings:${s}`, label: t(`settings.tab.${s === 'two-factor' ? 'twofa' : s}`), kind: t('app.settings'), icon: <AppIcon id="settings" size={20} />, run: () => go('settings', s),
@@ -85,7 +86,7 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
       found.push({ key: `person:${term}`, label: t('palette.person', { handle: term }), kind: t('palette.kind.person'), icon: <Icon name="user" size={20} />, run: () => go('people', term) });
     }
     return found.slice(0, 40);
-  }, [q, boards, threads, rings, mail, recent, me, site, desktop]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, boards, threads, rings, mail, recent, apps, desktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const d = dialog.current;

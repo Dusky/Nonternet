@@ -3,6 +3,7 @@ import { SideNav } from '../../components/ui';
 import { useMe, useSite, useT } from '../../hooks';
 import { matchRoute, useAppNav } from '../../nav';
 import { VouchesPanel } from './VouchesPanel';
+import { AppsPanel } from './AppsPanel';
 import { BbsPanel } from './BbsPanel';
 import { AuditReplay, CommandConsole, StatsPanel } from './ConsoleDepth';
 import { ReportQueue } from '../boards/ReportQueue';
@@ -16,7 +17,7 @@ import { Audit } from './AuditPanel';
 import { BoardsTable, HomepagesTable, RingsTable } from './ContentPanels';
 import { Invites, UserPage, Users } from './UsersPanels';
 
-const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id', 'bbs', 'updates', 'applications'] as const;
+const ROUTES = ['status', 'users', 'users/:id', 'invites', 'audit', 'reports', 'boards', 'rings', 'homepages', 'settings', 'announcements', 'legal', 'irc', 'mud', 'backups', 'vouches', 'stats', 'console', 'audit/replay/:type/:id', 'bbs', 'updates', 'applications', 'apps'] as const;
 
 export default function AdminApp() {
   const t = useT();
@@ -48,6 +49,7 @@ export default function AdminApp() {
         { to: 'boards', label: t('admin.tab.boards') },
         { to: 'rings', label: t('admin.tab.rings') },
         { to: 'homepages', label: t('admin.tab.homepages') },
+        { to: 'apps', label: t('admin.tab.apps') },
       ] },
       ...(site.services.irc || site.services.mud || site.services.bbs ? [{ label: t('admin.group.services'), items: [
         ...(site.services.irc ? [{ to: 'irc', label: t('admin.tab.irc') }] : []),
@@ -76,6 +78,7 @@ export default function AdminApp() {
       {route?.pattern === 'boards' && <BoardsTable />}
       {route?.pattern === 'rings' && <RingsTable />}
       {route?.pattern === 'homepages' && <HomepagesTable />}
+      {route?.pattern === 'apps' && <AppsPanel />}
       {route?.pattern === 'settings' && <SettingsPanel />}
       {route?.pattern === 'announcements' && <AnnouncementsPanel />}
       {route?.pattern === 'audit' && <Audit />}

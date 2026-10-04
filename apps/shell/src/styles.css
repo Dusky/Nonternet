@@ -1128,3 +1128,15 @@ button.chat-person:hover { text-decoration: underline; }
 .application-text { margin: 0 0 var(--space-3); padding-left: var(--space-3); border-left: 3px solid var(--line-strong); white-space: pre-wrap; }
 /* Keyboard hints mean nothing on a touch screen with no keyboard. */
 @media (pointer: coarse) and (hover: none) { .keys-hint { display: none; } }
+
+/* ---- added apps (docs/10): the sandboxed frame fills its window; Add apps lists the catalog */
+.app-host { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+.app-sandbox { flex: 1; width: 100%; min-height: 60vh; border: 0; background: var(--surface); display: block; }
+.window-body .app-sandbox { min-height: 0; }
+.app-catalog { display: grid; gap: var(--space-3); }
+.app-card { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); align-items: start; }
+.app-card h2 { font-size: var(--step-1); margin: 0; }
+.app-card p { margin: var(--space-1) 0 0; }
+.app-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+@container (max-width: 34rem) { .app-card { grid-template-columns: auto 1fr; } .app-card-actions { grid-column: 1 / -1; justify-content: flex-start; } }
+@media (max-width: 34rem) { .app-card { grid-template-columns: auto 1fr; } .app-card-actions { grid-column: 1 / -1; justify-content: flex-start; } }

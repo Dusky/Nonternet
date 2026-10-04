@@ -282,3 +282,27 @@ the site config and browser storage all accept the old names).
 - **Chat and MUD**: see `08` and `09` (alerts, history, person menu; the MUD's rules, panel and map). The tab title counts chat mentions and
   private messages as well as mail and notifications.
 
+
+## As built (installable apps, 2026-10-04)
+People add apps to their own desktop. Admins choose which the site offers; each person adds the ones they want.
+The format is built for outside authors later (Q18), but only the site's own packages exist for now.
+- **A package** is a folder: `manifest.json` (`id`, `name`, `version`, `description`, one SVG path as the `icon`,
+  a `sticker` slot for the tile colour, `entry`, `permissions`) and static files. First-party packages live in
+  `packs/apps/{id}` and build into `packs/build/{id}`; core syncs the catalog from `APPS_DIR` at start. A new
+  package is offered until an admin withdraws it; one that leaves the folder is hidden, and people's data stays.
+- **Running** (docs/15): a sandboxed frame from the homes origin, with no network and no storage of its own. It
+  talks to the shell over `@app/app-sdk` (Penpal): `storage.list/put/delete`, `profile()`, `setTitle`, and
+  `toast(text, { undo })`, which uses the shell's own notes and resolves true if Undo was pressed. The shell pushes
+  the theme as CSS custom properties (`--bg`, `--surface`, `--text`, `--accent`, `--font-body`…) on connect and on
+  every theme change, so apps match all five themes.
+- **In the shell** an added app is `app:{id}` in the registry (`shell/apps.tsx`, `shell/installed.ts`). It gets a desktop icon,
+  a launcher tile, an apps menu entry, a palette entry, a window, and its own page at `/apps/{id}`, like a built-in app.
+  Windows for an app that is removed or withdrawn close themselves; session restore waits for the list of added apps.
+- **Add apps** (a built-in app at `/add-apps`) lists what the site offers with each app's permissions in plain words
+  ("Keeps its own things on your account. They are in your export."). Add, Open, Remove (with Undo). Removing keeps the app's
+  data, so adding it again brings it back; "Delete what it kept" is separate, and waits a few seconds for an Undo.
+- **Admin console → Apps**: each package with its version and how many people have it, and an "Offer" checkbox
+  (`app.offered` / `app.withdrawn` in the audit log).
+- **Todo** is the first package: add, tick, edit, delete with Undo, clear done, an "N left" count in the window title.
+  Each task is a document in its `items` collection. About 11 KB of script, no framework.
+- Not in the BBS yet (two front doors, docs/04): a terminal view of app data is a later option.

@@ -137,6 +137,11 @@ client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+cl
                                    -- a client's account-kept settings, validated by zod in @app/shared (0034); exported, imported, erased
 ```
 
+## Installable apps (0037, docs/10)
+- `app_catalog(app_id, version, manifest, offered, present)`: the packages in `APPS_DIR`, synced at start. Not anyone's content.
+- `app_installs(user_id, app_id, installed_at)`: who added what.
+- `app_data(user_id, app_id, collection, doc_id, data jsonb, bytes)`: everything any app keeps for a person, keyed by stable user id; exported, imported and erased with the account.
+
 ## Invariants (enforce and test)
 - Board/ring ownership requires `trusted` or `admin` at creation; quotas checked at creation.
 - Every ring has exactly one board (`rings.board_id` not null after creation).
