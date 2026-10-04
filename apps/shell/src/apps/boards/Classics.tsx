@@ -203,7 +203,7 @@ export function PollPage({ id }: { id: string }) {
           <ul className="plain poll-results" aria-label={t('classics.polls.results')}>
             {p.options.map((o) => (
               <li key={o.id}>
-                <span>{o.label}{p.my_vote === o.id && <span className="badge">{t('classics.polls.yours')}</span>}</span>
+                <span>{o.label}{p.my_vote === o.id && <>{' '}<span className="badge">{t('classics.polls.yours')}</span></>}</span>
                 <meter min={0} max={Math.max(1, p.total ?? 1)} value={o.votes ?? 0} aria-label={o.label} />
                 <span>{t('classics.polls.votes', { count: o.votes ?? 0 })}</span>
               </li>

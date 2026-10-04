@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeNick, completeWord, dayKey, dayLabel, nickColour, splitPaste, typingNow } from './helpers';
+import { completeNick, completeWord, dayKey, dayLabel, nickColour, splitPaste, typingNow, foldPresence } from './helpers';
 
 const nicks = ['alice', 'Alma', 'bob'];
 
@@ -67,5 +67,13 @@ describe('splitPaste', () => {
     expect(splitPaste('hello\n')).toBeNull();
     expect(splitPaste('one\r\n\ntwo  \nthree')).toEqual(['one', 'two', 'three']);
     expect(splitPaste(`a\n${'x'.repeat(500)}`)![1]).toHaveLength(400);
+  });
+});
+
+describe('folding comings and goings', () => {
+  it("keeps each person's latest join or leave in a run, and never folds across something said", () => {
+    const m = (kind: string, nick: string) => ({ kind, nick });
+    const log = [m('join', 'tansy'), m('quit', 'tansy'), m('join', 'tansy'), m('join', 'ada'), m('join', 'tansy'), m('message', 'ada'), m('part', 'ada'), m('join', 'ada')];
+    expect(foldPresence(log)).toEqual([m('join', 'ada'), m('join', 'tansy'), m('message', 'ada'), m('join', 'ada')]);
   });
 });

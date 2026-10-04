@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { toPublicSite } from '@app/shared';
 import { ZodError } from 'zod';
+import { plainZodMessage } from './zod-message';
 import { resolveSession } from './accounts';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
@@ -64,7 +65,7 @@ export async function buildApp(deps: AppDeps) {
     if (err instanceof ApiError) return reply.code(err.status).send({ error: { code: err.code, message: err.message } });
     if (err instanceof ZodError) {
       const first = err.issues[0];
-      return reply.code(400).send({ error: { code: 'invalid_input', message: first ? `${first.path.join('.') || 'input'}: ${first.message}` : 'Invalid input.' } });
+      return reply.code(400).send({ error: { code: 'invalid_input', message: plainZodMessage(first), ...(first?.path.length ? { field: first.path.join('.') } : {}) } });
     }
     if (err.statusCode === 429) return reply.code(429).send({ error: { code: 'rate_limited', message: 'Too many attempts. Wait a few minutes and try again.' } });
     if (err.statusCode === 413) return reply.code(413).send({ error: { code: 'file_too_large', message: 'That is too large to send. Files can be up to the size shown in the studio.' } });

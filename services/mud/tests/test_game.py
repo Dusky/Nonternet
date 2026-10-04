@@ -238,3 +238,19 @@ class DuelTest(BaseEvenniaCommandTest):
         self.c.at_defeat()
         self.assertEqual(self.c.location, search_tag("respawn", category="world")[0])
         self.assertTrue(self.c.weakened)
+
+
+@GAME
+class OutOfCharacterScreenTest(BaseEvenniaTest):
+    def test_says_who_you_are_and_what_to_type_without_connection_details(self):
+        from typeclasses.accounts import Account
+
+        empty = Account.at_look(self.account, target=[], session=self.session)
+        self.assertIn("You have no character yet. Type |wcharcreate|n to roll one.", empty)
+        self.assertNotIn("websocket", empty)
+        self.assertNotIn("chardelete", empty)
+        self.char1.key = "Wren"
+        some = Account.at_look(self.account, target=[self.char1], session=self.session)
+        self.assertIn("Your characters:", some)
+        self.assertIn("|wWren|n", some)
+        self.assertIn("ic <name>", some)

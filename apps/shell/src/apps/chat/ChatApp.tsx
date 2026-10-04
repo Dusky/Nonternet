@@ -6,7 +6,7 @@ import { errorText, useSite, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { parseFormatting, type Segment } from './format';
 import { usePrefs } from '../../devicePrefs';
-import { completeNick, dayKey, dayLabel, typingNow, type Completion } from './helpers';
+import { completeNick, dayKey, dayLabel, typingNow, foldPresence, type Completion } from './helpers';
 import { sortedUsers, useChat, type Buffer, type Msg } from './store';
 import { useContextMenu } from '../../components/ContextMenu';
 import { useConfirm, useToast } from '../../components/feedback';
@@ -163,12 +163,13 @@ function Log({ buf }: { buf: Buffer }) {
   const words = { today: t('chat.today'), yesterday: t('chat.yesterday') };
   const rows: JSX.Element[] = [];
   let prevDay = '';
-  for (const m of buf.messages) {
+  const shown = foldPresence(buf.messages);
+  for (const m of shown) {
     if (!prefs.joinPart && (m.kind === 'join' || m.kind === 'part' || m.kind === 'quit')) continue;
     const d = dayKey(m.time);
     if (d !== prevDay) { rows.push(<li key={`d${d}`} className="chat-day"><span>{dayLabel(m.time, Date.now(), words)}</span></li>); prevDay = d; }
     rows.push(<Line key={m.id} m={m} stamps={prefs.timestamps} />);
-    if (buf.readUpTo === m.id && m !== buf.messages[buf.messages.length - 1]) rows.push(<li key="new" className="chat-new"><span>{t('chat.newMessages')}</span></li>);
+    if (buf.readUpTo === m.id && m !== shown[shown.length - 1]) rows.push(<li key="new" className="chat-new"><span>{t('chat.newMessages')}</span></li>);
   }
   return (
     <div className="chat-log-wrap">
@@ -202,7 +203,7 @@ function Line({ m, stamps }: { m: Msg; stamps: boolean }) {
     case 'action': return <li className={cls}>{when} <span aria-hidden="true">* </span><Nick nick={m.nick} /> <IrcText text={m.text} /></li>;
     case 'notice': return <li className={cls}>{when} <span className="chat-nick">-{m.nick || t('chat.server')}-</span> <IrcText text={m.text} /></li>;
     case 'info': case 'error': return <li className={cls}>{when} {m.key ? t(m.key) : <IrcText text={m.text} />}</li>;
-    default: return <li className={cls}>{when} {t(`chat.event.${m.kind}` as never, { nick: m.nick, text: m.text })}</li>;
+    default: return <li className={cls}>{when} {t(`chat.event.${m.kind}` as never, { nick: m.nick, text: m.text ? `(${m.text})` : '' }).trim()}</li>;
   }
 }
 

@@ -63,3 +63,23 @@ export const TYPING_SHOW_MS = 6000;
 export function typingNow(typing: ReadonlyMap<string, number>, now: number): string[] {
   return [...typing].filter(([, until]) => until > now).map(([n]) => n).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
+
+// Comings and goings with nothing said in between are folded: only each person's latest one is kept. Someone whose
+// connection drops and comes back ten times shows once, as joined, not twenty lines of joined and left.
+const PRESENCE = new Set(['join', 'part', 'quit']);
+export function foldPresence<T extends { kind: string; nick: string }>(messages: T[]): T[] {
+  const out: T[] = [];
+  let run: T[] = [];
+  const flush = () => {
+    const last = new Map<string, T>();
+    for (const m of run) { last.delete(m.nick); last.set(m.nick, m); }
+    out.push(...last.values());
+    run = [];
+  };
+  for (const m of messages) {
+    if (PRESENCE.has(m.kind)) run.push(m);
+    else { flush(); out.push(m); }
+  }
+  flush();
+  return out;
+}

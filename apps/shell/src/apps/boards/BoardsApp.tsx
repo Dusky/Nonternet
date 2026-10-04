@@ -192,7 +192,11 @@ function BoardPage({ slug }: { slug: string }) {
         {list.map((th) => (
           <li key={th.id} className={th.unread ? 'is-unread' : undefined}>
             <div className="row-head">
-              <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link"><strong>{th.subject || '…'}</strong></AppLink>
+              <span>
+                <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link"><strong>{th.subject || '…'}</strong></AppLink>
+                {th.pinned && <>{' '}<span className="badge sticker">{t('pin.badge')}</span></>}
+                {th.locked && <>{' '}<span className="badge">{t('boards.badge.locked')}</span></>}
+              </span>
               {th.unread && <span className="badge badge-accent">{t('boards.newBadge')}</span>}
             </div>
             <p className="row-meta">

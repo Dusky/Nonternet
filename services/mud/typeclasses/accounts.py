@@ -136,13 +136,30 @@ class Account(DefaultAccount):
 
     """
 
+    def at_look(self, target=None, session=None, **kwargs):
+        """The screen between characters (out of character). Evennia's own lists connection details and admin
+        commands; this says who you are, what you can play and the three commands that matter."""
+        if target is not None and not hasattr(target, "__iter__") and not hasattr(target, "all"):
+            return super().at_look(target=target, session=session, **kwargs)
+        chars = list(target.all() if hasattr(target, "all") else (target or []))
+        lines = [f"You are signed in as |w{self.name}|n, not playing a character just now.", ""]
+        if not chars:
+            lines += ["You have no character yet. Type |wcharcreate|n to roll one.", ""]
+        else:
+            lines.append("Your characters:")
+            for c in chars:
+                level = getattr(c, "level", None)
+                lines.append(f"  |w{c.key}|n" + (f", level {level}" if level else ""))
+            lines += ["", "Type |wic <name>|n to play one."]
+        lines += ["|wcharcreate|n rolls a new character. |whelp|n lists every command."]
+        return "\n".join(lines)
+
     def at_post_login(self, session=None, **kwargs):
         # Someone with no character yet is shown how to make one (docs/18), instead of Evennia's
         # "The Character does not exist." from trying to play a character they never had.
         if not self.characters.all():
             if session:
                 session.msg(logged_in={})
-            self.msg("|wWelcome!|n You have no character yet. Type |wcharcreate|n to roll one.", session=session)
             self.msg(self.at_look(target=self.characters, session=session), session=session)
             return
         # Made a character but never entered it (or the one last played is gone): enter the newest one, rather than

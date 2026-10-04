@@ -29,8 +29,8 @@ export function TerminalPassword() {
         <TextField label={t('terminal.new')} value={terminal} onChange={setTerminal} type="password" hint={t('terminal.newHint')} autoComplete="new-password" />
         {msg && <Alert kind={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>}
         <div className="actions">
-          <button className="btn btn-primary" type="submit" disabled={save.isPending}>{state.data?.set ? t('terminal.change') : t('terminal.set')}</button>
-          {state.data?.set && <button className="btn" type="button" disabled={remove.isPending} onClick={() => { setMsg(null); remove.mutate(); }}>{t('terminal.remove')}</button>}
+          <button className="btn btn-primary" type="submit" disabled={save.isPending || !password || !terminal}>{state.data?.set ? t('terminal.change') : t('terminal.set')}</button>
+          {state.data?.set && <button className="btn" type="button" disabled={remove.isPending || !password} onClick={() => { setMsg(null); remove.mutate(); }}>{t('terminal.remove')}</button>}
         </div>
       </form>
     </Section>

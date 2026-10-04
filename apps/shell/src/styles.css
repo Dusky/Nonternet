@@ -829,8 +829,9 @@ button.chat-nick:hover { text-decoration: underline; }
 
 /* BBS classics (M9-E) */
 ul.wall li { padding: var(--space-1) 0; border-bottom: 1px dotted var(--border); }
-.poll-results li { display: grid; grid-template-columns: minmax(8rem, 1fr) 10rem auto; gap: var(--space-3); align-items: center; padding: var(--space-1) 0; }
+.poll-results li { display: grid; grid-template-columns: minmax(8rem, 1fr) 10rem 6rem; gap: var(--space-3); align-items: center; padding: var(--space-1) 0; }
 .poll-results meter { width: 100%; }
+.poll-results li > :last-child { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* First-look fixes */
 .ring-banner { margin: var(--space-3) 0; }
