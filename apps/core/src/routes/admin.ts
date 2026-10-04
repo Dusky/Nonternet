@@ -11,7 +11,7 @@ import type { AppDeps } from '../deps';
 import { ApiError } from '../errors';
 import { OPS_ACTIONS, OPS_SERVICES, opsLog, opsStatus, requestOp } from '../ops';
 
-const inviteSchema = z.object({ expires_in_days: z.number().int().min(1).max(90).optional() }).default({});
+const inviteSchema = z.object({ expires_in_days: z.number().int().min(1).max(90).optional() }).prefault({});
 const userIdParam = z.object({ id: z.string().regex(/^u_[0-9A-Z]{26}$/, 'not a user ID') });
 // Every moderation-style action needs a reason. It goes in the audit log (docs/03).
 const reason = z.string().trim().min(3, 'give a reason (at least 3 characters)').max(500);
@@ -136,7 +136,7 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.delete('/api/v1/admin/users/:id/ops/:opId', async (req) => {
     const who = requireAdmin(req);
     const { id, opId } = revokeParams.parse(req.params);
-    const body = z.object({ reason: reason.optional() }).default({}).parse(req.body ?? {});
+    const body = z.object({ reason: reason.optional() }).prefault({}).parse(req.body ?? {});
     return admin.revokeOp(deps, who, id, opId, body.reason, ctxOf(deps, req));
   });
 

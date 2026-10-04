@@ -45,7 +45,7 @@ export const siteConfigSchema = z
         // People confirm at signup that they are at least this old. 0 turns the question off (docs/02, decided 2026-09-30).
         minimum_age: z.number().int().min(0).max(120).default(16),
       })
-      .default({}),
+      .prefault({}),
     limits: z
       .object({
         homepage_quota_mb: z.object({ user: z.number().positive(), trusted: z.number().positive() }).default({
@@ -63,14 +63,14 @@ export const siteConfigSchema = z
         // Bringing back an export (docs/12): the largest archive someone can upload.
         import_max_mb: z.number().positive().default(200),
       })
-      .default({}),
+      .prefault({}),
     homes: z
       .object({
         // The address the homes server answers on. A bare custom domain needs an A record to it.
         public_ip: z.string().regex(/^[0-9a-f.:]+$/i, 'an IPv4 or IPv6 address').optional(),
         max_domains: z.number().int().nonnegative().default(3),
       })
-      .default({}),
+      .prefault({}),
     irc: z
       .object({
         // Registered at start, owned by the site; admins are channel ops in them (docs/08).
@@ -82,27 +82,27 @@ export const siteConfigSchema = z
         // Chat history kept this long (Q9: 30 days, and a person's own messages are in their export).
         history_days: z.number().int().min(0).max(365).default(30),
       })
-      .default({}),
+      .prefault({}),
     mud: z
       .object({
         // Where native MUD clients connect (telnet); default mud.{site.domain}.
         public_host: hostname.optional(),
         public_port: z.number().int().min(1).max(65535).default(4000),
       })
-      .default({}),
+      .prefault({}),
     // The look people get until they pick one in Settings → Appearance (docs/10). Admin-editable.
-    ui: z.object({ default_theme: themeSchema.default(DEFAULT_THEME_NAME) }).default({}),
+    ui: z.object({ default_theme: themeSchema.default(DEFAULT_THEME_NAME) }).prefault({}),
     // Two-factor sign-in (docs/02). Optional for everyone; an admin can make it required for admins (decided 2026-10-02).
-    security: z.object({ require_admin_2fa: z.boolean().default(false) }).default({}),
+    security: z.object({ require_admin_2fa: z.boolean().default(false) }).prefault({}),
     moderation: z
       .object({
         // The mod log of each board is readable by anyone who can read the board (docs/03).
         public_modlog: z.boolean().default(true),
       })
-      .default({}),
+      .prefault({}),
     oidc: z
       .object({ clients: z.array(oidcClientSchema).default([]) })
-      .default({})
+      .prefault({})
       .superRefine((o, ctx) => {
         const seen = new Set<string>();
         for (const c of o.clients) {
@@ -118,7 +118,7 @@ export const siteConfigSchema = z
         // A read-only Gopher mirror of public boards, homepages and file areas (docs/05, M7).
         gopher: z.boolean().default(false),
       })
-      .default({}),
+      .prefault({}),
     // The BBS (docs/04): how many callers at once, from one address, and how long before an idle caller is
     // let go. Host and ports are what the login screen and the web tell people to connect to.
     bbs: z.object({
@@ -147,9 +147,9 @@ export const siteConfigSchema = z
         min_role: z.enum(['user', 'trusted', 'admin']).default('user'),
       })).default([]),
       door_wrapper: z.array(z.string().min(1)).default([]),
-    }).default({}),
+    }).prefault({}),
     // Where Gopher clients reach the mirror: the host and port written into every menu line.
-    gopher: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(70) }).default({}),
+    gopher: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(70) }).prefault({}),
   })
   .superRefine((cfg, ctx) => {
     // Homepages run untrusted user HTML, so they must never share the shell's origin (docs/15).

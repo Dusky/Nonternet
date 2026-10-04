@@ -100,7 +100,7 @@ export default function TerminalApp() {
   }, [send, t, toast]);
 
   const attempt = useRef(0);
-  const retry = useRef<ReturnType<typeof setTimeout>>();
+  const retry = useRef<ReturnType<typeof setTimeout>>(undefined);
   const connectRef = useRef<() => Promise<void>>(async () => undefined);
   const retryLater = useCallback(() => {
     setStatus('reconnecting');

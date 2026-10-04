@@ -11,7 +11,7 @@ const commands = z.string().max(1000); // one or more commands, split on the sep
 export const chatClientSchema = z.object({
   ignore: z.array(z.string().trim().min(1).max(64)).max(200).default([]),   // nicks whose lines are hidden
   highlights: z.array(z.string().trim().min(1).max(64)).max(50).default([]), // words that count as a mention
-}).default({});
+}).prefault({});
 export type ChatClient = z.infer<typeof chatClientSchema>;
 
 // ---------------------------------------------------------------- MUD
@@ -45,7 +45,7 @@ export const mudClientSchema = z.object({
   timers: z.array(mudTimerSchema).max(20).default([]),
   keys: z.array(mudKeySchema).max(100).default([]),
   buttons: z.array(mudButtonSchema).max(24).default([]),
-  variables: z.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,30}$/), z.string().max(200)).default({}),
+  variables: z.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,30}$/), z.string().max(200)).prefault({}),
   history: z.array(z.string().max(500)).max(200).default([]), // recent commands, newest first
   options: z.object({
     separator: z.string().min(1).max(2).default(';'),   // splits several commands typed on one line
@@ -55,8 +55,8 @@ export const mudClientSchema = z.object({
     panel: z.boolean().default(true),                    // gauges, map and windows beside the log
     screenreader: z.boolean().default(false),            // ask the game for plain text (no drawn maps)
     fontSize: z.number().int().min(11).max(24).default(15),
-  }).default({}),
-}).default({});
+  }).prefault({}),
+}).prefault({});
 export type MudClient = z.infer<typeof mudClientSchema>;
 
 export const CLIENT_SCHEMAS = { chat: chatClientSchema, mud: mudClientSchema } as const;

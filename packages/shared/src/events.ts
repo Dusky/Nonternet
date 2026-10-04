@@ -37,6 +37,6 @@ export const eventEnvelopeSchema = z.object({
   id: z.string().regex(/^e_[0-9A-Z]{26}$/),
   type: z.enum(EVENT_TYPES as [EventType, ...EventType[]]),
   at: z.string(), // ISO time the change was committed
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 });
 export type DomainEvent = z.infer<typeof eventEnvelopeSchema>;

@@ -306,3 +306,10 @@ The format is built for outside authors later (Q18), but only the site's own pac
 - **Todo** is the first package: add, tick, edit, delete with Undo, clear done, an "N left" count in the window title.
   Each task is a document in its `items` collection. About 11 KB of script, no framework.
 - Not in the BBS yet (two front doors, docs/04): a terminal view of app data is a later option.
+
+## As built (React 19, 2026-10-04)
+- React 19.3 with the React Compiler, so components re-render only what changed without hand-written `useMemo`/`useCallback`.
+  New code needn't add them; existing ones are harmless and can go as files are touched.
+- Bundles: `vendor` (React, the router, TanStack), `widgets` (React Aria, Sonner, cmdk: about 81 KB gzipped) and the
+  main chunk (about 91 KB gzipped) are separate files, so a release of our own code doesn't make browsers fetch the
+  libraries again.

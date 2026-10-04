@@ -97,10 +97,10 @@ export async function changeSetting(deps: AppDeps, admin: SessionUser, key: stri
   if (!def) throw new ApiError(404, 'not_found', 'No such setting.');
   const d = fileDefaults(deps.config);
   const value = next === null ? structuredClone(d.get(key)) : def.schema.safeParse(next);
-  if (next !== null && !(value as z.SafeParseReturnType<unknown, unknown>).success) {
-    throw new ApiError(400, 'invalid_value', ((value as z.SafeParseError<unknown>).error.issues[0]?.message) ?? 'That value is not allowed.');
+  if (next !== null && !(value as z.ZodSafeParseResult<unknown>).success) {
+    throw new ApiError(400, 'invalid_value', ((value as z.ZodSafeParseError<unknown>).error.issues[0]?.message) ?? 'That value is not allowed.');
   }
-  const parsed = next === null ? value : (value as z.SafeParseSuccess<unknown>).data;
+  const parsed = next === null ? value : (value as z.ZodSafeParseSuccess<unknown>).data;
   const problem = def.check?.(deps.config, parsed);
   if (problem) throw new ApiError(400, 'invalid_value', problem);
   const current = def.get(deps.config);

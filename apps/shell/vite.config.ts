@@ -25,13 +25,20 @@ const securityHeaders = {
 };
 
 export default defineConfig({
-  plugins: [react()],
+  // The React Compiler (1.0) memoizes components and hooks at build time, so screens re-render only what changed
+  // without hand-written useMemo/useCallback (decided 2026-10-04, docs/17 P13).
+  plugins: [react({ babel: { plugins: [['babel-plugin-react-compiler', {}]] } })],
   build: {
     rollupOptions: {
       output: {
         // The libraries every page needs go in one file that rarely changes, so a new release of our own code does not make
         // browsers fetch React again, and the main file is just our code.
-        manualChunks: (id) => (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler|@tanstack)\//.test(id) ? 'vendor' : undefined),
+        manualChunks: (id) => {
+          if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler|@tanstack)\//.test(id)) return 'vendor';
+          // The interface widgets (React Aria, toasts, the palette): also on every page, also rarely changing.
+          if (/node_modules\/(react-aria|react-aria-components|react-stately|@react-aria|@react-stately|@react-types|@internationalized|@swc\/helpers|sonner|cmdk|@radix-ui)\//.test(id)) return 'widgets';
+          return undefined;
+        },
       },
     },
     // The editor (CodeMirror, about 570 KB) is its own file, fetched only when someone opens a file in the studio; anything bigger than

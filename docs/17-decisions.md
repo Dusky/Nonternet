@@ -120,6 +120,8 @@
 
 - 2026-10-04: installable apps (owners' choice: the site's own apps first, outside authors later; each person picks what to add from what admins offer). Apps are packages run in a sandboxed, opaque-origin frame from the homes origin with no network, reaching the account only through a permission-checked bridge (Penpal). This follows the iframe-and-bridge model of Figma, Shopify and MCP Apps; Module Federation and Web Components were ruled out because they run app code on the shell's origin. All app data goes in one generic table, so export, import and deletion cover every app automatically. Todo is the first (`10`, `12`, `15`). Building it showed that Caddy's `ask` refused the bare homes domain, so the documented stable `/u/{id}/` links could never have had a certificate; it is now allowed.
 
+- 2026-10-04: React 19.3 with the React Compiler 1.0 (as a Babel plugin through `@vitejs/plugin-react` 5.2, staying on Vite 6; plugin-react 6 needs Vite 8, a separate upgrade), and zod 4.6 in shared, core and the BBS. zod 4 changed `.default(value)` to return the value without parsing it, so object defaults that relied on inner defaults (`.default({})`) are now `.prefault({})`; its issue fields changed (`origin`, `invalid_format`, `invalid_value`), so `zod-message.ts` was rewritten for them. The interface libraries from P13 (React Aria, Sonner, cmdk) are their own cached chunk: 256 KB, about 81 KB gzipped, on every page.
+
 ## Verify list
 | # | Fact | Affects |
 |---|---|---|

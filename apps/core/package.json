@@ -33,7 +33,7 @@
     "ulid": "^3.0.2",
     "wrap-ansi": "^10.0.2",
     "yaml": "^2.5.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/archiver": "^8.0.0",

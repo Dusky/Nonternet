@@ -11,7 +11,7 @@ import { Avatar } from './ui';
 export function HoverCard({ handle, meId, children }: { handle: string; meId?: string; children: ReactNode }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const show = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(true), 350); };
   const hide = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 120); };
   useEffect(() => () => clearTimeout(timer.current), []);

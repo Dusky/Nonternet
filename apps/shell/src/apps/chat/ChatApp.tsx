@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert } from '../../components/ui';
@@ -161,7 +161,7 @@ function Log({ buf }: { buf: Buffer }) {
   const who = typingNow(buf.typing, now);
   const [prefs] = usePrefs('chat');
   const words = { today: t('chat.today'), yesterday: t('chat.yesterday') };
-  const rows: JSX.Element[] = [];
+  const rows: ReactElement[] = [];
   let prevDay = '';
   const shown = foldPresence(buf.messages);
   for (const m of shown) {
