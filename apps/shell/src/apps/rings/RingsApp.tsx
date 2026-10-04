@@ -1,3 +1,4 @@
+import { PersonLink } from '../people/PersonLink';
 import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -151,7 +152,7 @@ function RingPage({ slug }: { slug: string }) {
       <h2>{r.name} {r.archived && <span className="badge">{t('rings.archived')}</span>}</h2>
       {r.description && <p>{r.description}</p>}
       <p className="hint">
-        {t('rings.foundedBy', { name: r.founder.handle })} · {t('rings.members', { count: r.member_count })} · {t(`rings.policy.${r.join_policy}`)}
+        {t('rings.foundedBy')} <PersonLink app="people" to={r.founder.handle}>@{r.founder.handle}</PersonLink> · {t('rings.members', { count: r.member_count })} · {t(`rings.policy.${r.join_policy}`)}
         {r.tags.length > 0 && ` · ${r.tags.join(', ')}`}
       </p>
       <BannerStrip slug={slug} />

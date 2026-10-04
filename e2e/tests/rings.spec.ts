@@ -118,7 +118,7 @@ test.describe('rings', () => {
     await visitor.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(visitor.getByRole('link', { name: `Finder ${word}` })).toBeVisible();
     await visitor.goto('/boards');
-    await expect(visitor.getByRole('heading', { level: 2, name: `Ring: Finder ${word}` })).toBeVisible();
+    await expect(visitor.getByRole('region', { name: 'Ring boards' }).getByRole('link', { name: `Finder ${word}` })).toBeVisible();
     await visitor.context().close();
   });
 

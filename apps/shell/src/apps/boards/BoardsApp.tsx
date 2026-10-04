@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
+import { PersonLink } from '../people/PersonLink';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime } from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import { errorText, useMe, useT } from '../../hooks';
@@ -18,7 +19,21 @@ import { postNote, ThreadView } from './ThreadView';
 
 const ROUTES = ['', 'new', 'search', 'search/:q', 'reports', 'bulletins', 'bulletins/:n', 'polls', 'polls/:pid', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
 
+// Bulletins and the voting booth are for people with an account. A visitor who follows a link is asked to log in,
+// and comes back here afterwards.
+function MembersOnly() {
+  const t = useT();
+  const back = encodeURIComponent(location.pathname + location.search);
+  return (
+    <>
+      <BackLink to="">{t('boards.backToBoards')}</BackLink>
+      <Alert kind="info">{t('classics.membersOnly')} <a href={`/login?return_to=${back}`}>{t('auth.login')}</a></Alert>
+    </>
+  );
+}
+
 export default function BoardsApp() {
+  const me = useMe().data;
   const nav = useAppNav();
   const route = matchRoute(nav.path, ROUTES);
   if (!route) return <div className="app-content"><NotFound /></div>;
@@ -30,10 +45,11 @@ export default function BoardsApp() {
       {route.pattern === 'search' && <Search />}
       {route.pattern === 'search/:q' && <Search key={route.params.q} initial={route.params.q ?? ''} />}
       {route.pattern === 'reports' && <ReportsPage />}
-      {route.pattern === 'bulletins' && <BulletinList />}
-      {route.pattern === 'bulletins/:n' && <BulletinPage number={Number(route.params.n)} />}
-      {route.pattern === 'polls' && <PollList />}
-      {route.pattern === 'polls/:pid' && <PollPage id={route.params.pid!} />}
+      {/^(bulletins|polls)/.test(route.pattern) && !me && <MembersOnly />}
+      {me && route.pattern === 'bulletins' && <BulletinList />}
+      {me && route.pattern === 'bulletins/:n' && <BulletinPage number={Number(route.params.n)} />}
+      {me && route.pattern === 'polls' && <PollList />}
+      {me && route.pattern === 'polls/:pid' && <PollPage id={route.params.pid!} />}
       {route.pattern === ':slug' && <BoardPage slug={slug!} />}
       {route.pattern === ':slug/new' && <NewThread slug={slug!} />}
       {route.pattern === ':slug/settings' && <SettingsPage slug={slug!} />}
@@ -77,7 +93,8 @@ function BoardList() {
   const groups = [
     ...categories.map((c) => ({ key: c.id, title: c.name, boards: boards.filter((b) => !b.ring && b.category?.id === c.id) })),
     { key: 'other', title: categories.length ? t('boards.list.other') : ringNames.length ? t('boards.list.boards') : '', boards: boards.filter((b) => !b.ring && !b.category) },
-    ...ringNames.map((n) => ({ key: `ring-${n}`, title: t('boards.list.ring', { name: n }), boards: boards.filter((b) => b.ring?.name === n) })),
+    // Each ring has one board, named after the ring, so they share one heading rather than repeating each name.
+    { key: 'rings', title: t('boards.list.rings'), boards: ringNames.flatMap((n) => boards.filter((b) => b.ring?.name === n)) },
   ].filter((g) => g.boards.length > 0);
   return (
     <div ref={root}>
@@ -131,7 +148,7 @@ function BoardPage({ slug }: { slug: string }) {
     void qc.invalidateQueries({ queryKey: ['board', slug] });
     void qc.invalidateQueries({ queryKey: ['threads', slug] });
   };
-  const personal = usePersonal();
+  const personal = usePersonal(Boolean(me));
   const muted = Boolean(personal.data?.muted_boards.some((m) => m.slug === slug));
   const mute = useMutation({
     mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/mute`, {}) : api.del(`/boards/${slug}/mute`)),
@@ -157,14 +174,14 @@ function BoardPage({ slug }: { slug: string }) {
       <BackLink to="">{t('boards.backToBoards')}</BackLink>
       <h2>{b.name} <Badges board={b} /></h2>
       {b.description && <p>{b.description}</p>}
-      <p className="hint">{t('boards.owner', { name: b.owner.handle })}</p>
+      <p className="hint">{t('boards.ownedBy')} <PersonLink app="people" to={b.owner.handle}>@{b.owner.handle}</PersonLink></p>
       <div className="toolbar">
         {b.can_post && <AppLink className="btn btn-primary" to={`${slug}/new`}>{t('boards.newThread')}</AppLink>}
         {me && <button className="btn" onClick={() => watch.mutate(!b.watching)} aria-pressed={b.watching} disabled={watch.isPending}>{b.watching ? t('boards.unwatch') : t('boards.watch')}</button>}
         {me && me.role !== 'guest' && personal.data && <button className="btn" onClick={() => mute.mutate(!muted)} aria-pressed={muted} disabled={mute.isPending}>{muted ? t('boards.unmute') : t('boards.mute')}</button>}
         {me && <button className="btn" onClick={() => markRead.mutate()} disabled={markRead.isPending || !b.unread}>{t('boards.markRead')}</button>}
         {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
-        <span className="spacer" />
+        {me && <span className="spacer" />}
         <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
         {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
       </div>
@@ -186,7 +203,7 @@ function BoardPage({ slug }: { slug: string }) {
         ))}
       </ul>
       {threads.hasNextPage && <button className="btn" onClick={() => void threads.fetchNextPage()} disabled={threads.isFetchingNextPage}>{t('boards.more')}</button>}
-      <p className="hint">{t('boards.keys')}</p>
+      <p className="hint">{t(me ? 'boards.keys' : 'boards.keysVisitor')}</p>
     </div>
   );
 }

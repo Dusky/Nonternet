@@ -6,7 +6,7 @@ import { Alert, TextField, EmptyState } from '../../components/ui';
 import { Section } from './Section';
 import { errorText, formatWhen, useT } from '../../hooks';
 
-export const useBlocks = () => useQuery({ queryKey: ['me', 'blocks'], queryFn: () => api.get<{ blocks: BlockView[] }>('/me/blocks') });
+export const useBlocks = (enabled = true) => useQuery({ queryKey: ['me', 'blocks'], queryFn: () => api.get<{ blocks: BlockView[] }>('/me/blocks'), enabled });
 
 // Blocking (docs/10): the person can't start mail with you or add you to a conversation, and their
 // messages are hidden from you in groups you share. They are not told.

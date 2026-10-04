@@ -38,7 +38,7 @@ export function DeviceSwitch({ label, checked, onChange, hint, disabled }: { lab
   );
 }
 
-export const usePersonal = () => useQuery({ queryKey: ['me', 'personal'], queryFn: () => api.get<PersonalSettings>('/me/personal') });
+export const usePersonal = (enabled = true) => useQuery({ queryKey: ['me', 'personal'], queryFn: () => api.get<PersonalSettings>('/me/personal'), enabled });
 
 // Picture, status line and who may see when you were last here: the "who am I on this site" part of Settings.
 export function PersonalProfile({ me }: { me: Me }) {

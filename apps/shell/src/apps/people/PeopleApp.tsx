@@ -145,17 +145,18 @@ function Profile({ handle }: { handle: string }) {
         </section>
       )}
       {p.rings.length > 0 && (
-        <section aria-labelledby="profile-rings">
-          <h3 id="profile-rings">{t('people.rings')}</h3>
+        <section aria-labelledby="profile-rings" className="panel">
+          <div className="panel-head"><h3 id="profile-rings">{t('people.rings')}</h3></div>
           <ul className="ring-tags">{p.rings.map((r) => <li key={r.slug}><PersonLink app="rings" to={r.slug}>{r.name}</PersonLink></li>)}</ul>
         </section>
       )}
-      <section aria-labelledby="profile-chars">
-        <h3 id="profile-chars">{t('people.characters')}</h3>
-        {p.characters.length === 0 ? <p className="muted">{t('people.noCharacters')}</p> : (
+      {/* Only people who play have a MUD section; an empty one on every profile is noise. */}
+      {p.characters.length > 0 && (
+        <section aria-labelledby="profile-chars" className="panel">
+          <div className="panel-head"><h3 id="profile-chars">{t('people.characters')}</h3></div>
           <ul className="char-cards">{p.characters.map((c) => <CharacterCard key={c.id} c={c} featured={c.id === p.featured_character_id} />)}</ul>
-        )}
-      </section>
+        </section>
+      )}
     </article>
   );
 }
@@ -181,7 +182,7 @@ function PersonActions({ p }: { p: PublicProfile }) {
   const me = useMe().data;
   const qc = useQueryClient();
   const mine = Boolean(me && me.role !== 'guest' && me.id !== p.id);
-  const blocks = useBlocks();
+  const blocks = useBlocks(mine);
   const blocked = Boolean(blocks.data?.blocks.some((b) => b.handle.toLowerCase() === p.handle.toLowerCase()));
   const toggle = useMutation({
     mutationFn: () => api.post(blocked ? '/me/blocks/remove' : '/me/blocks', { handle: p.handle }),
