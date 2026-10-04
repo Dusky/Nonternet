@@ -42,8 +42,19 @@ export class Term {
 
   // ---------------------------------------------------------------- output
 
+  // Whether anything but the echo of the caller's own typing was shown since their last key. The menu uses it to
+  // know a screen ended with something still to read (a list, an error) rather than with the caller leaving it.
+  shownSinceKey = false;
+
   write(text: string): void {
     if (this.closed) return;
+    // A bare line break or cursor move after a prompt isn't something to read.
+    if (text.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').trim()) this.shownSinceKey = true;
+    this.send(text);
+  }
+  // The echo of what the caller types, which doesn't count as something new to read.
+  private echo(text: string): void { if (!this.closed) this.send(text); }
+  private send(text: string): void {
     const s = text.replace(/\r?\n/g, '\r\n');
     this.t.write(this.encoding === 'cp437' ? iconv.encode(s.replace(/[\u{10000}-\u{10FFFF}]/gu, '?'), 'cp437') : Buffer.from(s, 'utf8'));
   }
@@ -106,8 +117,8 @@ export class Term {
   readKey(): Promise<Key | null> {
     if (this.closed) return Promise.resolve(null);
     const k = this.keys.shift();
-    if (k) return Promise.resolve(k);
-    return new Promise((resolve) => this.waiters.push(resolve));
+    if (k) { this.shownSinceKey = false; return Promise.resolve(k); }
+    return new Promise((resolve) => this.waiters.push((key) => { if (key) this.shownSinceKey = false; resolve(key); }));
   }
 
   // A line editor: typing, backspace, left/right, home/end. `mask` shows * for passwords. Escape or the
@@ -117,31 +128,45 @@ export class Term {
     let text = [...(opts.initial ?? '')];
     let pos = text.length;
     const shown = (s: string[]) => (opts.mask ? '*'.repeat(s.length) : s.join(''));
-    if (text.length) this.write(shown(text));
+    if (text.length) this.echo(shown(text));
     for (;;) {
       const k = await this.readKey();
       if (!k) return null;
-      if (k.name === 'enter') { this.write('\r\n'); return text.join(''); }
-      if (k.name === 'escape' || (k.name === 'ctrl' && k.ch === 'C')) { this.write('\r\n'); return null; }
+      if (k.name === 'enter') { this.echo('\r\n'); return text.join(''); }
+      if (k.name === 'escape' || (k.name === 'ctrl' && k.ch === 'C')) { this.echo('\r\n'); return null; }
       if (k.name === 'char' && text.length < max) {
         text.splice(pos, 0, k.ch);
         const rest = shown(text.slice(pos));
-        this.write(rest + (rest.length > 1 ? `\x1b[${rest.length - 1}D` : ''));
+        this.echo(rest + (rest.length > 1 ? `\x1b[${rest.length - 1}D` : ''));
         pos++;
       } else if (k.name === 'backspace' && pos > 0) {
         text.splice(pos - 1, 1);
         pos--;
         const rest = shown(text.slice(pos));
-        this.write(`\b${rest} \x1b[${rest.length + 1}D`);
+        this.echo(`\b${rest} \x1b[${rest.length + 1}D`);
       } else if (k.name === 'delete' && pos < text.length) {
         text.splice(pos, 1);
         const rest = shown(text.slice(pos));
-        this.write(`${rest} \x1b[${rest.length + 1}D`);
-      } else if (k.name === 'left' && pos > 0) { pos--; this.write('\x1b[D'); }
-      else if (k.name === 'right' && pos < text.length) { pos++; this.write('\x1b[C'); }
-      else if (k.name === 'home' && pos > 0) { this.write(`\x1b[${pos}D`); pos = 0; }
-      else if (k.name === 'end' && pos < text.length) { this.write(`\x1b[${text.length - pos}C`); pos = text.length; }
-      else if (k.name === 'ctrl' && k.ch === 'U') { if (pos) this.write(`\x1b[${pos}D`); this.write('\x1b[K'); text = []; pos = 0; }
+        this.echo(`${rest} \x1b[${rest.length + 1}D`);
+      } else if (k.name === 'left' && pos > 0) { pos--; this.echo('\x1b[D'); }
+      else if (k.name === 'right' && pos < text.length) { pos++; this.echo('\x1b[C'); }
+      else if (k.name === 'home' && pos > 0) { this.echo(`\x1b[${pos}D`); pos = 0; }
+      else if (k.name === 'end' && pos < text.length) { this.echo(`\x1b[${text.length - pos}C`); pos = text.length; }
+      else if (k.name === 'ctrl' && k.ch === 'U') { if (pos) this.echo(`\x1b[${pos}D`); this.echo('\x1b[K'); text = []; pos = 0; }
+    }
+  }
+
+  // List prompts ("Number to read, Post, Quit:"): one of the given letters acts at once, as a single key would; a
+  // digit starts a number, finished with Enter. Enter alone gives "" (usually: go back); Escape or leaving gives null.
+  async pick(letters: string, max = 6): Promise<string | null> {
+    for (;;) {
+      const k = await this.readKey();
+      if (!k) return null;
+      if (k.name === 'enter') { this.echo('\r\n'); return ''; }
+      if (k.name === 'escape') { this.echo('\r\n'); return null; }
+      if (k.name !== 'char') continue;
+      if (letters.toLowerCase().includes(k.ch.toLowerCase())) { this.echo(`${k.ch}\r\n`); return k.ch.toLowerCase(); }
+      if (/[0-9]/.test(k.ch)) return this.readLine({ max, initial: k.ch });
     }
   }
 

@@ -112,6 +112,7 @@
 - 2026-10-03: updates and restarts from the console go through a host agent (`sitectl agent`) reading request files from a shared folder, rather than giving any container the Docker socket: a compromised core can only ask for a fixed action, never run a command (`19`).
 - 2026-10-03: people change their own email and handle and turn two-factor off from Settings (`02`). Only renames a person makes themselves count toward the once-every-90-days limit (`handle_history.by_user`), so an admin's correction doesn't use up their turn. A changed email is confirmed before it replaces the old one.
 - 2026-10-03: sign-up by application is built (`02`). Declining suspends the account rather than deleting it, so the same handle and address can't simply try again; the person is told why. Approval and email confirmation can happen in either order. Ops don't review applications yet.
+- 2026-10-04: BBS prompts. List prompts take letters as single keys (numbers still need Enter), and a screen that leaves something to read waits for a key before the menu returns (`04`). Classic BBS behaviour; both were missing, so options looked like they did nothing in the Terminal window.
 
 ## Verify list
 | # | Fact | Affects |

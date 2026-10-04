@@ -20,10 +20,10 @@ export async function boards(s: Session): Promise<void> {
     const list = await listBoards(s);
     t.line(heading('Boards', t.cols));
     t.line(dim(`${pad('#', 4)}${pad('Board', 34)}${pad('Unread', 8)}Threads`));
-    list.forEach((b, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(b.name + (b.archived ? ' (archived)' : ''), 33), 34)}${pad(b.unread ? bold(String(b.unread)) + ' '.repeat(Math.max(0, 8 - String(b.unread).length)) : '-', 8)}${b.thread_count}`));
+    list.forEach((b, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(b.name + (b.archived ? ' (archived)' : ''), 33), 34)}${pad(b.unread ? bold(String(b.unread)) : '-', 8)}${b.thread_count}`));
     if (!list.length) t.line('There are no boards you can read yet.');
     t.write(`\nBoard number, ${bold('N')}ew scan, or ${bold('Q')} to go back: `);
-    const answer = (await t.readLine({ max: 6 }))?.trim().toLowerCase();
+    const answer = (await t.pick('nq'))?.trim().toLowerCase();
     if (answer === undefined || answer === null || answer === 'q' || answer === '') return;
     if (answer === 'n') { await newscan(s); continue; }
     const b = list[Number(answer) - 1];
@@ -48,9 +48,9 @@ export async function board(s: Session, b: BoardSummary): Promise<void> {
       t.line(`${pad(String(i + 1), 3)}${mark}${pad(cut(subject + (th.pinned ? ' [pinned]' : '') + (th.locked ? ' [locked]' : ''), 39), 40)}${pad(cut(th.author?.handle ?? '-', 15), 16)}${th.reply_count}`);
     });
     if (!r.threads.length) t.line('No threads yet.');
-    const keys = [`number to read`, b.can_post && !b.archived ? `${bold('P')}ost` : '', r.next ? `${bold('M')}ore` : '', stack.length ? `${bold('B')}ack a page` : '', `${bold('A')}ll read`, `${bold('Q')}uit`].filter(Boolean);
+    const keys = [`Number to read`, b.can_post && !b.archived ? `${bold('P')}ost` : '', r.next ? `${bold('M')}ore` : '', stack.length ? `${bold('B')}ack a page` : '', `${bold('A')}ll read`, `${bold('Q')}uit`].filter(Boolean);
     t.write(`\n${keys.join(', ')}: `);
-    const answer = (await t.readLine({ max: 6 }))?.trim().toLowerCase();
+    const answer = (await t.pick('pmbaq'))?.trim().toLowerCase();
     if (answer === undefined || answer === null || answer === 'q' || answer === '') return;
     if (answer === 'm' && r.next) { stack.push(before); before = r.next; continue; }
     if (answer === 'b' && stack.length) { before = stack.pop(); continue; }

@@ -17,7 +17,7 @@ export async function rings(s: Session): Promise<void> {
     r.rings.forEach((g, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(g.name, 29), 30)}${pad(String(g.member_count), 9)}${g.me?.status === 'member' ? (g.me.is_op ? 'op' : 'member') : g.me?.status ?? ''}`));
     if (!r.rings.length) t.line('There are no rings yet. Start one on the web.');
     t.write(`\nRing number, ${r.next !== null ? `${bold('M')}ore, ` : ''}${offset ? `${bold('B')}ack a page, ` : ''}or ${bold('Q')} to go back: `);
-    const a = (await t.readLine({ max: 6 }))?.trim().toLowerCase();
+    const a = (await t.pick('mbq'))?.trim().toLowerCase();
     if (a === undefined || a === null || a === 'q' || a === '') return;
     if (a === 'm' && r.next !== null) { offset = r.next; continue; }
     if (a === 'b' && offset) { offset = Math.max(0, offset - per); continue; }

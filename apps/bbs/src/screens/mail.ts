@@ -19,7 +19,7 @@ export async function mail(s: Session): Promise<void> {
     });
     if (!r.threads.length) t.line('No mail yet.');
     t.write(`\nNumber to read, ${bold('W')}rite a new message, or ${bold('Q')} to go back: `);
-    const a = (await t.readLine({ max: 6 }))?.trim().toLowerCase();
+    const a = (await t.pick('wq'))?.trim().toLowerCase();
     if (a === undefined || a === null || a === 'q' || a === '') return;
     if (a === 'w') { await write(s); continue; }
     const th = shown[Number(a) - 1];

@@ -108,7 +108,8 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     expect(screen.text).toContain('this is your first call');
     type('w');
     await screen.until(new RegExp(`\\d+\\s+${u.handle}\\s+.*\\(telnet\\)`));
-    type('g');
+    await screen.until(/press a key for the menu/); // a list waits to be read before the menu comes back
+    type(' g');
     await screen.until(/Thanks for calling Test Site/);
     await new Promise((r) => s.on('close', r));
   });
@@ -238,7 +239,7 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     const n = screen.text.split('\n').find((l) => l.includes('Classic'))!.trim().split(/\s+/)[0];
     type(`${n}\r`);
     await screen.until(/Post/);
-    type('p\r');
+    type('p'); // letters act at once; only numbers need Enter
     await screen.until(/Subject:/);
     type(Buffer.from([0x43, 0x61, 0x66, 0x82, 0x0d])); // "Café" in CP437
     await screen.until(/\/s save/);

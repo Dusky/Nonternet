@@ -12,7 +12,7 @@ export async function doors(s: Session): Promise<void> {
     if (!list.length) { t.line('There are no door games on this BBS yet.'); return; }
     list.forEach((d, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(d.name, 28), 30)}${dim(cut(d.description, 30))}${inUse(d.id) >= d.max_nodes ? bold(' (full)') : ''}`));
     t.write(`\nDoor number, or ${bold('Q')} to go back: `);
-    const a = (await t.readLine({ max: 4 }))?.trim().toLowerCase();
+    const a = (await t.pick('q', 4))?.trim().toLowerCase();
     if (a === undefined || a === null || a === 'q' || a === '') return;
     const d = list[Number(a) - 1];
     if (!d) { t.line('There is no door with that number.'); continue; }

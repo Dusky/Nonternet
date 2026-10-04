@@ -132,7 +132,12 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   each REP file is taken once (`qwk_uploads`). Transfer is on the web (Settings → Terminal); **ZMODEM in the
   terminal is not built** (the BBS's QWK menu points to the web). Private mail is not in packets. VERIFY with
   real readers (MultiMail, OLX) before announcing it.
-- Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`
+- **How screens behave** (fixed 2026-10-04, after menu options looked broken in the Terminal window):
+  - Each screen starts on a clear page.
+  - A screen that ends with something still to read (a list, a message, an error) waits for "press a key for the menu", so the menu doesn't scroll it away at once.
+  - At list prompts ("Number to read, Post, Quit:") a letter acts at once, like the menus; only numbers need Enter.
+  - Column widths ignore colour codes, so a code is never cut in half (that swallowed the next characters and left bold on).
+- Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`; `e2e/tests/terminal-menus.spec.ts` uses every main-menu option from the Terminal window
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.
 
 

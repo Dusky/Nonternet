@@ -1,7 +1,27 @@
 // Small text helpers for fixed-width screens. Widths count characters, not bytes.
-export const width = (s: string) => [...s].length;
-export const pad = (s: string, w: number) => { const c = [...s]; return c.length >= w ? c.slice(0, w).join('') : s + ' '.repeat(w - c.length); };
-export const cut = (s: string, w: number) => { const c = [...s]; return c.length <= w ? s : `${c.slice(0, Math.max(0, w - 1)).join('')}…`; };
+// Colour codes take no room on screen, so they are skipped when measuring and never cut in half: a code cut short
+// swallows the characters after it.
+const ANSI = /\x1b\[[0-9;]*[A-Za-z]/y;
+const visible = (s: string): { text: string; ansi: boolean }[] => {
+  const out: { text: string; ansi: boolean }[] = [];
+  for (let i = 0; i < s.length;) {
+    ANSI.lastIndex = i;
+    const m = ANSI.exec(s);
+    if (m) { out.push({ text: m[0], ansi: true }); i += m[0].length; continue; }
+    const ch = String.fromCodePoint(s.codePointAt(i)!);
+    out.push({ text: ch, ansi: false });
+    i += ch.length;
+  }
+  return out;
+};
+// The first `w` visible characters, keeping every colour code (so a colour that was turned on is turned off again).
+const take = (s: string, w: number) => {
+  let n = 0;
+  return visible(s).filter((p) => p.ansi || n++ < w).map((p) => p.text).join('');
+};
+export const width = (s: string) => visible(s).filter((p) => !p.ansi).length;
+export const pad = (s: string, w: number) => { const n = width(s); return n >= w ? take(s, w) : s + ' '.repeat(w - n); };
+export const cut = (s: string, w: number) => (width(s) <= w ? s : `${take(s, Math.max(0, w - 1))}…`);
 export const when = (iso: string) => `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
 export const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
 export const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;

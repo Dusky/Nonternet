@@ -125,11 +125,14 @@ export class Session implements NodeHolder {
       for (const o of [...wall].reverse()) t.line(`  ${(o.author?.handle ?? '-').padEnd(16)} ${o.body}`);
       t.line('\x1b[2mPress O at the menu to add yours.\x1b[0m');
     }
+    let first = true;
     for (;;) {
       if (this.ended) return;
       this.at('Main menu');
       const menu = this.ctx.art.menus.main!;
-      t.line();
+      // The first menu follows the login notices; after that each menu starts on a clean screen.
+      if (first) t.line(); else t.clear();
+      first = false;
       t.write(this.ctx.art.render('main', { handle: this.user!.handle, node: this.node }, { cols: this.term.cols - 1 }));
       for (const item of menu.items) t.line(`  \x1b[1m${item.key.toUpperCase()}\x1b[0m  ${item.label}`);
       t.write(`\n${menu.title} [${menu.items.map((i) => i.key.toUpperCase()).join('')}]: `);
@@ -142,13 +145,20 @@ export class Session implements NodeHolder {
     }
   }
 
+  // Runs one screen on a clean page. If it ends with something still to read (a list, a message, an error) rather
+  // than with the caller leaving it, wait for a key: otherwise the menu would scroll it away at once.
   async do(action: Action): Promise<void> {
     const screen = SCREENS[action];
+    this.term.clear();
     try {
       await screen(this);
     } catch (e) {
       if (e instanceof CoreError) this.term.line(`\x1b[31m${e.message}\x1b[0m`);
       else throw e;
+    }
+    if (!this.ended && !this.term.closed && this.term.shownSinceKey) {
+      this.term.write('\n\x1b[2m-- press a key for the menu --\x1b[0m');
+      await this.term.readKey();
     }
   }
 

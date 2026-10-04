@@ -50,7 +50,7 @@ export async function bulletins(s: Session): Promise<void> {
     t.line(dim(`${pad('#', 5)}${pad('Posted', 18)}Title`));
     await page(s, r.bulletins.map((b) => `${mark(b.number, 4)}${b.unread ? bold('*') : ' '}${pad(when(b.at), 18)}${cut(b.title, 50)}`));
     t.write(`\nBulletin number to read, or ${bold('Q')} to go back: `);
-    const a = (await t.readLine({ max: 8 }))?.trim().toLowerCase();
+    const a = (await t.pick('q', 8))?.trim().toLowerCase();
     if (a === undefined || a === null || a === 'q' || a === '') return;
     const n = Number(a);
     if (!Number.isInteger(n)) { t.line('Type a bulletin number.'); continue; }
@@ -99,7 +99,7 @@ export async function polls(s: Session): Promise<void> {
     t.line(dim(`${pad('#', 4)}${pad('Question', 52)}You`));
     r.polls.forEach((p, i) => t.line(`${mark(i + 1, 4)}${pad(cut(p.question, 50), 52)}${p.voted ? 'voted' : p.closed ? 'closed' : bold('open')}`));
     t.write(`\nPoll number, or ${bold('Q')} to go back: `);
-    const a = (await t.readLine({ max: 6 }))?.trim().toLowerCase();
+    const a = (await t.pick('q'))?.trim().toLowerCase();
     if (a === undefined || a === null || a === 'q' || a === '') return;
     const pick = r.polls[Number(a) - 1];
     if (!pick) { t.line('There is no poll with that number.'); continue; }
@@ -107,7 +107,7 @@ export async function polls(s: Session): Promise<void> {
     showPoll(s, p);
     if (p.voted || p.closed) { t.line(); continue; }
     t.write(`\nYour choice (1-${p.options.length}, Enter to leave without voting): `);
-    const c = (await t.readLine({ max: 3 }))?.trim();
+    const c = (await t.pick('', 3))?.trim();
     if (!c) continue;
     const opt = p.options[Number(c) - 1];
     if (!opt) { t.line('That is not one of the choices.'); continue; }
@@ -129,7 +129,7 @@ export async function files(s: Session): Promise<void> {
     if (!r.areas.length) { t.line('There are no file areas yet.'); return; }
     r.areas.forEach((a, i) => t.line(`${mark(i + 1, 4)}${pad(cut(a.name, 30), 32)}${a.file_count} file${a.file_count === 1 ? '' : 's'}`));
     t.write(`\nArea number, or ${bold('Q')} to go back: `);
-    const a = (await t.readLine({ max: 6 }))?.trim().toLowerCase();
+    const a = (await t.pick('q'))?.trim().toLowerCase();
     if (a === undefined || a === null || a === 'q' || a === '') return;
     const area = r.areas[Number(a) - 1];
     if (!area) { t.line('There is no area with that number.'); continue; }
@@ -144,7 +144,7 @@ export async function files(s: Session): Promise<void> {
     });
     await page(s, lines);
     t.write(`\nFile number for its download address, or ${bold('Q')}: `);
-    const n = (await t.readLine({ max: 6 }))?.trim().toLowerCase();
+    const n = (await t.pick('q'))?.trim().toLowerCase();
     const f = detail.files[Number(n) - 1];
     if (f) {
       if (f.description) await page(s, wrap(f.description, Math.min(79, t.cols - 1)));

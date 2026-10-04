@@ -68,4 +68,30 @@ describe('the terminal', () => {
     expect(await k).toBeNull();
     expect(await t.readLine()).toBeNull();
   });
+
+  it('acts on a letter at a list prompt at once, and takes a number with Enter', async () => {
+    const { t } = term();
+    const a = t.pick('pq');
+    t.input(Buffer.from('p'));
+    expect(await a).toBe('p');
+    const b = t.pick('pq');
+    t.input(Buffer.from('x12\r')); // a letter that isn't offered is ignored
+    expect(await b).toBe('12');
+    const c = t.pick('pq');
+    t.input(Buffer.from('\r'));
+    expect(await c).toBe('');
+  });
+
+  it('knows whether something new was shown since the last key, not counting the echo of typing', async () => {
+    const { t } = term();
+    const line = t.readLine();
+    t.input(Buffer.from('q\r'));
+    await line;
+    expect(t.shownSinceKey).toBe(false);
+    t.line();
+    t.write('\r\x1b[K');
+    expect(t.shownSinceKey).toBe(false);
+    t.line('Nobody is online.');
+    expect(t.shownSinceKey).toBe(true);
+  });
 });
