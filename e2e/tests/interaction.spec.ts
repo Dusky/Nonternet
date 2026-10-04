@@ -50,7 +50,7 @@ test.describe('on a big screen', () => {
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowUp');
     await expect(page.getByRole('option', { selected: true })).toContainText('Settings');
-    await box.fill('zzzzqqqq-');
+    await box.fill('qq zz!'); // can't be a handle either
     await expect(page.getByText('Nothing matches.')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(box).toHaveCount(0);
@@ -71,7 +71,8 @@ test('the confirm dialog: Tab stays inside it, and the rest of the page is out o
     await page.keyboard.press('Tab');
     expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true);
   }
-  await expect(page.getByRole('button', { name: 'Block', exact: true })).toHaveCount(1); // only the dialog's own
+  // The page behind is inert (or aria-hidden where inert isn't supported): out of reach for clicks, keys and screen readers.
+  expect(await page.locator('main').evaluate((m) => m.closest('[inert], [aria-hidden="true"]') !== null)).toBe(true);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(block).toBeFocused();

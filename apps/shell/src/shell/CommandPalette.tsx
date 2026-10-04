@@ -19,13 +19,12 @@ function remember(r: Recent) {
   try { localStorage.setItem(RECENT_KEY, JSON.stringify([r, ...loadRecent().filter((x) => x.key !== r.key)].slice(0, 6))); } catch { /* a convenience */ }
 }
 
-// `found` items come from a server search or a guess at a handle: already matched, so always shown.
-interface Item { key: string; label: string; kind: string; icon: ReactNode; run: () => void; found?: boolean }
+interface Item { key: string; label: string; kind: string; icon: ReactNode; run: () => void }
 
 // Ctrl+K (Cmd+K on a Mac): type a few letters to open an app, a board, a settings page or a
 // person's profile. A quicker way around for keyboard users; everything here is also reachable by
-// clicking. It searches only what this person can already see. cmdk does the matching (letters in order,
-// so "brd" finds Boards), the arrow keys and the screen reader wiring.
+// clicking. It searches only what this person can already see. Letters in order match, so "brd" finds
+// Boards; cmdk provides the scorer, the arrow keys and the screen reader wiring.
 export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; onClose: () => void }) {
   const t = useT();
   const site = useSite();
@@ -73,23 +72,26 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
       })),
     ];
     const remembered = (r: (typeof recent)[number]): Item => ({ key: `recent:${r.key}`, label: r.label, kind: r.kind, icon: <AppIcon id={r.app} size={20} />, run: () => { remember(r); go(r.app, r.path); } });
-    const found = term ? all : [...recent.map(remembered), ...all.filter((i) => !recent.some((r) => `recent:${r.key}` === i.key || r.key === i.key)).slice(0, Math.max(4, 12 - recent.length))];
-    const pick = (key: string, label: string, kind: string, app: AppId, path: string): Item => ({ key, label, kind, found: true, icon: <AppIcon id={app} size={20} />, run: () => { const r = { key, label, kind, app, path }; remember(r); setRecent(loadRecent()); go(app, path); } });
+    // Letters in order match (cmdk's scorer), best first; what the server found and a guessed handle follow.
+    const scored = (list: Item[]) => list.map((i) => ({ i, s: defaultFilter(i.label, term) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).map((x) => x.i);
+    const found = term ? scored(all) : [...recent.map(remembered), ...all.filter((i) => !recent.some((r) => `recent:${r.key}` === i.key || r.key === i.key)).slice(0, Math.max(4, 12 - recent.length))];
+    const pick = (key: string, label: string, kind: string, app: AppId, path: string): Item => ({ key, label, kind, icon: <AppIcon id={app} size={20} />, run: () => { const r = { key, label, kind, app, path }; remember(r); setRecent(loadRecent()); go(app, path); } });
     if (term) {
       for (const h of threads) found.push(pick(`thread:${h.post.thread_id}`, h.post.subject || '…', `${t('palette.kind.thread')} · ${h.board.name}`, 'boards', `${h.board.slug}/t/${h.post.thread_id}`));
       for (const r of rings) found.push(pick(`ring:${r.slug}`, r.name, t('palette.kind.ring'), 'rings', r.slug));
       for (const m of mail) if (m.subject.toLowerCase().includes(term)) found.push(pick(`mail:${m.id}`, m.subject, t('palette.kind.mail'), 'mail', m.id));
     }
     if (term && /^[a-z0-9_-]{2,40}$/i.test(term)) {
-      found.push({ key: `person:${term}`, label: t('palette.person', { handle: term }), kind: t('palette.kind.person'), found: true, icon: <Icon name="user" size={20} />, run: () => go('people', term) });
+      found.push({ key: `person:${term}`, label: t('palette.person', { handle: term }), kind: t('palette.kind.person'), icon: <Icon name="user" size={20} />, run: () => go('people', term) });
     }
-    return found;
+    return found.slice(0, 40);
   }, [q, boards, threads, rings, mail, recent, me, site, desktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
-    if (open && !d.open) { setQ(''); d.showModal(); }
+    // cmdk's root takes tabindex=-1, so showModal() would focus it rather than the input.
+    if (open && !d.open) { setQ(''); d.showModal(); d.querySelector<HTMLInputElement>('[cmdk-input]')?.focus(); }
     if (!open && d.open) d.close();
   }, [open]);
 
@@ -97,11 +99,11 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
     <dialog ref={dialog} className="dialog palette" aria-label={t('palette.label')} onCancel={(e) => { e.preventDefault(); onClose(); }}
       onClick={(e) => { if (e.target === dialog.current) onClose(); }}>
       {open && (
-        <Command label={t('palette.label')} loop filter={(value, search, keywords) => defaultFilter(keywords?.join(' ') ?? value, search)}>
+        <Command label={t('palette.label')} loop shouldFilter={false}>
           <Command.Input aria-label={t('palette.label')} placeholder={t('palette.placeholder')} value={q} onValueChange={setQ} autoFocus autoComplete="off" spellCheck={false} />
           <Command.List aria-label={t('palette.results')}>
             {items.map((i) => (
-              <Command.Item key={i.key} value={i.key} keywords={[i.label]} forceMount={i.found} onSelect={i.run}>
+              <Command.Item key={i.key} value={i.key} onSelect={i.run}>
                 {i.icon}<span>{i.label}</span><span className="kind">{i.kind}</span>
               </Command.Item>
             ))}

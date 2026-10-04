@@ -765,7 +765,11 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 
 /* ---- context menus, snapping, window open */
 .context-menu { min-width: 12rem; }
-/* React Aria places the popover; the menu inside it sits in normal flow. */
+/* React Aria places the popover; the menu inside it sits in normal flow and never runs off a phone screen. */
+.menu-popover { z-index: 9500; outline: none; max-width: calc(100vw - 24px); }
+.menu-popover .menu { position: static; max-height: inherit; overflow-y: auto; }
+.menu-popover .menu:focus { outline: none; }
+.menu-popover .menu-grid { grid-template-columns: repeat(auto-fill, minmax(min(11rem, 100%), 1fr)); }
 .menu .menu-item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-h); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; outline: none; }
 .menu .menu-item[data-focused], .menu .menu-item[data-hovered] { background: var(--accent-soft); }
 .menu .menu-item[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: -3px; }
