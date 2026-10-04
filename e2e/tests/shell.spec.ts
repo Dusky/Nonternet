@@ -40,7 +40,7 @@ test.describe('desktop windows', () => {
     await expect(win.getByLabel('Current password')).toBeVisible();
     expect(new URL(page.url()).pathname).toBe('/'); // moving around inside a window leaves the address alone
     // The window now covers the icon, so open it again the way a person would: from the Apps menu.
-    await page.getByRole('button', { name: 'Apps' }).click();
+    await page.getByRole('button', { name: 'Apps', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings' }).click();
     await expect(page.getByRole('dialog', { name: 'Settings window' })).toHaveCount(1);
   });
@@ -110,7 +110,7 @@ test.describe('desktop windows', () => {
     const admin = await makeAdmin(page);
     await signIn(page, admin.handle, PASSWORD, { recovery: admin.recoveryCodes[0]! });
     await page.getByRole('button', { name: 'Open Settings' }).click();
-    await page.getByRole('button', { name: 'Apps' }).click();
+    await page.getByRole('button', { name: 'Apps', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Admin console' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings window' });
     const adminWin = page.getByRole('dialog', { name: 'Admin console window' });
@@ -151,7 +151,7 @@ test.describe('desktop windows', () => {
     await dragBy(page, win.locator('header.window-title'), 100, 60);
     const placed = await box(win);
     await page.setViewportSize({ width: 600, height: 800 });
-    await expect(page.getByRole('navigation', { name: 'Apps' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Apps', exact: true })).toBeVisible();
     await expect(win).toHaveCount(0);
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(win).toBeVisible();
@@ -240,7 +240,7 @@ test.describe('on a phone', () => {
   test('shows a launcher of apps, opens one full screen at its own address, and goes back', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
-    await expect(page.getByRole('navigation', { name: 'Apps' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Apps', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^(Minimize|Maximize|Close) / })).toHaveCount(0); // no windows on a phone
     await page.getByRole('link', { name: 'Settings' }).click();
     await expect(page).toHaveURL(/\/settings\/profile$/);
