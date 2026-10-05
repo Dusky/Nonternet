@@ -21,7 +21,6 @@ export function BulletinList() {
     <>
       <BackLink to="">{t('boards.backToBoards')}</BackLink>
       <h2>{t('classics.bulletins')}</h2>
-      <p className="hint">{t('classics.bulletins.hint')}</p>
       {me?.role === 'admin' && <p><button type="button" className="btn btn-primary" onClick={() => setWriting(!writing)} aria-expanded={writing}>{t('classics.bulletins.write')}</button></p>}
       {writing && <BulletinForm onDone={() => setWriting(false)} />}
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}

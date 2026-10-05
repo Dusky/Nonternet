@@ -9,7 +9,8 @@ export function Section({ id, title, scope, intro, children }: { id: string; tit
     <section className="panel settings-section" aria-labelledby={id}>
       <div className="panel-head">
         <h2 id={id}>{title}</h2>
-        {scope && <span className="badge settings-scope">{t(scope === 'account' ? 'settings.scope.account' : 'settings.scope.device')}</span>}
+        {/* Account is the default (one line at the top of Settings says so); only the exception is marked. */}
+        {scope === 'device' && <span className="badge settings-scope">{t('settings.scope.device')}</span>}
       </div>
       {intro && <p className="hint">{intro}</p>}
       {children}

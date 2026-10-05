@@ -22,9 +22,12 @@ export const passwordSchema = z.string().min(PASSWORD_MIN, `password must be at 
 export const APPLICATION_MIN = 20;
 export const APPLICATION_MAX = 1000;
 
+// One plain message, so the browser and the server say the same thing.
+export const emailSchema = z.string().email('that email address does not look right').max(254);
+
 export const signupInputSchema = z.object({
   handle: handleSchema,
-  email: z.string().email().max(254),
+  email: emailSchema,
   password: passwordSchema,
   display_name: z.string().trim().min(1).max(60).optional(),
   invite: z.string().trim().min(1).max(64).optional(),
@@ -40,7 +43,7 @@ export type SignupInput = z.infer<typeof signupInputSchema>;
 // e.g. k3m9x-2qf7a. Lower-case letters and digits without look-alikes.
 export const RECOVERY_CODE_PATTERN = /^[a-hjkmnp-z2-9]{5}-[a-hjkmnp-z2-9]{5}$/;
 
-export const forgotPasswordSchema = z.object({ email: z.string().email().max(254) });
+export const forgotPasswordSchema = z.object({ email: emailSchema });
 export const resetPasswordSchema = z.object({ token: z.string().min(10).max(200), password: passwordSchema });
 
 export const changePasswordSchema = z.object({ current_password: z.string().min(1).max(PASSWORD_MAX), new_password: passwordSchema });

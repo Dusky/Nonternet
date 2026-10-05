@@ -293,6 +293,7 @@ export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.
 export const EXEMPT: Record<string, string> = {
+  home_previews: 'a draft held for ten minutes so the Studio can preview unsaved text; the saved file is what is published and exported',
   app_catalog: 'the packages this site offers, chosen by admins; what an app keeps for a person is in app_data',
   legal_pages: 'site documents written by admins',
   imports: 'a record of archives the person uploaded to bring back; the content itself is in their export',

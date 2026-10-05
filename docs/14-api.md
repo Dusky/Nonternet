@@ -150,6 +150,9 @@ Live hint `classics`.
 Public: `GET /widgets/button.svg|png?text=&fg=&bg=`, `GET /rings/:slug/banners`, `GET /rings/:slug/banner/:kind`. Signed in: `POST /homes/:handle/guestbook-ticket {return_to}` → `{redirect}`;
 the widget guestbook `POST` also takes `ticket`. Ring ops/admins: `PUT|DELETE /rings/:slug/banner/:kind` (image bytes), `POST /rings/:slug/banner/:kind/hide|restore {reason}`.
 
+## Studio preview (2026-10-05, docs/07)
+- `PUT /api/v1/homes/me/preview?path=…` (body: the text): holds it for the live preview; returns `{ token }`. 240 a minute. Text files only (`415 not_text`), at most the homepage file size (`413`).
+
 ## Installable apps (2026-10-04, docs/10)
 All need a session. The data routes are what the shell's bridge calls on an app's behalf; an app never calls the API itself (it has no network).
 - `GET /api/v1/apps`: apps the site offers, with `installed` and `has_data` for the caller, and each app's `url` on the homes origin.

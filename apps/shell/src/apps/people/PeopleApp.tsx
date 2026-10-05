@@ -1,4 +1,4 @@
-import { useConfirm } from '../../components/feedback';
+import { useConfirm, toast } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -195,7 +195,10 @@ function PersonActions({ p }: { p: PublicProfile }) {
       {!blocked && <OpenAppLink app="mail" to={`new/${encodeURIComponent(p.handle)}`} className="btn">{t('mail.write')}</OpenAppLink>}
       {p.role !== 'admin' && (
         <button type="button" className="btn btn-quiet" disabled={toggle.isPending || !blocks.data}
-          onClick={() => { if (blocked) toggle.mutate(); else void confirm({ message: t('blocks.blockConfirm', { handle: p.handle }), confirmLabel: t('confirm.block'), danger: true }).then((ok) => ok && toggle.mutate()); }}>
+          onClick={() => {
+            if (blocked) { toggle.mutate(); return; }
+            toggle.mutate(undefined, { onSuccess: () => toast(t('blocks.blockedNote', { handle: p.handle }), 'ok', { undo: () => void api.post('/me/blocks/remove', { handle: p.handle }).then(() => qc.invalidateQueries({ queryKey: ['me', 'blocks'] })) }) });
+          }}>
           {blocked ? t('blocks.unblock') : t('blocks.block')}
         </button>
       )}

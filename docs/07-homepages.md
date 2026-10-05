@@ -112,3 +112,11 @@ or SFTP with terminal password; git push deploys.
   (`POST /homes/:handle/guestbook-ticket`, only the hash stored) and is sent back to *that homepage's own address* (its handle address or a verified custom
   domain; anything else is refused, so it cannot be used as an open redirect). The widget takes the pass out of the address at once and sends it with the
   message; the entry then carries the signer's handle. A pass works once, only for that homepage, and expires.
+
+## Live preview of unsaved text (2026-10-05)
+The Studio's editor previews what is being typed, not just what was saved. `PUT /api/v1/homes/me/preview?path=…` (signed in,
+text files only, the usual file size limit) stores the draft in `home_previews` (one row per person, replaced as they type,
+ignored after ten minutes, erased with the account) and returns a random token. The homes server shows it at
+`{handle}.{homes_domain}/__preview/{token}/{file}`: that file is the draft; anything else under the token (pictures, styles) is
+the saved file, so relative links work. The token is the only way in, so a draft is never visible to anyone else. It is never
+published, never exported (the saved file is), and the same headers apply as for any homepage.

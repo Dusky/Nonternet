@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Browser, Page } from '@playwright/test';
 import { BASE_URL } from '../support/stack';
-import { makeAdmin, makeUser, PASSWORD, signIn, totp, confirmDialog } from '../support/helpers';
+import { makeAdmin, makeUser, PASSWORD, signIn, totp } from '../support/helpers';
 
 async function signedInPage(browser: Browser, handle: string): Promise<Page> {
   const ctx = await browser.newContext({ baseURL: BASE_URL });
@@ -108,8 +108,7 @@ test.describe('mail', () => {
     const b = await makeUser(page);
     await signIn(page, a.handle, PASSWORD);
     await page.goto(`/people/${b.handle}`);
-    await page.getByRole('button', { name: 'Block', exact: true }).click();
-    await confirmDialog(page, 'Block');
+    await page.getByRole('button', { name: 'Block', exact: true }).click(); // acts at once; Undo is in the note
     await expect(page.getByText('You have blocked this person.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Send mail' })).toHaveCount(0);
 

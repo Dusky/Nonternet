@@ -142,6 +142,9 @@ client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+cl
 - `app_installs(user_id, app_id, installed_at)`: who added what.
 - `app_data(user_id, app_id, collection, doc_id, data jsonb, bytes)`: everything any app keeps for a person, keyed by stable user id; exported, imported and erased with the account.
 
+## Studio preview (0038, docs/07)
+- `home_previews(user_id pk, token, path, body, updated_at)`: the unsaved text being previewed. Ten minutes of life, one row per person.
+
 ## Invariants (enforce and test)
 - Board/ring ownership requires `trusted` or `admin` at creation; quotas checked at creation.
 - Every ring has exactly one board (`rings.board_id` not null after creation).

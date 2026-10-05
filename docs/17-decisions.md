@@ -124,6 +124,12 @@
 
 - 2026-10-04: instant feel (`10`). Long chat and MUD logs use CSS `content-visibility: auto` instead of TanStack Virtual (a change from P13): a virtual list would drop off-screen lines from the page, which breaks live announcements, browser find and the MUD's find; the CSS keeps every line in the page and skips only layout and painting. Conversation links are not prefetched, because opening a conversation marks it read on the server.
 
+- 2026-10-05: filler removed from the interface (`10`). A written rule caps hints at 150 characters, with a test; longer help sits behind a "?". Reversible actions act at once with Undo instead of asking: the request is delayed six seconds so even things the server can't take back can be undone, and a page leave sends what is waiting (note: `pagehide` sends are not guaranteed by browsers, so a person who closes the tab inside the six seconds may lose the removal, which fails safe: nothing is deleted). Confirmation dialogs stay for what can't be taken back.
+
+- 2026-10-05: forms (`10`). The submit button stays on while a form is invalid (a change from "submit enabled when valid" in the plan): a disabled button with no explanation strands people and screen readers, and pressing it with mistakes now shows all of them. Server errors are mapped to fields by error *code*, because the documented error shape has no field name (adding one broke the security test for the shape).
+- 2026-10-05: graphile-worker (J in the plan) is postponed to the push phase. Every `setInterval` in core is an idempotent reconciler (IRC and MUD sync, the digest), a poll of a database table (exports) or an already-durable outbox, so none loses work when it stops; a job queue would add retries and visibility but also need DDL rights for its own schema under the restricted runtime role (`DB_RUNTIME_ROLE`). Sending push notifications needs per-message retries, so it adopts the queue then.
+- 2026-10-05: Studio (`07`, `10`): lint, completion, Emmet (as a suggestion, not on Tab) and a live preview served from the homepage origin through a ten-minute draft behind an unguessable token. A browser-side preview (a sandboxed `srcdoc` frame) was rejected: it would inherit the shell's content policy, so inline scripts and outside pictures that work on the published page would not show.
+
 ## Verify list
 | # | Fact | Affects |
 |---|---|---|

@@ -7,6 +7,9 @@ import { tags as t } from '@lezer/highlight';
 import { css } from '@codemirror/lang-css';
 import { html } from '@codemirror/lang-html';
 import { javascript } from '@codemirror/lang-javascript';
+import { lintGutter } from '@codemirror/lint';
+import { emmetCompletionSource } from '@emmetio/codemirror6-plugin';
+import { htmlLinter, widgetCompletions } from './editorExtras';
 
 // Every colour here is at least 7:1 against the editor's white background, so the code is readable
 // in both site themes (the editor stays light in each).
@@ -22,18 +25,30 @@ const highlight = HighlightStyle.define([
   { tag: [t.meta, t.documentMeta, t.processingInstruction], color: '#3d3d3d' },
 ]);
 
-const language = (path: string): Extension => {
+export interface Widgets { origin: string; handle: string; names: readonly string[] }
+
+// HTML gets tag and attribute completion (from CodeMirror), Emmet abbreviations ("ul>li*3" offered as an expansion), the
+// site's own widgets, and a lint for the usual mistakes. Emmet is offered as a suggestion, not bound to Tab, so Tab
+// still moves focus out of the editor.
+const language = (path: string, widgets?: Widgets): Extension => {
   const ext = path.split('.').pop()?.toLowerCase();
-  if (ext === 'css') return css();
+  if (ext === 'css') { const c = css(); return [c, c.language.data.of({ autocomplete: emmetCompletionSource })]; }
   if (ext === 'js' || ext === 'mjs') return javascript();
-  if (['html', 'htm', 'svg', 'xml'].includes(ext ?? '')) return html();
+  if (['html', 'htm', 'svg', 'xml'].includes(ext ?? '')) {
+    const h = html();
+    return [
+      h, h.language.data.of({ autocomplete: emmetCompletionSource }),
+      ...(widgets ? [h.language.data.of({ autocomplete: widgetCompletions(widgets.origin, widgets.handle, widgets.names) })] : []),
+      htmlLinter, lintGutter(),
+    ];
+  }
   return [];
 };
 
 // The code editor (CodeMirror 6), loaded only when someone opens a file. It keeps its own text and
 // reports each change; Ctrl+S or Cmd+S saves.
-export default function CodeEditor({ path, value, label, onChange, onSave }: {
-  path: string; value: string; label: string; onChange: (v: string) => void; onSave: () => void;
+export default function CodeEditor({ path, value, label, onChange, onSave, widgets }: {
+  path: string; value: string; label: string; onChange: (v: string) => void; onSave: () => void; widgets?: Widgets;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const cb = useRef({ onChange, onSave });
@@ -45,7 +60,7 @@ export default function CodeEditor({ path, value, label, onChange, onSave }: {
       state: EditorState.create({
         doc: value,
         extensions: [
-          basicSetup, syntaxHighlighting(highlight), language(path), EditorView.lineWrapping,
+          basicSetup, syntaxHighlighting(highlight), language(path, widgets), EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': label }),
           keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => { cb.current.onSave(); return true; } }]),
           EditorView.updateListener.of((u) => { if (u.docChanged) cb.current.onChange(u.state.doc.toString()); }),

@@ -335,3 +335,46 @@ The format is built for outside authors later (Q18), but only the site's own pac
 - **Long logs** (chat and MUD, up to 2000 lines; long threads) use CSS `content-visibility: auto` rather than a
   JavaScript virtual list, so screen readers' live announcements, the browser's find and the MUD's find still see
   every line.
+
+## Interface writing rule and "act now, Undo" (2026-10-05)
+The interface should read like it was written by someone who uses it, not generated: short, plain, and only where
+a person would otherwise go wrong.
+- **A line under a field or heading** is one plain sentence, 150 characters at most, and only for what a person
+  would otherwise get wrong ("It cannot be changed later."). Nothing that restates the label, the heading or the
+  button. `hints.test.ts` finds every hint and holds it to the length.
+- **Longer help** goes behind a "?" beside the heading (`components/HelpTip`, a React Aria popover: Escape closes it,
+  focus goes back). The MUD client rules' per-tab explanations are the first use.
+- **No "Keys:" lines.** Every shortcut is in the shortcuts sheet (`?`).
+- **One line says where settings live** ("Settings are kept on your account, except the ones marked 'This device
+  only'") at the top of Settings, instead of a badge on every section; only the exception is marked.
+- **Reversible actions don't ask first.** The screen changes at once and a note offers Undo for six seconds
+  (`undoable()` in `components/feedback`); the request is sent when the note's time is up, or when the person leaves
+  the page. Used for removing an SSH key, deleting your own file, mail message or ring banner, and blocking someone
+  (Undo unblocks). A dialog (`confirm()`) is kept only for what can't be taken back: deleting the account, leaving
+  a mail conversation, handing over a ring, hiding or removing other people's content, replacing a file,
+  discarding unsaved edits, and sending a long paste to chat.
+- Before and after, by count: hint paragraphs 138 → 128, with the long ones cut or moved behind a "?", `confirm()` calls 18 → 13,
+  "Keys:" lines 2 → 0.
+
+## As built (forms, 2026-10-05)
+- **`components/Form.tsx`**: `useZodForm`, `<Form>`, `<Field>` and `<CheckField>` on TanStack Form, using the shared zod schemas
+  (`@app/shared`), so the browser applies the same rules as the server and says the same words (`emailSchema` has one plain
+  message for both). A field's mistake shows when the person leaves it and goes as they fix it. Pressing the button with
+  mistakes shows all of them. The button is **not** switched off while the form is invalid: a button that is off with no word
+  about why leaves a person stuck (and screen readers skip it). It is off only while the request is on its way.
+- **Server errors** use the documented `{ code, message }` shape, which has no field name, so the form maps an error *code*
+  to its field (`serverFields`: `handle_unavailable` → handle, `email_taken` → email…). Any other error shows once, under
+  the form, in the server's own plain words.
+- Converted so far: sign-up, change password, forgot and reset password. Not converted, on purpose: the login page
+  (several steps, and redirects that must run once), and the many one-field forms that already validate on the server
+  (a rename, an add-a-handle box); they can move over as they are touched.
+
+## As built (Studio editor, 2026-10-05)
+- The editor (CodeMirror 6) adds: HTML and CSS completion (tags, attributes, properties), **Emmet** abbreviations offered as a
+  suggestion (not bound to Tab, so Tab still leaves the editor), the **site's widgets** ("widget-guestbook" fills in the
+  script line with your handle and the site's address), search and replace (Ctrl/Cmd+F), and a **lint** with a gutter for the
+  usual mistakes: a tag that is never closed or closed in the wrong order, a picture with no alt text, an `http://`
+  address on an https page. Messages are in the plain voice.
+- **Live preview**: the text as typed, a moment after the last key, in the preview frame, from the homepage origin
+  exactly as it will be published (your saved files around it, the draft in its place). The published page changes only
+  when you save. Your unsaved text is also kept in your browser (existing), so a closed tab doesn't lose it.

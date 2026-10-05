@@ -87,6 +87,8 @@ test.describe('on a big screen', () => {
   test('being signed out in the background is said plainly, with a way back in', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
+    // Let the shell's own first requests (the list of added apps among them) finish before the session is taken away.
+    await expect.poll(() => page.evaluate(() => performance.getEntriesByType('resource').some((e) => e.name.includes('/api/v1/me/apps') && e.responseEnd > 0))).toBe(true);
     await page.context().clearCookies();
     await page.getByRole('button', { name: 'Open Mail' }).click(); // asks the server, which says no
     const banner = page.getByRole('alert').filter({ hasText: 'You have been signed out' });

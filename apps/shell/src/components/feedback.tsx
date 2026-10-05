@@ -43,6 +43,20 @@ export function useToast(): ToastFn {
   return toast;
 }
 
+// Act at once, with Undo (docs/10): the screen changes now (the caller does that), a note offers Undo, and the
+// request goes to the server only when the note's time is up, so even something the server can't take back can be
+// undone for a moment. Leaving the page sends anything still waiting.
+const waiting = new Set<() => void>();
+if (typeof window !== 'undefined') window.addEventListener('pagehide', () => { for (const run of [...waiting]) run(); });
+export function undoable(text: string, commit: () => Promise<unknown>, opts: { onUndo?: () => void; onError?: (e: unknown) => void; delay?: number } = {}): void {
+  let done = false;
+  const finish = () => { done = true; clearTimeout(timer); waiting.delete(run); };
+  const run = () => { if (done) return; finish(); commit().catch((e: unknown) => opts.onError?.(e)); };
+  const timer = setTimeout(run, opts.delay ?? 6000);
+  waiting.add(run);
+  toast(text, 'ok', { undo: () => { if (done) return; finish(); opts.onUndo?.(); } });
+}
+
 export function FeedbackProvider({ children }: { children: ReactNode }) {
   const t = useT();
   const [ask, setAsk] = useState<(ConfirmOptions & { resolve: (ok: boolean) => void }) | null>(null);

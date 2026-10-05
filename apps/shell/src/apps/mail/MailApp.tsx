@@ -1,4 +1,4 @@
-import { useConfirm } from '../../components/feedback';
+import { undoable, useConfirm } from '../../components/feedback';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, type MailInbox, type MailMessageView, type MailPerson, type MailThreadView } from '@app/shared';
@@ -142,9 +142,15 @@ function Conversation({ id }: { id: string }) {
     const tx = coll.insert({ id: pendingId(), kind: 'message', author: { id: me.id, handle: me.handle, display_name: me.display_name ?? null }, body: text, deleted: false, at: new Date().toISOString(), mine: true });
     tx.isPersisted.promise.catch((e: unknown) => { setBody((b) => b || text); setSendError(errorText(e)); });
   };
-  const deleteNow = (mid: string) => {
+  // Deleting shows at once and is sent when the Undo note's time is up (it can't be taken back after that).
+  const [deleting, setDeleting] = useState<string[]>([]);
+  const deleteSoon = (mid: string) => {
     setSendError(null);
-    coll.update(mid, (d) => { d.deleted = true; d.body = ''; }).isPersisted.promise.catch((e: unknown) => setSendError(errorText(e)));
+    setDeleting((d) => [...d, mid]);
+    const back = () => setDeleting((d) => d.filter((x) => x !== mid));
+    undoable(t('mail.messageDeleted'), () => coll.update(mid, (d) => { d.deleted = true; d.body = ''; }).isPersisted.promise.finally(back), {
+      onUndo: back, onError: (e) => setSendError(errorText(e)),
+    });
   };
   const add = useMutation({ mutationFn: () => api.post(`/mail/${id}/people`, { handle: adding.trim().replace(/^@/, '') }), onSuccess: () => { setAdding(''); void refresh(); } });
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
@@ -178,7 +184,7 @@ function Conversation({ id }: { id: string }) {
       </section>
       {th.left && <Alert kind="info">{t('mail.youLeft')}</Alert>}
       <ol className="posts mail-messages" ref={end}>
-        {messages.map((m) => <Message key={m.id} m={m} threadId={id} canAct={!th.left} onDelete={() => { void confirm({ message: t('mail.deleteConfirm'), confirmLabel: t('confirm.deleteMessage'), danger: true }).then((ok) => ok && deleteNow(m.id)); }} />)}
+        {messages.map((m) => <Message key={m.id} m={deleting.includes(m.id) ? { ...m, deleted: true } : m} threadId={id} canAct={!th.left} onDelete={() => deleteSoon(m.id)} />)}
       </ol>
       {!th.left && (
         <>

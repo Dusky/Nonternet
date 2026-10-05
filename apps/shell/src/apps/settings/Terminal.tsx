@@ -1,9 +1,10 @@
-import { useConfirm } from '../../components/feedback';
+import { useConfirm, undoable } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, TextField, EmptyState } from '../../components/ui';
 import { Section } from './Section';
+import { HelpTip } from '../../components/HelpTip';
 import { errorText, formatWhen, useSite, useT } from '../../hooks';
 
 // A separate password for IRC clients and, later, telnet and the MUD (docs/02). Leaking it doesn't
@@ -41,6 +42,7 @@ interface SshKey { id: string; name: string; type: string; fingerprint: string; 
 
 // SSH keys for signing in to the BBS without a password (docs/04). Only the public half is ever sent.
 export function SshKeys() {
+  const [going, setGoing] = useState<string[]>([]); // removed on screen, waiting out the Undo
   const t = useT();
   const confirm = useConfirm();
   const qc = useQueryClient();
@@ -50,18 +52,22 @@ export function SshKeys() {
   const refresh = () => void qc.invalidateQueries({ queryKey: ['ssh-keys'] });
   const add = useMutation({ mutationFn: () => api.post('/me/ssh-keys', { name, public_key: key }), onSuccess: () => { setName(''); setKey(''); refresh(); } });
   const remove = useMutation({ mutationFn: (id: string) => api.del(`/me/ssh-keys/${id}`), onSuccess: refresh });
+  const shownKeys = (q.data?.keys ?? []).filter((k) => !going.includes(k.id));
   return (
     <Section id="ssh-h" title={t('ssh.title')} scope="account">
       <p className="hint">{t('ssh.intro')}</p>
-      {q.data && q.data.keys.length === 0 && <EmptyState>{t('ssh.none')}</EmptyState>}
+      {q.data && shownKeys.length === 0 && <EmptyState>{t('ssh.none')}</EmptyState>}
       <ul className="rows">
-        {q.data?.keys.map((k) => (
+        {shownKeys.map((k) => (
           <li key={k.id}>
             <strong>{k.name}</strong> <span className="muted">{k.type}</span>
             <p className="hint"><code className="checksum">{k.fingerprint}</code></p>
             <p className="hint">{t('ssh.added', { when: formatWhen(k.added_at) ?? '' })} · {k.last_used_at ? t('ssh.used', { when: formatWhen(k.last_used_at) ?? '' }) : t('ssh.neverUsed')}</p>
-            <button type="button" className="btn btn-quiet" aria-label={t('ssh.removeLabel', { name: k.name })} disabled={remove.isPending}
-              onClick={() => { void confirm({ message: t('ssh.removeConfirm', { name: k.name }), confirmLabel: t('confirm.removeKey'), danger: true }).then((ok) => ok && remove.mutate(k.id)); }}>{t('ssh.remove')}</button>
+            <button type="button" className="btn btn-quiet" aria-label={t('ssh.removeLabel', { name: k.name })}
+              onClick={() => {
+                setGoing((g) => [...g, k.id]);
+                undoable(t('ssh.removed', { name: k.name }), () => remove.mutateAsync(k.id), { onUndo: () => setGoing((g) => g.filter((x) => x !== k.id)), onError: () => setGoing((g) => g.filter((x) => x !== k.id)) });
+              }}>{t('ssh.remove')}</button>
           </li>
         ))}
       </ul>
@@ -104,7 +110,7 @@ export function OfflineMail() {
   });
   return (
     <Section id="qwk-h" title={t('qwk.title')} scope="account">
-      <p className="hint">{t('qwk.intro')}</p>
+      <p className="hint">{t('qwk.short')} <HelpTip topic={t('qwk.title')}><p>{t('qwk.intro')}</p></HelpTip></p>
       {q.data && (
         <p className="hint">{t('qwk.boards', { boards: q.data.conferences.map((c) => `${c.conf} ${c.name}`).join(', ') || '-' })}</p>
       )}

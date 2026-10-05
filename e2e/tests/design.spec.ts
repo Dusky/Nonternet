@@ -140,8 +140,10 @@ test('confirming in the site dialog: Cancel leaves things alone and returns focu
   const a = await makeUser(page);
   const b = await makeUser(page);
   await signIn(page, a.handle, PASSWORD);
-  await page.goto(`/people/${b.handle}`);
-  const block = page.getByRole('button', { name: 'Block', exact: true });
+  const sent = await page.request.post('/api/v1/mail', { data: { to: [b.handle], subject: 'Hello', body: 'Hi there' }, headers: { origin: new URL(page.url()).origin } });
+  await page.goto(`/mail/${(await sent.json()).id}`);
+  await page.getByText('Add someone, mute or leave').click();
+  const block = page.getByRole('button', { name: 'Leave this conversation' });
   await block.click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toBeVisible();
@@ -151,8 +153,8 @@ test('confirming in the site dialog: Cancel leaves things alone and returns focu
   await expect(dialog).toHaveCount(0);
   await expect(block).toBeFocused();
   await block.click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Block', exact: true }).click();
-  await expect(page.getByText('You have blocked this person.')).toBeVisible();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Leave', exact: true }).click();
+  await expect(page.getByText('you left')).toBeVisible(); // back in the inbox, marked as left
 });
 
 test('terminal: the new screens keep their contrast', async ({ page }) => {

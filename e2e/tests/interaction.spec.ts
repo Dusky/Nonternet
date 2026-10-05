@@ -62,8 +62,10 @@ test('the confirm dialog: Tab stays inside it, and the rest of the page is out o
   const a = await makeUser(page);
   const b = await makeUser(page);
   await signIn(page, a.handle, PASSWORD);
-  await page.goto(`/people/${b.handle}`);
-  const block = page.getByRole('button', { name: 'Block', exact: true });
+  const sent = await page.request.post('/api/v1/mail', { data: { to: [b.handle], subject: 'Hello', body: 'Hi there' }, headers: { origin: new URL(page.url()).origin } });
+  await page.goto(`/mail/${(await sent.json()).id}`);
+  await page.getByText('Add someone, mute or leave').click();
+  const block = page.getByRole('button', { name: 'Leave this conversation' });
   await block.click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toBeVisible();

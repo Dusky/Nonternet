@@ -64,7 +64,6 @@ function ButtonMaker() {
   return (
     <section className="panel" aria-labelledby="button-h">
       <h3 id="button-h">{t('studio.button.title')}</h3>
-      <p className="hint">{t('studio.button.hint')}</p>
       <p><img src={`/widgets/button.svg?${query}`} width={88} height={31} alt={t('studio.button.preview')} /></p>
       <TextField label={t('studio.button.top')} value={top} onChange={setTop} maxLength={14} required />
       <TextField label={t('studio.button.bottom')} value={bottom} onChange={setBottom} maxLength={14} />

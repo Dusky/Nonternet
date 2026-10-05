@@ -1152,3 +1152,12 @@ button.chat-person:hover { text-decoration: underline; }
 .chat-log > ol > .chat-line { content-visibility: auto; contain-intrinsic-size: auto 1.6em; }
 .mud-log > .mud-out, .mud-log > .mud-you, .mud-log > .mud-note { content-visibility: auto; contain-intrinsic-size: auto 2.5em; }
 .posts > li { content-visibility: auto; contain-intrinsic-size: auto 9rem; }
+
+/* The "?" help button and its popover (components/HelpTip.tsx). */
+.help-tip { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: var(--space-2); padding: 0; vertical-align: middle; font: inherit; font-size: var(--step--1); font-weight: 700; color: var(--muted); background: none; border: var(--line-width) solid var(--border); border-radius: 50%; cursor: pointer; }
+.help-tip:hover, .help-tip[data-pressed], .help-tip[aria-expanded="true"] { color: var(--text); border-color: var(--line-strong); }
+.help-pop { z-index: 9500; max-width: min(24rem, calc(100vw - 24px)); }
+.help-body { padding: var(--space-3) var(--space-4); background: var(--surface); color: var(--text); border: var(--line-width) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-card); font-size: var(--step--1); line-height: 1.5; outline: none; }
+.help-body p { margin: 0 0 var(--space-2); }
+.help-body p:last-child { margin-bottom: 0; }
+.tab-help { display: flex; justify-content: flex-end; margin-bottom: var(--space-2); }

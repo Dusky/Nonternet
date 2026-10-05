@@ -98,6 +98,13 @@ export function homeRoutes(app: FastifyInstance, deps: AppDeps): void {
     // application/json would otherwise be parsed as strings or objects and the file would come out empty).
     scope.removeAllContentTypeParsers();
     scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: homes.fileMaxBytes(deps) }, (_req, body, done) => done(null, body));
+    // The Studio's live preview (docs/07): unsaved text, shown by the homes server at an address with a token in it.
+    scope.put('/api/v1/homes/me/preview', { config: { rateLimit: { max: 240, timeWindow: '1 minute' } } }, async (req) => {
+      const v = requireUser(req);
+      const path = cleanPath(pathQuery.parse(req.query).path);
+      if (req.body !== undefined && !Buffer.isBuffer(req.body)) throw new ApiError(400, 'bad_request', 'Send the file itself as the request body.');
+      return homes.putPreview(deps, v, path, (req.body as Buffer | undefined) ?? Buffer.alloc(0));
+    });
     scope.put('/api/v1/homes/me/file', async (req, reply) => {
       const v = requireUser(req);
       const path = cleanPath(pathQuery.parse(req.query).path);

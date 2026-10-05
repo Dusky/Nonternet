@@ -181,6 +181,26 @@ export async function buildHomesApp(deps: AppDeps) {
       if (owner.status !== 'active') return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
       if (owner.hidden) return page(reply, 410, en['homes.hidden'], '');
 
+      // The Studio's live preview (docs/07): /__preview/{token}/{file} shows the editor's unsaved text for that file, and
+      // anything else under the token (the page's pictures, styles) comes from the saved files as usual. The token is the
+      // only way in, so a draft is never visible to anyone but whoever has the editor open.
+      const pv = /^\/__preview\/([A-Za-z0-9_-]{20,64})\/(.*)$/.exec(pathname);
+      if (pv) {
+        const rel = pv[2] ?? '';
+        const row = await deps.db.query<{ path: string; body: string }>(
+          `SELECT path, body FROM home_previews WHERE user_id = $1 AND token = $2 AND updated_at > now() - interval '10 minutes'`, [owner.id, pv[1]]);
+        const draft = row.rows[0];
+        const want = rel === '' || rel.endsWith('/') ? `${rel}index.html` : rel;
+        if (draft && want === draft.path) {
+          const mime = MIME[extOf(draft.path)];
+          if (!mime) return page(reply, 404, en['homes.notFound'], '');
+          protect(reply);
+          const text = ['html', 'htm'].includes(extOf(draft.path)) ? inject(draft.body, owner.handle) : draft.body;
+          return reply.code(200).type(mime).header('cache-control', 'no-store').send(req.method === 'HEAD' ? undefined : text);
+        }
+        pathname = `/${rel}`;
+      }
+
       // Any dot segment, before any tidying: nothing here needs one, so none is let through.
       if (pathname.split('/').some((s) => s.startsWith('.'))) return page(reply, 404, en['homes.notFound'], en['homes.notFoundHint']);
       const segs = posix.normalize(pathname).split('/').filter(Boolean);

@@ -211,8 +211,24 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
     } catch (e) { setError(errorText(e)); }
   }, [path, t, me, draftKey]);
 
-  const close = () => { if (!dirty) onClose(); else void confirm({ message: t('studio.edit.leave'), confirmLabel: t('confirm.discard'), danger: true }).then((ok) => ok && onClose()); };
+  // Live preview: the text as typed, a moment after the last key, shown by the homepage origin exactly as it will be published
+  // (the saved files around it, the draft in its place). Held for ten minutes at an address only this editor knows.
+  const [typed, setTyped] = useState(0);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const previewable = /\.(html?|svg|txt|css)$/i.test(path);
+  useEffect(() => {
+    if (!previewable || text === null) return;
+    const id = setTimeout(() => {
+      api.upload<{ token: string }>(`/homes/me/preview?path=${encodeURIComponent(path)}`, latest.current)
+        .then((r) => { setPreviewFailed(false); setPreviewSrc(`${url}__preview/${r.token}/${path}?v=${Date.now()}`); })
+        .catch(() => setPreviewFailed(true));
+    }, typed === 0 ? 0 : 600);
+    return () => clearTimeout(id);
+  }, [typed, text === null, path]); // eslint-disable-line react-hooks/exhaustive-deps
+  const widgetNames = useQuery({ queryKey: ['studio', 'snippets'], queryFn: () => api.get<{ snippets: { id: string }[] }>('/homes/me/snippets'), staleTime: 300_000, enabled: /\.html?$/i.test(path) }).data?.snippets.map((s) => s.id);
+
+  const close = () => { if (!dirty) onClose(); else void confirm({ message: t('studio.edit.leave'), confirmLabel: t('confirm.discard'), danger: true }).then((ok) => ok && onClose()); };
   return (
     <section aria-labelledby="edit-h">
       <h2 id="edit-h">{t('studio.edit.title', { name: path })}</h2>
@@ -228,10 +244,16 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
         {text !== null && (
           <Suspense fallback={<Loading />}>
             <CodeEditor path={path} value={text} label={t('studio.edit.editor', { name: path })}
-              onChange={(v) => { latest.current = v; setDirty(v !== saved.current); if (me) saveDraft(me.id, draftKey, v === saved.current ? '' : v); }} onSave={() => void save()} />
+              onChange={(v) => { latest.current = v; setTyped((n) => n + 1); setDirty(v !== saved.current); if (me) saveDraft(me.id, draftKey, v === saved.current ? '' : v); }} onSave={() => void save()}
+              widgets={widgetNames ? { origin: window.location.origin, handle: me?.handle ?? '', names: widgetNames } : undefined} />
           </Suspense>
         )}
-        {previewable && <iframe className="preview-frame" title={t('studio.edit.preview', { name: path })} src={`${url}${path}?v=${stamp}`} />}
+        {previewable && (
+          <div className="preview-pane">
+            <iframe className="preview-frame" title={t('studio.edit.preview', { name: path })} src={previewSrc ?? `${url}${path}?v=${stamp}`} />
+            {previewFailed && <p className="muted" role="status">{t('studio.edit.previewFailed')}</p>}
+          </div>
+        )}
       </div>
     </section>
   );

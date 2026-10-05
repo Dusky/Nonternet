@@ -6,6 +6,7 @@ import {
 import type { StringKey } from '@app/strings';
 import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
 import { Alert, TextField } from '../../components/ui';
+import { HelpTip } from '../../components/HelpTip';
 import { useT } from '../../hooks';
 import { keyName, newId, validRegex } from './engine';
 import { useMud } from './store';
@@ -136,7 +137,7 @@ function Aliases() {
   const l = useList('aliases');
   return (
     <>
-      <p className="hint">{t('mud.ed.aliasesHint')}</p>
+      <div className="tab-help"><HelpTip topic={t('mud.ed.tab.aliases')}><p>{t('mud.ed.aliasesHint')}</p></HelpTip></div>
       <Groups kind="aliases" />
       <RuleList items={l.items} max={200} empty={t('mud.ed.none')} onRemove={l.remove} onToggle={l.toggle}
         describe={(a) => <><code>{a.pattern}</code> <span className="hint">({matchName(t)(a.match)})</span> → <code>{a.send}</code>{a.group && <span className="badge">{a.group}</span>}</>}
@@ -199,7 +200,7 @@ function Triggers() {
   const l = useList('triggers');
   return (
     <>
-      <p className="hint">{t('mud.ed.triggersHint')}</p>
+      <div className="tab-help"><HelpTip topic={t('mud.ed.tab.triggers')}><p>{t('mud.ed.triggersHint')}</p></HelpTip></div>
       <Groups kind="triggers" />
       <RuleList items={l.items} max={200} empty={t('mud.ed.none')} onRemove={l.remove} onToggle={l.toggle}
         describe={(tr) => <><code>{tr.pattern}</code> <span className="hint">({matchName(t)(tr.match)})</span> → {tr.actions.map((a) => describeAction(t, a)).join(', ')}{tr.group && <span className="badge">{tr.group}</span>}</>}
@@ -266,7 +267,7 @@ function Timers() {
   const l = useList('timers');
   return (
     <>
-      <p className="hint">{t('mud.ed.timersHint')}</p>
+      <div className="tab-help"><HelpTip topic={t('mud.ed.tab.timers')}><p>{t('mud.ed.timersHint')}</p></HelpTip></div>
       <RuleList items={l.items} max={20} empty={t('mud.ed.none')} onRemove={l.remove} onToggle={l.toggle}
         describe={(x) => <>{x.label && <strong>{x.label}: </strong>}{t('mud.ed.every', { count: x.every })} → <code>{x.send}</code></>}
         form={(x, done) => <TimerForm timer={x} done={(v) => { if (v) l.upsert(v); done(); }} />} />
@@ -294,7 +295,7 @@ function Keys() {
   const numpad = useMud((s) => s.settings.options.numpad);
   return (
     <>
-      <p className="hint">{t('mud.ed.keysHint')}{numpad ? ` ${t('mud.ed.keysNumpad')}` : ''}</p>
+      <div className="tab-help"><HelpTip topic={t('mud.ed.tab.keys')}><p>{t('mud.ed.keysHint')}{numpad ? ` ${t('mud.ed.keysNumpad')}` : ''}</p></HelpTip></div>
       <RuleList items={l.items} max={100} empty={t('mud.ed.none')} onRemove={l.remove} onToggle={l.toggle}
         describe={(x) => <><kbd>{x.key}</kbd> → <code>{x.send}</code></>}
         form={(x, done) => <KeyForm k={x} done={(v) => { if (v) l.upsert(v); done(); }} />} />
@@ -327,7 +328,7 @@ function Buttons() {
   const l = useList('buttons');
   return (
     <>
-      <p className="hint">{t('mud.ed.buttonsHint')}</p>
+      <div className="tab-help"><HelpTip topic={t('mud.ed.tab.buttons')}><p>{t('mud.ed.buttonsHint')}</p></HelpTip></div>
       <RuleList items={l.items} max={24} empty={t('mud.ed.none')} onRemove={l.remove}
         describe={(x) => <><strong>{x.label}</strong> → <code>{x.send}</code></>}
         form={(x, done) => <ButtonForm b={x} done={(v) => { if (v) l.upsert(v); done(); }} />} />
@@ -360,7 +361,7 @@ function Variables() {
   const put = (next: Record<string, string>) => save({ ...useMud.getState().settings, variables: next });
   return (
     <>
-      <p className="hint">{t('mud.ed.variablesHint')}</p>
+      <div className="tab-help"><HelpTip topic={t('mud.ed.tab.variables')}><p>{t('mud.ed.variablesHint')}</p></HelpTip></div>
       {vars.length === 0 ? <p className="hint">{t('mud.ed.none')}</p> : (
         <ul className="plain mud-rules">
           {vars.map(([k, val]) => (
@@ -444,7 +445,7 @@ function Share() {
   };
   return (
     <>
-      <p className="hint">{t('mud.ed.shareHint')}</p>
+      <div className="tab-help"><HelpTip topic={t('mud.ed.tab.share')}><p>{t('mud.ed.shareHint')}</p></HelpTip></div>
       <div className="toolbar"><button type="button" className="btn" onClick={download}>{t('mud.ed.export')}</button></div>
       <h3>{t('mud.ed.importTitle')}</h3>
       <div className="field">

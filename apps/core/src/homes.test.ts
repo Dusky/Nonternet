@@ -45,6 +45,45 @@ describe.skipIf(!dbAvailable)('homepages', () => {
   });
   afterAll(async () => { await server.close(); await drop(); });
 
+  describe('the studio live preview', () => {
+    let drafty: P;
+    beforeAll(async () => { drafty = await person('drafty'); });
+    const preview = (p: P, path: string, body: string) =>
+      ctx.app.inject({ method: 'PUT', url: `/api/v1/homes/me/preview?path=${encodeURIComponent(path)}`, payload: body, headers: { origin: 'https://example.test', cookie: `sid=${p.c.sid}`, 'content-type': 'text/html' } });
+
+    it('shows unsaved text at a token address, with the saved files around it, and nowhere else', async () => {
+      await put(drafty, 'index.html', '<h1>Saved</h1>');
+      await put(drafty, 'style.css', 'body{color:red}');
+      const r = await preview(drafty, 'index.html', '<h1>Draft in progress</h1>');
+      expect(r.statusCode).toBe(200);
+      const { token } = r.json() as { token: string };
+      const host = 'drafty.example-homes.test';
+      const draft = await get(host, `/__preview/${token}/index.html`);
+      expect(draft.statusCode).toBe(200);
+      expect(draft.body).toContain('Draft in progress');
+      expect(draft.headers['cache-control']).toBe('no-store');
+      expect(draft.headers['content-security-policy']).toContain('frame-ancestors');
+      expect((await get(host, `/__preview/${token}/`)).body).toContain('Draft in progress');            // the front page by its folder
+      expect((await get(host, `/__preview/${token}/style.css`)).body).toBe('body{color:red}');          // other files come from what is saved
+      expect((await get(host, '/')).body).toContain('Saved');                                          // the published page is untouched
+      // A wrong token, or the right one on someone else's address, never shows the draft: it is just the published page.
+      expect((await get(host, '/__preview/AAAAAAAAAAAAAAAAAAAAAAAA/index.html')).body).not.toContain('Draft');
+      expect((await get('bob.example-homes.test', `/__preview/${token}/index.html`)).body).not.toContain('Draft');
+      // The same token keeps working as the text changes; a different file gets a new one.
+      expect(((await preview(drafty, 'index.html', '<h1>Draft two</h1>')).json() as { token: string }).token).toBe(token);
+      expect((await get(host, `/__preview/${token}/index.html`)).body).toContain('Draft two');
+      expect(((await preview(drafty, 'style.css', 'b{}')).json() as { token: string }).token).not.toBe(token);
+    });
+
+    it('ignores a draft after ten minutes, refuses files that are not text, and needs a person signed in', async () => {
+      const { token } = (await preview(drafty, 'index.html', '<p>old</p>')).json() as { token: string };
+      await db.query(`UPDATE home_previews SET updated_at = now() - interval '11 minutes' WHERE user_id = $1`, [drafty.id]);
+      expect((await get('drafty.example-homes.test', `/__preview/${token}/index.html`)).body).not.toContain('old');
+      expect((await preview(drafty, 'pic.png', 'x')).statusCode).toBe(415);
+      expect((await ctx.app.inject({ method: 'PUT', url: '/api/v1/homes/me/preview?path=index.html', payload: 'x', headers: { origin: 'https://example.test', 'content-type': 'text/html' } })).statusCode).toBe(401);
+    });
+  });
+
   describe('the studio API', () => {
     it('starts empty, and a guest cannot have a homepage', async () => {
       const r = await alice.c.get('/api/v1/homes/me');

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { useConfirm } from '../../components/feedback';
+import { useConfirm, undoable } from '../../components/feedback';
 import { Alert, CopyButton, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
 
@@ -30,6 +30,7 @@ export function BannerManager({ slug, name }: { slug: string; name: string }) {
   const [error, setError] = useState<string | null>(null);
   const [reasonFor, setReasonFor] = useState<Kind | null>(null);
   const [reason, setReason] = useState('');
+  const [going, setGoing] = useState<Kind[]>([]); // removed on screen, waiting out the Undo
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['ring', slug, 'banners'] }); };
   const upload = useMutation({ mutationFn: (v: { kind: Kind; file: File }) => api.upload(`/rings/${slug}/banner/${v.kind}`, v.file, 'PUT'), onSuccess: () => { setError(null); refresh(); }, onError: (e) => setError(errorText(e)) });
   const remove = useMutation({ mutationFn: (kind: Kind) => api.del(`/rings/${slug}/banner/${kind}`), onSuccess: refresh });
@@ -42,7 +43,7 @@ export function BannerManager({ slug, name }: { slug: string; name: string }) {
       <p className="hint">{t('rings.banners.hint')}</p>
       {error && <Alert kind="error">{error}</Alert>}
       {KINDS.map((kind) => {
-        const b = q.data?.banners.find((x) => x.kind === kind);
+        const b = going.includes(kind) ? undefined : q.data?.banners.find((x) => x.kind === kind);
         const html = `<a href="${origin}/ring/${slug}/list"><img src="${origin}/api/v1/rings/${slug}/banner/${kind}" width="${kind.split('x')[0]}" height="${kind.split('x')[1]}" alt="${name.replace(/"/g, '&quot;')}"></a>`;
         return (
           <div key={kind} className="field">
@@ -54,7 +55,7 @@ export function BannerManager({ slug, name }: { slug: string; name: string }) {
                 <input ref={(el) => { files.current[kind] = el; }} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="visually-hidden" disabled={upload.isPending}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate({ kind, file: f }); e.target.value = ''; }} />
               </label>
-              {b && <button type="button" className="btn btn-quiet" onClick={() => { void confirm({ message: t('rings.banners.removeConfirm'), confirmLabel: t('confirm.delete'), danger: true }).then((ok) => ok && remove.mutate(kind)); }}>{t('rings.banners.remove')}</button>}
+              {b && <button type="button" className="btn btn-quiet" onClick={() => { setGoing((g) => [...g, kind]); undoable(t('rings.banners.removed'), () => remove.mutateAsync(kind), { onUndo: () => setGoing((g) => g.filter((x) => x !== kind)), onError: () => setGoing((g) => g.filter((x) => x !== kind)) }); }}>{t('rings.banners.remove')}</button>}
               {b && me?.role === 'admin' && (b.hidden
                 ? <button type="button" className="btn btn-quiet" onClick={() => hide.mutate({ kind, on: false, reason: 'Restored' })}>{t('rings.banners.restore')}</button>
                 : <button type="button" className="btn btn-quiet" onClick={() => setReasonFor(kind)}>{t('classics.hide')}</button>)}

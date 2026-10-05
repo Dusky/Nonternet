@@ -50,6 +50,46 @@ test.describe('homepage studio', () => {
     await live.close();
   });
 
+  test('the preview shows what you type before you save it, the published page does not, and the editor points out mistakes', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.request.post('/api/v1/homes/me/template', { data: { template: 'blank' }, headers: h });
+    await page.goto('/studio');
+    await page.getByRole('button', { name: 'Edit index.html' }).click();
+    const editor = page.getByRole('textbox', { name: 'Editor for index.html' });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('<!doctype html><title>t</title><h1>Typed, not saved</h1><img src="cat.gif"><a href="http://old.example/">link</a>');
+    // The preview follows the typing, a moment after the last key.
+    await expect(page.frameLocator('iframe[title="Preview of index.html"]').getByRole('heading', { name: 'Typed, not saved' })).toBeVisible();
+    // ...while the published page is still the saved one.
+    const live = await page.context().newPage();
+    await live.goto(home(u.handle));
+    await expect(live.getByRole('heading', { name: 'Typed, not saved' })).toHaveCount(0);
+    await live.close();
+    // The lint points at a picture with no alt text and at an http:// address.
+    await expect(page.locator('.cm-lintRange-warning')).toBeVisible();
+    await expect(page.locator('.cm-lintRange-info')).toBeVisible();
+    await page.locator('.cm-lintRange-warning').hover();
+    await expect(page.getByText(/no alt text/i)).toBeVisible();
+    await scan(page, 'the editor with the lint showing');
+  });
+
+  test('the editor offers the site\'s widgets while you type', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.request.post('/api/v1/homes/me/template', { data: { template: 'blank' }, headers: h });
+    await page.goto('/studio');
+    await page.getByRole('button', { name: 'Edit index.html' }).click();
+    const editor = page.getByRole('textbox', { name: 'Editor for index.html' });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('widget-');
+    await expect(page.getByRole('option', { name: /widget-guestbook/ })).toBeVisible();
+    await page.getByRole('option', { name: /widget-guestbook/ }).click();
+    await expect(editor).toContainText(`data-user="${u.handle}"`);
+  });
+
   test('uploads, renames and deletes files', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);

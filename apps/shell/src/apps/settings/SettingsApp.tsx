@@ -36,6 +36,7 @@ export default function SettingsApp() {
       ...(me.role !== 'guest' ? [{ to: 'blocked', label: t('settings.tab.blocked') }] : []),
       { to: 'data', label: t('settings.tab.data') },
     ] }]}>
+      <p className="hint settings-scope-note">{t('settings.scopeNote')}</p>
       {route?.pattern === 'profile' && <><Profile me={me} />{me.role !== 'guest' && <PersonalProfile me={me} />}{site.services.mud && <FeaturedCharacter />}</>}
       {route?.pattern === 'account' && <><EmailAddress me={me} /><Handle me={me} /></>}
       {route?.pattern === 'password' && <Password />}

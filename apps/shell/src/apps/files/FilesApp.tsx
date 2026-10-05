@@ -1,4 +1,4 @@
-import { useConfirm } from '../../components/feedback';
+import { useConfirm, undoable } from '../../components/feedback';
 import { useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FILE_AREA_VISIBILITIES, FILE_UPLOAD_ROLES, REPORT_CATEGORIES, type FileAreaView, type FileUsage, type FileView } from '@app/shared';
@@ -139,11 +139,13 @@ function FileRow({ f }: { f: FileView }) {
   const qc = useQueryClient();
   const [tool, setTool] = useState<'report' | 'hide' | 'remove' | null>(null);
   const [editing, setEditing] = useState(false);
+  const [gone, setGone] = useState(false); // deleted on screen, waiting out the Undo
   const preview = /\.(png|jpe?g|gif|webp)$/i.test(f.name) && f.size_bytes <= 2_000_000 && !f.hidden;
   const refresh = () => { setTool(null); void qc.invalidateQueries({ queryKey: ['files'] }); };
   const del = useMutation({ mutationFn: (reason?: string) => api.del(`/files/${f.id}`, reason ? { reason } : {}), onSuccess: refresh });
   const hide = useMutation({ mutationFn: (reason: string) => api.post(`/admin/files/${f.id}/${f.hidden ? 'unhide' : 'hide'}`, { reason }), onSuccess: refresh });
   const admin = me?.role === 'admin';
+  if (gone) return null;
   return (
     <li>
       <p>
@@ -163,7 +165,7 @@ function FileRow({ f }: { f: FileView }) {
         <div className="mod-tools">
           <CopyButton text={new URL(f.download_url, window.location.origin).href} label={t('files.copyLink')} />
           {f.mine && <button type="button" className="link" onClick={() => setEditing((e) => !e)} aria-expanded={editing}>{t('files.edit')}</button>}
-          {f.mine && <button type="button" className="link" onClick={() => { void confirm({ message: t('files.deleteConfirm', { name: f.name }), confirmLabel: t('confirm.delete'), danger: true }).then((ok) => ok && del.mutate(undefined)); }}>{t('files.delete')}</button>}
+          {f.mine && <button type="button" className="link" onClick={() => { setGone(true); undoable(t('files.deleted', { name: f.name }), () => del.mutateAsync(undefined), { onUndo: () => setGone(false), onError: () => setGone(false) }); }}>{t('files.delete')}</button>}
           {!f.mine && me.role !== 'guest' && <button type="button" className="link" aria-expanded={tool === 'report'} onClick={() => setTool(tool === 'report' ? null : 'report')}>{t('files.report')}</button>}
           {admin && <button type="button" className="link" onClick={() => setTool('hide')}>{f.hidden ? t('files.unhide') : t('files.hide')}</button>}
           {admin && !f.mine && <button type="button" className="link" onClick={() => setTool('remove')}>{t('files.remove')}</button>}

@@ -1,6 +1,7 @@
 import type { HomeFileEntry, HomepageSummary } from '@app/shared';
 import { audit } from '../audit';
 import type { AppDeps } from '../deps';
+import { randomToken } from '../crypto';
 import { ApiError } from '../errors';
 import type { Ctx, SessionUser } from '../accounts';
 import { isEditable } from './files';
@@ -57,6 +58,20 @@ export async function putFile(deps: AppDeps, v: SessionUser, path: string, data:
   assertCanHost(v);
   await deps.homes.write(v.userId, path, data, { maxFile: fileMaxBytes(deps), quota: quotaBytes(deps, v.role) });
   await refresh(deps, v.userId);
+}
+
+// The Studio's live preview: the editor sends the text as it is typed, and the homes server shows it at an address with
+// this token in it. The token stays the same while the same file is open, so the preview frame only has to reload.
+export async function putPreview(deps: AppDeps, v: SessionUser, path: string, data: Buffer): Promise<{ token: string }> {
+  assertCanHost(v);
+  if (!isEditable(path)) throw new ApiError(415, 'not_text', 'That kind of file cannot be previewed here.');
+  if (data.length > fileMaxBytes(deps)) throw new ApiError(413, 'too_large', 'That file is too big.');
+  const r = await deps.db.query<{ token: string }>(
+    `INSERT INTO home_previews (user_id, token, path, body) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id) DO UPDATE SET body = EXCLUDED.body, updated_at = now(),
+       token = CASE WHEN home_previews.path = EXCLUDED.path THEN home_previews.token ELSE EXCLUDED.token END, path = EXCLUDED.path
+     RETURNING token`, [v.userId, randomToken(18), path, data.toString('utf8')]);
+  return { token: r.rows[0]!.token };
 }
 
 export async function makeFolder(deps: AppDeps, v: SessionUser, path: string): Promise<void> {

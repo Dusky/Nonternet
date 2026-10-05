@@ -3,36 +3,26 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { changePasswordSchema, type Me } from '@app/shared';
 import { api } from '../../api';
 import { Alert, CopyButton, TextField } from '../../components/ui';
+import { Field, Form, useZodForm } from '../../components/Form';
 import { errorText, useT } from '../../hooks';
 import { Section } from './Section';
 import { TotpSetup } from '../../pages/Setup2fa';
 
 export function Password() {
   const t = useT();
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const change = useMutation({
-    mutationFn: () => api.put('/me/password', { current_password: current, new_password: next }),
-    onSuccess: () => { setCurrent(''); setNext(''); },
-    onError: (e) => setError(errorText(e)),
+  const [changed, setChanged] = useState(false);
+  const f = useZodForm({
+    schema: changePasswordSchema,
+    defaultValues: { current_password: '', new_password: '' },
+    submit: (v) => api.put('/me/password', v),
+    onDone: () => { setChanged(true); f.form.reset(); },
   });
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    const parsed = changePasswordSchema.safeParse({ current_password: current, new_password: next });
-    if (!parsed.success) return setError(parsed.error.issues[0]!.message);
-    change.mutate();
-  };
   return (
     <Section id="password-h" title={t('settings.tab.password')} scope="account">
-    <form onSubmit={submit} noValidate>
-      <TextField label={t('field.currentPassword')} value={current} onChange={setCurrent} type="password" autoComplete="current-password" required />
-      <TextField label={t('field.newPassword')} value={next} onChange={setNext} type="password" hint={t('auth.signup.passwordHint')} autoComplete="new-password" required />
-      {error && <Alert kind="error">{error}</Alert>}
-      {change.isSuccess && !error && <Alert kind="success">{t('settings.password.changed')}</Alert>}
-      <button className="btn btn-primary" type="submit" disabled={change.isPending}>{t('settings.tab.password')}</button>
-    </form>
+      <Form f={f} submitLabel={t('settings.tab.password')} extra={changed && !f.serverError ? <Alert kind="success">{t('settings.password.changed')}</Alert> : null}>
+        <Field f={f} name="current_password" label={t('field.currentPassword')} type="password" autoComplete="current-password" onInput={() => setChanged(false)} />
+        <Field f={f} name="new_password" label={t('field.newPassword')} type="password" hint={t('auth.signup.passwordHint')} autoComplete="new-password" onInput={() => setChanged(false)} />
+      </Form>
     </Section>
   );
 }

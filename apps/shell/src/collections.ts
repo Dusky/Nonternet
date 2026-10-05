@@ -17,7 +17,7 @@ function makeBoards(meId: string) {
     queryKey: ['boards', meId],
     // The same response, under the same key, as the board list and the palette read with useQuery.
     queryFn: () => api.get<{ boards: BoardSummary[] }>('/boards'),
-    select: (d: { boards: BoardSummary[] }) => d.boards,
+    select: (d: { boards: BoardSummary[] } | null | undefined) => d?.boards ?? [],
     queryClient,
     getKey: (b: BoardSummary) => b.slug,
     // Watching and "mark all read" are the two changes made from the list or a board's page.
@@ -46,7 +46,8 @@ function makeConversation(threadId: string) {
     id: `mail:${threadId}`,
     queryKey: ['mail', 'thread', threadId],
     queryFn: () => api.get<MailThreadView>(`/mail/${threadId}`),
-    select: (d: MailThreadView) => d.messages,
+    // The cached answer can be empty for a moment (cleared, or not loaded yet): no messages, not an error.
+    select: (d: MailThreadView | null | undefined) => d?.messages ?? [],
     queryClient,
     getKey: (m: MailMessageView) => m.id,
     onInsert: async ({ transaction }) => {
