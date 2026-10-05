@@ -62,12 +62,13 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
   return <button type="button" className="btn btn-quiet" onClick={() => void copy(text)}>{copied ? t('common.copied') : label ?? t('common.copy')}</button>;
 }
 
-export function Centered({ title, children }: { title: string; children: ReactNode }) {
+export function Centered({ title, art, children }: { title: string; art?: 'lost' | 'offline'; children: ReactNode }) {
   const t = useT();
   return (
     <main className="center" id="main">
       <a className="center-brand" href="/"><span className="brand-mark" aria-hidden="true" />{t('landing.title')}</a>
       <div className="card">
+        {art && <img className="card-art" src={`/art/${art}.webp`} alt="" width="280" />}
         <h1>{title}</h1>
         {children}
       </div>
@@ -76,10 +77,11 @@ export function Centered({ title, children }: { title: string; children: ReactNo
 }
 
 // Nothing to show yet: one plain sentence, and the next step if there is one.
-export function EmptyState({ icon = 'inbox', children, action }: { icon?: IconName; children: ReactNode; action?: ReactNode }) {
+export type EmptyArt = 'mail' | 'notebook' | 'folder' | 'campfire';
+export function EmptyState({ icon = 'inbox', art, children, action }: { icon?: IconName; art?: EmptyArt; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="empty">
-      <Icon name={icon} />
+      {art ? <img className="empty-art" src={`/art/empty-${art}.webp`} alt="" width="160" loading="lazy" /> : <Icon name={icon} />}
       <p>{children}</p>
       {action}
     </div>

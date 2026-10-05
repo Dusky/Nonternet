@@ -140,6 +140,9 @@ progress { width: 100%; height: 10px; accent-color: var(--accent); }
 .empty svg { width: 44px; height: 44px; padding: 8px; color: var(--sticker-text); background: var(--sticker-4); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); transform: rotate(calc(var(--tilt) * -3)); }
 .empty p { margin: 0; max-width: 40ch; }
 .empty .btn { margin-top: var(--space-2); }
+.empty .empty-art { width: min(160px, 50%); height: auto; padding: 0; background: none; border: 0; border-radius: 0; transform: none; image-rendering: pixelated; }
+.card-art { display: block; width: min(280px, 100%); height: auto; margin: 0 auto var(--space-3); border-radius: var(--radius-sm); border: var(--control-line) solid var(--line-strong); }
+.landing-art { order: -1; display: block; width: 100%; max-width: 46rem; height: auto; margin: 0 0 var(--space-4); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-card, none); }
 .loading { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); padding: var(--space-4); }
 .loading::before { content: ''; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 .skeleton { display: grid; gap: var(--space-3); padding: var(--space-2) 0; }
@@ -1196,3 +1199,15 @@ button.chat-person:hover { text-decoration: underline; }
 .wiki-diff .is-removed { background: color-mix(in srgb, var(--danger) 14%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
 .wiki-diff-sign { flex: none; width: 1ch; font-weight: 700; }
 .wiki-index li { display: flex; justify-content: space-between; gap: var(--space-3); }
+
+@media (min-width: 900px) {
+  .landing-hero { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 28rem); column-gap: var(--space-6); align-items: center; }
+  .landing-hero > * { grid-column: 1; }
+  .landing-hero > .landing-art { grid-column: 2; grid-row: 1 / span 8; order: 0; margin: 0; }
+}
+
+.section-art { display: block; width: 100%; max-height: 11rem; object-fit: cover; margin: 0 0 var(--space-3); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius); }
+.mud-tips { display: flex; gap: var(--space-3); align-items: center; }
+.mud-tips p { margin: 0; }
+.mud-tower { width: 3rem; height: auto; border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); flex: none; }
+@media (max-width: 639px) { .section-art { max-height: 7rem; } }

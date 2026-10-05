@@ -80,7 +80,7 @@ function PageScreen({ info, base, slug, home }: Props & { slug: string; home?: b
   if (q.isPending) return <Loading rows={6} />;
   if (q.isError && missing(q.error)) {
     return (
-      <EmptyState action={info.can_edit ? <AppLink className="btn btn-primary" to={`${base}p/${slug}/edit`}>{home ? t('wiki.startFirst') : t('wiki.startThis')}</AppLink> : undefined}>
+      <EmptyState art="notebook" action={info.can_edit ? <AppLink className="btn btn-primary" to={`${base}p/${slug}/edit`}>{home ? t('wiki.startFirst') : t('wiki.startThis')}</AppLink> : undefined}>
         {home ? t('wiki.empty') : t('wiki.noSuchPage', { name: titleFromSlug(slug) })}
       </EmptyState>
     );
@@ -433,7 +433,7 @@ function AllPages({ info, base }: Props) {
     <section aria-labelledby="wiki-pages-h">
       <h2 id="wiki-pages-h">{t('wiki.allPages')}</h2>
       {q.isPending && <Loading rows={5} />}
-      {q.data && q.data.pages.length === 0 && <EmptyState>{t('wiki.empty')}</EmptyState>}
+      {q.data && q.data.pages.length === 0 && <EmptyState art="notebook">{t('wiki.empty')}</EmptyState>}
       <ul className="rows wiki-index">{q.data?.pages.map((p) => <li key={p.slug}><AppLink to={`${base}p/${p.slug}`}>{p.title}</AppLink> <span className="row-meta"><RelativeTime iso={p.updated_at} /></span></li>)}</ul>
     </section>
   );

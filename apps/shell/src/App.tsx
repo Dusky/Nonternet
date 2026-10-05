@@ -121,7 +121,7 @@ function Setup2faRoute() {
 
 function NotFound() {
   const t = useT();
-  return <Centered title={t('error.notFound')}><p className="links"><Link to="/">{t('nav.home')}</Link></p></Centered>;
+  return <Centered art="lost" title={t('error.notFound')}><p className="links"><Link to="/">{t('nav.home')}</Link></p></Centered>;
 }
 
 export function App() {

@@ -47,6 +47,7 @@ export function Landing() {
       <AnnouncementBanner />
       <main id="main" className="landing-main">
         <section className="landing-hero">
+          <img className="landing-art" src="/art/hillside.webp" alt="" width="1100" height="614" fetchPriority="high" />
           <h1>{t('landing.title')}</h1>
           {site.signup_mode === 'invite' && <p className="landing-sticker" aria-hidden="true">{t('landing.inviteSticker')}</p>}
           <p className="landing-tagline">{t('landing.tagline')}</p>

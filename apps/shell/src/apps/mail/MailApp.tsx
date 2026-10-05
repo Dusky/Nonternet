@@ -57,7 +57,7 @@ function Inbox() {
       </div>
       <p className="hint">{t('mail.private')}</p>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
-      {q.data && shown.length === 0 && <EmptyState icon="inbox">{filtering ? t('mail.noMatch') : t('mail.none', { max: MAIL_MAX_PEOPLE })}</EmptyState>}
+      {q.data && shown.length === 0 && <EmptyState icon="inbox" art="mail">{filtering ? t('mail.noMatch') : t('mail.none', { max: MAIL_MAX_PEOPLE })}</EmptyState>}
       {!q.data && !q.isError && <Loading rows={3} />}
       <ul className="rows mail-rows">
         {shown.map((th) => (

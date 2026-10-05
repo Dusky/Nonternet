@@ -34,7 +34,7 @@ export default function MudApp() {
           {showPanel && <Side />}
         </div>
       )}
-      <p className="hint">{t('mud.tips')}</p>
+      <div className="mud-tips"><img className="mud-tower" src="/art/tower.webp" alt="" width="64" loading="lazy" /><p className="hint">{t('mud.tips')}</p></div>
       <button type="button" className="link" aria-expanded={help} onClick={() => setHelp(!help)}>{t('mud.nativeTitle')}</button>
       {help && <NativeHelp />}
     </div>

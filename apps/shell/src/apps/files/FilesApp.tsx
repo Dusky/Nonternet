@@ -27,7 +27,7 @@ function Areas() {
     <>
       <h2>{t('files.areas')}</h2>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
-      {q.data && q.data.areas.length === 0 && <EmptyState>{t('files.noAreas')}</EmptyState>}
+      {q.data && q.data.areas.length === 0 && <EmptyState art="folder">{t('files.noAreas')}</EmptyState>}
       {q.isPending && <Loading rows={3} />}
       <ul className="rows">
         {q.data?.areas.map((a) => (
@@ -120,7 +120,7 @@ function Area({ slug }: { slug: string }) {
           </label>
         </div>
       )}
-      {files.length === 0 ? <EmptyState>{t('files.empty')}</EmptyState> : shown.length === 0 ? <EmptyState>{t('files.noMatch')}</EmptyState> : (
+      {files.length === 0 ? <EmptyState art="folder">{t('files.empty')}</EmptyState> : shown.length === 0 ? <EmptyState>{t('files.noMatch')}</EmptyState> : (
         <ul className="rows file-rows">{shown.map((f) => <FileRow key={f.id} f={f} />)}</ul>
       )}
       {area.can_upload && <Upload slug={slug} />}

@@ -416,3 +416,18 @@ Settings → Appearance → Desktop wallpaper. The choice is kept on the account
   - Signed out, someone's own picture can't be shown, so the desktop goes back to dots.
 - **Code:** `apps/core/src/wallpaper.ts`, `apps/shell/src/apps/settings/WallpaperPicker.tsx`, and `applyWallpaper`
   in `theme.ts`. The last choice is kept in `localStorage` so the desktop looks right before the account answers.
+
+## Pictures (2026-10-05)
+Generated art, kept in `apps/shell/public/art/` (served as `/art/…`). Each is decorative (`alt=""`), so screen readers
+hear only the words beside it. It is drawn in the Webring zine style, or as plain pixel art where it must stay sharp
+small.
+- **Front page:** `hillside.webp`, beside the title on wide screens and above it on narrow ones.
+- **Not found:** `lost.webp` (a signpost with blank boards and a puzzled dog), above the heading of the "That page does
+  not exist." card.
+- **Empty places:** `EmptyState` takes `art`: `mail` (inbox), `notebook` (wiki), `folder` (files) and `campfire` (rings).
+  Without `art` it keeps its icon.
+- **Rings:** `rings.webp` as a banner above the rings list. **MUD:** `tower.webp`, small, beside the new-player tips.
+- **Not placed yet:** `offline.webp` (an unplugged modem). The offline banner is a one-line strip, so there is no
+  screen for it yet.
+- Wallpapers (above) use the same pictures at screen size. The generated icon set was tried and not used.
+- Rule: new pictures are made without any text or letters in them, so a rename never needs new art.
