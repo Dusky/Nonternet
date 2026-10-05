@@ -24,10 +24,12 @@ export function useAppNav(): Nav {
 const trim = (s: string) => s.replace(/^\/+|\/+$/g, '');
 
 // Moving between an app's screens (a list and what's in it) cross-fades briefly with the View Transitions API, where the
-// browser has it and the person hasn't asked for less motion. Everywhere else it simply changes.
-export function withTransition(change: () => void): void {
+// browser has it and the person hasn't asked for less motion. Everywhere else it simply changes. A screen that only
+// replaces itself (an app landing on its first screen, a filter) doesn't fade: that is not a move the person made, and
+// the page takes no clicks while a transition plays, so a window just opened couldn't be grabbed for a moment.
+export function withTransition(change: () => void, opts?: { replace?: boolean }): void {
   const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
-  if (!doc.startViewTransition || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { change(); return; }
+  if (opts?.replace || !doc.startViewTransition || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { change(); return; }
   doc.startViewTransition(() => flushSync(change));
 }
 
@@ -40,7 +42,7 @@ export function PageNav({ base, id, children }: { base: string; id: AppId; child
     return {
       id,
       path: inside ? trim(location.pathname.slice(base.length)) : '',
-      go: (to, opts) => withTransition(() => { void navigate(`${base}/${trim(to)}`, opts); }),
+      go: (to, opts) => withTransition(() => { void navigate(`${base}/${trim(to)}`, opts); }, opts),
       href: (to) => `${base}/${trim(to)}`,
     };
   }, [base, id, location.pathname, navigate]);
@@ -53,7 +55,7 @@ export function PageNav({ base, id, children }: { base: string; id: AppId; child
 export function WindowNav({ id, base, children }: { id: AppId; base: string; children: ReactNode }) {
   const path = useWindows((s) => s.wins.find((w) => w.id === id)?.path ?? '');
   const setPath = useWindows((s) => s.setPath);
-  const nav = useMemo<Nav>(() => ({ id, path: trim(path), go: (to, opts) => withTransition(() => setPath(id, trim(to), opts?.replace)), href: (to) => (trim(to) ? `${base}/${trim(to)}` : base) }), [id, base, path, setPath]);
+  const nav = useMemo<Nav>(() => ({ id, path: trim(path), go: (to, opts) => withTransition(() => setPath(id, trim(to), opts?.replace), opts), href: (to) => (trim(to) ? `${base}/${trim(to)}` : base) }), [id, base, path, setPath]);
   return <NavContext.Provider value={nav}>{children}</NavContext.Provider>;
 }
 

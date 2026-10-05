@@ -8,7 +8,7 @@ import { css } from '@codemirror/lang-css';
 import { html } from '@codemirror/lang-html';
 import { javascript } from '@codemirror/lang-javascript';
 import { lintGutter } from '@codemirror/lint';
-import { emmetCompletionSource } from '@emmetio/codemirror6-plugin';
+import { abbreviationTracker, emmetCompletionSource } from '@emmetio/codemirror6-plugin';
 import { htmlLinter, widgetCompletions } from './editorExtras';
 
 // Every colour here is at least 7:1 against the editor's white background, so the code is readable
@@ -30,14 +30,18 @@ export interface Widgets { origin: string; handle: string; names: readonly strin
 // HTML gets tag and attribute completion (from CodeMirror), Emmet abbreviations ("ul>li*3" offered as an expansion), the
 // site's own widgets, and a lint for the usual mistakes. Emmet is offered as a suggestion, not bound to Tab, so Tab
 // still moves focus out of the editor.
+// Emmet's suggestions read the state its tracker keeps, so the tracker is installed, but without its own keys (the
+// last item it returns: Tab expands, Escape resets), so Tab is never taken from the keyboard.
+const emmet = (): Extension => { const parts = abbreviationTracker(); return parts.slice(0, -1); };
+
 const language = (path: string, widgets?: Widgets): Extension => {
   const ext = path.split('.').pop()?.toLowerCase();
-  if (ext === 'css') { const c = css(); return [c, c.language.data.of({ autocomplete: emmetCompletionSource })]; }
+  if (ext === 'css') { const c = css(); return [c, emmet(), c.language.data.of({ autocomplete: emmetCompletionSource })]; }
   if (ext === 'js' || ext === 'mjs') return javascript();
   if (['html', 'htm', 'svg', 'xml'].includes(ext ?? '')) {
     const h = html();
     return [
-      h, h.language.data.of({ autocomplete: emmetCompletionSource }),
+      h, emmet(), h.language.data.of({ autocomplete: emmetCompletionSource }),
       ...(widgets ? [h.language.data.of({ autocomplete: widgetCompletions(widgets.origin, widgets.handle, widgets.names) })] : []),
       htmlLinter, lintGutter(),
     ];

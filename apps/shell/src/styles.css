@@ -520,6 +520,8 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 /* The code editor stays light in every theme: its syntax colours are checked at 7:1 against white (CodeEditor.tsx). */
 .code-editor { border: 1px solid var(--line-strong); border-radius: var(--radius-sm); min-height: 22rem; overflow: auto; background: #fff; color: #111; }
 .code-editor .cm-editor { min-height: 22rem; }
+/* On a narrow screen the completion's longer note would sit over the list and catch the tap meant for an option. */
+@media (max-width: 640px) { .code-editor .cm-completionInfo { display: none; } }
 /* The preview shows the person's page as visitors will see it, so it stays on white like a browser. */
 .preview-frame { width: 100%; min-height: 22rem; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: #fff; }
 @container (max-width: 760px) { .editor-split { grid-template-columns: 1fr; } }

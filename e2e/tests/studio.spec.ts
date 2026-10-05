@@ -7,8 +7,10 @@ import { makeUser, markDomainVerified, PASSWORD, signIn, uniq, confirmDialog } f
 const home = (handle: string, path = '') => `http://${handle}.${HOMES_DOMAIN}:${HOMES_PORT}/${path}`;
 const h = { origin: BASE_URL };
 
+// The preview frame shows the person's own page as they wrote it (here, on purpose, a picture with no alt text), so
+// the scan is of the studio around it.
 async function scan(page: Page, what: string) {
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const results = await new AxeBuilder({ page }).exclude('iframe[title^="Preview of"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `accessibility problems on ${what}`).toEqual([]);
 }
 

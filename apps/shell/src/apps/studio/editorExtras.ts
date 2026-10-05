@@ -64,7 +64,6 @@ export function widgetCompletions(origin: string, handle: string, names: readonl
       options: names.map((n) => ({
         label: `widget-${n}`,
         detail: 'site widget',
-        info: `Adds the ${n} widget to this page.`,
         type: 'text',
         apply: `<script src="${origin}/widgets/${n}.js" data-user="${handle}"></script>`,
       })),

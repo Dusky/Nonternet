@@ -29,7 +29,7 @@ test('changing your password: the new one is checked as you leave it, and a wron
   await page.goto('/settings/password');
   await page.getByLabel('New password').fill('short');
   await page.getByLabel('Current password').focus();
-  await expect(page.getByText(/at least 10/i)).toBeVisible();
+  await expect(page.getByText(/must be at least 10/i)).toBeVisible();
   await page.getByLabel('New password').fill('a perfectly long new password');
   await page.getByLabel('Current password').fill('not my password');
   await page.getByRole('button', { name: 'Password' }).click();

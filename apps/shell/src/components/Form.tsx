@@ -58,9 +58,10 @@ export function Field<V extends Record<string, unknown>>({ f, name, label, hint,
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'name' | 'value' | 'onChange' | 'onBlur'>) {
   const id = useId();
   return (
+    <Shown f={f}>{(tries) => (
     <f.form.Field name={name}>
       {(field: AnyFieldApi) => {
-        const own = field.state.meta.isTouched && field.state.meta.errors.length > 0 ? firstMessage(field.state.meta.errors[0]) : null;
+        const own = showOwn(field, tries) ? firstMessage(field.state.meta.errors[0]) : null;
         const pinned = f.serverError?.field === name ? f.serverError.message : null;
         const error = own ?? pinned;
         const describedBy = [hint ? `${id}-hint` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
@@ -79,16 +80,25 @@ export function Field<V extends Record<string, unknown>>({ f, name, label, hint,
         );
       }}
     </f.form.Field>
+    )}</Shown>
   );
+}
+
+// A field's own mistake shows once the person has left it, or has pressed the button: not on the first keystroke.
+// (TanStack marks a field "touched" as soon as it changes, so that flag says too little.)
+const showOwn = (field: AnyFieldApi, tries: number) => (field.state.meta.isBlurred || tries > 0) && field.state.meta.errors.length > 0;
+function Shown<V extends Record<string, unknown>>({ f, children }: { f: FormApi<V>; children: (tries: number) => ReactNode }) {
+  return <f.form.Subscribe selector={(s: { submissionAttempts: number }) => s.submissionAttempts}>{children}</f.form.Subscribe>;
 }
 
 // A true/false field (a checkbox).
 export function CheckField<V extends Record<string, unknown>>({ f, name, label }: { f: FormApi<V>; name: keyof V & string; label: ReactNode }) {
   const id = useId();
   return (
+    <Shown f={f}>{(tries) => (
     <f.form.Field name={name}>
       {(field: AnyFieldApi) => {
-        const error = field.state.meta.isTouched && field.state.meta.errors.length > 0 ? firstMessage(field.state.meta.errors[0]) : null;
+        const error = showOwn(field, tries) ? firstMessage(field.state.meta.errors[0]) : null;
         return (
           <div className="field">
             <label className="check">
@@ -101,6 +111,7 @@ export function CheckField<V extends Record<string, unknown>>({ f, name, label }
         );
       }}
     </f.form.Field>
+    )}</Shown>
   );
 }
 
