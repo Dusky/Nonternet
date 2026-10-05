@@ -3,6 +3,7 @@ import type { Session } from '../session';
 import { lastCallers, settings, who } from './people';
 import { boards, newscan } from './boards';
 import { homepages } from './homepages';
+import { wiki } from './wiki';
 import { mail } from './mail';
 import { rings } from './rings';
 import { doors } from './doors';
@@ -17,6 +18,7 @@ export const SCREENS: Record<Action, Screen> = {
   mail,
   rings,
   homepages,
+  wiki: (s) => wiki(s),
   who,
   lastcallers: lastCallers,
   doors,

@@ -149,6 +149,13 @@ client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+cl
 ## Studio preview (0038, docs/07)
 - `home_previews(user_id pk, token, path, body, updated_at)`: the unsaved text being previewed. Ten minutes of life, one row per person.
 
+## Wiki (0042, docs/20)
+- `wikis(id, scope_type site|ring, ring_id, enabled)`: one site row (`wk_site`), at most one per ring.
+- `wiki_pages(id, wiki_id, slug, title, body, body_tsv, revision, protected, created_by, updated_by, hidden_at, deleted_at)`, unique `(wiki_id, slug)`.
+- `wiki_revisions(id, page_id, revision, editor_id, title, body, summary, reverted_to, text_hidden_at)`: every save; `editor_id` becomes null when the account is deleted.
+- `wiki_redirects(wiki_id, slug, page_id)` and `wiki_links(page_id, target_slug, target_title)`: derived, rebuilt on save and rename.
+- `reports.target_type` gains `wiki_page`.
+
 ## Invariants (enforce and test)
 - Board/ring ownership requires `trusted` or `admin` at creation; quotas checked at creation.
 - Every ring has exactly one board (`rings.board_id` not null after creation).

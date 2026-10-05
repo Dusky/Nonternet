@@ -65,4 +65,28 @@ describe.skipIf(!dbAvailable)('Atom feeds', () => {
     expect(first.res.headers['cache-control']).toBe('public, max-age=300');
     expect((await get('/feeds/boards/lobby.atom', { 'if-none-match': etag })).status).toBe(304);
   });
+
+  it('recent changes to the site wiki and to a ring wiki that is on, and nothing from a hidden page', async () => {
+    const admin = await makeAdmin(ctx);
+    const c = await loginAs(ctx, 'feeder');
+    await c.put('/api/v1/wiki/site/pages/tea', { title: 'Tea', body: 'Hot.', base_revision: 0, summary: '' });
+    await c.put('/api/v1/wiki/site/pages/tea', { title: 'Tea', body: 'Hot <water>.', base_revision: 1, summary: 'Said what & why' });
+    await c.put('/api/v1/wiki/site/pages/gone', { title: 'Gone', body: 'Doxx.', base_revision: 0, summary: 'Hidden summary' });
+    expect((await admin.client.post('/api/v1/wiki/site/pages/gone/hide', { reason: 'personal details' })).status).toBe(200);
+    const xml = (await get('/feeds/wiki/changes.atom')).res.body;
+    expect(xml).toContain('<title>Tea: revision 2</title>');
+    expect(xml).toContain('<content type="text">Revision 2: Said what &amp; why</content>');
+    expect(xml).toContain('<title>Tea: new page</title>');
+    expect(xml).toContain('href="https://example.test/wiki/p/tea/compare/1/2"');
+    expect(xml).not.toContain('Hidden summary');
+    expect(xml).toMatch(/<id>tag:example\.test,2026:wiki-revision\/[^<]+<\/id>/);
+
+    await c.post('/api/v1/rings', { slug: 'brewers', name: 'Brewers' });
+    expect((await get('/feeds/wiki/rings/brewers/changes.atom')).status).toBe(404); // not switched on
+    expect((await c.put('/api/v1/rings/brewers/wiki', { enabled: true })).status).toBeLessThan(300);
+    await c.put('/api/v1/wiki/ring:brewers/pages/home', { title: 'Home', body: 'Welcome.', base_revision: 0, summary: '' });
+    const ring = (await get('/feeds/wiki/rings/brewers/changes.atom')).res.body;
+    expect(ring).toContain('<title>Brewers wiki: recent changes - Test Site</title>');
+    expect(ring).toContain('href="https://example.test/wiki/r/brewers/p/home/rev/1"');
+  });
 });

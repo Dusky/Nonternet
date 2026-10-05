@@ -167,6 +167,12 @@ The MUD becomes a procedurally generated tower (`18`, `17` D22).
 - [x] **T4:** checkpoints, losing run loot on defeat, and monthly seasons (with landings, `ascend` and `season`).
 - [x] **T5:** a leaderboard on the site (home panel, console, profiles), export additions.
 
+## Wiki (2026-10-05, owners' choice) — DONE
+The site wiki and ring wikis (`20`).
+- [x] **K1:** the markup parser (shared) and core: tables, rules, routes, history, conflicts, moderation, export, deletion.
+- [x] **K2:** the Wiki app in the shell.
+- [x] **K3:** read-only in the BBS, Gopher and Gemini; an Atom feed of recent changes; docs.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

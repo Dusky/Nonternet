@@ -137,7 +137,8 @@ page's "How to connect" lists, as with Gopher.
 - **Gemini mirror** (`gemini-main.cjs`, compose service `gemini`, port 1965, `services.gemini`). It serves:
   - the same things as the Gopher mirror: public boards → threads (each post quoted with `>`), the homepage
     directory, and file areas (files download on the web);
-  - people's profiles and plans at `/~handle`.
+  - people's profiles and plans at `/~handle`;
+  - the site wiki at `/wiki/` (pages as gemtext, recent changes; Gopher serves it too, as menus) (`20`).
   - Everything people wrote goes out quoted, so nothing in a post or plan can become a link or heading.
   - It answers only for `gemini.host` (default `site.domain`; other hosts get `53`). Limits: 1024-byte requests,
     10 s, 100 connections and 10 per address (`44` slow down).
@@ -166,6 +167,7 @@ page's "How to connect" lists, as with Gopher.
   - Text is escaped plain text (`type="text"`), never HTML. Entry ids are `tag:` URIs from stable post ids.
   - Public boards, threads and profiles in the shell show a "Feed" link and add `<link rel="alternate">` to the page
     while they are open.
+  - `/feeds/wiki/changes.atom` and `/feeds/wiki/rings/{ring}/changes.atom`: recent wiki changes (`20`).
   - Atom only, no RSS 2.0: every feed reader takes Atom. Code `apps/core/src/feeds.ts`; tests `feeds.test.ts`.
 - **The .plan** (`users.plan`, up to 2000 characters of plain text; line breaks and tabs kept, other control
   characters refused):

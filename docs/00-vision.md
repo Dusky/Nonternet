@@ -48,6 +48,7 @@ Use these words in all UI, docs and code comments. No invented metaphor or setti
 | Message areas | **boards** | |
 | Chat rooms | **channels** | |
 | Personal sites | **homepages** | |
+| Shared pages anyone can improve | **wiki**, **page**, **edit**, **history**, **recent changes** | The site's wiki and ring wikis (docs/20) |
 | The web UI | **the shell** | internal term; UI can just say the site name |
 | Control panel | **admin console** | |
 | Add-ons people put on their desktop | **apps** | "Add apps", "Remove". The site's own parts (Boards, Mail…) are apps too; the ones you add are just apps you chose (docs/10) |

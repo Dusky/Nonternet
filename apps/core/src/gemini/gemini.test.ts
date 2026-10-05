@@ -42,6 +42,9 @@ describe.skipIf(!dbAvailable)('gemini mirror', () => {
     await c.patch('/api/v1/me', { plan: '=> gemini://evil.example looks like a link\n# and a heading' });
     await c.post('/api/v1/boards', { slug: 'lobby', name: 'Lobby', visibility: 'public' });
     await c.post('/api/v1/boards', { slug: 'secret', name: 'Secret', visibility: 'private' });
+    await c.put('/api/v1/wiki/site/pages/tea', { title: 'Tea', body: '# Brewing\n\nSee [[Kettles]] and [[Cups|the cups]].\n\n- hot\n- => javascript:alert(1)\n\n```\n```not the end\n```', base_revision: 0, summary: 'first' });
+    await c.put('/api/v1/wiki/site/pages/kettles', { title: 'Kettles', body: 'Fill to the line.', base_revision: 0, summary: '' });
+    await c.post('/api/v1/wiki/site/pages/kettles/rename', { title: 'Kettles and pots', base_revision: 1 });
     thread = (await c.post('/api/v1/boards/lobby/posts', { subject: 'Hello geminispace', body: 'First line.\n=> gemini://evil.example sneaky\n```' })).body.id;
     const cert = await loadGeminiCert(ctx.deps.config, { GEMINI_DATA_DIR: dataDir });
     g = buildGeminiServer(ctx.deps, cert);
@@ -70,6 +73,23 @@ describe.skipIf(!dbAvailable)('gemini mirror', () => {
     const p = await ask('gemini://example.test/~geminaut');
     expect(p.body).toContain('## Plan\n> => gemini://evil.example looks like a link\n> # and a heading');
     expect((await ask('gemini://example.test/~nobody')).head).toBe('51 Nothing here');
+  });
+
+  it('serves the site wiki: pages as gemtext with their links, recent changes, and old names redirected', async () => {
+    const index = await ask('gemini://example.test/wiki/');
+    expect(index.body).toContain('=> /wiki/tea Tea');
+    const t = await ask('gemini://example.test/wiki/tea');
+    expect(t.head).toBe('20 text/gemini; lang=en');
+    expect(t.body).toContain('# Tea\n');
+    expect(t.body).toContain('## Brewing');
+    expect(t.body).toContain('See Kettles and the cups.\n=> /wiki/kettles Kettles\nthe cups (no page yet)');
+    expect(t.body).toContain('* => javascript:alert(1)');
+    expect(t.body).not.toMatch(/^=> javascript/m);
+    expect(t.body).toContain('```\n ```not the end\n```');
+    expect((await ask('gemini://example.test/wiki/kettles')).head).toBe('31 /wiki/kettles-and-pots');
+    expect((await ask('gemini://example.test/wiki/kettles-and-pots')).body).toContain('Fill to the line.');
+    expect((await ask('gemini://example.test/wiki/changes')).body).toMatch(/=> \/wiki\/tea .* Tea - geminaut, new page/);
+    expect((await ask('gemini://example.test/wiki/nothing')).head).toBe('51 Nothing here');
   });
 
   it('refuses other hosts, other schemes, junk and long requests', async () => {

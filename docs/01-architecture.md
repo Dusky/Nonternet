@@ -31,6 +31,7 @@ One deployment, run by the admin team, on one server (or a small cluster later).
 | **BBS** | Telnet/SSH/WebSocket terminal front door; a client of core's API (`04`) | **Built** (TypeScript), last milestone |
 | **gopher** | Read-only Gopher mirror of public boards, homepages and file areas (`05`); same image as core, own process | **Built** (TypeScript, M7) |
 | **gemini** | Read-only Gemini mirror: what Gopher shows, plus profiles and plans (`05`); same image as core, own process | **Built** (TypeScript, 2026-10-05) |
+| **wiki** | The site wiki and ring wikis: pages, revisions, links, search (`20`); part of core, read by the BBS, Gopher, Gemini and feeds | **Built** (TypeScript, 2026-10-05) |
 | **finger** | finger server: a person's public profile and .plan (`05`); same image as core, own process | **Built** (TypeScript, 2026-10-05) |
 | **Ergo** | IRC server | Borrowed (PROPOSED) |
 | **MUD engine** | Shared world | Borrowed (PROPOSED: Evennia) |

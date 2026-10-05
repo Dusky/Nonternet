@@ -304,6 +304,33 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     s.destroy();
   });
 
+  it('reads the wiki: the home page, a numbered link to follow, and recent changes', async () => {
+    const writer = await makeUser(ctx, { role: 'trusted' });
+    const wc = await loginAs(ctx, writer.handle);
+    const tag = `w${Date.now() % 100000}`;
+    await ctx.deps.db.query(`DELETE FROM wiki_pages WHERE wiki_id = 'wk_site' AND slug = 'home'`);
+    expect((await wc.put('/api/v1/wiki/site/pages/home', { title: 'Home', body: `# Start here\n\nRead about [[Kettles ${tag}|kettles]] and [[Nowhere ${tag}]].`, base_revision: 0, summary: '' })).status).toBe(200);
+    expect((await wc.put(`/api/v1/wiki/site/pages/kettles-${tag}`, { title: `Kettles ${tag}`, body: 'Fill to the line, not past it.', base_revision: 0, summary: 'first' })).status).toBe(200);
+    const u = await person();
+    const { s, screen, type } = telnet();
+    await screen.until(/Handle:/);
+    type(`${u.handle}\rterminal pass 1\r`);
+    await screen.until(/Main menu \[/);
+    type('k');
+    await screen.until(/kettles\[1\]/);
+    expect(screen.text).toMatch(/Start here/);
+    expect(screen.text).toMatch(/2\.\s+Nowhere \S+ \(no page yet\)/);
+    type('1\r');
+    await screen.until(/Fill to the line, not past it\./);
+    type('m');
+    await screen.until(/Recent changes/);
+    type('r');
+    await screen.until(new RegExp(`Kettles ${tag}`));
+    type('\r');
+    type('q');
+    s.destroy();
+  });
+
   it('shows the message of the day, passes on new announcements, and lets an admin disconnect someone', async () => {
     ctx.deps.config.bbs.motd = 'Board meeting on Friday.';
     const u = await person();

@@ -16,7 +16,7 @@ const SGR: Record<string, string> = {
   'bright-black': '90', 'bright-red': '91', 'bright-green': '92', 'bright-yellow': '93', 'bright-blue': '94', 'bright-magenta': '95', 'bright-cyan': '96', 'bright-white': '97',
 };
 
-export const ACTIONS = ['boards', 'newscan', 'mail', 'rings', 'homepages', 'who', 'lastcallers', 'doors', 'qwk', 'oneliners', 'bulletins', 'polls', 'files', 'settings', 'goodbye'] as const;
+export const ACTIONS = ['boards', 'newscan', 'mail', 'rings', 'homepages', 'wiki', 'who', 'lastcallers', 'doors', 'qwk', 'oneliners', 'bulletins', 'polls', 'files', 'settings', 'goodbye'] as const;
 export type Action = (typeof ACTIONS)[number];
 const menuSchema = z.object({
   title: z.string().min(1).max(60),

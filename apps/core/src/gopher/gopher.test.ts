@@ -43,6 +43,8 @@ describe.skipIf(!dbAvailable)('gopher mirror', () => {
     hiddenId = (await up('bad.zip', 'bad')).json().id;
     await admin.client.post(`/api/v1/admin/files/${hiddenId}/hide`, { reason: 'not allowed' });
     await up('member.txt', 'members', 'inner');
+    await c.put('/api/v1/wiki/site/pages/tea', { title: 'Tea', body: '# Brewing\n\nSee [[Kettles]] and [[Cups|the cups]].\n\n- hot', base_revision: 0, summary: 'first' });
+    await c.put('/api/v1/wiki/site/pages/kettles', { title: 'Kettles', body: 'Fill to the line.', base_revision: 0, summary: '' });
     server = buildGopherServer(ctx.deps);
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
     port = (server.address() as AddressInfo).port;
@@ -93,5 +95,18 @@ describe.skipIf(!dbAvailable)('gopher mirror', () => {
     expect((await menu('/nope/x/y/z')).join('\n')).toContain('3Nothing here.');
     expect((await menu('/boards\tsearch words'))).toContain('1Lobby (1 threads)\t/boards/lobby\texample.test\t70');
     expect((await ask(Buffer.from('x'.repeat(600)))).toString()).toContain('3That request is too long.');
+  });
+
+  it('serves the site wiki as menus: page text, numbered links to follow, and recent changes', async () => {
+    expect(await menu('')).toContain('1Wiki\t/wiki\texample.test\t70');
+    expect(await menu('/wiki')).toContain('1Tea\t/wiki/tea\texample.test\t70');
+    const t = await menu('/wiki/tea');
+    expect(t).toContain('iBREWING\tfake\t(NULL)\t0');
+    expect(t).toContain('iSee Kettles[1] and the cups[2].\tfake\t(NULL)\t0');
+    expect(t).toContain('i- hot\tfake\t(NULL)\t0');
+    expect(t).toContain('1[1] Kettles\t/wiki/kettles\texample.test\t70');
+    expect(t).toContain('i[2] Cups (no page yet)\tfake\t(NULL)\t0');
+    expect((await menu('/wiki/changes')).some((l) => /^1.* Tea - gopherfan, new page\t\/wiki\/tea\t/.test(l))).toBe(true);
+    expect((await menu('/wiki/nothing'))[0]).toMatch(/^3Nothing here/);
   });
 });

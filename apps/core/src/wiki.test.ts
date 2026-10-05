@@ -101,7 +101,7 @@ describe.skipIf(!dbAvailable)('wiki', () => {
     expect((await admin.client.post('/api/v1/wiki/site/pages/first-steps/hide', {})).status).toBe(400); // needs a reason
     expect((await admin.client.post('/api/v1/wiki/site/pages/first-steps/hide', { reason: 'spam links' })).body.hidden).toBe(true);
     expect((await page(p('ursula').c, 'first-steps')).status).toBe(404);
-    expect((await db.query(`SELECT status FROM reports WHERE id = $1`, [rep.body.id])).rows[0].status).toBe('actioned');
+    expect((await db.query(`SELECT status FROM reports WHERE id = $1`, [rep.body.id])).rows[0]!.status).toBe('actioned');
     await admin.client.post('/api/v1/wiki/site/pages/first-steps/unhide', {});
     const actions = (await db.query(`SELECT action FROM audit_log WHERE target_type = 'wiki_page' ORDER BY id`)).rows.map((r) => r.action);
     expect(actions).toEqual(expect.arrayContaining(['wiki.page_protected', 'report.created', 'wiki.page_hidden', 'wiki.page_restored']));

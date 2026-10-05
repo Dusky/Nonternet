@@ -69,6 +69,39 @@ export async function allFeed(deps: AppDeps): Promise<Feed> {
   return { title: `New threads - ${deps.config.site.name}`, selfPath: '/feeds/all.atom', webPath: '/boards', entries: entries(deps, r.rows) };
 }
 
+// Recent changes to a wiki: the site's, or a ring's that is switched on. One entry per revision, in the same terms as
+// the web's recent changes; hidden and deleted pages are left out, and so is the summary of a revision whose text an op
+// hid.
+export async function wikiFeed(deps: AppDeps, ring: string | null): Promise<Feed> {
+  const w = (await deps.db.query<{ id: string; name: string | null }>(ring === null
+    ? `SELECT id, NULL AS name FROM wikis WHERE scope_type = 'site'`
+    : `SELECT w.id, r.name FROM wikis w JOIN rings r ON r.id = w.ring_id WHERE r.slug = $1 AND w.enabled AND r.hidden_at IS NULL`, ring === null ? [] : [ring])).rows[0];
+  if (!w) throw new ApiError(404, 'not_found', 'There is no such wiki.');
+  const r = await deps.db.query<{ id: string; slug: string; title: string; revision: number; summary: string; reverted_to: number | null; text_hidden_at: Date | null; created_at: Date; handle: string | null }>(
+    `SELECT r.id, p.slug, p.title, r.revision, r.summary, r.reverted_to, r.text_hidden_at, r.created_at, u.handle
+       FROM wiki_revisions r JOIN wiki_pages p ON p.id = r.page_id LEFT JOIN users u ON u.id = r.editor_id
+      WHERE p.wiki_id = $1 AND p.hidden_at IS NULL AND p.deleted_at IS NULL
+      ORDER BY r.created_at DESC, r.revision DESC LIMIT ${LIMIT}`, [w.id]);
+  const base = ring === null ? '/wiki' : `/wiki/r/${ring}`;
+  return {
+    title: `${w.name ? `${w.name} wiki` : 'Wiki'}: recent changes - ${deps.config.site.name}`,
+    selfPath: ring === null ? '/feeds/wiki/changes.atom' : `/feeds/wiki/rings/${ring}/changes.atom`,
+    webPath: `${base}/changes`,
+    entries: r.rows.map((x) => {
+      const what = x.revision === 1 ? 'New page' : x.reverted_to ? `Put back revision ${x.reverted_to}` : `Revision ${x.revision}`;
+      return {
+        id: `tag:${deps.config.site.domain},2026:wiki-revision/${x.id}`,
+        title: `${x.title}: ${what.toLowerCase()}`,
+        url: `${deps.publicUrl}${base}/p/${x.slug}/${x.revision === 1 ? 'rev/1' : `compare/${x.revision - 1}/${x.revision}`}`,
+        author: x.handle ?? 'deleted account',
+        published: x.created_at,
+        updated: x.created_at,
+        content: x.summary && !x.text_hidden_at ? `${what}: ${x.summary}` : what,
+      };
+    }),
+  };
+}
+
 export function renderAtom(deps: AppDeps, f: Feed): string {
   const updated = f.entries.reduce((m, e) => (e.updated > m ? e.updated : m), new Date(0));
   const id = `tag:${deps.config.site.domain},2026:feed${f.selfPath.replace(/\.atom$/, '')}`;

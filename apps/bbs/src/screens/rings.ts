@@ -1,7 +1,8 @@
-import type { BoardSummary, RingDetail, RingSummary } from '@app/shared';
+import type { BoardSummary, RingDetail, RingSummary, WikiInfo } from '@app/shared';
 import type { Session } from '../session';
 import { board } from './boards';
 import { page } from './pager';
+import { wiki } from './wiki';
 import { bold, cut, dim, heading, pad, wrap } from './util';
 
 // Rings in the terminal (docs/06): browse, read about one, join or leave, and go to its board.
@@ -31,6 +32,8 @@ async function ring(s: Session, slug: string): Promise<void> {
   const t = s.term;
   for (;;) {
     const g = await s.api.get<RingDetail>(`/rings/${slug}`);
+    const wk = await s.api.get<WikiInfo>(`/wiki/${encodeURIComponent(`ring:${slug}`)}`).catch(() => null);
+    const hasWiki = Boolean(wk?.enabled);
     s.at(`Ring: ${g.name}`);
     const w = Math.min(79, t.cols - 1);
     const lines = [heading(g.name, t.cols), dim(`Founded by ${g.founder.handle} · ${g.member_count} members${g.tags.length ? ` · ${g.tags.join(', ')}` : ''}`), ''];
@@ -42,11 +45,12 @@ async function ring(s: Session, slug: string): Promise<void> {
     await page(s, lines);
     const member = g.me?.status === 'member';
     const pending = g.me?.status === 'pending' || g.me?.status === 'invited' || g.me?.status === 'banned';
-    const opts = [g.board ? `${bold('R')}ead its board` : '', !member && !pending && !g.archived ? `${bold('J')}oin` : '', member && !g.me?.is_founder ? `${bold('L')}eave` : '', `${bold('Q')}uit`].filter(Boolean);
+    const opts = [g.board ? `${bold('R')}ead its board` : '', hasWiki ? `its ${bold('W')}iki` : '', !member && !pending && !g.archived ? `${bold('J')}oin` : '', member && !g.me?.is_founder ? `${bold('L')}eave` : '', `${bold('Q')}uit`].filter(Boolean);
     t.write(`${opts.join(', ')}: `);
-    const k = await t.choose('rjlq');
+    const k = await t.choose('rwjlq');
     t.line();
     if (k === null || k === 'q') return;
+    if (k === 'w' && hasWiki) await wiki(s, `ring:${slug}`, `${g.name} wiki`);
     if (k === 'r' && g.board) await board(s, await s.api.get<BoardSummary>(`/boards/${g.board.slug}`));
     if (k === 'j' && !member && !pending) {
       const r = await s.api.post<{ status: string }>(`/rings/${slug}/join`);

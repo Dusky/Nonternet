@@ -8,6 +8,7 @@ main:
     - { key: M, label: Mail, action: mail }
     - { key: R, label: Rings, action: rings }
     - { key: H, label: Homepages, action: homepages }
+    - { key: K, label: Wiki, action: wiki }
     - { key: W, label: "Who's online", action: who }
     - { key: L, label: Last callers, action: lastcallers }
     - { key: D, label: Door games, action: doors }

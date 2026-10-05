@@ -1,3 +1,4 @@
+import { FeedLink } from '../../components/FeedLink';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { diffLines } from 'diff';
@@ -405,6 +406,7 @@ function Changes({ info, base }: Props) {
   return (
     <section aria-labelledby="wiki-changes-h">
       <h2 id="wiki-changes-h">{t('wiki.changes')}</h2>
+      <p className="toolbar"><FeedLink href={info.ring ? `/feeds/wiki/rings/${info.ring.slug}/changes.atom` : '/feeds/wiki/changes.atom'} title={t('wiki.changes')} /></p>
       {q.isPending && <Loading rows={5} />}
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {q.data && q.data.changes.length === 0 && <EmptyState>{t('wiki.noChanges')}</EmptyState>}

@@ -6,6 +6,8 @@ import * as boards from '../boards';
 import * as files from '../files';
 import { directory } from '../homes/service';
 import { wrapForTerminal } from '../text';
+import * as wiki from '../wiki';
+import { parseWiki, type Inline } from '@app/shared';
 
 // A read-only Gopher mirror (RFC 1436; docs/05, M7). Everything here is what a logged-out visitor
 // sees on the web: public boards and their threads, the homepage directory, public file areas. It
@@ -13,6 +15,7 @@ import { wrapForTerminal } from '../text';
 // show more than the web does. No input is ever stored.
 //
 // Selectors:  ""  /boards  /boards/{slug}  /boards/{slug}/{threadId}  /homes  /files  /files/{slug}  /files/{slug}/{fileId}
+//             /wiki  /wiki/{slug}  /wiki/changes  (the site wiki)
 
 const MAX_SELECTOR = 512;
 const TIMEOUT_MS = 10_000;
@@ -48,12 +51,14 @@ export async function answer(deps: AppDeps, raw: string): Promise<GopherReply> {
         info(site.name), info(''),
         info('A read-only mirror of the public parts of the site.'), info(''),
         { type: '1', text: 'Boards', selector: '/boards' },
+        { type: '1', text: 'Wiki', selector: '/wiki' },
         { type: '1', text: 'Homepages', selector: '/homes' },
         { type: '1', text: 'File areas', selector: '/files' },
         info(''),
         web(`The full site: ${deps.publicUrl}`, deps.publicUrl),
       ] };
     }
+    if (parts[0] === 'wiki') return await wikiMenu(deps, parts.slice(1));
     const [section, slug, id, ...rest] = parts;
     if (rest.length) return notFound();
     if (section === 'boards' && !slug) {
@@ -117,6 +122,58 @@ export async function answer(deps: AppDeps, raw: string): Promise<GopherReply> {
     throw e;
   }
 }
+// A wiki page as a menu: its text as information lines, wrapped for a terminal, with wiki links shown as "text[1]"
+// and listed underneath as menu items to follow.
+export function wikiLines(body: string, existing: ReadonlySet<string>): Line[] {
+  const numbers = new Map<string, number>();
+  const links: Line[] = [];
+  const text = (segs: Inline[]) => segs.map((s) => {
+    if (s.kind === 'wiki') {
+      let n = numbers.get(s.slug);
+      if (n === undefined) {
+        n = numbers.size + 1;
+        numbers.set(s.slug, n);
+        links.push(existing.has(s.slug) ? { type: '1', text: `[${n}] ${s.target}`, selector: `/wiki/${s.slug}` } : info(`[${n}] ${s.target} (no page yet)`));
+      }
+      return `${s.text}[${n}]`;
+    }
+    if (s.kind === 'link') return s.text === s.href ? s.href : `${s.text} <${s.href}>`;
+    return s.text;
+  }).join('');
+  const out: Line[] = [];
+  const wrapped = (s: string, indent = '') => wrapForTerminal(s).map((l, i) => info(`${i ? ' '.repeat(indent.length) : indent}${l}`));
+  for (const b of parseWiki(body)) {
+    if (b.kind === 'heading') out.push(info(text(b.content).toUpperCase()));
+    else if (b.kind === 'paragraph') out.push(...wrapped(text(b.content)));
+    else if (b.kind === 'list') b.items.forEach((it, i) => out.push(...wrapped(text(it), b.ordered ? `${i + 1}. ` : '- ')));
+    else if (b.kind === 'quote') for (const q of b.content) out.push(...wrapped(text(q), '| '));
+    else out.push(...b.text.split('\n').map((l) => info(`    ${l}`)));
+    out.push(info(''));
+  }
+  return links.length ? [...out, info('Links on this page:'), ...links] : out;
+}
+
+async function wikiMenu(deps: AppDeps, rest: string[]): Promise<GopherReply> {
+  const [slug, ...more] = rest;
+  if (more.length) return notFound();
+  if (!slug) {
+    const pages = await wiki.listPages(deps, null, 'site');
+    return { kind: 'menu', lines: [info('Wiki'), info(''), { type: '1', text: 'Recent changes', selector: '/wiki/changes' }, info(''),
+      ...(pages.length ? pages.map((p) => ({ type: '1', text: p.title, selector: `/wiki/${p.slug}` })) : [info('This wiki has no pages yet.')])] };
+  }
+  if (slug === 'changes') {
+    const list = await wiki.changes(deps, null, 'site', 100);
+    return { kind: 'menu', lines: [info('Recent changes'), info(''), ...(list.length ? list.map((c) => ({ type: '1', selector: `/wiki/${c.page.slug}`,
+      text: `${c.created_at.slice(0, 16).replace('T', ' ')} ${c.page.title} - ${c.editor?.handle ?? 'deleted account'}${c.created ? ', new page' : c.reverted_to ? `, put back revision ${c.reverted_to}` : c.summary ? `: ${c.summary}` : ''}` })) : [info('Nothing has changed yet.')])] };
+  }
+  const p = await wiki.getPage(deps, null, 'site', slug);
+  return { kind: 'menu', lines: [
+    info(p.title), info(`Revision ${p.revision}, ${p.updated_at.slice(0, 10)}${p.updated_by ? ` by ${p.updated_by.handle}` : ''}`), info(''),
+    ...wikiLines(p.body, new Set(p.links.filter((l) => l.exists).map((l) => l.slug))),
+    info(''), web('Edit or see the history on the web', `${deps.publicUrl}/wiki/p/${p.slug}`), { type: '1', text: 'All pages', selector: '/wiki' },
+  ] };
+}
+
 const notFound = (): GopherReply => ({ kind: 'menu', lines: [err('Nothing here. Try the main menu.'), { type: '1', text: 'Main menu', selector: '' }] });
 
 export function buildGopherServer(deps: AppDeps, log: (m: string) => void = () => undefined): net.Server {

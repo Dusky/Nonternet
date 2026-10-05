@@ -5,6 +5,8 @@ import * as boards from '../boards';
 import * as files from '../files';
 import { directory } from '../homes/service';
 import { publicProfile } from '../characters';
+import * as wiki from '../wiki';
+import { parseWiki, type Inline } from '@app/shared';
 import type { GeminiCert } from './cert';
 
 // A read-only Gemini mirror (gemini://, docs/05, decided 2026-10-05). It shows what the Gopher mirror shows (public
@@ -12,6 +14,7 @@ import type { GeminiCert } from './cert';
 // core functions as the web with no viewer, so never more than a logged-out visitor sees. Nothing is ever stored.
 //
 // Paths:  /  /boards/  /boards/{slug}/  /boards/{slug}/{threadId}  /homes/  /files/  /files/{slug}/  /~{handle}
+//         /wiki/  /wiki/{slug}  /wiki/changes  (the site wiki)
 
 const MAX_REQUEST = 1024;
 const TIMEOUT_MS = 10_000;
@@ -41,7 +44,7 @@ export async function answer(deps: AppDeps, raw: string): Promise<GeminiReply> {
       return ok([
         `# ${oneLine(site.name)}`, '',
         'A read-only mirror of the public parts of the site.', '',
-        link('/boards/', 'Boards'), link('/homes/', 'Homepages'), link('/files/', 'File areas'), '',
+        link('/boards/', 'Boards'), link('/wiki/', 'Wiki'), link('/homes/', 'Homepages'), link('/files/', 'File areas'), '',
         'Read someone\'s profile and plan at /~handle.', '',
         link(`${deps.publicUrl}/`, 'The full site, on the web'),
       ]);
@@ -61,6 +64,7 @@ export async function answer(deps: AppDeps, raw: string): Promise<GeminiReply> {
       ]);
     }
     const parts = path.split('/').filter(Boolean);
+    if (parts[0] === 'wiki') return await wikiPage(deps, parts.slice(1));
     const [section, slug, id, ...rest] = parts;
     if (rest.length) return notFound();
     if (section === 'boards' && !slug) {
@@ -116,6 +120,47 @@ export async function answer(deps: AppDeps, raw: string): Promise<GeminiReply> {
     if (e instanceof ApiError && e.status === 404) return notFound();
     throw e;
   }
+}
+
+// A wiki page as gemtext. Headings and lists map straight across; gemtext links are lines of their own, so the
+// links in a paragraph, list or quote follow it. Code blocks are preformatted, and nothing the writer typed can open
+// or close one early.
+export function wikiGemtext(body: string, base: string, missing: ReadonlySet<string> = new Set()): string[] {
+  const out: string[] = [];
+  const text = (segs: Inline[]) => oneLine(segs.map((s) => s.text).join(''));
+  const links = (segs: Inline[]) => segs.flatMap((s) => s.kind === 'wiki' ? [missing.has(s.slug) ? `${oneLine(s.text)} (no page yet)` : link(`${base}${s.slug}`, s.text)] : s.kind === 'link' ? [link(s.href, s.text)] : []);
+  // A line from a page never starts with a gemtext marker of its own.
+  const plain = (s: string) => (/^(=>|#|\* |>|```)/.test(s) ? ` ${s}` : s);
+  for (const b of parseWiki(body)) {
+    if (b.kind === 'heading') out.push(`${'#'.repeat(Math.min(3, b.level + 1))} ${text(b.content)}`);
+    else if (b.kind === 'paragraph') out.push(plain(text(b.content)), ...links(b.content));
+    else if (b.kind === 'list') out.push(...b.items.map((it, i) => (b.ordered ? plain(`${i + 1}. ${text(it)}`) : `* ${text(it)}`)), ...b.items.flatMap(links));
+    else if (b.kind === 'quote') out.push(...b.content.map((q) => `> ${text(q)}`), ...b.content.flatMap(links));
+    else out.push('```', ...b.text.split('\n').map((l) => (l.startsWith('```') ? ` ${l}` : l.replace(/[\p{Cc}]+/gu, ''))), '```');
+    out.push('');
+  }
+  return out;
+}
+
+async function wikiPage(deps: AppDeps, rest: string[]): Promise<GeminiReply> {
+  const [slug, ...more] = rest;
+  if (more.length) return notFound();
+  if (!slug) {
+    const pages = await wiki.listPages(deps, null, 'site');
+    return ok(['# Wiki', '', link('/wiki/changes', 'Recent changes'), '', '## All pages',
+      ...(pages.length ? pages.map((p) => link(`/wiki/${p.slug}`, p.title)) : ['This wiki has no pages yet.']), '', link('/', 'Home')]);
+  }
+  if (slug === 'changes') {
+    const list = await wiki.changes(deps, null, 'site', 100);
+    return ok(['# Recent changes', '', ...(list.length ? list.map((c) => link(`/wiki/${c.page.slug}`,
+      `${c.created_at.slice(0, 16).replace('T', ' ')} ${c.page.title} - ${c.editor?.handle ?? 'deleted account'}${c.created ? ', new page' : c.reverted_to ? `, put back revision ${c.reverted_to}` : c.summary ? `: ${c.summary}` : ''}`)) : ['Nothing has changed yet.']),
+      '', link('/wiki/', 'All pages')]);
+  }
+  const p = await wiki.getPage(deps, null, 'site', slug);
+  if (p.redirected_from) return { status: 31, meta: `/wiki/${p.slug}` };
+  return ok([`# ${oneLine(p.title)}`, `Revision ${p.revision}, ${p.updated_at.slice(0, 10)}${p.updated_by ? ` by ${p.updated_by.handle}` : ''}`, '',
+    ...wikiGemtext(p.body, '/wiki/', new Set(p.links.filter((l) => !l.exists).map((l) => l.slug))),
+    link(`${deps.publicUrl}/wiki/p/${p.slug}`, 'Edit or see the history on the web'), link('/wiki/', 'All pages')]);
 }
 
 export const render = (r: GeminiReply): string => `${r.status} ${r.meta}\r\n${r.status === 20 ? r.body ?? '' : ''}`;

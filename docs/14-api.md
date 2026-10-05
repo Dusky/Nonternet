@@ -160,3 +160,12 @@ All need a session. The data routes are what the shell's bridge calls on an app'
 - `PUT /api/v1/me/apps/{id}`: add. `DELETE /api/v1/me/apps/{id}`: remove, keeping data. `DELETE /api/v1/me/apps/{id}/data`: delete what it kept.
 - `GET /api/v1/me/apps/{id}/data/{collection}`, `PUT|DELETE /api/v1/me/apps/{id}/data/{collection}/{doc}` (`{ data }`). Refused unless the app is offered, added, and asked for `storage`. 64 KB per document, 5 MB per app per person (`413 too_large`), 120 writes a minute.
 - Admin: `GET /api/v1/admin/apps` (with `people` and `present`), `PUT /api/v1/admin/apps/{id}` `{ offered }` (audited).
+
+## Wiki (2026-10-05, docs/20)
+`:wiki` is `site` or `ring:{slug}`. Reading is public; writing needs a session, and the rules in `20` decide who may.
+- `GET /api/v1/wiki/:wiki` (`can_edit`, `can_moderate`), `/pages`, `/changes`, `/wanted`, `/search?q=`.
+- `GET /api/v1/wiki/:wiki/pages/:slug` (with `redirected_from` and `links`), `/history`, `/revisions/:n`, `/links-here`.
+- `PUT /api/v1/wiki/:wiki/pages/:slug {title, body, base_revision, summary}`: create (`base_revision: 0`) or edit; `409 edit_conflict` with `details.current`.
+- `POST …/pages/:slug/revert {revision, base_revision}`, `/rename {title, base_revision}`, `/protect|unprotect|hide|unhide|delete|restore {reason}`, `/revisions/:n/hide|show {reason}`, `/report {category, note}`.
+- `PUT /api/v1/rings/:ring/wiki {enabled}` (ring ops and admins).
+- Feeds: `/feeds/wiki/changes.atom`, `/feeds/wiki/rings/{ring}/changes.atom`.

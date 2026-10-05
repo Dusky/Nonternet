@@ -397,3 +397,5 @@ a person would otherwise go wrong.
   - The export lists devices without their push address or keys (`settings/push-devices.json`).
   - Not yet: admin alerts (new reports, applications) as push, and chat.
 
+## As built (wiki, 2026-10-05)
+The Wiki app (`apps/shell/src/apps/wiki/`, public) is described in `20`. It has pages, an editor with a live preview (a tab on phones) and drafts on the device, history, compare, put a version back, recent changes (with a Feed link), all pages, wanted pages, what links here and search. A link to a page that doesn't exist yet says "(no page yet)" to screen readers as well as showing a different colour. When a save conflicts, the app shows "Someone saved this page while you were editing" and keeps your text in the editor next to theirs.
