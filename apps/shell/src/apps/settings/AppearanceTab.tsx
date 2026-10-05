@@ -9,8 +9,9 @@ import { Alert } from '../../components/ui';
 import { errorText, useT } from '../../hooks';
 import { alertPrefs, askDesktopPermission, desktopSupported, playChime, saveAlertPrefs, unlockAudio, type AlertPrefs } from '../../alerts';
 import { Section } from './Section';
+import { WallpaperPicker } from './WallpaperPicker';
 import { DeviceSwitch } from './PersonalSettings';
-import { applyTheme, BOX_STYLES, boxStylePref, clockPref, DEFAULT_THEME, DENSITIES, densityPref, effectPrefs, saveBoxStylePref, saveClockPref, saveDensityPref, saveEffectPrefs, saveWallpaperPref, wallpaperPref, WALLPAPERS, type EffectPrefs } from '../../theme';
+import { applyTheme, BOX_STYLES, boxStylePref, clockPref, DEFAULT_THEME, DENSITIES, densityPref, effectPrefs, saveBoxStylePref, saveClockPref, saveDensityPref, saveEffectPrefs, type EffectPrefs } from '../../theme';
 
 export function Appearance({ me }: { me: Me }) {
   const t = useT();
@@ -22,7 +23,6 @@ export function Appearance({ me }: { me: Me }) {
   const [density, setDensity] = useState(densityPref);
   const [boxes, setBoxes] = useState(boxStylePref);
   const [clock, setClock] = useState(clockPref);
-  const [paper, setPaper] = useState(wallpaperPref);
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
@@ -107,17 +107,7 @@ export function Appearance({ me }: { me: Me }) {
           ))}
         </div>
       </Section>
-      <Section id="look-wallpaper" title={t('settings.appearance.wallpaper')} scope="device">
-        <div className="theme-choices" role="radiogroup" aria-labelledby="look-wallpaper">
-          {WALLPAPERS.map((w) => (
-            <label key={w} className={`theme-choice${paper === w ? ' is-chosen' : ''}`}>
-              <input type="radio" name="wallpaper" value={w} checked={paper === w} onChange={() => { setPaper(w); saveWallpaperPref(w); }} />
-              <span className={`theme-swatch wallpaper-swatch wp-${w}`} aria-hidden="true" />
-              <span>{t(`settings.wallpaper.${w}`)}</span>
-            </label>
-          ))}
-        </div>
-      </Section>
+      <WallpaperPicker />
       <Section id="look-taskbar" title={t('settings.appearance.taskbar')} scope="device">
         <DeviceSwitch label={t('settings.appearance.clock')} checked={clock} onChange={(on) => { setClock(on); saveClockPref(on); }} />
       </Section>

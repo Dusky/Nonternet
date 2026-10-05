@@ -33,4 +33,5 @@ export interface AppDeps {
   bbs?: BbsDeps;            // set when BBS_SECRET is; the BBS is off without it
   push?: PushDeps;          // set when the VAPID keys are; push notifications are off without them
   now: () => number;        // ms; injectable so tests can move the clock (TOTP steps)
+  allowPrivateFetch?: boolean; // tests only: lets safeFetch reach a local server. Never set in a running site
 }

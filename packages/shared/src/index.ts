@@ -17,3 +17,4 @@ export * from './apps';
 export * from './push';
 export * from './wikitext';
 export * from './wiki';
+export * from './wallpaper';

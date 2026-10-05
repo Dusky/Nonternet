@@ -153,3 +153,13 @@ report SLA breaches.
 - **Bridge.** The app reaches the account only through the shell (`shell/AppHost.tsx`, Penpal over `postMessage`). The shell listens to that frame's window alone, then both sides use a private `MessageChannel`. Each call is checked against the manifest's permissions (`storage`, `profile:read`, `notify`), and arguments are type- and length-checked. Data routes in core check again: the app must be offered, added by this person, and have asked for storage. Limits: 64 KB per document, 5 MB per app per person, 120 writes a minute.
 - **Certificates.** Caddy's `ask` now approves the bare `homes_domain` (it also carries the stable `/u/{id}/` homepage links, which could not get a certificate before). The shell's CSP allows framing `https://{homes_domain}` as well as `https://*.{homes_domain}`.
 - **Known limits (first-party apps only for now).** A sandboxed frame can still navigate itself, so a hostile app could carry data out in a URL; CSP has no way to stop that. Before outside authors can publish apps (Q18), apps need review and signing, and this needs a further control (for example, no navigation permission once browsers offer one). The site's fonts are not loaded inside apps (font-src 'self' on the homes origin); apps get the theme's font names and fall back to generic families.
+
+## Fetching from addresses people type (2026-10-05)
+`apps/core/src/safe-fetch.ts` is the only way core fetches a URL someone gave it. Today that is only wallpaper pictures.
+- Only http and https; no user name or password in the address.
+- The name is resolved first. It is refused if **any** address it gives is private, loopback, link-local, CGNAT,
+  multicast, documentation or reserved, IPv4 or IPv6 (including IPv4 written as IPv6). The connection then goes to the
+  address that was checked, so DNS can't answer differently the second time.
+- Redirects are followed by hand, at most three, each checked again.
+- 10 seconds in total, and a byte cap, both on the declared length and while reading.
+- `allowPrivateFetch` on the deps exists for tests only and is never set by `main`.

@@ -156,6 +156,13 @@ client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+cl
 - `wiki_redirects(wiki_id, slug, page_id)` and `wiki_links(page_id, target_slug, target_title)`: derived, rebuilt on save and rename.
 - `reports.target_type` gains `wiki_page`.
 
+## Wallpaper (0043, docs/10)
+- `users.wallpaper` holds a pattern name, `preset:{id}` or `own`; NULL means never chosen, which shows as dots.
+- `users.wallpaper_fit` is `cover`, `tile` or `center`.
+- `users.wallpaper_at` is when their own picture was set (NULL when there is none). The file is
+  `{filesDir}/wallpapers/{user id}.webp`.
+- `users.wallpaper_url` is where the picture was copied from, if it came from a web address.
+
 ## Invariants (enforce and test)
 - Board/ring ownership requires `trusted` or `admin` at creation; quotas checked at creation.
 - Every ring has exactly one board (`rings.board_id` not null after creation).

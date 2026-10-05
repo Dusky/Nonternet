@@ -2,7 +2,7 @@ import { createHash, createPublicKey, verify } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { unzipSync } from 'fflate';
-import { CLIENT_NAMES, PREF_KINDS, homepageSettingsSchema, profileUpdateSchema } from '@app/shared';
+import { CLIENT_NAMES, PREF_KINDS, homepageSettingsSchema, profileUpdateSchema, wallpaperUpdateSchema } from '@app/shared';
 import { putClientSettings } from './client-settings';
 import { importAppData } from './apps';
 import { audit } from './audit';
@@ -14,6 +14,7 @@ import type { Ctx, SessionUser } from './accounts';
 import { isMember } from './boards';
 import * as accounts from './accounts';
 import * as personal from './personal';
+import * as wallpaper from './wallpaper';
 import * as homes from './homes/service';
 import * as files from './files';
 import { addKey } from './bbs/service';
@@ -208,6 +209,14 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
     for (const [kind, on] of Object.entries(notes)) if ((PREF_KINDS as readonly string[]).includes(kind) && typeof on === 'boolean') await personal.setPref(deps, v, kind, on);
     for (const slug of Array.isArray(s.muted_boards) ? s.muted_boards : []) {
       try { await personal.muteBoard(deps, v, String(slug), true); } catch { codes.push('board_missing'); }
+    }
+    // The wallpaper: their own picture first, then the choice (which may be that picture).
+    const wp = (s.wallpaper ?? null) as { choice?: unknown; fit?: unknown; source_url?: unknown } | null;
+    const pic = a.files.get('wallpaper.webp');
+    if (pic) { try { await wallpaper.restore(deps, v.userId, pic, typeof wp?.source_url === 'string' ? wp.source_url : null); } catch (e) { codes.push(code(e)); } }
+    if (wp) {
+      const w = wallpaperUpdateSchema.safeParse({ choice: wp.choice, fit: wp.fit ?? 'cover' });
+      if (w.success) { try { await wallpaper.choose(deps, v, w.data.choice, w.data.fit); } catch (e) { codes.push(code(e)); } } else codes.push('wallpaper_unknown');
     }
     // Mail conversations are kept by people, not ids, in an export, so their mutes can't be matched up.
     if (Array.isArray(s.muted_mail_conversations) && s.muted_mail_conversations.length) codes.push(...s.muted_mail_conversations.map(() => 'mail_mute'));

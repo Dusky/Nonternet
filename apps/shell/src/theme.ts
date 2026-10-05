@@ -1,5 +1,5 @@
 import { isTerminalScheme, isThemeName, themeCss, themes } from '@app/ui-themes';
-import { DEFAULT_THEME_NAME, LEGACY_THEMES, type TerminalScheme, type ThemeName } from '@app/shared';
+import { DEFAULT_THEME_NAME, LEGACY_THEMES, WALLPAPER_PATTERNS, WALLPAPER_PRESETS, type TerminalScheme, type ThemeName, type WallpaperFit, type WallpaperPattern } from '@app/shared';
 
 export const DEFAULT_THEME: ThemeName = DEFAULT_THEME_NAME;
 const THEME_KEY = 'ui:theme';
@@ -82,7 +82,7 @@ function applyModifiers(): void {
   root.dataset.crt = fx.crt ? 'on' : 'off';
   root.dataset.density = densityPref();
   root.dataset.boxes = boxStylePref();
-  root.dataset.wallpaper = wallpaperPref();
+  applyWallpaper(wallpaperPref());
 }
 
 export function applyTheme(theme: ThemeName, opts: { remember?: boolean; scheme?: TerminalScheme | null } = {}): void {
@@ -116,15 +116,44 @@ export function saveClockPref(on: boolean): void {
   window.dispatchEvent(new Event('ui:clock'));
 }
 
-// The desktop wallpaper: one of a few patterns, kept on this device (like the clock).
-export const WALLPAPERS = ['dots', 'grid', 'stripes', 'plain'] as const;
-export type Wallpaper = (typeof WALLPAPERS)[number];
+// The desktop wallpaper (docs/10): a drawn pattern, one of the site's pictures, or the person's own picture. The
+// choice lives on the account; this keeps the last one seen so the desktop is right before the account answers.
+export const WALLPAPERS = WALLPAPER_PATTERNS;
+export type Wallpaper = WallpaperPattern;
+export interface WallpaperState { choice: string; fit: WallpaperFit; version: number | null }
 const WALLPAPER_KEY = 'ui:wallpaper';
-export function wallpaperPref(): Wallpaper {
+export function wallpaperPref(): WallpaperState {
   const v = read(WALLPAPER_KEY);
-  return (WALLPAPERS as readonly string[]).includes(v ?? '') ? (v as Wallpaper) : 'dots';
+  if (v && (WALLPAPER_PATTERNS as readonly string[]).includes(v)) return { choice: v, fit: 'cover', version: null }; // saved before pictures existed
+  try {
+    const s = JSON.parse(v ?? '') as WallpaperState;
+    if (typeof s.choice === 'string') return { choice: s.choice, fit: s.fit ?? 'cover', version: s.version ?? null };
+  } catch { /* nothing saved */ }
+  return { choice: 'dots', fit: 'cover', version: null };
 }
-export function saveWallpaperPref(w: Wallpaper): void {
-  write(WALLPAPER_KEY, w);
-  document.documentElement.dataset.wallpaper = w;
+export function wallpaperSrc(w: WallpaperState): { src: string; fit: WallpaperFit } | null {
+  if (w.choice.startsWith('preset:')) {
+    const p = WALLPAPER_PRESETS.find((x) => x.id === w.choice.slice(7));
+    return p ? { src: `/wallpapers/${p.id}.webp`, fit: p.fit } : null;
+  }
+  if (w.choice === 'own' && w.version) return { src: `/api/v1/me/wallpaper/image?v=${w.version}`, fit: w.fit };
+  return null;
+}
+function applyWallpaper(w: WallpaperState): void {
+  const root = document.documentElement;
+  const pic = wallpaperSrc(w);
+  if (!pic) {
+    root.dataset.wallpaper = (WALLPAPER_PATTERNS as readonly string[]).includes(w.choice) ? w.choice : 'dots';
+    for (const k of ['--wp-image', '--wp-size', '--wp-repeat', '--wp-position']) root.style.removeProperty(k);
+    return;
+  }
+  root.dataset.wallpaper = 'picture';
+  root.style.setProperty('--wp-image', `url("${pic.src}")`);
+  root.style.setProperty('--wp-size', pic.fit === 'cover' ? 'cover' : 'auto');
+  root.style.setProperty('--wp-repeat', pic.fit === 'tile' ? 'repeat' : 'no-repeat');
+  root.style.setProperty('--wp-position', pic.fit === 'tile' ? '0 0' : 'center');
+}
+export function saveWallpaperPref(w: WallpaperState): void {
+  write(WALLPAPER_KEY, JSON.stringify(w));
+  applyWallpaper(w);
 }

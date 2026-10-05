@@ -169,7 +169,7 @@ plain, a "what's new" home, and the full landing page. No new themes.
   Right-click, or Shift+F10 / the Menu key, opens a menu on desktop icons, taskbar buttons and title bars.
 - **`?` lists every shortcut.** Ctrl+K also finds threads (by their words), rings and mail subjects, and remembers
   the last few things opened.
-- **Wallpaper**: dots, grid, stripes or plain, drawn in the theme's colours; kept on the device.
+- **Wallpaper**: dots, grid, stripes or plain, drawn in the theme's colours. Since 2026-10-05 it is kept on the account and can also be a picture (see "Wallpapers" below).
 - **When things go wrong:** a banner when the browser is offline; a banner when the session has ended (a link to
   log in in a new tab, so what you were writing stays; it goes by itself when you are back). One app crashing shows
   "Reload this app" and leaves the rest of the shell alone. Failed loads offer "Try again" and are retried once
@@ -399,3 +399,20 @@ a person would otherwise go wrong.
 
 ## As built (wiki, 2026-10-05)
 The Wiki app (`apps/shell/src/apps/wiki/`, public) is described in `20`. It has pages, an editor with a live preview (a tab on phones) and drafts on the device, history, compare, put a version back, recent changes (with a Feed link), all pages, wanted pages, what links here and search. A link to a page that doesn't exist yet says "(no page yet)" to screen readers as well as showing a different colour. When a save conflicts, the app shows "Someone saved this page while you were editing" and keeps your text in the editor next to theirs.
+
+## Wallpapers (2026-10-05)
+Settings → Appearance → Desktop wallpaper. The choice is kept on the account, so it follows the person to other devices.
+- **Patterns:** dots, grid, stripes and plain, drawn in the theme's colours.
+- **The site's pictures:** two tiles (paper stars, slate stars) and five scenes (hillside, harbour lights, lanterns,
+  lantern hill, the tower). They live in `apps/shell/public/wallpapers/` with thumbnails, and are listed in
+  `WALLPAPER_PRESETS` in `packages/shared/src/wallpaper.ts`. A tile repeats; a scene fills the screen.
+- **Your own picture:**
+  - Upload one (PNG, JPEG, GIF or WebP, up to 8 MB), or paste a web address. Core copies the picture once (`15`, safe
+    fetch), so the shell never loads anything from another site, and the other site never learns who looks at it.
+  - It is drawn again as a WebP at most 2560 pixels wide.
+  - It is shown only to its owner (`/api/v1/me/wallpaper/image`), so it is not public content: no reports and no
+    audit. It is in the export.
+  - Choices for fit: fill the screen, tile, or centre.
+  - Signed out, someone's own picture can't be shown, so the desktop goes back to dots.
+- **Code:** `apps/core/src/wallpaper.ts`, `apps/shell/src/apps/settings/WallpaperPicker.tsx`, and `applyWallpaper`
+  in `theme.ts`. The last choice is kept in `localStorage` so the desktop looks right before the account answers.

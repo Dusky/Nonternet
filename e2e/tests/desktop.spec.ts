@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
@@ -146,6 +147,40 @@ test.describe('on a big screen', () => {
     await page.getByLabel('Play a short chime').check();
     await page.reload();
     await expect(page.getByLabel('Play a short chime')).toBeChecked();
+  });
+
+  test('the wallpaper can be one of the site\'s pictures or your own, follows the account, and refuses inside addresses', async ({ page, browser }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/settings/appearance');
+    await page.getByLabel('Hillside').check();
+    const html = page.locator('html');
+    await expect(html).toHaveAttribute('data-wallpaper', 'picture');
+    await expect.poll(() => html.evaluate((el) => el.style.getPropertyValue('--wp-image'))).toContain('/wallpapers/hillside.webp');
+    await scan(page, 'the wallpaper picker');
+
+    // Their own picture: uploaded, then shown, with a choice of how it fits.
+    await page.getByText('Upload a picture').locator('input[type=file]').setInputFiles(join(process.cwd(), '../apps/shell/public/wallpapers/thumbs/lanterns.webp'));
+    await expect(page.getByLabel('Your picture')).toBeChecked();
+    await expect.poll(() => html.evaluate((el) => el.style.getPropertyValue('--wp-image'))).toContain('/api/v1/me/wallpaper/image');
+    await page.getByLabel('Tile').check();
+    await expect.poll(() => html.evaluate((el) => el.style.getPropertyValue('--wp-repeat'))).toBe('repeat');
+
+    // It follows the account to another browser.
+    const other = await browser.newContext({ baseURL: BASE_URL });
+    const p2 = await other.newPage();
+    await signIn(p2, u.handle, PASSWORD);
+    await expect.poll(() => p2.locator('html').evaluate((el) => el.style.getPropertyValue('--wp-image'))).toContain('/api/v1/me/wallpaper/image');
+    await other.close();
+
+    // A web address that leads inside the server's own network is refused.
+    await page.getByLabel('Or use a picture from the web').fill(`${BASE_URL}/wallpapers/harbour.webp`);
+    await page.getByRole('button', { name: 'Use this picture' }).click();
+    await expect(page.getByText('That address is not on the public internet.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Remove your picture' }).click();
+    await expect(html).toHaveAttribute('data-wallpaper', 'dots');
+    await expect(page.getByLabel('Your picture')).toHaveCount(0);
   });
 
   test('the palette finds a thread by its words and remembers what you opened', async ({ page, browser }) => {

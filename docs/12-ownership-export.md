@@ -131,3 +131,7 @@ Ring banners go in the export of the people who run the ring (`rings/<slug>/bann
 
 ## Wiki (built 2026-10-05, docs/20)
 `wiki/revisions.json` holds every revision the person wrote (the wiki, page, revision number, title, summary, text and time). `wiki/pages-started.json` lists the pages they started. Deleting an account keeps their revisions, credited to a deleted account, or with "erase" replaces their texts and rolls back pages whose current text is theirs.
+
+## Wallpaper (2026-10-05, docs/10)
+`settings.json` has `wallpaper: {choice, fit, source_url}`, and `wallpaper.webp` holds the person's own picture if they
+have one. Import puts both back, as part of "settings". Deleting the account removes the picture.
