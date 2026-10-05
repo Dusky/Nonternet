@@ -77,8 +77,8 @@ export function defaultPrefs(): NotificationPrefs {
 }
 
 export async function getSettings(deps: AppDeps, v: SessionUser): Promise<PersonalSettings> {
-  const u = await deps.db.query<{ status_line: string | null; away: boolean; avatar_at: Date | null; show_last_seen: boolean; email_digest: boolean }>(
-    `SELECT status_line, away, avatar_at, show_last_seen, email_digest FROM users WHERE id = $1`, [v.userId]);
+  const u = await deps.db.query<{ status_line: string | null; plan: string; away: boolean; avatar_at: Date | null; show_last_seen: boolean; email_digest: boolean }>(
+    `SELECT status_line, plan, away, avatar_at, show_last_seen, email_digest FROM users WHERE id = $1`, [v.userId]);
   const prefs = defaultPrefs();
   for (const r of (await deps.db.query<{ kind: keyof NotificationPrefs; enabled: boolean }>(`SELECT kind, enabled FROM notification_prefs WHERE user_id = $1`, [v.userId])).rows) {
     if (r.kind in prefs) prefs[r.kind] = r.enabled;
@@ -87,7 +87,7 @@ export async function getSettings(deps: AppDeps, v: SessionUser): Promise<Person
     `SELECT b.slug, b.name FROM board_notification_prefs p JOIN boards b ON b.id = p.board_id WHERE p.user_id = $1 ORDER BY b.name`, [v.userId]);
   const x = u.rows[0]!;
   return {
-    status_line: x.status_line, away: x.away, has_avatar: x.avatar_at !== null, show_last_seen: x.show_last_seen, email_digest: x.email_digest,
+    status_line: x.status_line, plan: x.plan, away: x.away, has_avatar: x.avatar_at !== null, show_last_seen: x.show_last_seen, email_digest: x.email_digest,
     can_email: canEmail(deps), prefs, muted_boards: muted.rows,
   };
 }

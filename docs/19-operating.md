@@ -11,7 +11,7 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
 - DNS: `A`/`AAAA` for `example.net` and `irc.example.net`, and a wildcard `*.example-homes.net`, all pointing at
   the server. Optional names for people's clients: `bbs.`, `mud.` (same address).
 - Outgoing mail (SMTP) for sign-up confirmations and password resets.
-- Open ports: 80 and 443 (web), 6697 (IRC over TLS), 23 and 2222 (BBS telnet and SSH), 4000 (MUD), 70 (Gopher).
+- Open ports: 80 and 443 (web), 6697 (IRC over TLS), 23 and 2222 (BBS telnet and SSH), 4000 (MUD), 70 (Gopher), 79 (finger), 1965 (Gemini).
   Leave out any service you turn off in the site config.
 
 ## First install
@@ -33,14 +33,14 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
 | When | What | Command |
 |---|---|---|
 | nightly | encrypted backup into `deploy/backups` (database, MUD world, chat history, homepages, file areas, config) | `./sitectl backup` |
-| weekly | Ergo picks up a renewed certificate for `irc.` | `./sitectl irc-reload` |
+| weekly | Ergo (and Gemini, when it uses the site's certificate) pick up renewed certificates | `./sitectl tls-reload` (`irc-reload` still works) |
 | monthly | prove the newest backup restores; the result shows in the console's Backups page | `./sitectl restore-test` |
 | after each backup | copy `deploy/backups` off the server (rsync, object storage); it is encrypted | your tool |
 
 Example crontab (as the user that runs Docker):
 ```
 15 3 * * *  cd /srv/site/deploy && ./sitectl backup >> backups/backup.log 2>&1
-30 4 * * 1  cd /srv/site/deploy && ./sitectl irc-reload
+30 4 * * 1  cd /srv/site/deploy && ./sitectl tls-reload
 45 4 1 * *  cd /srv/site/deploy && ./sitectl restore-test >> backups/restore.log 2>&1
 ```
 
@@ -95,3 +95,24 @@ instance (presence and the IRC bot live in its memory, `01`); scaling out is fut
 To measure your own server: seed a **throwaway** database with `apps/core/scripts/load-seed.ts`, start core
 against it, and run `node scripts/load-test.mjs --url … --users … --seconds 30 --concurrency 20`. Never point
 it at the real site: it posts.
+
+## The Gemini certificate (2026-10-05)
+- **By default** the Gemini mirror makes its own certificate on its first start and keeps it in the `gemini-data`
+  volume. Back the volume up with the rest: Gemini clients remember the certificate on the first visit, and a new
+  one makes them warn.
+- `./sitectl gemini-fingerprint` prints its fingerprint (`SHA256:…`). Publish it on the site so people can compare.
+- **To use the site's own certificate** instead (Caddy already keeps one for `SITE_DOMAIN`, which is the Gemini host
+  unless `gemini.host` says otherwise):
+  1. In the site config, set `gemini.certificate: site`.
+  2. In `.env`, set:
+     ```
+     GEMINI_TLS_CERT=/caddy/certificates/acme-v02.api.letsencrypt.org-directory/<site domain>/<site domain>.crt
+     GEMINI_TLS_KEY=/caddy/certificates/acme-v02.api.letsencrypt.org-directory/<site domain>/<site domain>.key
+     ```
+  3. Run `./sitectl up`.
+  4. Weekly `tls-reload` picks up renewals; the mirror also notices a changed file within the hour.
+  - Clients that pinned the old self-signed certificate will warn once. Say so on the site before switching.
+  - To switch back, set `certificate: self-signed` and clear the two env vars. The kept certificate is still in the
+    volume, so its fingerprint is unchanged.
+  - Like Ergo's, reading Caddy's files from another container is untested on a real host (V11).
+

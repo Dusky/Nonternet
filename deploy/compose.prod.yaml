@@ -58,6 +58,30 @@ services:
     ports: !override
       - "70:7070"
 
+  finger:
+    <<: *prod
+    environment:
+      NODE_ENV: production
+      PUBLIC_URL: https://${SITE_DOMAIN}
+      DATABASE_URL: postgres://core_rt:${DB_RUNTIME_PASSWORD}@postgres:5432/app
+    ports: !override
+      - "79:7979"
+
+  # Gemini's certificate: its own (the default), or the site's from Caddy when the site config says
+  # gemini.certificate: site. Then these two point into Caddy's store, like Ergo's (docs/19).
+  gemini:
+    <<: *prod
+    environment:
+      NODE_ENV: production
+      PUBLIC_URL: https://${SITE_DOMAIN}
+      DATABASE_URL: postgres://core_rt:${DB_RUNTIME_PASSWORD}@postgres:5432/app
+      GEMINI_TLS_CERT: ${GEMINI_TLS_CERT:-}
+      GEMINI_TLS_KEY: ${GEMINI_TLS_KEY:-}
+    volumes:
+      - caddy-data:/caddy:ro
+    ports: !override
+      - "1965:1965"
+
   bbs:
     <<: *prod
     environment:

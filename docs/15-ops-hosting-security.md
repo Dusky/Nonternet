@@ -6,7 +6,7 @@ The site is hosted by its admins (DECIDED). This doc covers running it well.
 - `docker compose` on one server to start (PROPOSED: 4 vCPU / 8 GB RAM / 160 GB+ disk as a
   starting point; measure).
 - **As built:** `deploy/compose.yaml` (local) with `deploy/compose.prod.yaml` laid over it for production, driven by
-  `deploy/sitectl` (`doctor`, `up`, `backup`, `restore-test`, `upgrade`, `irc-reload`, `create-admin`, `logs`,
+  `deploy/sitectl` (`doctor`, `up`, `backup`, `restore-test`, `upgrade`, `tls-reload` (was `irc-reload`), `gemini-fingerprint`, `create-admin`, `logs`,
   `ps`). Configs are rendered at start-up from the site config (Ergo by `cli irc-config`; the BBS and MUD read
   it directly), so there is no separate render step. Step-by-step: `19-operating.md`.
 

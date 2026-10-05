@@ -7,7 +7,8 @@
 #   ./sitectl upgrade         back up, pull the new version, rebuild, restart, check health
 #   ./sitectl agent           carry out updates and restarts asked for in the admin console (run by install-agent)
 #   ./sitectl install-agent   set the agent up as a system service, so the console's Updates page works
-#   ./sitectl irc-reload      make Ergo reload its TLS certificate (weekly, from cron)
+#   ./sitectl tls-reload      make Ergo and Gemini reload their TLS certificates (weekly, from cron; irc-reload still works)
+#   ./sitectl gemini-fingerprint   the Gemini certificate's fingerprint, for people to check against their client
 #   ./sitectl create-admin <handle> <email>     the first admin (asks for a password)
 #   ./sitectl logs [service]  ./sitectl ps
 set -euo pipefail
@@ -16,7 +17,7 @@ cd "$(dirname "$SELF")"
 COMPOSE=(docker compose -f compose.yaml -f compose.prod.yaml --env-file .env)
 [ -n "${SITECTL_COMPOSE:-}" ] && read -ra COMPOSE <<< "$SITECTL_COMPOSE"  # tests swap in a stand-in
 OPS="${SITECTL_OPS_DIR:-$PWD/ops}"
-SERVICES="all core homes shell caddy bbs gopher mud ergo"  # the same list core accepts (apps/core/src/ops.ts)
+SERVICES="all core homes shell caddy bbs gopher finger gemini mud ergo"  # the same list core accepts (apps/core/src/ops.ts)
 say() { printf '%s\n' "$*"; }
 ok() { printf '  \033[32mok\033[0m    %s\n' "$*"; }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; FAILED=1; }
@@ -71,7 +72,7 @@ doctor() {
   end=$(echo | openssl s_client -connect "$domain:443" -servername "$domain" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
   if [ -n "$end" ]; then days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 )); [ "$days" -lt 14 ] && bad "the certificate ends in $days days" || ok "the certificate is good for $days days"
   else bad "no TLS certificate on $domain:443"; fi
-  for p in 6697 23 4000 70; do
+  for p in 6697 23 4000 70 79 1965; do
     if timeout 5 bash -c "</dev/tcp/$domain/$p" 2>/dev/null; then ok "port $p is open"; else warn "port $p does not answer (only matters if that service is on)"; fi
   done
   [ "$FAILED" = 0 ] && say "All good." || { say "Fix the FAIL lines above."; return 1; }
@@ -183,7 +184,8 @@ case "${1:-help}" in
     git -C .. pull --ff-only
     "${COMPOSE[@]}" up -d --build --wait
     curl -fsS --max-time 20 "https://$(envval SITE_DOMAIN)/readyz" >/dev/null && say "Upgraded, and the site answers." || { say "The site does not answer after the upgrade: ./sitectl logs core"; exit 1; } ;;
-  irc-reload) "${COMPOSE[@]}" kill -s HUP ergo ;;
+  irc-reload|tls-reload) "${COMPOSE[@]}" kill -s HUP ergo; "${COMPOSE[@]}" kill -s HUP gemini 2>/dev/null || true ;;
+  gemini-fingerprint) "${COMPOSE[@]}" logs --no-log-prefix gemini 2>/dev/null | grep -o "gemini certificate[^:]*: SHA256:[0-9A-F:]*" | tail -1 ;;
   agent) shift; agent "$@" ;;
   install-agent) install_agent ;;
   create-admin) [ $# -eq 3 ] || { say "Usage: ./sitectl create-admin <handle> <email>"; exit 2; }; "${COMPOSE[@]}" exec core node cli.cjs create-admin --handle "$2" --email "$3" ;;

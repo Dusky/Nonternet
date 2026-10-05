@@ -75,7 +75,9 @@ export async function startStack(): Promise<() => Promise<void>> {
   writeFileSync(join(TMP, 'site.yaml'), `
 site: { name: ${SITE_NAME}, short_name: e2etest, domain: 127.0.0.1, homes_domain: ${HOMES_DOMAIN} }
 signup: { mode: invite }
-services: { irc: ${ERGO_BIN ? 'true' : 'false'}, mud: ${EVENNIA_BIN ? 'true' : 'false'}, bbs: true }
+services: { irc: ${ERGO_BIN ? 'true' : 'false'}, mud: ${EVENNIA_BIN ? 'true' : 'false'}, bbs: true, gopher: true, finger: true, gemini: true }
+finger: { host: 127.0.0.1, port: 7979 }
+gemini: { host: 127.0.0.1 }
 bbs: { host: 127.0.0.1, telnet_port: ${BBS_TELNET_PORT}, ssh_port: ${BBS_SSH_PORT} }
 irc: { public_host: 127.0.0.1, public_port: ${IRC_PORT} }
 mud: { public_host: 127.0.0.1, public_port: ${MUD_TELNET_PORT} }

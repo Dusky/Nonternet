@@ -35,6 +35,8 @@ services:
   irc: true
   mud: true
   gopher: true               # read-only mirror of public boards, homepages and file areas
+  finger: true               # finger handle@host: a person's public profile and .plan
+  gemini: true               # read-only Gemini mirror: what Gopher shows, plus profiles and plans
 
 # How callers reach the BBS. The local stack publishes telnet on 2323 and SSH on 2222; production uses 23 and 22.
 bbs:
@@ -57,6 +59,18 @@ bbs:
 gopher:
   host: localhost
   port: 7070
+
+# finger clients can't name a port, so production uses 79; the local stack publishes it on 7979.
+finger:
+  host: localhost
+  port: 7979
+
+# The Gemini mirror (docs/05, docs/19). certificate: self-signed (made once and kept, the Gemini custom) or site (the
+# site's own from Caddy; set GEMINI_TLS_CERT and GEMINI_TLS_KEY in .env, see docs/19).
+gemini:
+  host: localhost
+  port: 1965
+  certificate: self-signed
 
 irc:
   official_channels: ["#lobby", "#help"]   # the first is where everyone lands and announcements go

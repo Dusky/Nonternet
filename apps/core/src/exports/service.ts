@@ -96,7 +96,7 @@ To check that nothing changed since the export was made, and that ${site.name} m
 `;
 
 export async function buildArchive(deps: AppDeps, row: Row, target: string): Promise<{ size: number; sha256: string }> {
-  const u = await deps.db.query<ExportUser>(`SELECT id, handle, display_name, bio, email, role, theme, theme_variant, created_at, public_key FROM users WHERE id = $1`, [row.user_id]);
+  const u = await deps.db.query<ExportUser>(`SELECT id, handle, display_name, bio, plan, email, role, theme, theme_variant, created_at, public_key FROM users WHERE id = $1`, [row.user_id]);
   const user = u.rows[0]!;
   const { publicPem } = await deps.db.tx((q) => ensureKeypair(q, deps.secretKey, user.id));
   user.public_key = publicPem;

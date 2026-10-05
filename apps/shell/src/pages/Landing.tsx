@@ -29,6 +29,9 @@ export function Landing() {
     ] : []),
     ...(site.services.irc ? [{ key: 'irc', label: t('landing.connect.irc'), how: `${site.irc.host}:${site.irc.port} ${site.irc.lobby}` }] : []),
     ...(site.services.mud ? [{ key: 'mud', label: t('landing.connect.mud'), how: `telnet ${site.mud.host} ${site.mud.port}` }] : []),
+    ...(site.services.gopher ? [{ key: 'gopher', label: t('landing.connect.gopher'), how: `gopher://${site.gopher.host}${site.gopher.port === 70 ? '' : `:${site.gopher.port}`}/` }] : []),
+    ...(site.services.gemini ? [{ key: 'gemini', label: t('landing.connect.gemini'), how: `gemini://${site.gemini.host}${site.gemini.port === 1965 ? '' : `:${site.gemini.port}`}/` }] : []),
+    ...(site.services.finger ? [{ key: 'finger', label: t('landing.connect.finger'), how: `finger handle@${site.finger.host}${site.finger.port === 79 ? '' : ` (port ${site.finger.port})`}` }] : []),
   ];
 
   return (

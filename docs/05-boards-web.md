@@ -126,5 +126,50 @@ functions with no viewer: public boards → thread lists → each thread as one 
 columns (dot-stuffed, ending with its web address); the homepage directory as web links (`URL:` type `h`);
 public file areas → files served as binary (type 9), never hidden ones or members-only areas. Menu lines
 carry `gopher.host` (default `site.domain`) and `gopher.port` (default 70). Limits: 512-byte selectors,
-10 s per connection, 100 connections. Nothing is ever stored. No Gemini (owners, 2026-09-30).
+10 s per connection, 100 connections. Nothing is ever stored. (Gemini was ruled out on 2026-09-30 and added on
+2026-10-05; see below.)
 Code `apps/core/src/gopher/`; tests `gopher.test.ts` (real TCP).
+
+## The old-internet bundle (built 2026-10-05)
+All three read only, through the same core functions as the web with no viewer, so none of them can show more than a
+logged-out visitor sees. Each is its own process from the core image. The `services.*` flags decide what the front
+page's "How to connect" lists, as with Gopher.
+- **Gemini mirror** (`gemini-main.cjs`, compose service `gemini`, port 1965, `services.gemini`). It serves:
+  - the same things as the Gopher mirror: public boards → threads (each post quoted with `>`), the homepage
+    directory, and file areas (files download on the web);
+  - people's profiles and plans at `/~handle`.
+  - Everything people wrote goes out quoted, so nothing in a post or plan can become a link or heading.
+  - It answers only for `gemini.host` (default `site.domain`; other hosts get `53`). Limits: 1024-byte requests,
+    10 s, 100 connections and 10 per address (`44` slow down).
+  - **Certificate** (`gemini.certificate`):
+    - `self-signed` (default): made once (EC P-256, 20 years) and kept in the `gemini-data` volume, because Gemini
+      clients remember a site's certificate on the first visit.
+    - `site`: the site's own certificate from Caddy, via `GEMINI_TLS_CERT` / `GEMINI_TLS_KEY`. These env vars win
+      in either mode. The certificate is reloaded on SIGHUP (`sitectl tls-reload`) and when its file changes.
+    - docs/19 has the switch and the fingerprint.
+  - Code `apps/core/src/gemini/`; tests `gemini.test.ts` (real TLS).
+- **finger** (`finger-main.cjs`, compose service `finger`, port 79, `services.finger`; RFC 1288).
+  - `finger handle@site` gives: the display name and handle, the status line, roughly when they were last here (if
+    they show it), links to their profile and homepage, and their **.plan**.
+  - Guests, suspended and deleted people: "Nobody here goes by …".
+  - A bare `finger @site` gives the site's name and address and how to ask, and **lists nobody by name**: who is
+    online is for signed-in people on the web.
+  - Forwarding (`a@b@c`) is refused; `/W` is accepted. Control characters are stripped and lines wrapped to 79.
+  - Limits as Gopher, plus 10 at once per address.
+  - Code `apps/core/src/finger/`; tests `finger.test.ts`.
+- **Atom feeds** (`/feeds/…`, routed to core like `/ring/`; public, cached 5 minutes, ETag and 304):
+  - `/feeds/all.atom` (new threads on every public board);
+  - `/feeds/boards/{slug}.atom` (new threads);
+  - `/feeds/boards/{slug}/threads/{id}.atom` (posts);
+  - `/feeds/people/{handle}.atom` (someone's posts on public boards).
+  - 50 entries each, public boards only, nothing hidden or deleted.
+  - Text is escaped plain text (`type="text"`), never HTML. Entry ids are `tag:` URIs from stable post ids.
+  - Public boards, threads and profiles in the shell show a "Feed" link and add `<link rel="alternate">` to the page
+    while they are open.
+  - Atom only, no RSS 2.0: every feed reader takes Atom. Code `apps/core/src/feeds.ts`; tests `feeds.test.ts`.
+- **The .plan** (`users.plan`, up to 2000 characters of plain text; line breaks and tabs kept, other control
+  characters refused):
+  - edited in Settings → Profile;
+  - shown on the web profile, by finger and in Gemini;
+  - exported as `plan.txt` and in `profile.json`, restored by import, cleared when the account is deleted;
+  - not audited, like the bio.

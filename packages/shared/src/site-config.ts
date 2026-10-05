@@ -117,6 +117,10 @@ export const siteConfigSchema = z
         mud: z.boolean().default(false),
         // A read-only Gopher mirror of public boards, homepages and file areas (docs/05, M7).
         gopher: z.boolean().default(false),
+        // finger (port 79): a person's public profile and .plan; nobody is listed by name (docs/05, 2026-10-05).
+        finger: z.boolean().default(false),
+        // A read-only Gemini mirror of what the Gopher mirror shows, plus profiles and plans (docs/05, 2026-10-05).
+        gemini: z.boolean().default(false),
       })
       .prefault({}),
     // The BBS (docs/04): how many callers at once, from one address, and how long before an idle caller is
@@ -150,6 +154,15 @@ export const siteConfigSchema = z
     }).prefault({}),
     // Where Gopher clients reach the mirror: the host and port written into every menu line.
     gopher: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(70) }).prefault({}),
+    // Where finger clients reach the server (shown on the front page). Clients can't name a port, so keep 79 in production.
+    finger: z.object({ host: z.string().min(1).optional(), port: z.number().int().min(1).max(65535).default(79) }).prefault({}),
+    // The Gemini mirror. `certificate` is where its TLS certificate comes from: one it makes for itself and keeps (the
+    // Gemini custom: clients remember it on first visit), or the site's own from Caddy (docs/19 says how to switch).
+    gemini: z.object({
+      host: z.string().min(1).optional(),
+      port: z.number().int().min(1).max(65535).default(1965),
+      certificate: z.enum(['self-signed', 'site']).default('self-signed'),
+    }).prefault({}),
   })
   .superRefine((cfg, ctx) => {
     // Homepages run untrusted user HTML, so they must never share the shell's origin (docs/15).
@@ -172,7 +185,10 @@ export const publicSiteSchema = z.object({
   irc: z.object({ host: z.string(), port: z.number().int(), lobby: z.string() }),
   mud: z.object({ host: z.string(), port: z.number().int() }),
   bbs: z.object({ host: z.string(), telnet_port: z.number().int(), ssh_port: z.number().int() }),
-  services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean(), gopher: z.boolean() }),
+  services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean(), gopher: z.boolean(), finger: z.boolean(), gemini: z.boolean() }),
+  gopher: z.object({ host: z.string(), port: z.number().int() }),
+  finger: z.object({ host: z.string(), port: z.number().int() }),
+  gemini: z.object({ host: z.string(), port: z.number().int() }),
   default_theme: themeSchema,
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
@@ -189,6 +205,9 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     mud: { host: cfg.mud.public_host ?? `mud.${cfg.site.domain}`, port: cfg.mud.public_port },
     bbs: { host: cfg.bbs.host ?? `bbs.${cfg.site.domain}`, telnet_port: cfg.bbs.telnet_port, ssh_port: cfg.bbs.ssh_port },
     services: cfg.services,
+    gopher: { host: cfg.gopher.host ?? cfg.site.domain, port: cfg.gopher.port },
+    finger: { host: cfg.finger.host ?? cfg.site.domain, port: cfg.finger.port },
+    gemini: { host: cfg.gemini.host ?? cfg.site.domain, port: cfg.gemini.port },
     default_theme: cfg.ui.default_theme,
   };
 }

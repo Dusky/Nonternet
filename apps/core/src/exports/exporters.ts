@@ -13,7 +13,7 @@ import { mudExport } from '../mud/sync';
 // table is either handled by an exporter below or listed in EXEMPT with the reason it is not the
 // person's content. A test walks the real database and fails on any table in neither list, so a new
 // kind of content cannot be added without deciding how it is exported.
-export interface ExportUser { id: string; handle: string; display_name: string | null; bio: string | null; email: string; role: string; theme: string | null; theme_variant: string | null; created_at: Date; public_key: string | null }
+export interface ExportUser { id: string; handle: string; display_name: string | null; bio: string | null; plan: string; email: string; role: string; theme: string | null; theme_variant: string | null; created_at: Date; public_key: string | null }
 
 export interface ExportCtx {
   deps: AppDeps;
@@ -69,8 +69,10 @@ const profile: Exporter = {
     // What they wrote when they signed up by application (docs/02), and how it was decided. The admin's reason is theirs to know.
     const app = (await q.query<{ text: string; state: string; created_at: Date; decided_at: Date | null; reason: string | null }>(
       `SELECT text, state, created_at, decided_at, reason FROM applications WHERE user_id = $1`, [user.id])).rows[0];
+    // The .plan on its own too, as the plain text file it is everywhere else.
+    if (user.plan) add('plan.txt', `${user.plan}\n`);
     add('profile.json', json({
-      id: user.id, handle: user.handle, display_name: user.display_name, bio: user.bio, email: user.email, joined_at: user.created_at.toISOString(),
+      id: user.id, handle: user.handle, display_name: user.display_name, bio: user.bio, plan: user.plan, email: user.email, joined_at: user.created_at.toISOString(),
       role: user.role, theme: user.theme, theme_variant: user.theme_variant, previous_handles: names.rows.map((n) => ({ handle: n.handle, until: n.changed_at.toISOString() })),
       custom_domains: domains.rows.map((d) => ({ domain: d.domain, status: d.status, verified_at: iso(d.verified_at) })),
       rings: rings.rows.map((r) => ({ slug: r.slug, name: r.name, status: r.status, joined_at: r.joined_at.toISOString() })),

@@ -627,6 +627,8 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 .profile-head h2 { margin-bottom: 0; }
 .profile-head p { margin: 0; }
 .profile-bio { white-space: pre-wrap; max-width: var(--measure); }
+/* A .plan is plain text from a terminal tradition: kept as written, in the monospace face, wrapping long lines. */
+.profile-plan { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 80ch; margin: 0; font-family: var(--font-mono); font-size: var(--step--1); }
 .char-cards { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--space-3); }
 .char-card { padding: var(--space-3) var(--space-4); }
 .char-card.is-featured { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }

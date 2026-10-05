@@ -20,7 +20,7 @@ type RouteRule = { condition: { urlPattern: { pathname: string } }; source: 'net
 self.addEventListener('install', (event) => {
   const e = event as ExtendableEvent & { addRoutes?: (rules: RouteRule[]) => Promise<void> };
   if (!e.addRoutes) return;
-  const rules = ['/api/*', '/oidc/*', '/ring/*', '/widgets/*', '/ws/*'].map((pathname): RouteRule => ({ condition: { urlPattern: { pathname } }, source: 'network' }));
+  const rules = ['/api/*', '/oidc/*', '/ring/*', '/feeds/*', '/widgets/*', '/ws/*'].map((pathname): RouteRule => ({ condition: { urlPattern: { pathname } }, source: 'network' }));
   e.waitUntil(e.addRoutes(rules).catch(() => undefined));
 });
 
@@ -29,7 +29,7 @@ precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(({ url, request }) => url.origin === self.location.origin && url.pathname.startsWith('/assets/') && request.method === 'GET',
   new CacheFirst({ cacheName: 'shell-assets' }));
 // Any address in the shell opens the cached page, which then routes itself. Server routes are left to the network.
-registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: [/^\/api\//, /^\/oidc/, /^\/ring\//, /^\/widgets\//, /^\/ws\//] }));
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: [/^\/api\//, /^\/oidc/, /^\/ring\//, /^\/feeds\//, /^\/widgets\//, /^\/ws\//] }));
 
 interface Message { title: string; body: string; url: string; tag: string }
 

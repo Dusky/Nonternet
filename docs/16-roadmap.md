@@ -87,6 +87,7 @@ confirms); web file areas; a read-only Gopher mirror. Not in M7: Gemini, new the
 - [x] Console depth: audit replay with diffs, stats (DAU/WAU/MAU, retention cohorts, posting heatmap, CSV), command
   console mapped to core functions and audited (`console.test.ts`, `diff.test.ts`, `console.spec.ts`; design in `11`).
 - [x] Read-only Gopher mirror of public boards, homepages and file areas (`gopher.test.ts`; design in `05`).
+- [x] Old-internet bundle (2026-10-05, design in `05`): Gemini mirror (`gemini.test.ts`), finger with .plan (`finger.test.ts`), Atom feeds (`feeds.test.ts`), the plan in Settings and the export (`imports.test.ts`, `e2e/tests/oldnet.spec.ts`).
 
 ## M8 — BBS (in-house, last)
 Design in `04`. Depends only on core's API, so it can start once M4 is done; it is scheduled

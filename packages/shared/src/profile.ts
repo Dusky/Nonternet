@@ -13,6 +13,8 @@ export const TERMINAL_SCHEMES = ['amber', 'green', 'white', 'ice', 'ansi', 'ambe
 export type TerminalScheme = (typeof TERMINAL_SCHEMES)[number];
 export const themeVariantSchema = z.enum(TERMINAL_SCHEMES);
 
+export const PLAN_MAX = 2000;
+
 // Editing your own profile. Send only what changes. An empty display name or bio clears it.
 export const profileUpdateSchema = z
   .object({
@@ -22,6 +24,10 @@ export const profileUpdateSchema = z
     theme_variant: themeVariantSchema.nullable(),
     // A short line under the name. No control characters (a newline would break the single-line places it appears).
     status_line: z.string().trim().max(80).regex(/^[^\p{C}]*$/u, 'no line breaks or control characters').nullable(),
+    // The .plan finger shows (docs/02): plain text over several lines. Tabs and line breaks are kept; other control
+    // characters (which could move a terminal's cursor) are refused.
+    plan: z.string().max(PLAN_MAX, `keep the plan to ${PLAN_MAX} characters`).transform((s) => s.replace(/\r\n?/g, '\n').replace(/\s+$/, ''))
+      .refine((s) => /^[^\p{C}]*$/u.test(s.replace(/[\n\t]/g, '')), 'no control characters'),
     away: z.boolean(),
     show_last_seen: z.boolean(),
     email_digest: z.boolean(),
@@ -37,7 +43,7 @@ export type NotificationPrefs = Record<(typeof PREF_KINDS)[number], boolean>;
 
 // Everything the Settings pages need that is not on `Me`.
 export interface PersonalSettings {
-  status_line: string | null; away: boolean; has_avatar: boolean; show_last_seen: boolean; email_digest: boolean; can_email: boolean;
+  status_line: string | null; plan: string; away: boolean; has_avatar: boolean; show_last_seen: boolean; email_digest: boolean; can_email: boolean;
   prefs: NotificationPrefs; muted_boards: { slug: string; name: string }[];
 }
 

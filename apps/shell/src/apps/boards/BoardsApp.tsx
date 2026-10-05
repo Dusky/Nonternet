@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { FeedLink } from '../../components/FeedLink';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
@@ -202,6 +203,7 @@ function BoardPage({ slug }: { slug: string }) {
         {me && <button className="btn" onClick={markRead} disabled={!liveBoard || !unread}>{t('boards.markRead')}</button>}
         {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
         {me && <span className="spacer" />}
+        {b.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}.atom`} title={b.name} />}
         <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
         {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
       </div>

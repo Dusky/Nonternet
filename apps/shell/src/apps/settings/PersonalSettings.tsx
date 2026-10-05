@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AVATAR_MAX_BYTES, PREF_KINDS, type ChatClient, type Me, type PersonalSettings } from '@app/shared';
+import { AVATAR_MAX_BYTES, PLAN_MAX, PREF_KINDS, type ChatClient, type Me, type PersonalSettings } from '@app/shared';
 import { api } from '../../api';
 import { Avatar, Alert, TextField } from '../../components/ui';
 import { useToast } from '../../components/feedback';
@@ -48,6 +48,7 @@ export function PersonalProfile({ me }: { me: Me }) {
   const q = usePersonal();
   const fileInput = useRef<HTMLInputElement>(null);
   const [line, setLine] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['me', 'personal'] }); void qc.invalidateQueries({ queryKey: ['avatars'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); void qc.invalidateQueries({ queryKey: ['online'] }); };
   const patch = useMutation({ mutationFn: (body: object) => api.patch('/me', body), onSuccess: () => { setError(null); refresh(); toast(t('settings.profile.saved')); }, onError: (e) => setError(errorText(e)) });
@@ -61,6 +62,7 @@ export function PersonalProfile({ me }: { me: Me }) {
   const p = q.data;
   if (!p) return null;
   const shown = line ?? p.status_line ?? '';
+  const planShown = plan ?? p.plan;
   return (
     <Section id="personal-h" title={t('settings.personal.title')} scope="account">
       <div className="avatar-edit">
@@ -80,6 +82,10 @@ export function PersonalProfile({ me }: { me: Me }) {
       <form onSubmit={(e: FormEvent) => { e.preventDefault(); patch.mutate({ status_line: shown.trim() || null }); }}>
         <TextField label={t('settings.status.label')} hint={t('settings.status.hint')} value={shown} onChange={setLine} maxLength={80} />
         <button className="btn" type="submit" disabled={patch.isPending || shown === (p.status_line ?? '')}>{t('settings.status.save')}</button>
+      </form>
+      <form onSubmit={(e: FormEvent) => { e.preventDefault(); patch.mutate({ plan: planShown }, { onSuccess: () => setPlan(null) }); }}>
+        <TextField label={t('settings.plan.label')} hint={t('settings.plan.hint')} value={planShown} onChange={setPlan} maxLength={PLAN_MAX} multiline />
+        <button className="btn" type="submit" disabled={patch.isPending || planShown === p.plan}>{t('settings.plan.save')}</button>
       </form>
       <Switch label={t('settings.status.away')} checked={p.away} save={(on) => saveFlag({ away: on })} />
       <Switch label={t('settings.lastSeen')} checked={p.show_last_seen} save={(on) => saveFlag({ show_last_seen: on })} />

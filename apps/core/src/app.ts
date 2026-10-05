@@ -33,6 +33,7 @@ import { personalRoutes } from './routes/personal';
 import { appsRoutes } from './routes/apps';
 import { classicsRoutes } from './routes/classics';
 import { pushRoutes } from './routes/push';
+import { feedRoutes } from './routes/feeds';
 import { siteIcon, webManifest } from './site-icons';
 import { isPublicRoute } from './public-routes';
 
@@ -136,5 +137,6 @@ export async function buildApp(deps: AppDeps) {
   appsRoutes(app, deps);
   classicsRoutes(app, deps);
   pushRoutes(app, deps);
+  feedRoutes(app, deps);
   return app;
 }

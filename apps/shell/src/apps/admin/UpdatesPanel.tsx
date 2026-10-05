@@ -14,7 +14,7 @@ interface Ops {
   version: { commit: string; subject: string; date: string; branch: string; behind: number; pending: { commit: string; subject: string }[]; checked_at: string } | null;
   jobs: Job[];
 }
-const SERVICES = ['all', 'core', 'homes', 'shell', 'caddy', 'bbs', 'gopher', 'mud', 'ergo'] as const;
+const SERVICES = ['all', 'core', 'homes', 'shell', 'caddy', 'bbs', 'gopher', 'finger', 'gemini', 'mud', 'ergo'] as const;
 
 export function UpdatesPanel() {
   const t = useT();

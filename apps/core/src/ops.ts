@@ -12,7 +12,7 @@ import { verifyPassword } from './passwords';
 // and writes back the job's state and log. So the most a stolen admin session can do is ask for one of these actions.
 
 export const OPS_ACTIONS = ['restart', 'upgrade', 'check'] as const;
-export const OPS_SERVICES = ['all', 'core', 'homes', 'shell', 'caddy', 'bbs', 'gopher', 'mud', 'ergo'] as const;
+export const OPS_SERVICES = ['all', 'core', 'homes', 'shell', 'caddy', 'bbs', 'gopher', 'finger', 'gemini', 'mud', 'ergo'] as const;
 export type OpsAction = typeof OPS_ACTIONS[number];
 const ID = /^op_[0-9A-Z]{26}$/;
 const AGENT_ALIVE_MS = 60_000; // the agent writes a heartbeat every few seconds

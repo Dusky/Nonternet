@@ -30,6 +30,7 @@ files/{area}/{name}      # every file they uploaded to the file areas, as upload
 vouches.json             # vouches they gave
                          # QWK replies are ordinary posts, so they are in posts/ already: for whom, their note, and what came of it (M7)
 keys/public.key          # public key; private key only if user opts in with password protection
+plan.txt                 # your .plan, as plain text (also in profile.json)
 keys/passkeys.json       # passkeys you have (name, added, last used); no key material, not imported
 settings/push-devices.json  # devices that get push notifications and what they hear about; no push address or keys
 README.txt               # human explanation of the archive

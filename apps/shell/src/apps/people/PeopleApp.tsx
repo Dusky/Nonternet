@@ -1,4 +1,5 @@
 import { useConfirm, toast } from '../../components/feedback';
+import { FeedLink } from '../../components/FeedLink';
 import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -126,8 +127,9 @@ function Profile({ handle }: { handle: string }) {
         </div>
       </header>
       {p.bio && <p className="profile-bio">{p.bio}</p>}
+      {p.plan && <section aria-labelledby="plan-h"><h3 id="plan-h">{t('people.plan')}</h3><pre className="profile-plan">{p.plan}</pre></section>}
       <PersonActions p={p} />
-      <p className="toolbar"><CopyButton text={`${window.location.origin}/people/${encodeURIComponent(p.handle)}`} label={t('people.copyLink')} /></p>
+      <p className="toolbar"><CopyButton text={`${window.location.origin}/people/${encodeURIComponent(p.handle)}`} label={t('people.copyLink')} /><FeedLink href={`/feeds/people/${encodeURIComponent(p.handle)}.atom`} title={p.handle} /></p>
       </div>
       {p.homepage_url && (
         <p className="panel homepage-card">

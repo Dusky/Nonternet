@@ -1,4 +1,5 @@
 import { useConfirm } from '../../components/feedback';
+import { FeedLink } from '../../components/FeedLink';
 import { Fragment, type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { infiniteQueryOptions, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
@@ -146,6 +147,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
         <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
         <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>
         {board.can_moderate && posts[0] && <button type="button" className="btn btn-quiet" disabled={pin.isPending} onClick={() => pin.mutate(!posts[0]!.pinned)}>{posts[0].pinned ? t('pin.unpin') : t('pin.pin')}</button>}
+        {board.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}/threads/${id}.atom`} title={subject} />}
         {me && <button type="button" className="btn btn-quiet" onClick={goNextUnread} disabled={!unreadThreads.data?.threads.some((x) => x.unread && x.id !== id)}>{t('boards.nextUnread')}</button>}
       </div>
       {fresh > 0 && (

@@ -60,7 +60,8 @@ describe.skipIf(!dbAvailable)('bringing back an export', () => {
     alice = await person('alice');
     bob = await person('bob');
     // Alice makes her things: profile, settings, a picture, a homepage, a file and an SSH key; and a post and a mail, which stay behind.
-    await alice.c.patch('/api/v1/me', { display_name: 'Alice A.', bio: 'Makes synth patches.', theme: 'terminal', theme_variant: 'green', status_line: 'Patching', away: true });
+    await alice.c.patch('/api/v1/me', { display_name: 'Alice A.', bio: 'Makes synth patches.', theme: 'terminal', theme_variant: 'green', status_line: 'Patching', away: true, plan: 'Finishing the\nfilter bank.' });
+    expect((await alice.c.patch('/api/v1/me', { plan: 'x'.repeat(2001) })).status).toBe(400); // plans are short
     await db.query(`INSERT INTO notification_prefs (user_id, kind, enabled) VALUES ($1, 'mention', false) ON CONFLICT (user_id, kind) DO UPDATE SET enabled = false`, [alice.id]);
     const png = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#3366ff' } }).png().toBuffer();
     expect((await raw(alice, 'PUT', '/api/v1/me/avatar', png)).status).toBeLessThan(300);
@@ -92,7 +93,7 @@ describe.skipIf(!dbAvailable)('bringing back an export', () => {
 
   it('brings back her own things after they were lost, and never touches handle, email or role', async () => {
     // She loses them.
-    await alice.c.patch('/api/v1/me', { display_name: 'Changed', bio: null, theme: 'webring', theme_variant: null, status_line: null, away: false });
+    await alice.c.patch('/api/v1/me', { display_name: 'Changed', bio: null, theme: 'webring', theme_variant: null, status_line: null, away: false, plan: '' });
     await db.query(`DELETE FROM notification_prefs WHERE user_id = $1`, [alice.id]);
     await alice.c.delete('/api/v1/me/avatar');
     await alice.c.delete('/api/v1/homes/me/file?path=index.html');
@@ -108,8 +109,8 @@ describe.skipIf(!dbAvailable)('bringing back an export', () => {
     expect(got).toEqual({ profile: 1, settings: 1, avatar: 1, homepage: 1, files: 1, keys: 1 });
     expect(r.body.parts.find((x: { part: string }) => x.part === 'homepage').issues).toEqual([{ code: 'exists', count: 1 }]); // img/dot.txt was still there
 
-    const u = (await db.query(`SELECT handle, email, role, display_name, bio, theme, theme_variant, status_line, away, avatar_at FROM users WHERE id = $1`, [alice.id])).rows[0];
-    expect(u).toMatchObject({ handle: 'alice', role: 'user', display_name: 'Alice A.', bio: 'Makes synth patches.', theme: 'terminal', theme_variant: 'green', status_line: 'Patching', away: true });
+    const u = (await db.query(`SELECT handle, email, role, display_name, bio, theme, theme_variant, status_line, away, avatar_at, plan FROM users WHERE id = $1`, [alice.id])).rows[0];
+    expect(u).toMatchObject({ handle: 'alice', role: 'user', display_name: 'Alice A.', bio: 'Makes synth patches.', theme: 'terminal', theme_variant: 'green', status_line: 'Patching', away: true, plan: 'Finishing the\nfilter bank.' });
     expect(u!.avatar_at).not.toBeNull();
     expect((await db.query(`SELECT enabled FROM notification_prefs WHERE user_id = $1 AND kind = 'mention'`, [alice.id])).rows[0]).toEqual({ enabled: false });
     expect(readFileSync(homeFile(alice, 'index.html'), 'utf8')).toBe('<h1>alice</h1>');

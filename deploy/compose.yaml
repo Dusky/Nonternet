@@ -117,6 +117,61 @@ services:
       postgres: { condition: service_healthy }
       core: { condition: service_started }
 
+  # finger (docs/05): a person's public profile and .plan. Same image as core; it only reads.
+  finger:
+    build:
+      context: ..
+      dockerfile: apps/core/Dockerfile
+    command: ["node", "finger-main.cjs"]
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      FINGER_LISTEN_PORT: "7979"
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/app
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/.env (openssl rand -base64 32)}
+      NODE_ENV: development
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+    ports:
+      - "${FINGER_PORT:-7979}:7979"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 7979 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      core: { condition: service_started }
+
+  # The read-only Gemini mirror (docs/05). Same image as core; it only reads.
+  gemini:
+    build:
+      context: ..
+      dockerfile: apps/core/Dockerfile
+    command: ["node", "gemini-main.cjs"]
+    environment:
+      SITE_CONFIG: /config/site.yaml
+      GEMINI_LISTEN_PORT: "1965"
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/app
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/.env (openssl rand -base64 32)}
+      NODE_ENV: development
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      # Its own certificate is made once and kept here (docs/19); production can use the site's instead.
+      GEMINI_DATA_DIR: /data/gemini
+    ports:
+      - "${GEMINI_PORT:-1965}:1965"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 1965 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
+      - gemini-data:/data/gemini
+    depends_on:
+      postgres: { condition: service_healthy }
+      core: { condition: service_started }
+
   # The MUD (docs/09): Evennia, signing everyone in through core. Its world is in its own database.
   mud:
     build:
@@ -246,3 +301,4 @@ volumes:
   postgres-data:
   redis-data:
   caddy-data:
+  gemini-data:

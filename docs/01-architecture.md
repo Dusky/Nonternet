@@ -30,6 +30,8 @@ One deployment, run by the admin team, on one server (or a small cluster later).
 | **shell** | Web UI: launcher, windows, boards, homepage studio, rings, chat, admin console | **Built** (React) |
 | **BBS** | Telnet/SSH/WebSocket terminal front door; a client of core's API (`04`) | **Built** (TypeScript), last milestone |
 | **gopher** | Read-only Gopher mirror of public boards, homepages and file areas (`05`); same image as core, own process | **Built** (TypeScript, M7) |
+| **gemini** | Read-only Gemini mirror: what Gopher shows, plus profiles and plans (`05`); same image as core, own process | **Built** (TypeScript, 2026-10-05) |
+| **finger** | finger server: a person's public profile and .plan (`05`); same image as core, own process | **Built** (TypeScript, 2026-10-05) |
 | **Ergo** | IRC server | Borrowed (PROPOSED) |
 | **MUD engine** | Shared world | Borrowed (PROPOSED: Evennia) |
 | **Postgres / Redis** | Data, sessions, presence, event streams | Borrowed |
@@ -79,6 +81,8 @@ repo/
 | 6697 | IRC TLS | public |
 | 4000 | MUD telnet | public, optional |
 | 70 | Gopher mirror (`services.gopher`; 7070 locally) | public, optional |
+| 79 | finger (`services.finger`; 7979 locally) | public, optional |
+| 1965 | Gemini mirror (`services.gemini`) | public, optional |
 | internal | core, Postgres, Redis | private network only |
 
 ## Domains
