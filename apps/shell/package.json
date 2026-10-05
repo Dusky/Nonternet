@@ -44,6 +44,7 @@
     "buffer": "^6.0.3",
     "cmdk": "1.1.1",
     "codemirror": "^6.0.2",
+    "diff": "^9.0.0",
     "irc-framework": "4.14.0",
     "penpal": "8.0.1",
     "qrcode": "^1.5.4",

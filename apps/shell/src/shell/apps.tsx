@@ -23,6 +23,7 @@ export const APPS: AppDef[] = [
   { id: 'rings', title: 'app.rings', path: '/rings', adminOnly: false, public: true, Component: lazy(() => import('../apps/rings/RingsApp')) },
   { id: 'people', title: 'app.people', path: '/people', adminOnly: false, public: true, Component: lazy(() => import('../apps/people/PeopleApp')) },
   { id: 'mail', title: 'app.mail', path: '/mail', adminOnly: false, Component: lazy(() => import('../apps/mail/MailApp')) },
+  { id: 'wiki', title: 'app.wiki', path: '/wiki', adminOnly: false, public: true, Component: lazy(() => import('../apps/wiki/WikiApp')) },
   { id: 'files', title: 'app.files', path: '/files', adminOnly: false, public: true, Component: lazy(() => import('../apps/files/FilesApp')) },
   { id: 'chat', title: 'app.chat', path: '/chat', adminOnly: false, service: 'irc', live: true, Component: lazy(() => import('../apps/chat/ChatApp')) },
   { id: 'mud', title: 'app.mud', path: '/mud', adminOnly: false, service: 'mud', live: true, Component: lazy(() => import('../apps/mud/MudApp')) },

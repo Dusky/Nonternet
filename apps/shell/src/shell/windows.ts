@@ -3,7 +3,7 @@ import { create } from 'zustand';
 // The window manager (docs/10): desktop-style windows on large screens. This file is only the
 // state and the rules; it draws nothing, so the rules can be tested on their own.
 
-export type BuiltinAppId = 'boards' | 'rings' | 'people' | 'mail' | 'files' | 'chat' | 'terminal' | 'mud' | 'homepages' | 'studio' | 'addapps' | 'notifications' | 'settings' | 'admin';
+export type BuiltinAppId = 'boards' | 'wiki' | 'rings' | 'people' | 'mail' | 'files' | 'chat' | 'terminal' | 'mud' | 'homepages' | 'studio' | 'addapps' | 'notifications' | 'settings' | 'admin';
 // An app someone added (docs/10) is `app:` and its id from the catalog.
 export type AppId = BuiltinAppId | `app:${string}`;
 

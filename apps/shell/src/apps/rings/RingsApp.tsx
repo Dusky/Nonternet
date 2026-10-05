@@ -2,7 +2,7 @@ import { PersonLink } from '../people/PersonLink';
 import { useConfirm } from '../../components/feedback';
 import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { JOIN_POLICIES, type RingDetail, type RingMemberView, type RingSummary } from '@app/shared';
+import { JOIN_POLICIES, type WikiInfo, type RingDetail, type RingMemberView, type RingSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
@@ -160,6 +160,7 @@ function RingPage({ slug }: { slug: string }) {
       {error && <Alert kind="error">{error}</Alert>}
       <div className="toolbar">
         {r.board && <OpenAppLink app="boards" to={r.board.slug} className="btn">{t('rings.board')}</OpenAppLink>}
+        <RingWikiLink slug={slug} />
         {me && status === null && !r.archived && r.join_policy !== 'invite' && (
           <button className="btn btn-primary" onClick={() => join.mutate()} disabled={join.isPending}>{r.join_policy === 'approval' ? t('rings.requestJoin') : t('rings.join')}</button>
         )}
@@ -191,6 +192,7 @@ function RingPage({ slug }: { slug: string }) {
       <Members ring={r} />
       <p className="hint">{t('rings.ops')}: {r.ops.map((o) => o.handle).join(', ')}</p>
       {status === 'member' && <NavBar slug={slug} />}
+      {r.me?.is_op && <RingWikiSwitch slug={slug} />}
       {r.me?.is_op && <BannerManager slug={slug} name={r.name} />}
       {r.me?.is_op && <Manage ring={r} onChange={refresh} />}
     </>
@@ -378,3 +380,35 @@ function Manage({ ring, onChange }: { ring: RingDetail; onChange: () => void }) 
     </section>
   );
 }
+
+// The ring's wiki (docs/20): a link when it is on, and for ops a switch. A wiki that is off looks like none to others.
+const useRingWiki = (slug: string) => useQuery({ queryKey: ['wiki', `ring:${slug}`, 'info'], queryFn: () => api.get<WikiInfo>(`/wiki/ring:${slug}`).catch(() => null) });
+function RingWikiLink({ slug }: { slug: string }) {
+  const t = useT();
+  const q = useRingWiki(slug);
+  return q.data?.enabled ? <OpenAppLink app="wiki" to={`r/${slug}`} className="btn">{t('rings.wiki')}</OpenAppLink> : null;
+}
+function RingWikiSwitch({ slug }: { slug: string }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const q = useRingWiki(slug);
+  const [on, setOn] = useState<boolean | null>(null);
+  const shown = on ?? Boolean(q.data?.enabled);
+  const save = useMutation({
+    mutationFn: (enabled: boolean) => api.put(`/rings/${slug}/wiki`, { enabled }),
+    onSettled: async () => { await qc.invalidateQueries({ queryKey: ['wiki', `ring:${slug}`] }); setOn(null); },
+  });
+  if (q.isPending) return null;
+  return (
+    <section className="panel" aria-labelledby="ring-wiki-h">
+      <h3 id="ring-wiki-h">{t('rings.wiki')}</h3>
+      <label className="check switch">
+        <input type="checkbox" role="switch" checked={shown} disabled={save.isPending} onChange={(e) => { setOn(e.target.checked); save.mutate(e.target.checked); }} />
+        <span>{t('rings.wikiOn')}</span>
+      </label>
+      <p className="hint">{t('rings.wikiHint')}</p>
+      {save.isError && <Alert kind="error">{errorText(save.error)}</Alert>}
+    </section>
+  );
+}
+

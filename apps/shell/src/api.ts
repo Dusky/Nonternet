@@ -3,7 +3,8 @@ import { en } from '@app/strings';
 // Errors from the API are { error: { code, message } } (docs/14). The message is already plain
 // and says what to do next, so screens can show it as it is.
 export class ApiError extends Error {
-  constructor(readonly status: number, readonly code: string, message: string) {
+  // `details` is anything else the error carried (a wiki edit conflict sends the page as it is now).
+  constructor(readonly status: number, readonly code: string, message: string, readonly details: Record<string, unknown> = {}) {
     super(message);
   }
 }
@@ -39,7 +40,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   if (res.status === 204) return undefined as T;
   const data = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
-  if (!res.ok) { expired(path, res.status); throw new ApiError(res.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic']); }
+  if (!res.ok) { expired(path, res.status); throw new ApiError(res.status, data?.error?.code ?? 'unknown', data?.error?.message ?? en['error.generic'], (data?.error ?? {}) as Record<string, unknown>); }
   return data as T;
 }
 

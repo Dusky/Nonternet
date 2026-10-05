@@ -63,7 +63,8 @@ function Report({ r }: { r: ReportView }) {
   const about = r.target.type === 'homepage' ? t('boards.reports.aboutPage', { name: r.target.handle ?? '' })
     : r.target.type === 'guestbook' ? t('boards.reports.aboutEntry', { name: r.target.handle ?? '' })
     : r.target.type === 'mail_message' ? t('boards.reports.aboutMail', { name: r.target.handle ?? t('mail.deletedPerson') })
-    : r.target.type === 'file' ? t('boards.reports.aboutFile', { name: r.target.handle ?? t('mail.deletedPerson') }) : null;
+    : r.target.type === 'file' ? t('boards.reports.aboutFile', { name: r.target.handle ?? t('mail.deletedPerson') })
+    : r.target.type === 'wiki_page' ? t('boards.reports.aboutWiki', { name: r.wiki?.title ?? '' }) : null;
   const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : k === 'hide-file' ? t('boards.reports.hideFile') : t(`boards.mod.${k}`);
   return (
     <li>
@@ -94,6 +95,7 @@ function Report({ r }: { r: ReportView }) {
         {open && r.target.type === 'homepage' && <button type="button" className="link" onClick={() => setTool('hide-page')}>{t('boards.reports.hidePage')}</button>}
         {open && r.target.type === 'guestbook' && <button type="button" className="link" onClick={() => setTool('hide-entry')}>{t('boards.reports.hideEntry')}</button>}
         {r.target.type === 'file' && <OpenAppLink app="files" to="">{t('app.files')}</OpenAppLink>}
+        {r.wiki && <OpenAppLink app="wiki" to={`${r.wiki.ref === 'site' ? '' : `r/${r.wiki.ref.slice(5)}/`}p/${r.wiki.slug}`}>{t('boards.reports.openPage')}</OpenAppLink>}
         {open && r.target.type === 'file' && <button type="button" className="link" onClick={() => setTool('hide-file')}>{t('boards.reports.hideFile')}</button>}
         {open && <button type="button" className="link" onClick={() => setTool('dismiss')}>{t('boards.reports.dismiss')}</button>}
       </div>

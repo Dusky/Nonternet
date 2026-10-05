@@ -1165,3 +1165,29 @@ button.chat-person:hover { text-decoration: underline; }
 .help-body p { margin: 0 0 var(--space-2); }
 .help-body p:last-child { margin-bottom: 0; }
 .tab-help { display: flex; justify-content: flex-end; margin-bottom: var(--space-2); }
+
+/* The wiki (apps/wiki). Page text uses the reading measure; the editor and its preview sit side by side on a wide
+   window and become two tabs on a narrow one. Missing pages are marked in words as well as colour. */
+.wiki-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); padding-bottom: var(--space-2); margin-bottom: var(--space-4); border-bottom: var(--line-width) solid var(--border); }
+.wiki-bar strong { margin-right: auto; font-family: var(--font-display); }
+.wiki-text { max-width: var(--measure); line-height: 1.6; }
+.wiki-text h3, .wiki-text h4, .wiki-text h5 { margin: var(--space-5) 0 var(--space-2); }
+.wiki-text blockquote { margin: var(--space-3) 0; padding-left: var(--space-4); border-left: 3px solid var(--border); color: var(--muted); }
+.wiki-text pre, .wiki-source { overflow-x: auto; padding: var(--space-3); background: var(--surface-2, var(--surface)); border: var(--line-width) solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--step--1); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wiki-text code { font-family: var(--font-mono); font-size: 0.95em; }
+.wiki-missing { color: var(--danger); text-decoration-style: dashed; }
+.wiki-editor { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
+.wiki-preview { min-height: 12rem; padding: var(--space-3); border: var(--line-width) dashed var(--border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.wiki-tabs { display: none; }
+@media (max-width: 760px) {
+  .wiki-editor { grid-template-columns: 1fr; }
+  .wiki-tabs { display: flex; }
+  .wiki-editor.is-write .wiki-preview, .wiki-editor.is-preview .wiki-write { display: none; }
+}
+.wiki-conflict { border-color: var(--warn); }
+.wiki-diff { list-style: none; margin: 0; padding: 0; font-family: var(--font-mono); font-size: var(--step--1); border: var(--line-width) solid var(--border); border-radius: var(--radius-sm); overflow-x: auto; }
+.wiki-diff li { display: flex; gap: var(--space-2); padding: 0 var(--space-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wiki-diff .is-added { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.wiki-diff .is-removed { background: color-mix(in srgb, var(--danger) 14%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+.wiki-diff-sign { flex: none; width: 1ch; font-weight: 700; }
+.wiki-index li { display: flex; justify-content: space-between; gap: var(--space-3); }
