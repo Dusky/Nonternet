@@ -24,6 +24,8 @@ export function DevicePush() {
   const devices = useQuery({ queryKey: ['push-devices'], queryFn: () => api.get<{ devices: PushDevice[] }>('/me/push'), enabled: Boolean(key.data?.key) });
   const [endpoint, setEndpoint] = useState<string | null>(null); // this browser's push address, if it has one
   const [going, setGoing] = useState<string[]>([]);
+  const [kindsNow, setKindsNow] = useState<PushKind[] | null>(null); // the same for the kinds
+  const [want, setWant] = useState<boolean | null>(null); // the switch moves in the click; this holds it until the browser and server agree
   const refresh = () => void qc.invalidateQueries({ queryKey: ['push-devices'] });
 
   useEffect(() => {
@@ -43,7 +45,8 @@ export function DevicePush() {
       await api.post('/me/push', { endpoint: json.endpoint, keys: json.keys, kinds: [...PUSH_KINDS], label: deviceLabel(navigator.userAgent) });
       setEndpoint(json.endpoint);
     },
-    onSuccess: refresh,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['push-devices'] }), // waited for, so the switch doesn't flicker back
+    onSettled: () => setWant(null),
   });
   const turnOff = useMutation({
     mutationFn: async () => {
@@ -52,14 +55,13 @@ export function DevicePush() {
       if (mine) await api.del(`/me/push/${mine.id}`);
       setEndpoint(null);
     },
-    onSuccess: refresh,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['push-devices'] }), // waited for, so the switch doesn't flicker back
+    onSettled: () => setWant(null),
   });
   const kinds = useMutation({
     mutationFn: (next: PushKind[]) => api.patch(`/me/push/${mine!.id}`, { kinds: next }),
-    onMutate: (next) => qc.setQueryData<{ devices: PushDevice[] }>(['push-devices'], (old) => old && { devices: old.devices.map((d) => (d.id === mine?.id ? { ...d, kinds: next } : d)) }),
-    onSettled: refresh,
+    onSettled: async () => { await qc.invalidateQueries({ queryKey: ['push-devices'] }); setKindsNow(null); },
   });
-  const remove = useMutation({ mutationFn: (id: string) => api.del(`/me/push/${id}`), onSuccess: refresh });
 
   if (!key.data?.key) return null; // this site sends no push notifications
   const busy = turnOn.isPending || turnOff.isPending;
@@ -68,16 +70,21 @@ export function DevicePush() {
     <Section id="push-h" title={t('push.device.title')} scope="device" intro={t('push.device.intro')}>
       {!supported() ? <p className="hint">{t('push.device.unsupported')}</p> : (
         <>
-          <DeviceSwitch label={t('push.device.on')} checked={Boolean(mine)} disabled={busy}
-            onChange={(on) => (on ? turnOn.mutate() : turnOff.mutate())} />
+          <DeviceSwitch label={t('push.device.on')} checked={want ?? Boolean(mine)} disabled={busy}
+            onChange={(on) => { setWant(on); if (on) turnOn.mutate(); else turnOff.mutate(); }} />
           {typeof Notification !== 'undefined' && Notification.permission === 'denied' && <p className="field-error">{t('push.device.denied')}</p>}
           {mine && (
             <fieldset className="checks">
               <legend>{t('push.kinds.legend')}</legend>
               {PUSH_KINDS.map((k) => (
                 <label key={k} className="check">
-                  <input type="checkbox" checked={mine.kinds.includes(k)}
-                    onChange={(e) => kinds.mutate(e.target.checked ? [...mine.kinds, k] : mine.kinds.filter((x) => x !== k))} />
+                  <input type="checkbox" checked={(kindsNow ?? mine.kinds).includes(k)}
+                    onChange={(e) => {
+                      const now = kindsNow ?? mine.kinds;
+                      const next = e.target.checked ? [...now, k] : now.filter((x) => x !== k);
+                      setKindsNow(next);
+                      kinds.mutate(next);
+                    }} />
                   {t(`push.kind.${k}`)}
                 </label>
               ))}
@@ -100,7 +107,7 @@ export function DevicePush() {
                     onClick={() => {
                       const back = () => setGoing((g) => g.filter((x) => x !== d.id));
                       setGoing((g) => [...g, d.id]);
-                      undoable(t('push.others.removed', { name }), () => remove.mutateAsync(d.id), { onUndo: back, onError: back });
+                      undoable(t('push.others.removed', { name }), () => api.del(`/me/push/${d.id}`).then(refresh), { onUndo: back, onError: back });
                     }}>{t('ssh.remove')}</button>
                 </li>
               );

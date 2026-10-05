@@ -33,7 +33,6 @@ export function BannerManager({ slug, name }: { slug: string; name: string }) {
   const [going, setGoing] = useState<Kind[]>([]); // removed on screen, waiting out the Undo
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['ring', slug, 'banners'] }); };
   const upload = useMutation({ mutationFn: (v: { kind: Kind; file: File }) => api.upload(`/rings/${slug}/banner/${v.kind}`, v.file, 'PUT'), onSuccess: () => { setError(null); refresh(); }, onError: (e) => setError(errorText(e)) });
-  const remove = useMutation({ mutationFn: (kind: Kind) => api.del(`/rings/${slug}/banner/${kind}`), onSuccess: refresh });
   const hide = useMutation({ mutationFn: (v: { kind: Kind; on: boolean; reason: string }) => api.post(`/rings/${slug}/banner/${v.kind}/${v.on ? 'hide' : 'restore'}`, { reason: v.reason }), onSuccess: () => { setReasonFor(null); setReason(''); refresh(); }, onError: (e) => setError(errorText(e)) });
   const files = useRef<Partial<Record<Kind, HTMLInputElement | null>>>({});
   const origin = window.location.origin;
@@ -55,7 +54,7 @@ export function BannerManager({ slug, name }: { slug: string; name: string }) {
                 <input ref={(el) => { files.current[kind] = el; }} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="visually-hidden" disabled={upload.isPending}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate({ kind, file: f }); e.target.value = ''; }} />
               </label>
-              {b && <button type="button" className="btn btn-quiet" onClick={() => { setGoing((g) => [...g, kind]); undoable(t('rings.banners.removed'), () => remove.mutateAsync(kind), { onUndo: () => setGoing((g) => g.filter((x) => x !== kind)), onError: () => setGoing((g) => g.filter((x) => x !== kind)) }); }}>{t('rings.banners.remove')}</button>}
+              {b && <button type="button" className="btn btn-quiet" onClick={() => { setGoing((g) => [...g, kind]); undoable(t('rings.banners.removed'), () => api.del(`/rings/${slug}/banner/${kind}`).then(refresh), { onUndo: () => setGoing((g) => g.filter((x) => x !== kind)), onError: () => setGoing((g) => g.filter((x) => x !== kind)) }); }}>{t('rings.banners.remove')}</button>}
               {b && me?.role === 'admin' && (b.hidden
                 ? <button type="button" className="btn btn-quiet" onClick={() => hide.mutate({ kind, on: false, reason: 'Restored' })}>{t('rings.banners.restore')}</button>
                 : <button type="button" className="btn btn-quiet" onClick={() => setReasonFor(kind)}>{t('classics.hide')}</button>)}

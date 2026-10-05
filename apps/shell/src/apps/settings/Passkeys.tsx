@@ -19,7 +19,6 @@ export function Passkeys() {
   const [adding, setAdding] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const refresh = () => void qc.invalidateQueries({ queryKey: ['passkeys'] });
-  const remove = useMutation({ mutationFn: (id: string) => api.del(`/me/passkeys/${id}`), onSuccess: refresh });
   const shown = (q.data?.passkeys ?? []).filter((p) => !going.includes(p.id));
   const supported = browserSupportsWebAuthn();
 
@@ -42,14 +41,13 @@ export function Passkeys() {
                   onClick={() => {
                     const back = () => setGoing((g) => g.filter((x) => x !== p.id));
                     setGoing((g) => [...g, p.id]);
-                    undoable(t('passkeys.removed', { name: p.name }), () => remove.mutateAsync(p.id), { onUndo: back, onError: back });
+                    undoable(t('passkeys.removed', { name: p.name }), () => api.del(`/me/passkeys/${p.id}`).then(refresh), { onUndo: back, onError: back });
                   }}>{t('ssh.remove')}</button>
               </div>
             )}
           </li>
         ))}
       </ul>
-      {remove.isError && <Alert kind="error">{errorText(remove.error)}</Alert>}
       {!supported ? <p className="hint">{t('passkeys.unsupported')}</p>
         : adding ? <AddPasskey onDone={() => { setAdding(false); refresh(); }} onCancel={() => setAdding(false)} />
           : <p><button type="button" className="btn" onClick={() => setAdding(true)}>{t('passkeys.add')}</button></p>}

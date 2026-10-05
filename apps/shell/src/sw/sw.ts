@@ -13,6 +13,17 @@ import { CacheFirst } from 'workbox-strategies';
 // A new version waits until every tab of the old one is closed, so a page never runs half old and half new.
 declare const self: ServiceWorkerGlobalScope;
 
+// The server's own paths skip this worker entirely where the browser can say so (static routing, Chrome 123+). Besides
+// being quicker, a request the worker sees can be dropped when its page closes, and the sends that Undo holds until
+// the page is left (components/feedback.tsx) are exactly those. Elsewhere the worker lets them through untouched.
+type RouteRule = { condition: { urlPattern: { pathname: string } }; source: 'network' };
+self.addEventListener('install', (event) => {
+  const e = event as ExtendableEvent & { addRoutes?: (rules: RouteRule[]) => Promise<void> };
+  if (!e.addRoutes) return;
+  const rules = ['/api/*', '/oidc/*', '/ring/*', '/widgets/*', '/ws/*'].map((pathname): RouteRule => ({ condition: { urlPattern: { pathname } }, source: 'network' }));
+  e.waitUntil(e.addRoutes(rules).catch(() => undefined));
+});
+
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(({ url, request }) => url.origin === self.location.origin && url.pathname.startsWith('/assets/') && request.method === 'GET',

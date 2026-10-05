@@ -51,7 +51,6 @@ export function SshKeys() {
   const [key, setKey] = useState('');
   const refresh = () => void qc.invalidateQueries({ queryKey: ['ssh-keys'] });
   const add = useMutation({ mutationFn: () => api.post('/me/ssh-keys', { name, public_key: key }), onSuccess: () => { setName(''); setKey(''); refresh(); } });
-  const remove = useMutation({ mutationFn: (id: string) => api.del(`/me/ssh-keys/${id}`), onSuccess: refresh });
   const shownKeys = (q.data?.keys ?? []).filter((k) => !going.includes(k.id));
   return (
     <Section id="ssh-h" title={t('ssh.title')} scope="account">
@@ -66,12 +65,11 @@ export function SshKeys() {
             <button type="button" className="btn btn-quiet" aria-label={t('ssh.removeLabel', { name: k.name })}
               onClick={() => {
                 setGoing((g) => [...g, k.id]);
-                undoable(t('ssh.removed', { name: k.name }), () => remove.mutateAsync(k.id), { onUndo: () => setGoing((g) => g.filter((x) => x !== k.id)), onError: () => setGoing((g) => g.filter((x) => x !== k.id)) });
+                undoable(t('ssh.removed', { name: k.name }), () => api.del(`/me/ssh-keys/${k.id}`).then(refresh), { onUndo: () => setGoing((g) => g.filter((x) => x !== k.id)), onError: () => setGoing((g) => g.filter((x) => x !== k.id)) });
               }}>{t('ssh.remove')}</button>
           </li>
         ))}
       </ul>
-      {remove.isError && <Alert kind="error">{errorText(remove.error)}</Alert>}
       <form onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
         <TextField label={t('ssh.key')} value={key} onChange={setKey} hint={t('ssh.keyHint')} multiline required />
         <TextField label={t('ssh.name')} value={name} onChange={setName} maxLength={60} hint={t('ssh.nameHint')} />

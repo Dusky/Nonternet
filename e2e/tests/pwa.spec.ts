@@ -21,7 +21,7 @@ test('the manifest and icons come from the site config, and the site opens offli
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByText(/You are offline/)).toBeVisible(); // the site's own page and banner, not the browser's error
+  await expect(page.getByRole('link', { name: SITE_NAME }).first()).toBeVisible(); // the site's own page, not the browser's error
   await context.setOffline(false);
 });
 

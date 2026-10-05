@@ -165,7 +165,7 @@ function FileRow({ f }: { f: FileView }) {
         <div className="mod-tools">
           <CopyButton text={new URL(f.download_url, window.location.origin).href} label={t('files.copyLink')} />
           {f.mine && <button type="button" className="link" onClick={() => setEditing((e) => !e)} aria-expanded={editing}>{t('files.edit')}</button>}
-          {f.mine && <button type="button" className="link" onClick={() => { setGone(true); undoable(t('files.deleted', { name: f.name }), () => del.mutateAsync(undefined), { onUndo: () => setGone(false), onError: () => setGone(false) }); }}>{t('files.delete')}</button>}
+          {f.mine && <button type="button" className="link" onClick={() => { setGone(true); undoable(t('files.deleted', { name: f.name }), () => api.del(`/files/${f.id}`, {}).then(refresh), { onUndo: () => setGone(false), onError: () => setGone(false) }); }}>{t('files.delete')}</button>}
           {!f.mine && me.role !== 'guest' && <button type="button" className="link" aria-expanded={tool === 'report'} onClick={() => setTool(tool === 'report' ? null : 'report')}>{t('files.report')}</button>}
           {admin && <button type="button" className="link" onClick={() => setTool('hide')}>{f.hidden ? t('files.unhide') : t('files.hide')}</button>}
           {admin && !f.mine && <button type="button" className="link" onClick={() => setTool('remove')}>{t('files.remove')}</button>}

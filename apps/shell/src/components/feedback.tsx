@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Toaster, toast as sonner } from 'sonner';
-import { useT } from '../hooks';
+import { errorText, useT } from '../hooks';
+import { markLeaving } from '../api';
 
 // Two ways the interface talks back that every app shares:
 // - confirm(): a real dialog in place of window.confirm, styled like the rest of the site, with the
@@ -47,11 +48,13 @@ export function useToast(): ToastFn {
 // request goes to the server only when the note's time is up, so even something the server can't take back can be
 // undone for a moment. Leaving the page sends anything still waiting.
 const waiting = new Set<() => void>();
-if (typeof window !== 'undefined') window.addEventListener('pagehide', () => { for (const run of [...waiting]) run(); });
+if (typeof window !== 'undefined') window.addEventListener('pagehide', () => { if (waiting.size) markLeaving(); for (const run of [...waiting]) run(); });
 export function undoable(text: string, commit: () => Promise<unknown>, opts: { onUndo?: () => void; onError?: (e: unknown) => void; delay?: number } = {}): void {
   let done = false;
   const finish = () => { done = true; clearTimeout(timer); waiting.delete(run); };
-  const run = () => { if (done) return; finish(); commit().catch((e: unknown) => opts.onError?.(e)); };
+  // The request starts right here, not a few steps later, so it is on its way even when this runs as the page is left.
+  // If it is refused, the thing comes back on screen and a note says why.
+  const run = () => { if (done) return; finish(); commit().catch((e: unknown) => { opts.onError?.(e); toast(errorText(e), 'error'); }); };
   const timer = setTimeout(run, opts.delay ?? 6000);
   waiting.add(run);
   toast(text, 'ok', { undo: () => { if (done) return; finish(); opts.onUndo?.(); } });

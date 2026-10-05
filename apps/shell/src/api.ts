@@ -16,12 +16,21 @@ export const onSessionExpired = (fn: () => void): (() => void) => { expiredListe
 const notAboutSession = /^\/(auth\/|me$|session$)/;
 function expired(path: string, status: number) { if (status === 401 && !notAboutSession.test(path)) for (const fn of expiredListeners) fn(); }
 
+// Set while the page is being left (components/feedback.tsx flushes what Undo was holding then). Requests made in
+// that moment are marked keepalive, or the browser would cancel them with the page. Only then: keepalive bodies are
+// capped at 64 KB in all.
+let leaving = false;
+export const markLeaving = (): void => { leaving = true; };
+// A page brought back from the back-forward cache is not leaving any more.
+if (typeof window !== 'undefined') window.addEventListener('pageshow', () => { leaving = false; });
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`/api/v1${path}`, {
       method,
       credentials: 'same-origin',
+      keepalive: leaving && method !== 'GET',
       headers: body === undefined ? undefined : { 'content-type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
