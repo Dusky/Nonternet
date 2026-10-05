@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Logger, runMigrations } from 'graphile-worker';
 import type { Db } from './db';
 
 // Forward-only SQL migrations, applied in file-name order inside one transaction each.
@@ -26,6 +27,14 @@ export async function migrate(db: Db, log: (msg: string) => void = () => undefin
   return applied;
 }
 
+// The job queue (graphile-worker, docs/01) keeps its tables in its own schema and brings its own migrations. They run
+// here, as the owner, so the runtime role never needs to create anything; grantRuntimeRole then lets it use them.
+export async function migrateWorker(db: Db): Promise<void> {
+  await runMigrations({ pgPool: db.pool, logger: quietLogger });
+}
+// Only problems are worth a line in core's log; the runner's routine chatter is not.
+export const quietLogger = new Logger(() => (level, message) => { if (level === 'error' || level === 'warning') console.warn(`jobs: ${message}`); });
+
 // Production runs core as a role that cannot change the audit log (docs/15): the owner applies migrations,
 // then grants the runtime role what core needs on every table, and takes back UPDATE, DELETE and TRUNCATE on
 // audit_log. Idempotent; run after every migration pass so new tables are covered.
@@ -45,6 +54,20 @@ export async function grantRuntimeRole(db: Db, role: string, password?: string):
     await q.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${role}`);
     await q.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${role}`);
     await q.query(`REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM ${role}`);
+    // The job queue's schema: core adds, takes and finishes jobs there, and the runner checks its migrations are done.
+    if ((await q.query(`SELECT 1 FROM pg_namespace WHERE nspname = 'graphile_worker'`)).rowCount) {
+      await q.query(`GRANT USAGE ON SCHEMA graphile_worker TO ${role}`);
+      await q.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA graphile_worker TO ${role}`);
+      await q.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA graphile_worker TO ${role}`);
+      await q.query(`GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA graphile_worker TO ${role}`);
+      // Its private tables have row-level security on with no policies (owner only); this role gets one policy each.
+      const locked = await q.query<{ t: string }>(
+        `SELECT c.relname AS t FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'graphile_worker' AND c.relkind = 'r' AND c.relrowsecurity`);
+      for (const { t } of locked.rows) {
+        await q.query(`DROP POLICY IF EXISTS core_runtime ON graphile_worker.${quoteIdent(t)}`);
+        await q.query(`CREATE POLICY core_runtime ON graphile_worker.${quoteIdent(t)} FOR ALL TO ${role} USING (true) WITH CHECK (true)`);
+      }
+    }
     await q.query(`REVOKE ALL ON schema_migrations FROM ${role}`);
     await q.query(`GRANT SELECT ON schema_migrations TO ${role}`);
   });

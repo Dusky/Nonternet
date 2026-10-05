@@ -3,6 +3,7 @@ import { handleSchema, isReservedHandle, passwordSchema } from '@app/shared';
 import { z } from 'zod';
 import { createAdmin, resetTotp } from './accounts';
 import { depsFromEnv } from './env';
+import { newVapidKeys } from './push';
 import { migrate } from './migrate';
 import { parseBackupKey, restoreTest, runBackup } from './backup';
 import { writeFileSync } from 'node:fs';
@@ -58,6 +59,7 @@ async function writeIrcConfig() {
 //   cli restore-test --dir <dir>                           (brings the newest backup back into a scratch database and checks it)
 //   cli seed-demo [--url http://127.0.0.1:3000]           (a small demo community to look at; not in production; core must be running)
 //   cli backup-key                                         (prints a new BACKUP_KEY)
+//   cli vapid-keys                                         (prints a new pair of push notification keys for .env)
 //   cli irc-config --out <file>                            (writes Ergo's config from the site config; needs IRC_SECRET)
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -67,6 +69,11 @@ function arg(name: string): string | undefined {
 async function main() {
   const [command] = process.argv.slice(2);
   if (command === 'irc-config') return writeIrcConfig();
+  if (command === 'vapid-keys') {
+    const k = newVapidKeys();
+    console.log(`VAPID_PUBLIC_KEY=${k.publicKey}\nVAPID_PRIVATE_KEY=${k.privateKey}`);
+    return;
+  }
   const deps = depsFromEnv();
   try {
     await migrate(deps.db);

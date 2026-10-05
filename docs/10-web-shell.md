@@ -378,3 +378,20 @@ a person would otherwise go wrong.
 - **Live preview**: the text as typed, a moment after the last key, in the preview frame, from the homepage origin
   exactly as it will be published (your saved files around it, the draft in its place). The published page changes only
   when you save. Your unsaved text is also kept in your browser (existing), so a closed tab doesn't lose it.
+
+## As built (installable site and push, 2026-10-05)
+- **Installing.** The page links a manifest that core makes from the site config (`GET /api/v1/site/manifest.webmanifest`: the name, `start_url /`, standalone, the theme colour), with icons drawn from the site's mark (`/api/v1/site/icon-192.png`, `icon-512.png`, `icon-maskable.png`, rendered once by sharp). Nothing in the shell build names the site. The mark lives in `packages/shared` (`siteMarkSvg`), which also draws the tab icon.
+- **Service worker** (`apps/shell/src/sw/sw.ts`, built by vite-plugin-pwa with `injectManifest`; registered in production builds only):
+  - It keeps the page and its entry files when it installs. Every other shell file (an app's code, fonts) is kept the first time it is fetched; their names carry a hash, so a kept copy is never stale.
+  - Any shell address opens the kept page without a connection, which shows the offline banner. `/api`, `/oidc`, `/ring`, `/widgets` and `/ws` always go to the network. Nothing from `/api` is ever stored, so no one's data is left on a shared computer.
+  - A new version waits until every tab of the old one is closed (no `skipWaiting`), so a page never runs half old and half new. Caddy sends `/sw.js` with `no-cache` and `/assets/*` as immutable.
+- **Push notifications** (decided 2026-10-05):
+  - **Settings → Notifications → Push on this device**: a switch, and which kinds this device hears about: mail, replies, mentions, new threads on watched boards. **Other devices** lists the rest with Remove (acts at once, with Undo). The section is hidden when the site has no VAPID keys.
+  - A notification says who and where ("bob replied to you in Lounge", "bob sent you mail") and never the text of a post, a letter or its subject. Clicking it opens that place, reusing an open tab. A tab that is open and in front gets no push, since it already shows its own note and chime.
+  - It follows the site's notification settings: a push goes only where a notification was made (so kinds switched off, muted boards and blocks apply), and mail only where the conversation isn't muted.
+  - A device belongs to the session that turned it on. Logging out deletes it, and so do a password change or reset and a suspension (every session but the current one). A push only goes to a device whose session is still signed in, so a shared computer stops getting someone's notifications when they log out.
+  - Core sends through graphile-worker (`push_send` jobs, five tries with backoff). A device the push service says is gone (404/410) is forgotten. Payloads are encrypted (aes128gcm) with the device's keys and signed with the site's VAPID keys (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, optional `VAPID_SUBJECT`; `cli vapid-keys` makes a pair, and `sitectl doctor` warns when they are missing).
+  - Each person can have up to 10 devices; an eleventh replaces the oldest. A browser shared by two accounts belongs to whoever turned push on last.
+  - The export lists devices without their push address or keys (`settings/push-devices.json`).
+  - Not yet: admin alerts (new reports, applications) as push, and chat.
+

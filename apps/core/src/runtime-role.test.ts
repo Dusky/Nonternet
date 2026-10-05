@@ -1,7 +1,8 @@
 import pg from 'pg';
 import { describe, expect, it } from 'vitest';
 import { createTestDb, dbAvailable } from './test/harness';
-import { grantRuntimeRole } from './migrate';
+import { runOnce } from 'graphile-worker';
+import { grantRuntimeRole, migrateWorker, quietLogger } from './migrate';
 
 // Production runs core as a role that cannot rewrite history (docs/15): it can do everything core does,
 // but UPDATE, DELETE and TRUNCATE on audit_log are refused by the database's permissions, not just a trigger.
@@ -10,6 +11,7 @@ describe.skipIf(!dbAvailable)('the runtime database role', () => {
     const { db, url, drop } = await createTestDb();
     const role = `core_rt_${Math.random().toString(36).slice(2, 8)}`;
     try {
+      await migrateWorker(db); // the job queue's schema, made by the owner as in production
       await grantRuntimeRole(db, role, 'rt-password-1');
       await grantRuntimeRole(db, role, 'rt-password-2'); // again: idempotent, and the password can change
       const u = new URL(url); u.username = role; u.password = 'rt-password-2';
@@ -20,6 +22,13 @@ describe.skipIf(!dbAvailable)('the runtime database role', () => {
         await c.query(`UPDATE users SET bio = 'hi' WHERE handle = 'rt'`);
         await c.query(`INSERT INTO audit_log (actor_kind, action, origin) VALUES ('system', 'test.written', 'system')`);
         expect((await c.query(`SELECT count(*)::int AS n FROM audit_log`)).rows[0].n).toBeGreaterThan(0);
+        // The job queue works as the runtime role: add a job, and a runner (which checks the queue's migrations) takes it.
+        await c.query(`SELECT graphile_worker.add_job('noted', json_build_object('n', 1))`);
+        const seen: unknown[] = [];
+        const pool = new pg.Pool({ connectionString: u.toString(), max: 2 });
+        pool.on('error', () => undefined);
+        try { await runOnce({ pgPool: pool, logger: quietLogger, taskList: { noted: async (payload) => { seen.push(payload); } } }); } finally { await pool.end(); }
+        expect(seen).toEqual([{ n: 1 }]);
         for (const sql of [`UPDATE audit_log SET action = 'x'`, `DELETE FROM audit_log`, `TRUNCATE audit_log`, `INSERT INTO schema_migrations (name) VALUES ('evil.sql')`]) {
           await expect(c.query(sql), sql).rejects.toMatchObject({ code: '42501' }); // insufficient_privilege
         }

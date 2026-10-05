@@ -5,6 +5,7 @@ import type { Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { liveTo } from './live';
+import { pushText, queuePush } from './push';
 import type { Ctx, SessionUser } from './accounts';
 
 // Private mail (docs/10, Q11 decided 2026-09-30): conversations between two people or small groups, on this
@@ -64,9 +65,15 @@ export async function startThread(deps: AppDeps, me: SessionUser, input: { to: s
 }
 
 // Tell the people in a conversation (not the sender) that there is something new in it.
+// Devices that asked for push hear who wrote, never the subject or the letter (docs/10).
 async function tellThread(deps: AppDeps, threadId: string, exceptUserId: string): Promise<void> {
   const r = await deps.db.query<{ user_id: string }>(`SELECT user_id FROM mail_participants p WHERE thread_id = $1 AND left_at IS NULL AND user_id <> $2 AND NOT EXISTS (SELECT 1 FROM mail_mutes x WHERE x.user_id = p.user_id AND x.thread_id = p.thread_id)`, [threadId, exceptUserId]);
-  liveTo(r.rows.map((x) => x.user_id), { type: 'mail', thread: threadId });
+  const ids = r.rows.map((x) => x.user_id);
+  liveTo(ids, { type: 'mail', thread: threadId });
+  if (deps.push && ids.length) {
+    const from = (await deps.db.query<{ handle: string }>(`SELECT handle FROM users WHERE id = $1`, [exceptUserId])).rows[0]?.handle ?? '';
+    await queuePush(deps, deps.db, ids, 'mail', { ...pushText(deps, 'mail', { name: from }), url: `/mail/${threadId}`, tag: `mail:${threadId}` });
+  }
 }
 
 async function requireParticipant(q: Queryable, threadId: string, userId: string): Promise<{ joined_at: Date; left_at: Date | null }> {

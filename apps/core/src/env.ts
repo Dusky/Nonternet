@@ -11,6 +11,7 @@ import { ircSecrets } from './irc/secrets';
 import { mudSecrets } from './mud/secrets';
 import { bbsSecrets } from './bbs/secrets';
 import { passkeySite } from './passkey-site';
+import { pushFromEnv } from './push';
 
 // Rate limits are on unless RATE_LIMIT=off, which exists for automated tests that sign up more people
 // than one address is allowed to. It refuses to run in production, where turning them off is never
@@ -39,6 +40,8 @@ function rateLimitEnabled(env: Record<string, string | undefined>, production: b
 //                    are Ergo's private listener for the bot, IRC_API_URL (default http://ergo:8089) its API
 //   BBS_SECRET       shared with the BBS (32+ characters); turns it on
 //   IRC_HISTORY_DATABASE_URL  Ergo's chat history database (Postgres); read for exports of people's own messages
+//   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY  push notifications (`cli vapid-keys` makes a pair); off without them.
+//                    VAPID_SUBJECT (default mailto:admin@<site domain>) is who push services can contact
 //   MUD_SECRET       shared with the MUD (32+ characters); turns it on. MUD_URL (default http://mud:4001) is
 //                    its internal web server
 export function depsFromEnv(env = process.env, log: (m: string) => void = console.log): AppDeps {
@@ -73,6 +76,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     dnsTxt: (name) => dns.resolveTxt(name),
     irc: env.IRC_SECRET ? { secrets: ircSecrets(env.IRC_SECRET), host: env.IRC_HOST ?? 'ergo', port: Number(env.IRC_PORT ?? 6667), apiUrl: (env.IRC_API_URL ?? 'http://ergo:8089').replace(/\/$/, ''), historyDatabaseUrl: env.IRC_HISTORY_DATABASE_URL || undefined } : undefined,
     bbs: env.BBS_SECRET ? bbsSecrets(env.BBS_SECRET) : undefined,
+    push: pushFromEnv(env, config.site.domain),
     mud: env.MUD_SECRET ? { secrets: mudSecrets(env.MUD_SECRET), url: (env.MUD_URL ?? 'http://mud:4001').replace(/\/$/, '') } : undefined,
     now: Date.now,
   };

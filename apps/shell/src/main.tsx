@@ -13,6 +13,12 @@ import './styles.css';
 installThemeCss();
 applyTheme(rememberedTheme(), { remember: false }); // until the site's default or the person's own choice is known
 
+// The service worker (src/sw/sw.ts): offline opening and push notifications. Built files only; in development Vite
+// serves the code and a worker would get in the way.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => undefined); });
+}
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

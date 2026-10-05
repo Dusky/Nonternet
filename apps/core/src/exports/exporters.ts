@@ -281,6 +281,18 @@ const clients: Exporter = {
   },
 };
 
+// Devices that get push notifications (docs/10): which ones and what they hear about. The push address and keys are
+// left out: they are the browser's, and work only for this site.
+const pushDevices: Exporter = {
+  id: 'push',
+  tables: ['push_subscriptions'],
+  async run({ deps, user, add }) {
+    const r = await deps.db.query<{ label: string; kinds: string[]; created_at: Date; last_used_at: Date | null }>(
+      `SELECT label, kinds, created_at, last_used_at FROM push_subscriptions WHERE user_id = $1 ORDER BY created_at`, [user.id]);
+    if (r.rowCount) add('settings/push-devices.json', json(r.rows.map((d) => ({ label: d.label, kinds: d.kinds, created_at: d.created_at.toISOString(), last_used_at: d.last_used_at?.toISOString() ?? null }))));
+  },
+};
+
 // What apps people added kept for them (docs/10): apps/installed.json, and apps/{app}/{collection}.json for every
 // app with data, whether or not it is still added or still offered.
 const appsData: Exporter = {
@@ -293,7 +305,7 @@ const appsData: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData];
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.

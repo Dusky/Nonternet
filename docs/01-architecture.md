@@ -33,7 +33,7 @@ One deployment, run by the admin team, on one server (or a small cluster later).
 | **Ergo** | IRC server | Borrowed (PROPOSED) |
 | **MUD engine** | Shared world | Borrowed (PROPOSED: Evennia) |
 | **Postgres / Redis** | Data, sessions, presence, event streams | Borrowed |
-| **Worker** | Background jobs: export builds, link checks, reconcile, backups, stats rollups | **Built** (part of core codebase) |
+| **Worker** | Background jobs: export builds, link checks, reconcile, backups, stats rollups. Jobs that must be retried one by one (push notifications) use graphile-worker, a queue kept in Postgres in its own `graphile_worker` schema; the rest are simple loops over database tables | **Built** (part of core codebase) |
 
 ## Rules
 - **core is the source of truth** for users, roles, rings, board metadata, homepages, audit.

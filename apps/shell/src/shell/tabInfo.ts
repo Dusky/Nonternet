@@ -1,3 +1,4 @@
+import { siteMarkSvg } from '@app/shared';
 // What the browser tab shows (M9-B): the title says where you are and how much is waiting, and the icon is
 // the site's mark in the theme's accent colour with a dot when something is unread.
 
@@ -8,16 +9,9 @@ export function tabTitle(opts: { site: string; app?: string | null; unread?: num
   return `${count}${opts.app ? `${opts.app} · ` : ''}${opts.site}`;
 }
 
-const safeColour = (c: string, fallback: string) => (/^#[0-9a-f]{3,8}$/i.test(c.trim()) ? c.trim() : fallback);
-
-// An SVG for the tab icon. Colours come from the theme (hex only, anything else falls back).
+// An SVG for the tab icon: the site's mark (packages/shared) in the theme's colours.
 export function faviconSvg(opts: { accent: string; bg: string; badge: boolean }): string {
-  const accent = safeColour(opts.accent, '#2b4fd6');
-  const bg = safeColour(opts.bg, '#f4f2ec');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${bg}"/>`
-    + `<rect x="22" y="14" width="20" height="36" rx="2" fill="${accent}"/>`
-    + (opts.badge ? `<circle cx="50" cy="14" r="11" fill="#d92d20" stroke="${bg}" stroke-width="4"/>` : '')
-    + '</svg>';
+  return siteMarkSvg(opts);
 }
 
 export const faviconHref = (opts: Parameters<typeof faviconSvg>[0]): string => `data:image/svg+xml,${encodeURIComponent(faviconSvg(opts))}`;

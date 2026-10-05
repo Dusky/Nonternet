@@ -1,6 +1,9 @@
 :80 {
 	root * /srv
 	encode gzip
+	# The service worker is checked for a new version on every visit; the hashed files never change.
+	header /sw.js Cache-Control "no-cache"
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
 	try_files {path} /index.html
 	file_server
 }

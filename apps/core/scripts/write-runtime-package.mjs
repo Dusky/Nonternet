@@ -2,7 +2,8 @@
 // so the runtime image can `npm install` exactly the version this workspace was tested with.
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const EXTERNAL = ['@node-rs/argon2', 'sharp'];
+// graphile-worker reads its own SQL migrations from its package folder, so it is installed rather than bundled too.
+const EXTERNAL = ['@node-rs/argon2', 'sharp', 'graphile-worker'];
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const dependencies = {};
 for (const name of EXTERNAL) {

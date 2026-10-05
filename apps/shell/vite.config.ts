@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // In dev and preview, /api and /oidc go to core (CORE_URL, default http://localhost:3000). In
 // compose and production, Caddy does the routing.
@@ -27,7 +28,16 @@ const securityHeaders = {
 export default defineConfig({
   // The React Compiler (1.0) memoizes components and hooks at build time, so screens re-render only what changed
   // without hand-written useMemo/useCallback (decided 2026-10-04, docs/17 P13).
-  plugins: [react({ babel: { plugins: [['babel-plugin-react-compiler', {}]] } })],
+  plugins: [
+    react({ babel: { plugins: [['babel-plugin-react-compiler', {}]] } }),
+    // The service worker (src/sw/sw.ts, docs/10), built with the list of the shell's own files to keep. The manifest
+    // is not made here: core serves it from the site config (/api/v1/site/manifest.webmanifest), so the name is never
+    // built in. The shell registers the worker itself (main.tsx).
+    VitePWA({
+      strategies: 'injectManifest', srcDir: 'src/sw', filename: 'sw.ts', manifest: false, injectRegister: false,
+      injectManifest: { globPatterns: ['index.html', 'assets/index-*.{js,css}', 'assets/vendor-*.js', 'assets/widgets-*.js'] },
+    }),
+  ],
   build: {
     rollupOptions: {
       output: {

@@ -2,7 +2,9 @@ import { buildApp } from './app';
 import { syncCatalog } from './apps';
 import { depsFromEnv } from './env';
 import { pruneOutbox, redisBus, startRelay, type Relay } from './events';
-import { grantRuntimeRole, migrate } from './migrate';
+import { grantRuntimeRole, migrate, migrateWorker, quietLogger } from './migrate';
+import { run as runJobs } from 'graphile-worker';
+import { pushTask } from './push';
 import { connect } from './db';
 import { startExportWorker } from './exports/service';
 import { loadSettings } from './settings';
@@ -28,10 +30,12 @@ async function start() {
     const owner = connect(process.env.MIGRATION_DATABASE_URL);
     try {
       await migrate(owner, console.log);
+      await migrateWorker(owner);
       if (process.env.DB_RUNTIME_ROLE) await grantRuntimeRole(owner, process.env.DB_RUNTIME_ROLE, process.env.DB_RUNTIME_PASSWORD || undefined);
     } finally { await owner.end(); }
   } else {
     await migrate(deps.db, console.log);
+    await migrateWorker(deps.db);
   }
   await loadSettings(deps); // saved settings go over the config file's values
   await syncCatalog(deps, console.log); // the installable apps in APPS_DIR (docs/10)
@@ -53,6 +57,11 @@ async function start() {
   // The daily digest for people who asked for one: checked hourly, at most one email each per day.
   const digests = setInterval(() => sendDigests(deps).catch((e) => app.log.warn(`digests: ${e}`)), 3_600_000);
   const exportWorker = startExportWorker(deps, (m) => app.log.warn(m));
+  // Background jobs (graphile-worker, in Postgres): push notifications, each tried again with backoff if a push
+  // service is down. Only started when push is on; other background work keeps its own simple loops (docs/17).
+  const jobs = deps.push
+    ? await runJobs({ pgPool: deps.db.pool, concurrency: 4, noHandleSignals: true, pollInterval: 2000, logger: quietLogger, taskList: { push_send: pushTask(deps) } })
+    : undefined;
   const metrics = startMetricsCollector(deps, (m) => app.log.warn(m));
   const stopEvents = new AbortController();
 
@@ -93,6 +102,7 @@ async function start() {
     ircSync?.stop();
     mudSync?.stop();
     await exportWorker.stop();
+    await jobs?.stop();
     await relay?.stop();
     await bus?.close();
     await deps.db.end();

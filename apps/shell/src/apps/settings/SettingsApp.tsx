@@ -9,6 +9,7 @@ import { BoardSettings, ChatAccountSettings, ChatSettings, NotificationChoices, 
 import { Profile, FeaturedCharacter } from './ProfileTab';
 import { Password, TwoFactor } from './SecurityTab';
 import { Passkeys } from './Passkeys';
+import { DevicePush } from './Push';
 import { EmailAddress, Handle } from './AccountTab';
 import { Appearance, DeviceAlerts } from './AppearanceTab';
 
@@ -48,7 +49,7 @@ export default function SettingsApp() {
       {route?.pattern === 'data' && <YourData me={me} />}
       {route?.pattern === 'blocked' && <Blocks />}
       {route?.pattern === 'appearance' && <Appearance me={me} />}
-      {route?.pattern === 'notifications' && <>{me.role !== 'guest' && <NotificationChoices />}<DeviceAlerts /></>}
+      {route?.pattern === 'notifications' && <>{me.role !== 'guest' && <NotificationChoices />}<DeviceAlerts /><DevicePush /></>}
       {route?.pattern === 'chat' && <><ChatSettings /><ChatAccountSettings /></>}
       {route?.pattern === 'boards' && <BoardSettings />}
     </SideNav>

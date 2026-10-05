@@ -42,6 +42,8 @@ export async function opsFor(q: Queryable, userId: string): Promise<string[]> {
 // Ends every live session of a user and tells the bus, so services can drop connections.
 export async function revokeAllSessions(q: Queryable, userId: string, reason: string, keepSessionId?: string): Promise<number> {
   const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL AND id IS DISTINCT FROM $2`, [userId, keepSessionId ?? null]);
+  // Devices those sessions turned push on for stop hearing anything (docs/10).
+  await q.query(`DELETE FROM push_subscriptions WHERE user_id = $1 AND session_id IS DISTINCT FROM $2`, [userId, keepSessionId ?? null]);
   // Signing out of the site is not this: only security revocations (suspension, password reset,
   // 2FA reset) also end every service's OIDC grants and tokens.
   const grants = await revokeOidcForUser(q, userId);
@@ -284,6 +286,8 @@ function touchLastSeen(deps: AppDeps, userId: string): void {
 export async function logout(deps: AppDeps, user: SessionUser): Promise<void> {
   await deps.db.tx(async (q) => {
     const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL`, [user.sessionId, user.userId]);
+    // Logging out on a shared computer stops its push notifications too.
+    await q.query(`DELETE FROM push_subscriptions WHERE session_id = $1`, [user.sessionId]);
     if (r.rowCount > 0) await emit(q, 'session.revoked', { user_id: user.userId, session_id: user.sessionId, reason: 'logout' });
   });
 }

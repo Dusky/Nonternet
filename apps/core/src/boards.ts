@@ -1,4 +1,4 @@
-import { MAX_PINNED_THREADS, POST_EDIT_WINDOW_MINUTES, REACTIONS, type BoardSummary, type BoardVisibility, type PostEdit, type PostRevisionView, type PostView, type ReactionName, type ThreadSummary } from '@app/shared';
+import { MAX_PINNED_THREADS, NOTIFICATION_KINDS, POST_EDIT_WINDOW_MINUTES, REACTIONS, type BoardSummary, type NotificationKind, type BoardVisibility, type PostEdit, type PostRevisionView, type PostView, type ReactionName, type ThreadSummary } from '@app/shared';
 import { audit } from './audit';
 import { newId } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
@@ -8,6 +8,7 @@ import { emit } from './events';
 import { liveAll, liveTo } from './live';
 import { dropLandingCache } from './routes/landing';
 import { notifyForPost } from './notifications';
+import { pushText, queuePush } from './push';
 import { normalizeBody, normalizeSubject, replySubject } from './text';
 import type { Ctx, SessionUser } from './accounts';
 
@@ -388,12 +389,23 @@ export async function createPost(
     else await q.query(`UPDATE posts SET last_seq = $2 WHERE id = $1`, [id, seq]);
     await emit(q, 'post.created', { post_id: id, board_id: b.id, thread_id: rootId ?? id, author_id: v.userId, visibility: b.visibility });
     notified = await notifyForPost(q, { id, boardId: b.id, visibility: b.visibility, authorId: v.userId, body, isThread: rootId === null, replyToAuthorId: replyToAuthor });
+    if (notified.length) await pushForPost(deps, q, { id, thread: rootId ?? id, slug: b.slug, board: b.name, author: v.handle });
     placed = { boardId: b.id, slug: b.slug, visibility: b.visibility, thread: rootId ?? id };
   });
   if (placed && (placed as { visibility: string }).visibility === 'public') dropLandingCache();
   await tellTabs(deps, placed, notified);
   const r = await deps.db.query<PostRow>(`SELECT ${POST_COLUMNS} FROM ${POST_FROM} WHERE p.id = $1`, [id]);
   return toPostView(r.rows[0]!, false);
+}
+
+// Devices that asked for push hear about the notifications this post made, one message per kind (docs/10).
+async function pushForPost(deps: AppDeps, q: Queryable, p: { id: string; thread: string; slug: string; board: string; author: string }): Promise<void> {
+  if (!deps.push) return;
+  const rows = (await q.query<{ user_id: string; kind: NotificationKind }>(`SELECT user_id, kind FROM notifications WHERE post_id = $1`, [p.id])).rows;
+  for (const kind of NOTIFICATION_KINDS) {
+    const ids = rows.filter((r) => r.kind === kind).map((r) => r.user_id);
+    if (ids.length) await queuePush(deps, q, ids, kind, { ...pushText(deps, kind, { name: p.author, board: p.board }), url: `/boards/${p.slug}/t/${p.thread}`, tag: `post:${p.id}` });
+  }
 }
 
 // After a post is saved: tell open tabs. A private board's hint goes only to its members, a members-only

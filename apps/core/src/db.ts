@@ -7,6 +7,8 @@ export interface Queryable {
 export interface Db extends Queryable {
   tx<T>(fn: (q: Queryable) => Promise<T>): Promise<T>;
   end(): Promise<void>;
+  /** The pool itself, for the job runner (graphile-worker), which brings its own queries. */
+  readonly pool: pg.Pool;
 }
 
 export function connect(connectionString: string): Db {
@@ -17,6 +19,8 @@ export function connect(connectionString: string): Db {
   pool.on('error', (err) => {
     if (!closing) console.error(`Postgres connection error: ${err.message}`);
   });
+  // The same for a connection someone has checked out (the job runner holds one to listen for new jobs).
+  pool.on('connect', (client) => client.on('error', (err) => { if (!closing) console.error(`Postgres connection error: ${err.message}`); }));
   const wrap = (c: pg.Pool | pg.PoolClient): Queryable => ({
     async query(text, params) {
       const r = await c.query(text, params as unknown[]);
@@ -25,6 +29,7 @@ export function connect(connectionString: string): Db {
   });
   return {
     ...wrap(pool),
+    pool,
     async tx(fn) {
       const client = await pool.connect();
       try {

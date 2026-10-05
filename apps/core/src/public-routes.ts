@@ -5,6 +5,8 @@
 export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['GET', /^\/(healthz|readyz)$/, 'health checks'],
   ['GET', /^\/api\/v1\/site$/, 'the public site config'],
+  ['GET', /^\/api\/v1\/site\/(manifest\.webmanifest|:icon)$/, 'the installable app\u2019s manifest and icons, made from the site config (docs/10)'],
+  ['GET', /^\/api\/v1\/push$/, 'the public key a browser needs to sign up for push'],
   ['GET', /^\/api\/v1\/landing$/, 'the front page for visitors: a count of people online and things already public (docs/10)'],
   ['GET', /^\/api\/v1\/session$/, 'who is signed in, or null: so a visitor\u2019s first request is not an error (`/me` answers 401)'],
   ['GET', /^\/api\/v1\/announcements$/, 'banners for everyone'],

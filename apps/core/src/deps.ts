@@ -6,6 +6,7 @@ import type { ResolvedOidcClient } from './oidc/provider';
 import type { IrcDeps } from './irc/secrets';
 import type { MudDeps } from './mud/secrets';
 import type { BbsDeps } from './bbs/secrets';
+import type { PushDeps } from './push';
 
 export interface AppDeps {
   config: SiteConfig;
@@ -30,5 +31,6 @@ export interface AppDeps {
   irc?: IrcDeps;            // set when IRC_SECRET is; chat is off without it
   mud?: MudDeps;            // set when MUD_SECRET is; the MUD is off without it
   bbs?: BbsDeps;            // set when BBS_SECRET is; the BBS is off without it
+  push?: PushDeps;          // set when the VAPID keys are; push notifications are off without them
   now: () => number;        // ms; injectable so tests can move the clock (TOTP steps)
 }

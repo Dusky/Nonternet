@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "esbuild src/main.ts src/cli.ts src/homes-main.ts src/gopher-main.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --external:@node-rs/argon2 --external:sharp --log-override:empty-import-meta=silent && rm -rf dist/migrations && cp -r src/migrations dist/migrations && node scripts/write-runtime-package.mjs",
+    "build": "esbuild src/main.ts src/cli.ts src/homes-main.ts src/gopher-main.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --external:@node-rs/argon2 --external:sharp --external:graphile-worker --log-override:empty-import-meta=silent && rm -rf dist/migrations && cp -r src/migrations dist/migrations && node scripts/write-runtime-package.mjs",
     "start": "node dist/main.cjs",
     "typecheck": "tsc --noEmit",
     "cli": "tsx src/cli.ts"
@@ -21,6 +21,7 @@
     "bcryptjs": "^3.0.3",
     "fastify": "^5.0.0",
     "fflate": "^0.8.3",
+    "graphile-worker": "^0.18.0",
     "iconv-lite": "^0.7.3",
     "ioredis": "^6.0.0",
     "irc-framework": "4.14.0",
@@ -32,6 +33,7 @@
     "send": "^1.2.1",
     "sharp": "^0.35.5",
     "ulid": "^3.0.2",
+    "web-push": "^3.6.7",
     "wrap-ansi": "^10.0.2",
     "yaml": "^2.5.0",
     "zod": "^4.6.5"
@@ -42,6 +44,7 @@
     "@types/oidc-provider": "^9.12.1",
     "@types/pg": "^8.23.1",
     "@types/send": "^1.2.1",
+    "@types/web-push": "^3.6.4",
     "esbuild": "^0.25.12",
     "tsx": "^4.19.0"
   }

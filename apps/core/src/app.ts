@@ -32,6 +32,8 @@ import { eventRoutes } from './routes/events';
 import { personalRoutes } from './routes/personal';
 import { appsRoutes } from './routes/apps';
 import { classicsRoutes } from './routes/classics';
+import { pushRoutes } from './routes/push';
+import { siteIcon, webManifest } from './site-icons';
 import { isPublicRoute } from './public-routes';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -102,6 +104,13 @@ export async function buildApp(deps: AppDeps) {
   app.get('/healthz', async () => ({ status: 'ok' }));
   app.get('/readyz', async () => { await deps.db.query('SELECT 1'); return { status: 'ready' }; });
   app.get('/api/v1/site', async () => toPublicSite(deps.config));
+  app.get('/api/v1/site/manifest.webmanifest', async (_req, reply) =>
+    reply.type('application/manifest+json').header('cache-control', 'public, max-age=3600').send(JSON.stringify(webManifest(deps.config))));
+  app.get('/api/v1/site/:icon', async (req, reply) => {
+    const m = /^icon-(192|512|maskable)\.png$/.exec((req.params as { icon: string }).icon);
+    if (!m) throw new ApiError(404, 'not_found', 'There is nothing here.');
+    return reply.type('image/png').header('cache-control', 'public, max-age=86400').send(await siteIcon(m[1] as '192' | '512' | 'maskable'));
+  });
 
   oidcRoutes(app, deps, await createOidcProvider(deps));
   authRoutes(app, deps);
@@ -126,5 +135,6 @@ export async function buildApp(deps: AppDeps) {
   personalRoutes(app, deps);
   appsRoutes(app, deps);
   classicsRoutes(app, deps);
+  pushRoutes(app, deps);
   return app;
 }

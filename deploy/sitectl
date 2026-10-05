@@ -33,6 +33,7 @@ doctor() {
   for k in APP_SECRET_KEY IRC_SECRET MUD_SECRET BBS_SECRET TLS_ASK_SECRET; do
     v=$(envval "$k"); [ -n "$v" ] && [ "${#v}" -lt 32 ] && bad "$k is shorter than 32 characters"
   done
+  [ -n "$(envval VAPID_PUBLIC_KEY)" ] && [ -n "$(envval VAPID_PRIVATE_KEY)" ] && ok "push notification keys are set" || warn "VAPID keys are not set: push notifications are off (docker compose run --rm core node cli.cjs vapid-keys)"
   [ "$(envval POSTGRES_PASSWORD)" = "change-me" ] && bad "POSTGRES_PASSWORD is still change-me"
   cfg=$(envval SITE_CONFIG_FILE); [ -f "${cfg:-x}" ] && ok "site config $cfg exists" || bad "site config ${cfg:-?} is missing"
   domain=$(envval SITE_DOMAIN); homes=$(envval HOMES_DOMAIN)

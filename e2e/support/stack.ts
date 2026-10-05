@@ -1,6 +1,6 @@
 import { connect } from 'node:net';
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createECDH, randomBytes } from 'node:crypto';
 import { cpSync, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +36,14 @@ export const MUD_WS_PORT = Number(process.env.E2E_MUD_WS_PORT ?? 6472);
 const evenniaFound = process.env.EVENNIA_BIN ?? (() => { try { return execFileSync('sh', ['-c', 'command -v evennia'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
 export const EVENNIA_BIN = evenniaFound || undefined;
 if (!EVENNIA_BIN && process.env.REQUIRE_EVENNIA) throw new Error('REQUIRE_EVENNIA is set but no evennia launcher was found');
+
+// A VAPID key pair, as `cli vapid-keys` makes: a P-256 key, public uncompressed, private as 32 bytes.
+function vapidKeys(): { VAPID_PUBLIC_KEY: string; VAPID_PRIVATE_KEY: string } {
+  const e = createECDH('prime256v1');
+  e.generateKeys();
+  const priv = e.getPrivateKey();
+  return { VAPID_PUBLIC_KEY: e.getPublicKey().toString('base64url'), VAPID_PRIVATE_KEY: Buffer.concat([Buffer.alloc(32 - priv.length), priv]).toString('base64url') };
+}
 
 async function waitFor(url: string, what: string, log: string): Promise<void> {
   const end = Date.now() + 30_000;
@@ -89,6 +97,7 @@ oidc:
     APPS_DIR: join(ROOT, 'packs/build'), // the built app packages (docs/10)
     BBS_SECRET: randomBytes(24).toString('base64url'),
     RATE_LIMIT: 'off', // the tests sign up far more people than one address may in an hour
+    ...vapidKeys(), // push notifications on, so Settings shows them (tests/pwa.spec.ts); nothing is really sent
     OPS_DIR: join(TMP, 'ops'), // updates and restarts: tests/updates.spec.ts plays the host agent
     ...(process.env.TEST_REDIS_URL ? { REDIS_URL: process.env.TEST_REDIS_URL } : {}),
     ...(ERGO_BIN ? { IRC_SECRET: randomBytes(24).toString('base64url'), IRC_HOST: '127.0.0.1', IRC_PORT: String(IRC_PORT), IRC_API_URL: `http://127.0.0.1:${IRC_API_PORT}` } : {}),

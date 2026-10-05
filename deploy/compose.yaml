@@ -55,6 +55,9 @@ services:
       # Shared with the BBS, which signs callers in through core (docs/04).
       BBS_SECRET: ${BBS_SECRET:?set BBS_SECRET in deploy/.env (openssl rand -base64 32)}
       MUD_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/mud
+      # Push notifications (docs/10); off when empty. `docker compose run --rm core node cli.cjs vapid-keys` makes a pair.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       # Read for exports of people's own chat messages (Q9), and dumped by `cli backup`.
       IRC_HISTORY_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/ergo_history
     volumes:
