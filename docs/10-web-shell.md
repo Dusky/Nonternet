@@ -384,6 +384,8 @@ a person would otherwise go wrong.
 - **Service worker** (`apps/shell/src/sw/sw.ts`, built by vite-plugin-pwa with `injectManifest`; registered in production builds only):
   - It keeps the page and its entry files when it installs. Every other shell file (an app's code, fonts) is kept the first time it is fetched; their names carry a hash, so a kept copy is never stale.
   - Any shell address opens the kept page without a connection, which shows the offline banner. `/api`, `/oidc`, `/ring`, `/widgets` and `/ws` always go to the network. Nothing from `/api` is ever stored, so no one's data is left on a shared computer.
+  - The server paths skip the worker entirely where the browser supports static routing (`addRoutes`, Chrome 123+). A request the worker sees can be dropped when its page closes, and that lost what Undo sends on leaving. Requests made while the page is being left are `keepalive`.
+  - The last public site config is kept on the device (`site:last`), so the shell can open without a connection. It holds nothing about the person.
   - A new version waits until every tab of the old one is closed (no `skipWaiting`), so a page never runs half old and half new. Caddy sends `/sw.js` with `no-cache` and `/assets/*` as immutable.
 - **Push notifications** (decided 2026-10-05):
   - **Settings → Notifications → Push on this device**: a switch, and which kinds this device hears about: mail, replies, mentions, new threads on watched boards. **Other devices** lists the rest with Remove (acts at once, with Undo). The section is hidden when the site has no VAPID keys.
