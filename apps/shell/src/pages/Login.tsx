@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { browserSupportsWebAuthn, browserSupportsWebAuthnAutofill, startAuthentication } from '@simplewebauthn/browser';
 import type { Me } from '@app/shared';
 import { Alert, Centered, TextField } from '../components/ui';
 import { api, ApiError } from '../api';
 import { errorText, useMe, useSite, useT } from '../hooks';
 import { safeReturnTo } from '../returnTo';
+import { passkeyError } from '../passkeyError';
 
 type Step = 'password' | 'totp' | 'recovery';
 
@@ -55,6 +57,24 @@ export function LoginPage() {
     },
   });
 
+  // Passkeys (docs/02): a button, and where the browser can, its own suggestion under the handle field. Both answer
+  // the same kind of challenge; a passkey stands in for the password and the code together.
+  const passkey = useMutation({
+    mutationFn: async (autofill: boolean) => {
+      const { challenge_id, options } = await api.post<{ challenge_id: string; options: Parameters<typeof startAuthentication>[0]['optionsJSON'] }>('/auth/passkey/options', {});
+      const response = await startAuthentication({ optionsJSON: options, useBrowserAutofill: autofill });
+      return api.post<{ user: Me }>('/auth/passkey', { challenge_id, response });
+    },
+    onSuccess: ({ user }) => { qc.setQueryData(['me'], user); proceed(user); },
+    onError: (err, autofill) => { if (!autofill) setError(passkeyError(err, t('passkeys.notUsed'))); },
+  });
+  const canPasskey = browserSupportsWebAuthn();
+  useEffect(() => {
+    let live = true;
+    void browserSupportsWebAuthnAutofill().then((ok) => { if (ok && live) passkey.mutate(true); });
+    return () => { live = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const submit = (e: FormEvent) => { e.preventDefault(); setError(null); login.mutate(); };
   const second = step !== 'password';
 
@@ -63,7 +83,7 @@ export function LoginPage() {
       <form onSubmit={submit} noValidate>
         {!second && (
           <>
-            <TextField label={t('field.identifier')} value={identifier} onChange={setIdentifier} autoComplete="username" autoCapitalize="none" spellCheck={false} required />
+            <TextField label={t('field.identifier')} value={identifier} onChange={setIdentifier} autoComplete="username webauthn" autoCapitalize="none" spellCheck={false} required />
             <TextField label={t('field.password')} value={password} onChange={setPassword} type="password" autoComplete="current-password" required />
           </>
         )}
@@ -82,6 +102,9 @@ export function LoginPage() {
         )}
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn btn-primary" type="submit" disabled={login.isPending}>{login.isPending ? t('common.working') : t('auth.login.submit')}</button>
+        {!second && canPasskey && (
+          <button type="button" className="btn" onClick={() => { setError(null); passkey.mutate(false); }}>{t('auth.login.passkey')}</button>
+        )}
       </form>
       <p className="links">
         <Link to="/forgot-password">{t('auth.login.forgot')}</Link>

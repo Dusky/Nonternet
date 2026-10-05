@@ -68,7 +68,7 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
     const all: Item[] = [
       ...apps.map((a) => ({ key: `app:${a.id}`, label: appName(a, t), kind: t('palette.kind.app'), icon: <AppIcon id={a.id} size={20} />, run: () => go(a.id) })),
       ...boards.map((b) => ({ key: `board:${b.slug}`, label: b.name, kind: t('palette.kind.board'), icon: <AppIcon id="boards" size={20} />, run: () => go('boards', b.slug) })),
-      ...(['profile', 'appearance', 'password', 'two-factor', 'terminal', 'data'] as const).map((s) => ({
+      ...(['profile', 'appearance', 'password', 'two-factor', 'passkeys', 'terminal', 'data'] as const).map((s) => ({
         key: `settings:${s}`, label: t(`settings.tab.${s === 'two-factor' ? 'twofa' : s}`), kind: t('app.settings'), icon: <AppIcon id="settings" size={20} />, run: () => go('settings', s),
       })),
     ];

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { forgotPasswordSchema, loginInputSchema, resetPasswordSchema, signupInputSchema } from '@app/shared';
+import { forgotPasswordSchema, loginInputSchema, passkeyLoginSchema, resetPasswordSchema, signupInputSchema } from '@app/shared';
 import { z } from 'zod';
 import * as accounts from '../accounts';
+import * as passkeys from '../passkeys';
 import { COOKIE, ctxOf, requireUser, setSessionCookie } from '../http';
 import type { AppDeps } from '../deps';
 
@@ -26,6 +27,15 @@ export function authRoutes(app: FastifyInstance, deps: AppDeps): void {
   }, async (req, reply) => {
     const input = loginInputSchema.parse(req.body);
     const { token, user } = await accounts.login(deps, input, ctxOf(deps, req));
+    setSessionCookie(deps, reply, token);
+    return { user };
+  });
+
+  // Signing in with a passkey (docs/02): ask for a challenge, then answer it. No handle is sent; the passkey says whose it is.
+  app.post('/api/v1/auth/passkey/options', { config: perIp(30, '1 minute') }, async () => passkeys.loginOptions(deps));
+  app.post('/api/v1/auth/passkey', { config: perIp(10, '1 minute') }, async (req, reply) => {
+    const input = passkeyLoginSchema.parse(req.body);
+    const { token, user } = await passkeys.finishLogin(deps, input, ctxOf(deps, req));
     setSessionCookie(deps, reply, token);
     return { user };
   });

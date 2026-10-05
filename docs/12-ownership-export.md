@@ -30,6 +30,7 @@ files/{area}/{name}      # every file they uploaded to the file areas, as upload
 vouches.json             # vouches they gave
                          # QWK replies are ordinary posts, so they are in posts/ already: for whom, their note, and what came of it (M7)
 keys/public.key          # public key; private key only if user opts in with password protection
+keys/passkeys.json       # passkeys you have (name, added, last used); no key material, not imported
 README.txt               # human explanation of the archive
 ```
 - Exports are built by a worker, emailed/notified when ready, expire after 7 days.

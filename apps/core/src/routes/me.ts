@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { changePasswordSchema, profileUpdateSchema } from '@app/shared';
+import { changePasswordSchema, passkeyAddSchema, passkeyOptionsSchema, passkeyRenameSchema, profileUpdateSchema } from '@app/shared';
 import { z } from 'zod';
 import * as accounts from '../accounts';
+import * as passkeys from '../passkeys';
 import { createReadStream } from 'node:fs';
 import { ctxOf, requireUser } from '../http';
 import * as exports_ from '../exports/service';
@@ -53,6 +54,21 @@ export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/me/totp/disable', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req, reply) => {
     const body = z.object({ password: z.string().max(200), ...secondFactor }).parse(req.body);
     await accounts.totpDisable(deps, requireUser(req), body, ctxOf(deps, req), (err) => req.log.error({ err }, 'totp-off email failed'));
+    return reply.code(204).send();
+  });
+
+  // Passkeys (docs/02). Adding one needs the password; the browser then makes the key and the answer is checked here.
+  app.get('/api/v1/me/passkeys', async (req) => ({ passkeys: await passkeys.listPasskeys(deps, requireUser(req).userId) }));
+  app.post('/api/v1/me/passkeys/options', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req) =>
+    passkeys.registrationOptions(deps, requireUser(req), passkeyOptionsSchema.parse(req.body).password));
+  app.post('/api/v1/me/passkeys', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req, reply) =>
+    reply.code(201).send({ passkey: await passkeys.finishRegistration(deps, requireUser(req), passkeyAddSchema.parse(req.body), ctxOf(deps, req)) }));
+  app.patch('/api/v1/me/passkeys/:id', async (req, reply) => {
+    await passkeys.renamePasskey(deps, requireUser(req), (req.params as { id: string }).id, passkeyRenameSchema.parse(req.body).name);
+    return reply.code(204).send();
+  });
+  app.delete('/api/v1/me/passkeys/:id', async (req, reply) => {
+    await passkeys.removePasskey(deps, requireUser(req), (req.params as { id: string }).id, ctxOf(deps, req));
     return reply.code(204).send();
   });
 

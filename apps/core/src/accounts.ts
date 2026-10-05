@@ -221,7 +221,16 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   if (u.status === 'suspended') throw new ApiError(403, 'suspended', 'This account is suspended. Contact the admins to appeal.');
 
   await requireSecondFactor(deps, u, input, ctx);
+  return openSession(deps, u, ctx);
+}
 
+export interface LoginRow {
+  id: string; handle: string; display_name: string | null; bio: string | null; theme: ThemeName | null; theme_variant: TerminalScheme | null; email: string; email_verified_at: string | null;
+  role: SessionUser['role']; role_rev: number; totp_enabled_at: string | null;
+}
+
+// A new web session for someone who has proved who they are (a password and code, or a passkey).
+export async function openSession(deps: AppDeps, u: LoginRow, ctx: Ctx): Promise<{ token: string; user: Me }> {
   // When the site requires it (security.require_admin_2fa, docs/02), an admin without TOTP gets a limited session until they set it up.
   const limited = deps.config.security.require_admin_2fa && u.role === 'admin' && !u.totp_enabled_at;
   const token = randomToken();

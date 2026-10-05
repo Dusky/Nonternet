@@ -10,6 +10,7 @@ import { resolveOidcClients } from './oidc/provider';
 import { ircSecrets } from './irc/secrets';
 import { mudSecrets } from './mud/secrets';
 import { bbsSecrets } from './bbs/secrets';
+import { passkeySite } from './passkey-site';
 
 // Rate limits are on unless RATE_LIMIT=off, which exists for automated tests that sign up more people
 // than one address is allowed to. It refuses to run in production, where turning them off is never
@@ -48,6 +49,8 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
   const allowedOrigins = [new URL(publicUrl).origin, `https://${config.site.domain}`];
   // The dev shell (Vite) and the local compose front door.
   if (!production) allowedOrigins.push('http://localhost:5173', 'http://localhost:8080');
+  // Passkeys can't belong to an IP address, so a local 127.0.0.1 address also answers as localhost (passkeys.ts).
+  if (!production && passkeySite(publicUrl).rpID === 'localhost') allowedOrigins.push(passkeySite(publicUrl).origin);
   return {
     config,
     db: connect(env.DATABASE_URL),

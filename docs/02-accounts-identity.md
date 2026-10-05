@@ -30,7 +30,7 @@
 - New accounts start as **guest** until email verified and (if application mode) approved,
   then become **user**.
 - Password: argon2id, 10–128 characters, no composition rules (length is what counts).
-  TOTP is optional for everyone; a site can require it for admins (below, decided 2026-10-02). Passkeys later.
+  TOTP is optional for everyone; a site can require it for admins (below, decided 2026-10-02). Passkeys are built (below, 2026-10-05).
 - **Invite codes**: `XXXX-XXXX-XXXX`, single use, 14 days by default, created by admins.
   Unknown, used and expired codes all give the same error so codes can't be probed.
 - **Application mode** (built 2026-10-03; an admin setting, `signup.mode`):
@@ -90,6 +90,18 @@
   - The old address is told, with the new one masked (`n•••@example.org`).
   - Nothing changes until the link is opened (`POST /auth/confirm-email`, which works signed in or not), so a typo can't lock anyone out.
   - Audited as `user.email_change_requested` and `user.email_changed`, with masked addresses.
+
+- **Passkeys** (DECIDED and built 2026-10-05, with SimpleWebAuthn):
+  - **Settings → Passkeys** lists them (name, added, last used, whether a password manager syncs it), renames them, and removes one at once with Undo.
+  - Adding one needs the current password (`POST /me/passkeys/options {password}`, then `POST /me/passkeys {challenge_id, name, response}`). A session someone else picked up can't quietly add its own way back in. Each person can have up to 20.
+  - Adding one is audited (`user.passkey_added`) and emails the person, like a password change. Removing one is audited (`user.passkey_removed`).
+  - **Log in → Use a passkey**, and where the browser can, a suggestion under the handle field (conditional mediation). `POST /auth/passkey/options` gives an anonymous challenge that names no account. `POST /auth/passkey {challenge_id, response}` finds the account from the passkey.
+  - Passkeys must check who you are (PIN, fingerprint or face; `userVerification: required`). So a passkey counts as both factors: it skips the password and the TOTP code.
+  - A passkey does not satisfy `security.require_admin_2fa`. That setting still means TOTP, so an admin without TOTP still gets a limited session after a passkey login. Kept strict on purpose; revisit if admins ask.
+  - Challenges are single use and last five minutes (`webauthn_challenges`). The signature counter is stored and updated, and a suspended or deleted account's passkey is refused.
+  - A passkey belongs to the hostname of `PUBLIC_URL`. Browsers refuse an IP address there, so outside production a `127.0.0.1` address uses `localhost` on the same port, and that origin is allowed too (this is how the e2e tests use Chrome's virtual authenticator).
+  - The WebAuthn user handle is the stable user id, so a rename doesn't orphan a passkey. Passkeys are in the export as a record (`keys/passkeys.json`: name, dates, synced, transports; no key material). They are not imported, since a passkey only works on the site that made it. They are deleted with the account.
+  - The terminal (BBS, IRC, MUD) is unchanged: it keeps the terminal password and SSH keys.
 
 ## Roles, ops and `role_rev` (built in M1)
 - An admin changes a role with a reason (`POST /admin/users/:id/role`). Role, ops and suspension

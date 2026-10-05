@@ -170,12 +170,17 @@ const boards: Exporter = {
 
 const keys: Exporter = {
   id: 'keys',
-  tables: ['ssh_keys'],
+  tables: ['ssh_keys', 'webauthn_credentials'],
   async run({ deps, user, add }) {
     if (user.public_key) add('keys/public.key', user.public_key);
     // SSH keys for the BBS (docs/04), as an authorized_keys file.
     const r = await deps.db.query<{ key_type: string; public_key: string; name: string }>(`SELECT key_type, public_key, name FROM ssh_keys WHERE user_id = $1 ORDER BY created_at`, [user.id]);
     if (r.rowCount) add('keys/ssh_authorized_keys', r.rows.map((k) => `${k.key_type} ${k.public_key} ${k.name.replace(/\s+/g, '_')}`).join('\n') + '\n');
+    // Passkeys (docs/02): which ones you have and when they were used. A passkey only works on this site's address, so
+    // this is a record, not something another site could take in.
+    const p = await deps.db.query<{ id: string; name: string; created_at: Date; last_used_at: Date | null; backed_up: boolean; transports: string[] }>(
+      `SELECT id, name, created_at, last_used_at, backed_up, transports FROM webauthn_credentials WHERE user_id = $1 ORDER BY created_at`, [user.id]);
+    if (p.rowCount) add('keys/passkeys.json', json(p.rows.map((k) => ({ id: k.id, name: k.name, created_at: k.created_at.toISOString(), last_used_at: k.last_used_at?.toISOString() ?? null, synced: k.backed_up, transports: k.transports }))));
   },
 };
 
@@ -302,6 +307,7 @@ export const EXEMPT: Record<string, string> = {
   legal_page_versions: 'site documents written by admins',
   legal_requests: 'takedown requests from the public, about content rather than by the account',
   sessions: 'security state, not content',
+  webauthn_challenges: 'one-use passkey challenges that last five minutes, security state rather than content',
   terminal_tickets: 'one-use sign-in tickets for chat and the MUD',
   irc_applied: 'a record of what the bot has told the IRC server',
   email_verifications: 'security state, not content',

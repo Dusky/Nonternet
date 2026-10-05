@@ -57,6 +57,19 @@ export const loginInputSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginInputSchema>;
 
+// Passkeys (docs/02). The browser's answer is checked by the server's WebAuthn library, so here it is only
+// limited in size; its shape is the library's business.
+export const PASSKEY_NAME_MAX = 60;
+export const passkeyNameSchema = z.string().trim().max(PASSKEY_NAME_MAX, `keep the name to ${PASSKEY_NAME_MAX} characters`);
+const webauthnAnswer = z.record(z.string(), z.unknown()).refine((v) => JSON.stringify(v).length <= 16_000, 'that answer is too big');
+const challengeId = z.string().min(10).max(64);
+export const passkeyOptionsSchema = z.object({ password: z.string().min(1, 'enter your password').max(PASSWORD_MAX) });
+export const passkeyAddSchema = z.object({ challenge_id: challengeId, name: passkeyNameSchema, response: webauthnAnswer });
+export const passkeyRenameSchema = z.object({ name: passkeyNameSchema.min(1, 'give it a name') });
+export const passkeyLoginSchema = z.object({ challenge_id: challengeId, response: webauthnAnswer });
+export const passkeySchema = z.object({ id: z.string(), name: z.string(), created_at: z.string(), last_used_at: z.string().nullable(), backed_up: z.boolean() });
+export type Passkey = z.infer<typeof passkeySchema>;
+
 // What /me returns.
 export const meSchema = z.object({
   id: z.string(),
