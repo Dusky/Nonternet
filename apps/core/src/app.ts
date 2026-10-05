@@ -34,6 +34,7 @@ import { appsRoutes } from './routes/apps';
 import { classicsRoutes } from './routes/classics';
 import { pushRoutes } from './routes/push';
 import { feedRoutes } from './routes/feeds';
+import { wikiRoutes } from './routes/wiki';
 import { siteIcon, webManifest } from './site-icons';
 import { isPublicRoute } from './public-routes';
 
@@ -66,7 +67,8 @@ export async function buildApp(deps: AppDeps) {
   // Errors are { error: { code, message } } (docs/14).
   app.setErrorHandler((error, req, reply) => {
     const err = error as Error & { statusCode?: number };
-    if (err instanceof ApiError) return reply.code(err.status).send({ error: { code: err.code, message: err.message } });
+    // An error may carry details the screen needs (a wiki edit conflict sends back the page as it is now).
+    if (err instanceof ApiError) return reply.code(err.status).send({ error: { code: err.code, message: err.message, ...((err as ApiError & { details?: object }).details ?? {}) } });
     if (err instanceof ZodError) {
       const first = err.issues[0];
       return reply.code(400).send({ error: { code: 'invalid_input', message: plainZodMessage(first) } });
@@ -138,5 +140,6 @@ export async function buildApp(deps: AppDeps) {
   classicsRoutes(app, deps);
   pushRoutes(app, deps);
   feedRoutes(app, deps);
+  wikiRoutes(app, deps);
   return app;
 }

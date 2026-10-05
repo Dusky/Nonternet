@@ -27,6 +27,7 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['GET', /^\/api\/v1\/files(\/areas\/:slug|\/:id(\/download)?)?$/, 'public file areas (docs/05)'],
   ['GET', /^\/api\/v1\/search$/, 'searching public boards'],
   ['GET', /^\/ring\//, 'webring navigation for visitors of homepages'],
+  ['GET', /^\/api\/v1\/wiki\/:wiki(\/(pages|changes|wanted|search)(\/:slug(\/(history|links-here|revisions\/:revision))?)?)?$/, 'reading the site wiki and ring wikis, as public boards are read (docs/20)'],
   ['GET', /^\/feeds\//, 'Atom feeds of public boards and people\u2019s public posts (docs/05)'],
 ];
 

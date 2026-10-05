@@ -1,4 +1,5 @@
 import { removeImportFiles } from './imports';
+import { forgetEditor } from './wiki';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { en } from '@app/strings';
@@ -45,6 +46,8 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
       await q.query(`DELETE FROM post_revisions WHERE post_id IN (SELECT id FROM posts WHERE author_id = $1)`, [userId]);
     }
     await q.query(`UPDATE posts SET author_id = NULL WHERE author_id = $1`, [userId]);
+    // Wiki revisions follow the same choice (wiki.ts).
+    await forgetEditor(q, userId, opts.posts === 'erase');
     await q.query(`UPDATE post_revisions SET editor_id = NULL WHERE editor_id = $1`, [userId]); // edits made as a moderator stay, unsigned
     await q.query(`DELETE FROM post_reactions WHERE user_id = $1`, [userId]);
     if (opts.posts === 'erase') await q.query(`UPDATE guestbook_entries SET message = '', name = $2, url = NULL, status = 'hidden', author_id = NULL WHERE author_id = $1`, [userId, en['account.deletedName']]);

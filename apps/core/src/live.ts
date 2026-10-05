@@ -8,7 +8,8 @@ export type LiveEvent =
   | { type: 'board'; slug: string; thread: string }
   | { type: 'announcements' }
   | { type: 'classics' }
-  | { type: 'presence' };
+  | { type: 'presence' }
+  | { type: 'wiki'; wiki: string; slug: string; revision: number };
 
 export interface LiveSub { userId: string; confirmed: boolean; send: (e: LiveEvent) => void; close: () => void }
 

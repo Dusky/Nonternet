@@ -157,7 +157,9 @@ export interface ReportView {
   escalated: boolean; other_open: number;
   reporter: { handle: string };
   board: { slug: string; name: string };
-  target: { type: 'post' | 'homepage' | 'guestbook' | 'mail_message' | 'file'; id: string; handle: string | null };
+  target: { type: 'post' | 'homepage' | 'guestbook' | 'mail_message' | 'file' | 'wiki_page'; id: string; handle: string | null };
+  // For a wiki page: which wiki and page, to open it from the report.
+  wiki?: { ref: string; slug: string; title: string } | null;
   post: { id: string; thread_id: string; subject: string; excerpt: string; state: PostView['state']; author: string | null } | null;
   excerpt: string;   // the reported words: a post, a guestbook entry, or a homepage's title
   resolved_by: string | null; resolved_at: string | null; resolution_note: string | null;

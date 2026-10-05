@@ -295,6 +295,22 @@ const pushDevices: Exporter = {
   },
 };
 
+// The wiki (docs/20): every revision the person wrote, and the pages they started. Pages are shared work, so the
+// export holds their own contributions, as it holds their own posts and not whole threads.
+const wikiExporter: Exporter = {
+  id: 'wiki',
+  tables: ['wiki_revisions', 'wiki_pages'],
+  async run({ deps, user, add }) {
+    const r = await deps.db.query<{ ref: string; slug: string; revision: number; title: string; body: string; summary: string; created_at: Date; created: boolean }>(
+      `SELECT CASE WHEN w.scope_type = 'site' THEN 'site' ELSE 'ring:' || g.slug END AS ref, p.slug, r.revision, r.title, r.body, r.summary, r.created_at, r.revision = 1 AS created
+         FROM wiki_revisions r JOIN wiki_pages p ON p.id = r.page_id JOIN wikis w ON w.id = p.wiki_id LEFT JOIN rings g ON g.id = w.ring_id
+        WHERE r.editor_id = $1 ORDER BY r.created_at`, [user.id]);
+    if (!r.rowCount) return;
+    add('wiki/revisions.json', json(r.rows.map((x) => ({ wiki: x.ref, page: x.slug, revision: x.revision, title: x.title, summary: x.summary, text: x.body, at: x.created_at.toISOString() }))));
+    add('wiki/pages-started.json', json(r.rows.filter((x) => x.created).map((x) => ({ wiki: x.ref, page: x.slug, title: x.title, at: x.created_at.toISOString() }))));
+  },
+};
+
 // What apps people added kept for them (docs/10): apps/installed.json, and apps/{app}/{collection}.json for every
 // app with data, whether or not it is still added or still offered.
 const appsData: Exporter = {
@@ -307,7 +323,7 @@ const appsData: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices];
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices, wikiExporter];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.
@@ -321,6 +337,9 @@ export const EXEMPT: Record<string, string> = {
   legal_page_versions: 'site documents written by admins',
   legal_requests: 'takedown requests from the public, about content rather than by the account',
   sessions: 'security state, not content',
+  wikis: 'which wikis exist (the site’s, and rings that switched one on); the pages people wrote are in wiki/',
+  wiki_links: 'which pages link to which, rebuilt from the page text on every save',
+  wiki_redirects: 'old names of renamed pages, so their addresses keep working',
   webauthn_challenges: 'one-use passkey challenges that last five minutes, security state rather than content',
   terminal_tickets: 'one-use sign-in tickets for chat and the MUD',
   irc_applied: 'a record of what the bot has told the IRC server',

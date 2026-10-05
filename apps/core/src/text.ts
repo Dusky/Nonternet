@@ -9,7 +9,8 @@ import { BODY_MAX, SUBJECT_MAX, TERMINAL_COLUMNS, type PostPreview } from '@app/
 // eslint-disable-next-line no-control-regex
 const UNSAFE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2069\uFEFF]/g;
 
-export function normalizeBody(raw: string): string {
+// `max` and `what` let other long texts (a wiki page) share the same cleaning with their own limit.
+export function normalizeBody(raw: string, opts: { max?: number; what?: string } = {}): string {
   const text = raw
     .normalize('NFC')
     .replace(/\r\n?/g, '\n')
@@ -21,7 +22,8 @@ export function normalizeBody(raw: string): string {
     .replace(/^\n+/, '')
     .replace(/\s+$/u, '');
   if (!text) throw new ApiError(400, 'empty_body', 'Write something first.');
-  if ([...text].length > BODY_MAX) throw new ApiError(400, 'body_too_long', `A post can be up to ${BODY_MAX.toLocaleString('en-US')} characters.`);
+  const max = opts.max ?? BODY_MAX;
+  if ([...text].length > max) throw new ApiError(400, 'body_too_long', `${opts.what ?? 'A post'} can be up to ${max.toLocaleString('en-US')} characters.`);
   return text;
 }
 

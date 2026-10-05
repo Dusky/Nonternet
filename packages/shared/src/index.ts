@@ -15,3 +15,5 @@ export * from './classics';
 export * from './clients';
 export * from './apps';
 export * from './push';
+export * from './wikitext';
+export * from './wiki';
