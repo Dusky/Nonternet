@@ -422,12 +422,15 @@ Generated art, kept in `apps/shell/public/art/` (served as `/art/…`). Each is 
 hear only the words beside it. It is drawn in the Webring zine style, or as plain pixel art where it must stay sharp
 small.
 - **Front page:** `hillside.webp`, beside the title on wide screens and above it on narrow ones.
-- **Not found:** `lost.webp` (a signpost with blank boards and a puzzled dog), above the heading of the "That page does
-  not exist." card.
+- **Not found:** `lost.webp`, a card-catalogue drawer with one card missing, above the heading of the "That page does
+  not exist." card. It is drawn by Grok Imagine 2.0 and printed with `tools/art/riso.py` (see its README).
 - **Empty places:** `EmptyState` takes `art`: `mail` (inbox), `notebook` (wiki), `folder` (files) and `campfire` (rings).
   Without `art` it keeps its icon.
 - **Rings:** `rings.webp` as a banner above the rings list. **MUD:** `tower.webp`, small, beside the new-player tips.
 - **Not placed yet:** `offline.webp` (an unplugged modem). The offline banner is a one-line strip, so there is no
   screen for it yet.
 - Wallpapers (above) use the same pictures at screen size. The generated icon set was tried and not used.
-- Rule: new pictures are made without any text or letters in them, so a rename never needs new art.
+- Rule: new pictures have no people, animals or other characters, and no text or letters, so a rename never needs
+  new art. They are printed with `tools/art/riso.py` in the Webring inks rather than used as the model made them.
+- To replace: the hillside, the rings banner, the lantern scenes, harbour lights and the tower all contain small figures,
+  so they break the rule above.
