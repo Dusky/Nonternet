@@ -434,3 +434,4 @@ All are decorative (`aria-hidden`); the words beside them say everything. Code: 
   (files) and `ring` (rings, one place empty). Without `art` it keeps its icon.
 - **Rings:** `RingOrbit`, sites joined in a loop, with a light going once round it as a webring does.
 - **MUD:** a small tower in text characters beside the tips.
+- **Can't reach the site:** the screen shown when the site's config won't load has an unplugged plug and socket (`Spot` kind `plug`) above its message and Retry button.

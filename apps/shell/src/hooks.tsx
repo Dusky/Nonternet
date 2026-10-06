@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Me, PublicSite } from '@app/shared';
 import { en, makeT } from '@app/strings';
 import { api, ApiError } from './api';
+import { Spot } from './components/Spots';
 import { fetchSite } from './site';
 import { setFavicon, watchThemeForFavicon } from './shell/tabInfo';
 import { applyTheme, hasRememberedTheme, setSiteWallpapers } from './theme';
@@ -26,6 +27,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   if (q.isError) {
     return (
       <main className="center">
+        <Spot kind="plug" />
         <p role="alert">{en['error.generic']}</p>
         <button className="btn" onClick={() => void q.refetch()}>{en['common.retry']}</button>
       </main>

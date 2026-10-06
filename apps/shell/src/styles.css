@@ -1212,6 +1212,7 @@ button.chat-person:hover { text-decoration: underline; }
 .spot .sp-empty { stroke-dasharray: 4 3; }
 .sp-orbit { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 1 7; stroke-linecap: round; }
 .spot .sp-label { font: 700 14px var(--font-label); fill: var(--pop-text); }
+.center > svg.spot { width: 128px; height: 96px; margin: 0 auto var(--space-3); overflow: visible; }
 .empty svg.spot { width: 128px; height: 96px; padding: 0; background: none; border: 0; border-radius: 0; overflow: visible; transform: rotate(var(--tilt)); }
 
 /* A small window, for drawings of the desktop. */

@@ -7,7 +7,7 @@ import { useT } from '../hooks';
 // shadows as its buttons and cards, so each one changes with the theme. All decorative: the words beside them say
 // everything, so screen readers skip them.
 
-export type SpotKind = 'mail' | 'notebook' | 'folder' | 'ring';
+export type SpotKind = 'mail' | 'notebook' | 'folder' | 'ring' | 'plug';
 
 // A small drawing for an empty place. Each shape is drawn twice: once offset in the line colour (the shadow), then
 // in place.
@@ -55,6 +55,18 @@ const SPOTS: Record<SpotKind, React.ReactNode> = {
       <path className="sp-ink" d="M14 44h100l-8 40H22z" transform="translate(4 4)" />
       <path className="sp-s1 sp-line" d="M14 44h100l-8 40H22z" />
       <path className="sp-thin" d="M48 62h32" />
+    </>
+  ),
+  // A plug that has come out of its socket, for when the site can't be reached.
+  plug: (
+    <>
+      {shadow('M10 36h46v24H10z')}
+      <path className="sp-s2 sp-line" d="M10 36h46v24H10z" />
+      <path className="sp-line" d="M56 42h10M56 54h10M10 48H0" />
+      {shadow('M82 30h36v36H82z')}
+      <path className="sp-s1 sp-line" d="M82 30h36v36H82z" />
+      <path className="sp-line" d="M92 42v12M108 42v12" />
+      <path className="sp-pop sp-line" d="M68 20l6 8-8 4 7 9" />
     </>
   ),
   // A ring of sites, one of them waiting to be filled in.

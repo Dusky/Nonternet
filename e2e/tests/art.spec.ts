@@ -36,3 +36,11 @@ test('empty places get a drawing, and the rings page its loop', async ({ page })
   await page.goto('/rings');
   await expect(page.locator('svg.ring-orbit')).toBeVisible();
 });
+
+test('when the site cannot be reached, the error screen shows an unplugged drawing and a way to retry', async ({ page }) => {
+  await page.route('**/api/v1/site', (route) => route.abort());
+  await page.goto('/');
+  await expect(page.getByRole('alert')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('svg.spot-plug')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+});
