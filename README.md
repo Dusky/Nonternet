@@ -1,40 +1,55 @@
 # Nonternet
 
-> **"Nonternet" is a placeholder name.** The final name depends on which domain is
-> available. The name and domain live in one place, the site config, and nothing else
-> hard-codes them — see `CLAUDE.md`.
+> **"Nonternet" is a working title.** We'll pick the real name once we know which domain we can get. The name and
+> domain live in one place, the site config, and nothing else is allowed to hard-code them (see `CLAUDE.md`).
 
-Nonternet is a hosted, one-stop "old internet" service. It is **one big site** run by a
-single admin team, where people get a real BBS, IRC, a shared MUD and Geocities-style
-homepages behind one login and one retro-styled web interface. People organize themselves
-into **rings**, groups modeled on old webrings, each with its own board, chat channel and
-homepage nav bar.
+Remember when the internet was a handful of places you actually hung out? A BBS you dialled into, an IRC channel that
+was always on, a MUD where your friends were, a homepage you built yourself out of tiles and a visitor counter. This is
+that, all in one site, with one login.
 
-People **own their stuff**: everything they make is exportable in open formats, and the
-design leaves room for self-hosting and federation later. Nobody needs to run a server to
-take part.
+You get boards, chat, a MUD, a terminal BBS, a wiki and your own homepage, all inside a web desktop that feels a bit
+like an old OS (windows, a taskbar, themes) but works fine on a phone. People gather in **rings**, named after
+webrings: each ring has its own board, chat channel and a nav bar that links its members' homepages together.
+
+Whatever you make here is yours. One click exports all of it in plain, open formats, and you can bring an export back
+in. Nobody has to run a server to join; one team runs the site for everyone.
+
+![The desktop: the BBS in a Terminal window next to a board](docs/screenshots/desktop.webp)
+
+![The front page for visitors who aren't signed in](docs/screenshots/front.webp)
+
+## What's in it
+
+- **The desktop.** Apps open as windows you can drag, snap and resize. There's a command palette (Ctrl+K), five
+  themes, a wallpaper of your own, and a proper phone layout. It installs as an app and can send push notifications.
+- **Boards and rings.** Threaded boards with editing, pins, reactions and search, updating live. Rings bundle a board,
+  a chat channel and a homepage nav bar.
+- **Homepages.** Your own little website, Geocities style, with an editor that previews as you type, widgets,
+  guestbooks, an 88×31 button maker and custom domains. Homepages run on their own domain, so nothing on them can touch
+  your account.
+- **Chat.** A real IRC server (Ergo) that knows your account, and a chat window in the site.
+- **The MUD.** A tower that's generated fresh every season, with floors to climb, gear to find and a leaderboard.
+  Built on Evennia; you can play from the site or any MUD client.
+- **The BBS.** Telnet, SSH or the Terminal window: oneliners, bulletins, polls, door games and QWK offline mail.
+- **Wiki.** One for the site, and one for any ring that wants it, with history, diffs and edit-conflict handling.
+- **The old protocols.** Read-only Gopher and Gemini mirrors of the public parts, finger with your `.plan`, and Atom
+  feeds.
+- **Mail and people.** Private messages and small group threads, profiles, a directory and notifications.
+- **Apps.** Add small extras to your desktop (there's a to-do list to start with). They run sandboxed and keep only
+  their own data.
+- **Sign-in.** Passwords, passkeys and optional two-factor. One account works for the site, chat, the MUD and the BBS.
+- **Running it.** An admin console (status, users, moderation, audit log, backups, updates) and `deploy/sitectl` for
+  installing, backing up, testing restores and upgrading.
+
+**Coming next:** bookmarks (save and share links, like Linkding) and a private-by-default memo feed, so the signed-in
+front page can be your browser's home page. The plans are in `docs/21-bookmarks.md` and `docs/22-memos.md`.
 
 ## Where it stands
-Everything in the v1 plan and the milestone M9 "finishing touches" is built, tested and
-runs together. What is left before opening to the public is not code: choosing the real
-name and domain, a lawyer's review of the legal pages, funding, and real DNS and email.
-See `docs/16-roadmap.md` (what was built, in order) and `docs/17-decisions.md` (what was
-decided, what was found, and what is still open).
 
-What is in the box:
-
-| | |
-|---|---|
-| **Web shell** | A desktop-style site: windows, a launcher, a command palette, themes, a phone layout. Boards, rings, mail, people, files, notifications, settings and the admin console are apps inside it. |
-| **Boards and rings** | Threaded boards with editing, pins, reactions and search; rings with their own board, chat channel and nav bar. Live updates by server-sent events. |
-| **Homepages** | Personal static sites on their own domains, with a studio, widgets, a button maker, guestbooks, ring banners and custom domains. User HTML never runs on the site's origin. |
-| **Chat (IRC)** | An Ergo server whose accounts come from core, with a chat app in the shell. |
-| **MUD** | An Evennia world with a starting town, two adventure areas, a quest, a shop, a noticeboard, a guestbook and opt-in duels. |
-| **BBS** | A terminal BBS over telnet, SSH and a web Terminal window, with oneliners, bulletins, polls, door games and QWK offline mail. |
-| **Gopher** | A read-only mirror of the public parts. |
-| **Ownership** | One export (open formats) covers everything a person made, including their MUD characters and chat messages. Accounts can be erased. |
-| **Admin console** | Status, users, moderation, audit log, backups, IRC, MUD and BBS controls. |
-| **Operating** | `deploy/sitectl` for install, backup, restore tests, upgrades and health checks. |
+Everything planned for the first version is built and tested together, plus a fair bit more. What's left before
+opening to the public isn't code: the real name and domain, a lawyer's look at the legal pages, funding, and real DNS
+and email. `docs/16-roadmap.md` lists what was built and in what order, and `docs/17-decisions.md` explains why things
+are the way they are and what's still undecided.
 
 ## See it without setting anything up
 ```sh
@@ -46,7 +61,7 @@ believable community, and prints the address and the logins. Ctrl+C throws it al
 seed is `pnpm --filter @app/core cli seed-demo` (it refuses to run in production).
 
 ## Run it with Docker
-The whole stack: Postgres, Redis, core, the shell, homepages, the BBS, Gopher, the MUD, Ergo and
+The whole stack: Postgres, Redis, core, the shell, homepages, the BBS, Gopher, finger, Gemini, the MUD, Ergo and
 Caddy. This is the local setup; production adds TLS and hardening (below).
 ```sh
 cp deploy/.env.example deploy/.env      # then fill in the five secrets: openssl rand -hex 24 for POSTGRES_PASSWORD,
@@ -135,6 +150,9 @@ behind it.
 | 17 | [Decisions & Open Questions](docs/17-decisions.md) | Decision log, open questions, things found and verified |
 | 18 | [MUD world](docs/18-mud-world.md) | The world's design and what was built in it |
 | 19 | [Operating the site](docs/19-operating.md) | Putting it on a server and keeping it running |
+| 20 | [Wiki](docs/20-wiki.md) | The site wiki and ring wikis |
+| 21 | [Bookmarks](docs/21-bookmarks.md) | Saving and sharing links (planned) |
+| 22 | [Memos](docs/22-memos.md) | A private-by-default memo feed (planned) |
 
 ## Status tags
 Used in the docs, and binding on anyone changing the code:
@@ -147,5 +165,5 @@ Used in the docs, and binding on anyone changing the code:
 - **Before opening:** the real name and domain (Q1), legal review (Q7), funding (Q8), real DNS and email,
   and `./sitectl doctor` on the real server. TLS on a real domain, wildcard homepage domains and real SMTP
   have not been run (V11).
-- **Left for later, on purpose:** Q16, federation and self-hosting, ZMODEM, importing an export archive,
+- **Left for later, on purpose:** Q16, federation and self-hosting (Q12, Q17), outside authors for apps (Q18), ZMODEM,
   and auditing every in-game builder command (removing notes and guestbook lines is audited).
