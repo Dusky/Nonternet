@@ -417,20 +417,17 @@ Settings → Appearance → Desktop wallpaper. The choice is kept on the account
 - **Code:** `apps/core/src/wallpaper.ts`, `apps/shell/src/apps/settings/WallpaperPicker.tsx`, and `applyWallpaper`
   in `theme.ts`. The last choice is kept in `localStorage` so the desktop looks right before the account answers.
 
-## Pictures (2026-10-05)
-Generated art, kept in `apps/shell/public/art/` (served as `/art/…`). Each is decorative (`alt=""`), so screen readers
-hear only the words beside it. It is drawn in the Webring zine style, or as plain pixel art where it must stay sharp
-small.
-- **Front page:** `hillside.webp`, beside the title on wide screens and above it on narrow ones.
-- **Not found:** `lost.webp`, a card-catalogue drawer with one card missing, above the heading of the "That page does
-  not exist." card. It is drawn by Grok Imagine 2.0 and printed with `tools/art/riso.py` (see its README).
-- **Empty places:** `EmptyState` takes `art`: `mail` (inbox), `notebook` (wiki), `folder` (files) and `campfire` (rings).
-  Without `art` it keeps its icon.
-- **Rings:** `rings.webp` as a banner above the rings list. **MUD:** `tower.webp`, small, beside the new-player tips.
-- **Not placed yet:** `offline.webp` (an unplugged modem). The offline banner is a one-line strip, so there is no
-  screen for it yet.
-- Wallpapers (above) use the same pictures at screen size. The generated icon set was tried and not used.
-- Rule: new pictures have no people, animals or other characters, and no text or letters, so a rename never needs
-  new art. They are printed with `tools/art/riso.py` in the Webring inks rather than used as the model made them.
-- To replace: the hillside, the rings banner, the lantern scenes, harbour lights and the tower all contain small figures,
-  so they break the rule above.
+## Pictures (2026-10-05, redone 2026-10-06)
+Every picture on the site is drawn by an image model and then printed with `tools/art/riso.py` as a two-ink risograph
+in the Webring inks: cream paper, black and fluorescent pink (see its README). None has people, animals or other
+characters, and none has text. They are decorative (`alt=""`), so screen readers hear only the words beside them.
+Files live in `apps/shell/public/art/` and `apps/shell/public/wallpapers/`.
+- **Front page:** `art/hillside.webp`, a hillside village joined by telephone wires (Grok Imagine 2.0, linocut).
+- **Not found:** `art/lost.webp`, a card-catalogue drawer with one card missing (Grok Imagine 2.0).
+- **Empty places:** `EmptyState` takes `art`: `mail` (an empty mailbox), `notebook` (blank pages, wiki), `folder` (files)
+  and `campfire` (two empty chairs, rings). Drawn by Recraft V4.1. Without `art` it keeps its icon.
+- **Rings:** `art/rings.webp`, lantern-lit pools joined by paths, as a banner. **MUD:** `art/tower.webp` by the tips.
+- **Wallpapers:** hillside, harbour lights, lanterns, lantern hill and the tower are the same drawings printed lighter
+  (`--density 0.6`) so windows and text sit on them. The two drawings that are mostly black (hillside, lanterns) are
+  printed as negatives: the black field becomes paper and the carved lines become ink.
+- Model sources are kept outside the repo; only the printed results are committed.

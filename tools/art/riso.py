@@ -5,7 +5,7 @@ spot inks laid over paper, each as a real halftone screen at its own angle, slig
 ink and paper grain. Gradients, glows and the hundreds of in-between colours a generator leaves behind cannot
 survive it.
 
-    python riso.py in.png out.png --width 1200 [--paper fff3c4 --ink1 141414 --ink2 ff4fa0]
+    python riso.py in.png out.png --width 1200 [--density 0.6] [--paper fff3c4 --ink1 141414 --ink2 ff4fa0]
 """
 import argparse
 import numpy as np
@@ -41,22 +41,23 @@ def plates(rgb):
     # Warm colours (reds, oranges, pinks) go to the colour ink; cool colours and greys go to the key ink.
     warm = np.clip((r - np.maximum(g, b)) * 3.0, 0, 1)
     cool = sat * (1 - warm)                                           # teals, blues, greens
-    key = smooth(1 - lum, 0.38, 1.0) * (1 - 0.65 * warm) * (1 - 0.5 * smooth(cool, 0.2, 0.6))
-    key = np.maximum(key, (lum < 0.33).astype(np.float32))          # drawn lines stay solid
-    colour = np.clip(warm * 1.25, 0, 1) * smooth(1 - lum, 0.05, 0.55)
+    key = smooth(1 - lum, 0.38, 1.0) * (1 - 0.95 * smooth(warm, 0.1, 0.5)) * (1 - 0.5 * smooth(cool, 0.2, 0.6))
+    key = np.maximum(key, ((lum < 0.33) & (warm < 0.25)).astype(np.float32))  # drawn lines stay solid; reds stay pink
+    colour = smooth(warm, 0.08, 0.45) * smooth(1 - lum, 0.05, 0.45)
     colour = np.maximum(colour, smooth(sat, 0.25, 0.7) * (1 - warm) * 0.35 * smooth(1 - lum, 0.1, 0.6))
     # The source's own paper (light, nearly colourless) is our paper: no ink at all there.
     bare = smooth(lum, 0.74, 0.86) * (1 - smooth(warm, 0.15, 0.4))
     return key * (1 - bare), colour * (1 - bare)
 
 
-def print_riso(img, width, paper, ink1, ink2, cell=None, seed=7, offset=(3, -2)):
+def print_riso(img, width, paper, ink1, ink2, cell=None, seed=7, offset=(3, -2), density=1.0):
     img = img.convert('RGB')
     h = round(img.height * width / img.width)
     rgb = np.asarray(img.resize((width, h), Image.LANCZOS), dtype=np.float32) / 255.0
     # A little blur first, so the screen samples tone rather than the generator's fine noise.
     rgb = ndimage.gaussian_filter(rgb, sigma=(1.0, 1.0, 0))
     key, colour = plates(rgb)
+    key, colour = key * density, colour * density                    # lighter prints sit behind windows
     cell = cell or max(4.0, width / 240)
     rng = np.random.default_rng(seed)
     ink_k = (key > screen(h, width, cell, 45)).astype(np.float32)
@@ -83,5 +84,6 @@ if __name__ == '__main__':
     p.add_argument('--width', type=int, default=1200)
     p.add_argument('--paper', default='fff3c4'); p.add_argument('--ink1', default='141414'); p.add_argument('--ink2', default='ff4fa0')
     p.add_argument('--cell', type=float, default=None)
+    p.add_argument('--density', type=float, default=1.0, help='below 1 prints lighter (wallpapers behind windows)')
     a = p.parse_args()
-    print_riso(Image.open(a.src), a.width, hex_rgb(a.paper), hex_rgb(a.ink1), hex_rgb(a.ink2), a.cell).save(a.dst)
+    print_riso(Image.open(a.src), a.width, hex_rgb(a.paper), hex_rgb(a.ink1), hex_rgb(a.ink2), a.cell, density=a.density).save(a.dst)
