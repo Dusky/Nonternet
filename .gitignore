@@ -11,3 +11,4 @@ playwright-report/
 data/
 deploy/ops/
 packs/build/
+__pycache__/
