@@ -173,7 +173,9 @@ All need a session. The data routes are what the shell's bridge calls on an app'
 ## Wallpaper (2026-10-05, docs/10)
 All routes need a session and act on the caller only.
 - `GET /api/v1/me/wallpaper` returns `{choice, fit, own: {version, source_url} | null}`.
-- `PUT /api/v1/me/wallpaper {choice, fit}`. An unknown preset is `400`; `own` without a picture is `409 no_picture`.
+- `PUT /api/v1/me/wallpaper {choice, fit}`. A preset not in the site config is `400 unknown_wallpaper`; `own` without
+  a picture is `409 no_picture`.
+- `GET /api/v1/wallpapers/{id}[?size=thumb]` (public): one of the site's own wallpapers from `ui.wallpapers`.
 - `PUT /api/v1/me/wallpaper/image` (the picture's bytes; 20 an hour).
 - `POST /api/v1/me/wallpaper/from-url {url}` (10 an hour). Errors: `fetch_refused` for an inside address, a failed
   fetch or too many redirects; `too_big`; `bad_image`.

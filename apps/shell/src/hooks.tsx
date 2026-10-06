@@ -5,7 +5,7 @@ import { en, makeT } from '@app/strings';
 import { api, ApiError } from './api';
 import { fetchSite } from './site';
 import { setFavicon, watchThemeForFavicon } from './shell/tabInfo';
-import { applyTheme, hasRememberedTheme } from './theme';
+import { applyTheme, hasRememberedTheme, setSiteWallpapers } from './theme';
 
 type T = ReturnType<typeof makeT>;
 const SiteContext = createContext<{ site: PublicSite; t: T } | null>(null);
@@ -19,6 +19,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     if (!value) return;
     document.title = value.t('landing.title');
     if (!hasRememberedTheme() && value.site.default_theme) applyTheme(value.site.default_theme, { remember: false });
+    setSiteWallpapers(value.site.wallpapers, value.site.default_wallpaper);
     setFavicon();
     return watchThemeForFavicon();
   }, [value]);

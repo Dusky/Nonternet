@@ -140,9 +140,6 @@ progress { width: 100%; height: 10px; accent-color: var(--accent); }
 .empty svg { width: 44px; height: 44px; padding: 8px; color: var(--sticker-text); background: var(--sticker-4); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); transform: rotate(calc(var(--tilt) * -3)); }
 .empty p { margin: 0; max-width: 40ch; }
 .empty .btn { margin-top: var(--space-2); }
-.empty .empty-art { width: min(160px, 50%); height: auto; padding: 0; background: none; border: 0; border-radius: 0; transform: none; }
-.card-art { display: block; width: min(280px, 100%); height: auto; margin: 0 auto var(--space-3); border-radius: var(--radius-sm); border: var(--control-line) solid var(--line-strong); }
-.landing-art { order: -1; display: block; width: 100%; max-width: 46rem; height: auto; margin: 0 0 var(--space-4); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-card, none); }
 .loading { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); padding: var(--space-4); }
 .loading::before { content: ''; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 .skeleton { display: grid; gap: var(--space-3); padding: var(--space-2) 0; }
@@ -1200,17 +1197,88 @@ button.chat-person:hover { text-decoration: underline; }
 .wiki-diff-sign { flex: none; width: 1ch; font-weight: 700; }
 .wiki-index li { display: flex; justify-content: space-between; gap: var(--space-3); }
 
+/* ---- the site's drawings (components/Spots.tsx): shapes in the theme's colours, thick lines, hard shadows */
+.spot path, .spot rect, .spot circle, .spot ellipse, .ring-orbit rect, .ring-orbit ellipse { fill: none; }
+.spot .sp-ink, .ring-orbit .sp-ink { fill: var(--line-strong); }
+.spot .sp-s1 { fill: var(--sticker-1); }
+.spot .sp-s2 { fill: var(--sticker-2); }
+.spot .sp-s4 { fill: var(--sticker-4); }
+.spot .sp-s5 { fill: var(--sticker-5); }
+.spot .sp-pop { fill: var(--pop); }
+.spot .sp-surface { fill: var(--surface); }
+.spot .sp-line, .ring-orbit .sp-line { stroke: var(--line-strong); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.spot .sp-thin { stroke: var(--line-strong); stroke-width: 2; stroke-linecap: round; opacity: .5; }
+.spot .sp-dash { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 4; }
+.spot .sp-empty { stroke-dasharray: 4 3; }
+.sp-orbit { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 1 7; stroke-linecap: round; }
+.spot .sp-label { font: 700 14px var(--font-label); fill: var(--pop-text); }
+.empty svg.spot { width: 128px; height: 96px; padding: 0; background: none; border: 0; border-radius: 0; overflow: visible; transform: rotate(var(--tilt)); }
+
+/* A small window, for drawings of the desktop. */
+.mini-title { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 3px 6px 3px 8px; background: var(--title-active-bg); background-image: var(--title-image); color: var(--title-active-text); border-bottom: var(--control-line) solid var(--line-strong); font: 800 .72rem/1.2 var(--font-display); white-space: nowrap; overflow: hidden; }
+.mini-title span { overflow: hidden; text-overflow: ellipsis; }
+.mini-title i { flex: none; width: 11px; height: 11px; border: 2px solid currentColor; border-radius: var(--win-btn-radius, 0); }
+
+/* The front page: the site as a small desktop. */
+.scene { position: relative; order: -1; width: 100%; height: 19rem; margin: 0 0 var(--space-5); overflow: hidden; background-color: var(--desktop-bg); background-image: radial-gradient(var(--desktop-dot) 1px, transparent 1.5px); background-size: 16px 16px; border: var(--control-line) solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-card, var(--shadow)); }
+.scene-win { position: absolute; background: var(--surface); color: var(--text); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); overflow: hidden; }
+.scene-boards { left: 5%; top: 8%; width: 60%; z-index: 1; }
+.scene-boards ul { list-style: none; margin: 0; padding: 6px 8px; display: grid; gap: 6px; }
+.scene-boards li { display: grid; gap: 1px; min-width: 0; padding-bottom: 5px; border-bottom: 1px dashed var(--border); }
+.scene-boards li:last-child { border-bottom: 0; padding-bottom: 0; }
+.scene-boards b, .scene-boards small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-boards b { font-size: .78rem; }
+.scene-boards small { font: .62rem var(--font-label); color: var(--muted); }
+.scene .bar { display: block; height: 7px; margin: 2px 0; background: var(--text); opacity: .75; }
+.scene .bar-dim { opacity: .25; }
+.scene-term { right: 4%; top: 30%; width: 50%; z-index: 3; background: #141414; color: #ffb43a; box-shadow: var(--shadow); }
+.scene-term .mini-title { background: #2a2418; background-image: none; color: #ffb43a; border-bottom-color: #ffb43a; }
+.scene-term pre { margin: 0; padding: 8px 10px 10px; font: .7rem/1.35 var(--font-mono); white-space: pre; overflow: hidden; text-shadow: 0 0 5px rgba(255, 180, 58, .45); }
+.scene-caret { display: inline-block; width: .6em; height: 1em; vertical-align: -.15em; background: currentColor; animation: blink 1.1s steps(1) 4; }
+.scene-chat { left: 11%; bottom: 7%; width: 42%; z-index: 2; }
+.scene-bubbles { display: grid; gap: 6px; padding: 8px; }
+.scene .bubble { display: block; height: 12px; background: var(--surface2); border: 2px solid var(--line-strong); border-radius: var(--radius-sm); }
+.scene .bubble-me { justify-self: end; background: var(--accent-soft); }
+.scene-sticker { position: absolute; width: 34px; height: 34px; border: var(--control-line) solid var(--line-strong); box-shadow: var(--shadow-sm); }
+.scene-sticker { right: 30%; bottom: 8%; width: 26px; height: 26px; background: var(--sticker-3); transform: rotate(12deg); }
+@media (prefers-reduced-motion: no-preference) {
+  .scene-win, .scene-sticker { animation: pop-in .45s var(--ease) both; }
+  .scene-term { animation-delay: .12s; }
+  .scene-chat { animation-delay: .24s; }
+  .scene-sticker { animation-delay: .36s; }
+  @keyframes pop-in { from { opacity: 0; translate: 0 10px; scale: .97; } }
+}
 @media (min-width: 900px) {
   .landing-hero { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 28rem); column-gap: var(--space-6); align-items: center; }
   .landing-hero > * { grid-column: 1; }
-  .landing-hero > .landing-art { grid-column: 2; grid-row: 1 / span 8; order: 0; margin: 0; }
+  .landing-hero > .scene { grid-column: 2; grid-row: 1 / span 8; order: 0; margin: 0; }
+}
+@media (max-width: 639px) { .scene { height: 15rem; } .scene-boards { width: 72%; } .scene-term { width: 62%; } .scene-chat { display: none; } }
+
+/* The not-found page: a missing window, and the trail of the ones dragged before it. */
+.lost-stack { position: relative; height: 9.5rem; margin: 0 0 var(--space-4); }
+.lost-win { position: absolute; left: 16%; top: 30px; width: 76%; height: 7rem; translate: calc(var(--n) * -14px) calc(var(--n) * -14px); border: var(--control-line) dashed var(--muted); border-radius: var(--radius-sm); }
+.lost-front { border-style: solid; border-color: var(--line-strong); background: var(--surface); box-shadow: var(--shadow-window, var(--shadow)); overflow: hidden; }
+.lost-body { display: grid; justify-items: center; gap: 2px; padding: var(--space-2) var(--space-3); }
+.lost-path { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .75rem; }
+.lost-code { font: 800 2.6rem/1 var(--font-display); letter-spacing: -.04em; color: var(--pop); -webkit-text-stroke: 2px var(--line-strong); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--line-strong); }
+@media (prefers-reduced-motion: no-preference) {
+  .lost-win { animation: pop-in .4s var(--ease) both; animation-delay: calc((2 - var(--n)) * .1s); }
 }
 
-.section-art { display: block; width: 100%; max-height: 11rem; object-fit: cover; margin: 0 0 var(--space-3); border: var(--control-line) solid var(--line-strong); border-radius: var(--radius); }
+/* The rings page: sites in a loop, and a light going once round it. */
+.ring-orbit { display: block; width: 100%; height: 7.5rem; margin: 0 0 var(--space-3); overflow: visible; }
+.ring-orbit .ring-node-face { fill: var(--sticker-4); }
+.ring-orbit .ring-here .ring-node-face { fill: var(--pop); }
+@media (prefers-reduced-motion: no-preference) {
+  .ring-orbit .ring-node-face { animation: ring-hop .5s steps(1) 1; animation-delay: calc(var(--i) * .5s + .4s); }
+  @keyframes ring-hop { 0% { fill: var(--pop); } }
+}
+@media (max-width: 639px) { .ring-orbit { height: 5.5rem; } }
+
 .mud-tips { display: flex; gap: var(--space-3); align-items: center; }
 .mud-tips p { margin: 0; }
-.mud-tower { width: 3rem; height: auto; border: var(--control-line) solid var(--line-strong); border-radius: var(--radius-sm); flex: none; }
-@media (max-width: 639px) { .section-art { max-height: 7rem; } }
+.mud-tower { flex: none; margin: 0; font: 700 .68rem/1.05 var(--font-mono); color: var(--accent); }
 
 /* On a picture wallpaper the greeting sits on a strip of paper, outlined like a card, so it stays readable over the art. */
 :root[data-wallpaper="picture"] .home-greeting { justify-self: start; width: fit-content; max-width: 100%; background: var(--surface); border: var(--control-line) solid var(--line-strong); padding: var(--space-2) var(--space-3); }

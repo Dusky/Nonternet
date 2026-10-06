@@ -1,5 +1,5 @@
 import { isTerminalScheme, isThemeName, themeCss, themes } from '@app/ui-themes';
-import { DEFAULT_THEME_NAME, LEGACY_THEMES, WALLPAPER_PATTERNS, WALLPAPER_PRESETS, type TerminalScheme, type ThemeName, type WallpaperFit, type WallpaperPattern } from '@app/shared';
+import { DEFAULT_THEME_NAME, LEGACY_THEMES, WALLPAPER_PATTERNS, type TerminalScheme, type ThemeName, type WallpaperFit, type WallpaperPattern } from '@app/shared';
 
 export const DEFAULT_THEME: ThemeName = DEFAULT_THEME_NAME;
 const THEME_KEY = 'ui:theme';
@@ -122,6 +122,15 @@ export const WALLPAPERS = WALLPAPER_PATTERNS;
 export type Wallpaper = WallpaperPattern;
 export interface WallpaperState { choice: string; fit: WallpaperFit; version: number | null }
 const WALLPAPER_KEY = 'ui:wallpaper';
+// The site's own pictures and its default come from the site config (docs/10), set once it has loaded.
+let sitePresets: { id: string; fit: 'cover' | 'tile' }[] = [];
+let siteDefault = 'dots';
+export function setSiteWallpapers(presets: { id: string; fit: 'cover' | 'tile' }[], fallback: string): void {
+  sitePresets = presets;
+  siteDefault = fallback;
+  applyWallpaper(wallpaperPref());
+}
+export const siteDefaultWallpaper = (): WallpaperState => ({ choice: siteDefault, fit: 'cover', version: null });
 export function wallpaperPref(): WallpaperState {
   const v = read(WALLPAPER_KEY);
   if (v && (WALLPAPER_PATTERNS as readonly string[]).includes(v)) return { choice: v, fit: 'cover', version: null }; // saved before pictures existed
@@ -129,12 +138,12 @@ export function wallpaperPref(): WallpaperState {
     const s = JSON.parse(v ?? '') as WallpaperState;
     if (typeof s.choice === 'string') return { choice: s.choice, fit: s.fit ?? 'cover', version: s.version ?? null };
   } catch { /* nothing saved */ }
-  return { choice: 'dots', fit: 'cover', version: null };
+  return siteDefaultWallpaper();
 }
 export function wallpaperSrc(w: WallpaperState): { src: string; fit: WallpaperFit } | null {
   if (w.choice.startsWith('preset:')) {
-    const p = WALLPAPER_PRESETS.find((x) => x.id === w.choice.slice(7));
-    return p ? { src: `/wallpapers/${p.id}.webp`, fit: p.fit } : null;
+    const p = sitePresets.find((x) => x.id === w.choice.slice(7));
+    return p ? { src: `/api/v1/wallpapers/${encodeURIComponent(p.id)}`, fit: p.fit } : null;
   }
   if (w.choice === 'own' && w.version) return { src: `/api/v1/me/wallpaper/image?v=${w.version}`, fit: w.fit };
   return null;

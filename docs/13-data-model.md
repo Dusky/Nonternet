@@ -157,7 +157,8 @@ client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+cl
 - `reports.target_type` gains `wiki_page`.
 
 ## Wallpaper (0043, docs/10)
-- `users.wallpaper` holds a pattern name, `preset:{id}` or `own`; NULL means never chosen, which shows as dots.
+- `users.wallpaper` holds a pattern name, `preset:{id}` or `own`; NULL means never chosen, which shows the site's
+  default (`ui.default_wallpaper`). A preset the operator has taken out of `ui.wallpapers` also shows the default.
 - `users.wallpaper_fit` is `cover`, `tile` or `center`.
 - `users.wallpaper_at` is when their own picture was set (NULL when there is none). The file is
   `{filesDir}/wallpapers/{user id}.webp`.

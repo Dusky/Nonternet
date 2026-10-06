@@ -28,6 +28,9 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
 5. `./sitectl create-admin <handle> <email>`, then sign in on the web and set up two-factor (recommended; the console can require it for all admins).
 6. `./sitectl doctor` should end with "All good."
 7. Add the cron jobs below.
+8. Optional: desktop wallpapers. Put pictures in `deploy/wallpapers/`, list them under `ui.wallpapers` in the site
+   config, choose `ui.default_wallpaper`, and restart core (the folder's README has an example). Not in backups:
+   keep your own copy of the pictures, as with the site config.
 
 ## Routine
 | When | What | Command |

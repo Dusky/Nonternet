@@ -1,19 +1,20 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { WALLPAPER_FITS, WALLPAPER_MAX_BYTES, WALLPAPER_PATTERNS, WALLPAPER_PRESETS, type WallpaperFit, type WallpaperSettings } from '@app/shared';
+import { WALLPAPER_FITS, WALLPAPER_MAX_BYTES, WALLPAPER_PATTERNS, type WallpaperFit, type WallpaperSettings } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, TextField } from '../../components/ui';
 import { useToast } from '../../components/feedback';
-import { errorText, useT } from '../../hooks';
+import { errorText, useSite, useT } from '../../hooks';
 import { applyWallpaperSettings, useWallpaper } from '../../wallpaper';
 import { Section } from './Section';
 
-// The desktop wallpaper (docs/10): a pattern, one of the site's pictures, or your own (uploaded, or copied once from
+// The desktop wallpaper (docs/10): a pattern, one of the site's pictures (listed in the site config), or your own (uploaded, or copied once from
 // a web address). Kept on your account; your own picture is shown only to you.
 
 export function WallpaperPicker() {
   const t = useT();
+  const site = useSite();
   const qc = useQueryClient();
   const toast = useToast();
   const q = useWallpaper();
@@ -63,8 +64,8 @@ export function WallpaperPicker() {
     <Section id="look-wallpaper" title={t('settings.appearance.wallpaper')} scope="account">
       <div className="theme-choices" role="radiogroup" aria-labelledby="look-wallpaper">
         {WALLPAPER_PATTERNS.map((p) => option(p, t(`settings.wallpaper.${p}` as StringKey), <span className={`theme-swatch wallpaper-swatch wp-${p}`} aria-hidden="true" />))}
-        {WALLPAPER_PRESETS.map((p) => option(`preset:${p.id}`, t(`settings.wallpaper.preset.${p.id}` as StringKey),
-          <span className="theme-swatch wallpaper-swatch wallpaper-picture" aria-hidden="true" style={{ backgroundImage: `url("/wallpapers/thumbs/${p.id}.webp")` }} />))}
+        {site.wallpapers.map((p) => option(`preset:${p.id}`, p.name,
+          <span className="theme-swatch wallpaper-swatch wallpaper-picture" aria-hidden="true" style={{ backgroundImage: `url("/api/v1/wallpapers/${encodeURIComponent(p.id)}?size=thumb")` }} />))}
         {w.own && option('own', t('settings.wallpaper.own'),
           <span className="theme-swatch wallpaper-swatch wallpaper-picture" aria-hidden="true" style={{ backgroundImage: `url("/api/v1/me/wallpaper/image?v=${w.own.version}")` }} />)}
       </div>

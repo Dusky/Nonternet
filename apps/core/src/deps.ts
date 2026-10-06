@@ -20,6 +20,7 @@ export interface AppDeps {
   rateLimit: boolean;
   exportsDir: string;       // where finished export archives wait to be downloaded
   opsDir?: string;          // shared with `sitectl agent` on the host, for updates and restarts from the console (docs/19)
+  wallpapersDir: string;    // the site's own wallpaper pictures, named in ui.wallpapers (docs/10)
   filesDir: string;         // where file-area uploads live, one file per ID
   homes: HomeStore;         // where homepage files live
   homesUrl: (handle: string) => string; // a person's homepage address

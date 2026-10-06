@@ -82,6 +82,7 @@ export async function makeApp(db: Db, opts: { yaml?: string; rateLimit?: boolean
     appsUrl: (path) => `https://example-homes.test/apps/${path}`,
     exportsDir: mkdtempSync(join(tmpdir(), 'exports-test-')),
     filesDir: mkdtempSync(join(tmpdir(), 'files-test-')),
+    wallpapersDir: mkdtempSync(join(tmpdir(), 'wallpapers-test-')),
     homes: new HomeStore(mkdtempSync(join(tmpdir(), 'homes-test-'))),
     oidcClients: opts.oidcClients ?? [],
     irc: opts.irc,

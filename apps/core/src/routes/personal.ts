@@ -6,6 +6,7 @@ import { ctxOf, requireAdmin, requireUser } from '../http';
 import * as personal from '../personal';
 import * as wallpaper from '../wallpaper';
 import type { AppDeps } from '../deps';
+import { ApiError } from '../errors';
 
 const userId = z.object({ id: z.string().regex(/^u_[0-9A-Z]{26}$/, 'not a user ID') });
 const slug = z.object({ slug: z.string().max(40) });
@@ -64,7 +65,13 @@ export function personalRoutes(app: FastifyInstance, deps: AppDeps): void {
     return reply.code(204).send();
   });
   // The desktop wallpaper (docs/10): the choice, and the person's own picture, which only they can see.
-  app.get('/api/v1/me/wallpaper', async (req) => wallpaper.getSettings(deps.db, requireUser(req).userId));
+  app.get('/api/v1/me/wallpaper', async (req) => wallpaper.getSettings(deps, requireUser(req).userId));
+  // The site's own pictures, for anyone (they are part of how the site looks, like its stylesheets).
+  app.get<{ Params: { id: string }; Querystring: { size?: string } }>('/api/v1/wallpapers/:id', async (req, reply) => {
+    const p = await wallpaper.readPreset(deps, req.params.id, req.query.size === 'thumb');
+    if (!p) throw new ApiError(404, 'not_found', 'No such wallpaper.');
+    return reply.header('content-type', p.type).header('cache-control', 'public, max-age=3600').header('x-content-type-options', 'nosniff').send(p.data);
+  });
   app.put('/api/v1/me/wallpaper', async (req) => { const b = wallpaperUpdateSchema.parse(req.body); return wallpaper.choose(deps, requireUser(req), b.choice, b.fit); });
   app.get('/api/v1/me/wallpaper/image', async (req, reply) => {
     const w = await wallpaper.read(deps, requireUser(req).userId);

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DEFAULT_THEME_NAME, themeSchema } from './profile';
+import { WALLPAPER_PRESET_ID, isWallpaperPattern } from './wallpaper';
 
 // `site.*` is the only place the product name and domains live (CLAUDE.md, docs/15).
 // There are deliberately no defaults for the name or domains.
@@ -91,7 +92,24 @@ export const siteConfigSchema = z
       })
       .prefault({}),
     // The look people get until they pick one in Settings → Appearance (docs/10). Admin-editable.
-    ui: z.object({ default_theme: themeSchema.default(DEFAULT_THEME_NAME) }).prefault({}),
+    // `wallpapers` are the site's own desktop pictures, offered in Settings next to the drawn patterns: each `file` is
+    // a picture in WALLPAPERS_DIR (docs/10, docs/19). `default_wallpaper` is what people get until they choose: a
+    // pattern ("dots", "grid", "stripes", "plain") or "preset:{id}".
+    ui: z.object({
+      default_theme: themeSchema.default(DEFAULT_THEME_NAME),
+      wallpapers: z.array(z.object({
+        id: z.string().regex(WALLPAPER_PRESET_ID, 'lowercase letters, digits and hyphens'),
+        name: z.string().min(1).max(40),
+        file: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*\.(png|jpe?g|webp|gif|avif)$/i, 'a picture file name in WALLPAPERS_DIR, no folders'),
+        fit: z.enum(['cover', 'tile']).default('cover'),
+      })).max(50).default([]),
+      default_wallpaper: z.string().default('dots'),
+    }).prefault({}).superRefine((ui, ctx) => {
+      const ids = new Set<string>();
+      ui.wallpapers.forEach((w, i) => { if (ids.has(w.id)) ctx.addIssue({ code: 'custom', path: ['wallpapers', i, 'id'], message: `duplicate wallpaper ${w.id}` }); ids.add(w.id); });
+      const d = ui.default_wallpaper;
+      if (!isWallpaperPattern(d) && !(d.startsWith('preset:') && ids.has(d.slice(7)))) ctx.addIssue({ code: 'custom', path: ['default_wallpaper'], message: 'a pattern, or preset:{id} of one of ui.wallpapers' });
+    }),
     // Two-factor sign-in (docs/02). Optional for everyone; an admin can make it required for admins (decided 2026-10-02).
     security: z.object({ require_admin_2fa: z.boolean().default(false) }).prefault({}),
     moderation: z
@@ -190,6 +208,8 @@ export const publicSiteSchema = z.object({
   finger: z.object({ host: z.string(), port: z.number().int() }),
   gemini: z.object({ host: z.string(), port: z.number().int() }),
   default_theme: themeSchema,
+  wallpapers: z.array(z.object({ id: z.string(), name: z.string(), fit: z.enum(['cover', 'tile']) })).default([]),
+  default_wallpaper: z.string().default('dots'),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
 
@@ -209,5 +229,7 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     finger: { host: cfg.finger.host ?? cfg.site.domain, port: cfg.finger.port },
     gemini: { host: cfg.gemini.host ?? cfg.site.domain, port: cfg.gemini.port },
     default_theme: cfg.ui.default_theme,
+    wallpapers: cfg.ui.wallpapers.map((w) => ({ id: w.id, name: w.name, fit: w.fit })),
+    default_wallpaper: cfg.ui.default_wallpaper,
   };
 }

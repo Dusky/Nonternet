@@ -81,6 +81,8 @@ gemini: { host: 127.0.0.1 }
 bbs: { host: 127.0.0.1, telnet_port: ${BBS_TELNET_PORT}, ssh_port: ${BBS_SSH_PORT} }
 irc: { public_host: 127.0.0.1, public_port: ${IRC_PORT} }
 mud: { public_host: 127.0.0.1, public_port: ${MUD_TELNET_PORT} }
+ui:
+  wallpapers: [{ id: checks, name: Checks, file: checker.png, fit: tile }]
 oidc:
   clients:
     - { client_id: e2e-app, redirect_uris: ["${OIDC_CALLBACK}"], public: true }
@@ -97,6 +99,7 @@ oidc:
     HOMES_PUBLIC_PORT: String(HOMES_PORT),
     HOMES_PORT: String(HOMES_PORT),
     APPS_DIR: join(ROOT, 'packs/build'), // the built app packages (docs/10)
+    WALLPAPERS_DIR: join(ROOT, 'e2e/fixtures'), // the site's own wallpapers, listed under ui.wallpapers above
     BBS_SECRET: randomBytes(24).toString('base64url'),
     RATE_LIMIT: 'off', // the tests sign up far more people than one address may in an hour
     ...vapidKeys(), // push notifications on, so Settings shows them (tests/pwa.spec.ts); nothing is really sent

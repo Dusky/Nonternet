@@ -8,6 +8,7 @@ import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, TextField }
 import { errorText, useMe, useT } from '../../hooks';
 import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { OpenAppLink } from '../../shell/OpenAppLink';
+import { RingOrbit } from '../../components/Spots';
 import { BannerManager, BannerStrip } from './RingBanners';
 
 const ROUTES = ['', 'new', ':slug'] as const;
@@ -50,7 +51,7 @@ function Directory() {
   const allTags = [...new Set(items.flatMap((r) => r.tags))].sort();
   return (
     <>
-      <img className="section-art" src="/art/rings.webp" alt="" width="1100" height="367" loading="lazy" />
+      <RingOrbit />
       <form role="search" className="search-form" onSubmit={(e: FormEvent) => { e.preventDefault(); setTerm(q.trim()); }}>
         <TextField label={t('rings.search')} value={q} onChange={setQ} type="search" />
         <div className="field">
@@ -75,7 +76,7 @@ function Directory() {
       </div>
       {error && <Alert kind="error">{error}</Alert>}
       {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
-      {list.isSuccess && items.length === 0 && <EmptyState art="campfire">{t('rings.none')}</EmptyState>}
+      {list.isSuccess && items.length === 0 && <EmptyState art="ring">{t('rings.none')}</EmptyState>}
       {list.isPending && <Loading rows={3} />}
       <ul className="cards">
         {items.map((r) => (

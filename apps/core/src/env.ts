@@ -33,6 +33,7 @@ function rateLimitEnabled(env: Record<string, string | undefined>, production: b
 //   APPS_DIR         installable app packages, one folder per app (docs/10); default ./data/apps
 //   TLS_ASK_SECRET   shared with Caddy's `ask` URL (?secret=…), optional
 //   FILES_DIR        where file-area uploads live; default ./data/files
+//   WALLPAPERS_DIR   the site's own wallpaper pictures (site config ui.wallpapers); default ./data/wallpapers
 //   EXPORTS_DIR      where export archives are kept until they expire; default ./data/exports
 //   TRUST_PROXY=1    set when core is behind Caddy
 //   RATE_LIMIT=off  turns rate limits off, for automated tests only (refused in production)
@@ -70,6 +71,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     exportsDir: resolve(env.EXPORTS_DIR ?? './data/exports'),
     opsDir: env.OPS_DIR ? resolve(env.OPS_DIR) : undefined,
     filesDir: resolve(env.FILES_DIR ?? './data/files'),
+    wallpapersDir: resolve(env.WALLPAPERS_DIR ?? './data/wallpapers'),
     homes: new HomeStore(resolve(env.HOMES_DIR ?? './data/homes')),
     oidcClients: resolveOidcClients(config.oidc.clients, env),
     tlsAskSecret: env.TLS_ASK_SECRET || undefined,

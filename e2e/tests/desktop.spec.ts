@@ -153,14 +153,15 @@ test.describe('on a big screen', () => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
     await page.goto('/settings/appearance');
-    await page.getByLabel('Hillside').check();
+    await page.getByLabel('Checks').check(); // listed in the site config by the operator
     const html = page.locator('html');
     await expect(html).toHaveAttribute('data-wallpaper', 'picture');
-    await expect.poll(() => html.evaluate((el) => el.style.getPropertyValue('--wp-image'))).toContain('/wallpapers/hillside.webp');
+    await expect.poll(() => html.evaluate((el) => el.style.getPropertyValue('--wp-image'))).toContain('/api/v1/wallpapers/checks');
+    await expect.poll(() => html.evaluate((el) => el.style.getPropertyValue('--wp-repeat'))).toBe('repeat');
     await scan(page, 'the wallpaper picker');
 
     // Their own picture: uploaded, then shown, with a choice of how it fits.
-    await page.getByText('Upload a picture').locator('input[type=file]').setInputFiles(join(process.cwd(), '../apps/shell/public/wallpapers/thumbs/lanterns.webp'));
+    await page.getByText('Upload a picture').locator('input[type=file]').setInputFiles(join(process.cwd(), 'fixtures/checker.png'));
     await expect(page.getByLabel('Your picture')).toBeChecked();
     await expect.poll(() => html.evaluate((el) => el.style.getPropertyValue('--wp-image'))).toContain('/api/v1/me/wallpaper/image');
     await page.getByLabel('Tile').check();
@@ -174,7 +175,7 @@ test.describe('on a big screen', () => {
     await other.close();
 
     // A web address that leads inside the server's own network is refused.
-    await page.getByLabel('Or use a picture from the web').fill(`${BASE_URL}/wallpapers/harbour.webp`);
+    await page.getByLabel('Or use a picture from the web').fill(`${BASE_URL}/api/v1/wallpapers/checks`);
     await page.getByRole('button', { name: 'Use this picture' }).click();
     await expect(page.getByText('That address is not on the public internet.')).toBeVisible();
 

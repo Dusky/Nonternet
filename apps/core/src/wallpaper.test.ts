@@ -1,5 +1,6 @@
 import http from 'node:http';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import sharp from 'sharp';
@@ -51,13 +52,37 @@ describe.skipIf(!dbAvailable)('desktop wallpaper', () => {
 
   const put = (sid: string, body: Buffer) => ctx.app.inject({ method: 'PUT', url: '/api/v1/me/wallpaper/image', payload: body, headers: { origin: ORIGIN, cookie: `sid=${sid}`, 'content-type': 'application/octet-stream' } });
 
-  it('starts on dots, takes a pattern or a preset, and refuses what the site does not have', async () => {
+  it('starts on the site default, takes a pattern or one of the operator\'s pictures, and refuses what the site does not have', async () => {
     const u = await makeUser(ctx);
     const c = await loginAs(ctx, u.handle);
     expect((await c.get('/api/v1/me/wallpaper')).body).toEqual({ choice: 'dots', fit: 'cover', own: null });
     expect((await c.put('/api/v1/me/wallpaper', { choice: 'grid' })).body.choice).toBe('grid');
-    expect((await c.put('/api/v1/me/wallpaper', { choice: 'preset:hillside', fit: 'cover' })).body).toMatchObject({ choice: 'preset:hillside' });
-    expect((await c.put('/api/v1/me/wallpaper', { choice: 'preset:nope' })).status).toBe(400);
+    expect((await c.put('/api/v1/me/wallpaper', { choice: 'preset:hills' })).body.error.code).toBe('unknown_wallpaper'); // none listed yet
+    // The operator lists a picture in the site config and makes it the default.
+    const dir = mkdtempSync(join(tmpdir(), 'wp-'));
+    writeFileSync(join(dir, 'hills.jpg'), await picture());
+    const before = { dir: ctx.deps.wallpapersDir, ui: structuredClone(ctx.deps.config.ui) };
+    ctx.deps.wallpapersDir = dir;
+    ctx.deps.config.ui.wallpapers = [{ id: 'hills', name: 'Hills', file: 'hills.jpg', fit: 'cover' }];
+    ctx.deps.config.ui.default_wallpaper = 'preset:hills';
+    try {
+      expect((await c.put('/api/v1/me/wallpaper', { choice: 'preset:hills', fit: 'cover' })).body).toMatchObject({ choice: 'preset:hills' });
+      expect((await c.put('/api/v1/me/wallpaper', { choice: 'preset:nope' })).status).toBe(400);
+      const full = await ctx.app.inject({ method: 'GET', url: '/api/v1/wallpapers/hills' }); // public, like the shell's own files
+      expect(full.statusCode).toBe(200);
+      expect(full.headers['content-type']).toBe('image/jpeg');
+      const thumb = await ctx.app.inject({ method: 'GET', url: '/api/v1/wallpapers/hills?size=thumb' });
+      expect(thumb.headers['content-type']).toBe('image/webp');
+      expect((await sharp(thumb.rawPayload).metadata()).width).toBe(240);
+      expect((await ctx.app.inject({ method: 'GET', url: '/api/v1/wallpapers/nope' })).statusCode).toBe(404);
+      expect((await ctx.app.inject({ method: 'GET', url: '/api/v1/site' })).json()).toMatchObject({ wallpapers: [{ id: 'hills', name: 'Hills', fit: 'cover' }], default_wallpaper: 'preset:hills' });
+      const fresh = await loginAs(ctx, (await makeUser(ctx)).handle);
+      expect((await fresh.get('/api/v1/me/wallpaper')).body.choice).toBe('preset:hills'); // new people get the default
+      // Taken out of the list: anyone using it is back on the default.
+      ctx.deps.config.ui.wallpapers = [];
+      ctx.deps.config.ui.default_wallpaper = 'stripes';
+      expect((await c.get('/api/v1/me/wallpaper')).body.choice).toBe('stripes');
+    } finally { ctx.deps.wallpapersDir = before.dir; ctx.deps.config.ui = before.ui; }
     expect((await c.put('/api/v1/me/wallpaper', { choice: 'own' })).body.error.code).toBe('no_picture');
     expect((await ctx.app.inject({ method: 'GET', url: '/api/v1/me/wallpaper' })).statusCode).toBe(401);
   });
@@ -65,15 +90,15 @@ describe.skipIf(!dbAvailable)('desktop wallpaper', () => {
   it('keeps an uploaded picture as a WebP no wider than 2560, shown only to its owner, and removes it', async () => {
     const u = await makeUser(ctx);
     const c = await loginAs(ctx, u.handle);
-    const r = await put(c.sid, await picture());
+    const r = await put(c.sid!, await picture());
     expect(r.statusCode).toBe(200);
     expect(r.json()).toMatchObject({ choice: 'own', own: { source_url: null } });
     const img = await ctx.app.inject({ method: 'GET', url: '/api/v1/me/wallpaper/image', headers: { cookie: `sid=${c.sid}` } });
     expect(img.headers['content-type']).toBe('image/webp');
     expect((await sharp(img.rawPayload).metadata()).width).toBe(2560);
     const other = await loginAs(ctx, (await makeUser(ctx)).handle);
-    expect((await ctx.app.inject({ method: 'GET', url: '/api/v1/me/wallpaper/image', headers: { cookie: `sid=${other.sid}` } })).statusCode).toBe(404); // theirs, not hers
-    expect((await put(c.sid, Buffer.from('<svg onload="x()"/>'))).json().error.code).toBe('bad_image');
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/v1/me/wallpaper/image', headers: { cookie: `sid=${other.sid}` } })).statusCode).toBe(404); // someone else's picture
+    expect((await put(c.sid!, Buffer.from('<svg onload="x()"/>'))).json().error.code).toBe('bad_image');
     expect((await c.delete('/api/v1/me/wallpaper/image')).status).toBe(204);
     expect((await c.get('/api/v1/me/wallpaper')).body).toMatchObject({ choice: 'dots', own: null });
   });
@@ -96,7 +121,7 @@ describe.skipIf(!dbAvailable)('desktop wallpaper', () => {
   it('is in the export, and goes with the account', async () => {
     const u = await makeUser(ctx);
     const c = await loginAs(ctx, u.handle);
-    await put(c.sid, await picture());
+    await put(c.sid!, await picture());
     await c.put('/api/v1/me/wallpaper', { choice: 'own', fit: 'tile' });
     expect((await c.post('/api/v1/me/export', { password: TEST_PASSWORD })).status).toBe(202);
     await processNext(ctx.deps);

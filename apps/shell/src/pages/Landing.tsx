@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { AnnouncementBanner } from '../components/Announcements';
 import { RelativeTime } from '../components/ui';
+import { DesktopScene } from '../components/Spots';
 import { useSite, useT } from '../hooks';
 import { AppTile } from '../shell/icons';
 import { LegalLinks } from './Legal';
@@ -47,7 +48,7 @@ export function Landing() {
       <AnnouncementBanner />
       <main id="main" className="landing-main">
         <section className="landing-hero">
-          <img className="landing-art" src="/art/hillside.webp" alt="" width="1100" height="614" fetchPriority="high" />
+          <DesktopScene site={site} threads={d?.threads ?? []} />
           <h1>{t('landing.title')}</h1>
           {site.signup_mode === 'invite' && <p className="landing-sticker" aria-hidden="true">{t('landing.inviteSticker')}</p>}
           <p className="landing-tagline">{t('landing.tagline')}</p>

@@ -3,35 +3,36 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
 import { makeUser, PASSWORD, signIn } from '../support/helpers';
 
-// The site's pictures (docs/10): each one loads, is decorative (empty alt, so screen readers hear only the words next
-// to it), and nothing about the page gets worse for having it.
+// The site's drawings (docs/10): made from shapes and words in the theme's colours, never pictures. Each one is
+// decorative (hidden from screen readers, which hear only the words beside it), and nothing gets worse for it.
 const scan = async (page: Page, what: string) => {
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(r.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `accessibility problems on ${what}`).toEqual([]);
 };
-const loaded = (page: Page, sel: string) => page.locator(sel).first().evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
 
-test('the front page shows the hillside, and a missing page shows the lost dog', async ({ page }) => {
+test('the front page shows the site as a small desktop, and a missing page shows the lost window', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('img.landing-art')).toHaveAttribute('alt', '');
-  await expect.poll(() => loaded(page, 'img.landing-art')).toBe(true);
+  const scene = page.locator('.scene');
+  await expect(scene).toBeVisible();
+  await expect(scene).toHaveAttribute('aria-hidden', 'true');
+  await expect(scene.locator('.scene-term pre')).toContainText('CONNECT');
+  // The windows fade in as they open; colours are judged once they have.
+  await page.waitForFunction(() => document.getAnimations().every((a) => (a as CSSAnimation).animationName !== 'pop-in' || a.playState === 'finished'));
   await scan(page, 'the front page');
   await page.goto('/nowhere/at/all');
   await expect(page.getByRole('heading', { name: 'That page does not exist.' })).toBeVisible();
-  await expect.poll(() => loaded(page, 'img.card-art')).toBe(true);
+  await expect(page.locator('.lost-stack')).toHaveAttribute('aria-hidden', 'true');
+  await expect(page.locator('.lost-path')).toHaveText('/nowhere/at/all');
   await scan(page, 'the not-found page');
+  expect(await page.locator('img').count()).toBe(0);
 });
 
-test('empty places get a small picture, and the wallpaper pictures are served', async ({ page, request }) => {
+test('empty places get a drawing, and the rings page its loop', async ({ page }) => {
   const u = await makeUser(page);
   await signIn(page, u.handle, PASSWORD);
   await page.goto('/mail');
-  await expect(page.locator('img.empty-art')).toBeVisible();
-  await expect.poll(() => loaded(page, 'img.empty-art')).toBe(true);
+  await expect(page.locator('.empty svg.spot-mail')).toBeVisible();
   await scan(page, 'an empty inbox');
-  for (const f of ['hillside', 'harbour', 'lanterns', 'lantern-hill', 'tower', 'paper-stars', 'slate-stars']) {
-    const r = await request.get(`/wallpapers/${f}.webp`);
-    expect(r.ok(), f).toBe(true);
-    expect(r.headers()['content-type']).toContain('image/webp');
-  }
+  await page.goto('/rings');
+  await expect(page.locator('svg.ring-orbit')).toBeVisible();
 });

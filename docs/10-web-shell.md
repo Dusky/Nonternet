@@ -400,12 +400,15 @@ a person would otherwise go wrong.
 ## As built (wiki, 2026-10-05)
 The Wiki app (`apps/shell/src/apps/wiki/`, public) is described in `20`. It has pages, an editor with a live preview (a tab on phones) and drafts on the device, history, compare, put a version back, recent changes (with a Feed link), all pages, wanted pages, what links here and search. A link to a page that doesn't exist yet says "(no page yet)" to screen readers as well as showing a different colour. When a save conflicts, the app shows "Someone saved this page while you were editing" and keeps your text in the editor next to theirs.
 
-## Wallpapers (2026-10-05)
+## Wallpapers (2026-10-05, presets moved to the site config 2026-10-06)
 Settings → Appearance → Desktop wallpaper. The choice is kept on the account, so it follows the person to other devices.
 - **Patterns:** dots, grid, stripes and plain, drawn in the theme's colours.
-- **The site's pictures:** two tiles (paper stars, slate stars) and five scenes (hillside, harbour lights, lanterns,
-  lantern hill, the tower). They live in `apps/shell/public/wallpapers/` with thumbnails, and are listed in
-  `WALLPAPER_PRESETS` in `packages/shared/src/wallpaper.ts`. A tile repeats; a scene fills the screen.
+- **The site's pictures:** chosen by the operator, not shipped with the code. Each is a file in `WALLPAPERS_DIR`
+  (`deploy/wallpapers/`, see its README) listed in the site config under `ui.wallpapers` as `{id, name, file, fit}`,
+  where `fit` is `cover` (fills the screen) or `tile` (repeats). Core serves them at `/api/v1/wallpapers/{id}`, with a
+  small version for the picker (`?size=thumb`). There are none until the operator adds some.
+- **The default:** `ui.default_wallpaper`, a pattern or `preset:{id}` (default `dots`). Admins can change it in the
+  console. People who never chose, people whose picture was taken out of the list, and signed-out visitors see it.
 - **Your own picture:**
   - Upload one (PNG, JPEG, GIF or WebP, up to 8 MB), or paste a web address. Core copies the picture once (`15`, safe
     fetch), so the shell never loads anything from another site, and the other site never learns who looks at it.
@@ -413,21 +416,21 @@ Settings → Appearance → Desktop wallpaper. The choice is kept on the account
   - It is shown only to its owner (`/api/v1/me/wallpaper/image`), so it is not public content: no reports and no
     audit. It is in the export.
   - Choices for fit: fill the screen, tile, or centre.
-  - Signed out, someone's own picture can't be shown, so the desktop goes back to dots.
+  - Signed out, someone's own picture can't be shown, so the desktop goes back to the site's default.
 - **Code:** `apps/core/src/wallpaper.ts`, `apps/shell/src/apps/settings/WallpaperPicker.tsx`, and `applyWallpaper`
   in `theme.ts`. The last choice is kept in `localStorage` so the desktop looks right before the account answers.
 
-## Pictures (2026-10-05, redone 2026-10-06)
-Every picture on the site is drawn by an image model and then printed with `tools/art/riso.py` as a two-ink risograph
-in the Webring inks: cream paper, black and fluorescent pink (see its README). None has people, animals or other
-characters, and none has text. They are decorative (`alt=""`), so screen readers hear only the words beside them.
-Files live in `apps/shell/public/art/` and `apps/shell/public/wallpapers/`.
-- **Front page:** `art/hillside.webp`, a hillside village joined by telephone wires (Grok Imagine 2.0, linocut).
-- **Not found:** `art/lost.webp`, a card-catalogue drawer with one card missing (Grok Imagine 2.0).
-- **Empty places:** `EmptyState` takes `art`: `mail` (an empty mailbox), `notebook` (blank pages, wiki), `folder` (files)
-  and `campfire` (two empty chairs, rings). Drawn by Recraft V4.1. Without `art` it keeps its icon.
-- **Rings:** `art/rings.webp`, lantern-lit pools joined by paths, as a banner. **MUD:** `art/tower.webp` by the tips.
-- **Wallpapers:** hillside, harbour lights, lanterns, lantern hill and the tower are the same drawings printed lighter
-  (`--density 0.6`) so windows and text sit on them. The two drawings that are mostly black (hillside, lanterns) are
-  printed as negatives: the black field becomes paper and the carved lines become ink.
-- Model sources are kept outside the repo; only the printed results are committed.
+## Drawings (2026-10-06)
+The site has no pictures of its own: the generated art tried on 2026-10-05 was taken out (`17`). The places that had
+it are drawn instead from shapes and words in the theme's tokens (`--line-strong`, `--pop`, `--sticker-*`, the
+title-bar colours), with the same thick lines and hard shadows as buttons and cards, so they change with every theme.
+All are decorative (`aria-hidden`); the words beside them say everything. Code: `apps/shell/src/components/Spots.tsx`.
+- **Front page:** `DesktopScene`, the site as a small desktop: a Boards window with the newest thread titles, a
+  Terminal dialling the site's BBS (or MUD, or web address) and showing `site.name`, and a Chat window named after the
+  IRC lobby. Windows fade in once; nothing moves with reduced motion.
+- **Not found:** `LostWindows`, a 404 window showing the address that was asked for, with the dashed outlines of the
+  windows "dragged" before it.
+- **Empty places:** `EmptyState` takes `art`: `mail` (an open, empty envelope with a 0), `notebook` (wiki), `folder`
+  (files) and `ring` (rings, one place empty). Without `art` it keeps its icon.
+- **Rings:** `RingOrbit`, sites joined in a loop, with a light going once round it as a webring does.
+- **MUD:** a small tower in text characters beside the tips.

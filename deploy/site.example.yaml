@@ -87,3 +87,13 @@ security:
   require_admin_2fa: false
 moderation:
   public_modlog: true   # each board's mod log can be read by anyone who can read the board
+
+# The look. The site's own wallpapers are pictures in deploy/wallpapers/ (see the README there), offered in
+# Settings next to the drawn patterns. default_wallpaper is dots, grid, stripes, plain or preset:{id}.
+ui:
+  default_theme: webring
+  wallpapers: []
+  # wallpapers:
+  #   - { id: hills, name: Hills, file: hills.webp, fit: cover }
+  #   - { id: stars, name: Stars, file: stars.png, fit: tile }
+  default_wallpaper: dots

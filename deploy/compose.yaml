@@ -44,6 +44,8 @@ services:
       REDIS_URL: redis://redis:6379
       HOMES_DIR: /data/homes
       FILES_DIR: /data/files
+      # The site's own wallpaper pictures, listed in the site config under ui.wallpapers (docs/10).
+      WALLPAPERS_DIR: /wallpapers
       HOMES_PUBLIC_PORT: ${HOMES_HTTP_PORT:-8081}
       # Shared with Ergo; core derives the auth-script token, API token and bot password from it.
       IRC_SECRET: ${IRC_SECRET:?set IRC_SECRET in deploy/.env (openssl rand -base64 32)}
@@ -64,6 +66,7 @@ services:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - homes-data:/data/homes
       - files-data:/data/files
+      - ./wallpapers:/wallpapers:ro
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

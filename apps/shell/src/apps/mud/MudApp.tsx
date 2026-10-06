@@ -7,6 +7,7 @@ import { OpenAppLink } from '../../shell/OpenAppLink';
 import { keyName, NUMPAD, type Highlight } from './engine';
 import { parseMarkup, plainText, type MudSeg } from './markup';
 import { useMud, type CaptureLine, type Line, type MapRoom } from './store';
+import { TOWER } from '../../components/Spots';
 import { downloadLog } from './log';
 
 const ClientEditor = lazy(() => import('./ClientEditor'));
@@ -34,7 +35,7 @@ export default function MudApp() {
           {showPanel && <Side />}
         </div>
       )}
-      <div className="mud-tips"><img className="mud-tower" src="/art/tower.webp" alt="" width="64" loading="lazy" /><p className="hint">{t('mud.tips')}</p></div>
+      <div className="mud-tips"><pre className="mud-tower" aria-hidden="true">{TOWER}</pre><p className="hint">{t('mud.tips')}</p></div>
       <button type="button" className="link" aria-expanded={help} onClick={() => setHelp(!help)}>{t('mud.nativeTitle')}</button>
       {help && <NativeHelp />}
     </div>

@@ -8,7 +8,7 @@ import { useInstalled } from './shell/installed';
 import { Desktop } from './shell/Desktop';
 import { Launcher } from './shell/Launcher';
 import { Shell } from './shell/Shell';
-import { applyTheme, saveWallpaperPref, wallpaperPref } from './theme';
+import { applyTheme, saveWallpaperPref, siteDefaultWallpaper, wallpaperPref } from './theme';
 import { applyWallpaperSettings, useWallpaper } from './wallpaper';
 import { Centered, Loading } from './components/ui';
 import { AnnouncementBanner } from './components/Announcements';
@@ -128,10 +128,10 @@ export function App() {
   const me = useMe();
   // The theme saved on the profile wins once we know who is signed in.
   useEffect(() => { if (me.data?.theme) applyTheme(me.data.theme, { scheme: me.data.theme_variant }); }, [me.data?.theme, me.data?.theme_variant]);
-  // So does the wallpaper. Signed out, someone's own picture can't be shown, so the desktop goes back to dots.
+  // So does the wallpaper. Signed out, someone's own picture can't be shown, so the desktop goes back to the site's default.
   const wallpaper = useWallpaper(Boolean(me.data));
   useEffect(() => { if (wallpaper.data) applyWallpaperSettings(wallpaper.data); }, [wallpaper.data]);
-  useEffect(() => { if (me.data === null && wallpaperPref().choice === 'own') saveWallpaperPref({ choice: 'dots', fit: 'cover', version: null }); }, [me.data]);
+  useEffect(() => { if (me.data === null && wallpaperPref().choice === 'own') saveWallpaperPref(siteDefaultWallpaper()); }, [me.data]);
   return (
     <Suspense fallback={<Loading />}>
     <Routes>

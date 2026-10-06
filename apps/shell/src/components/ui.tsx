@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useMe, useT } from '../hooks';
 import { AppLink, AppNavLink } from '../nav';
 import { Icon, type IconName } from './Icon';
+import { LostWindows, Spot, type SpotKind } from './Spots';
 
 export function Alert({ kind, children, retry }: { kind: 'error' | 'success' | 'info' | 'warning'; children: ReactNode; retry?: () => void }) {
   const t = useT();
@@ -62,13 +63,13 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
   return <button type="button" className="btn btn-quiet" onClick={() => void copy(text)}>{copied ? t('common.copied') : label ?? t('common.copy')}</button>;
 }
 
-export function Centered({ title, art, children }: { title: string; art?: 'lost' | 'offline'; children: ReactNode }) {
+export function Centered({ title, art, children }: { title: string; art?: 'lost'; children: ReactNode }) {
   const t = useT();
   return (
     <main className="center" id="main">
       <a className="center-brand" href="/"><span className="brand-mark" aria-hidden="true" />{t('landing.title')}</a>
       <div className="card">
-        {art && <img className="card-art" src={`/art/${art}.webp`} alt="" width="280" />}
+        {art === 'lost' && <LostWindows />}
         <h1>{title}</h1>
         {children}
       </div>
@@ -77,11 +78,11 @@ export function Centered({ title, art, children }: { title: string; art?: 'lost'
 }
 
 // Nothing to show yet: one plain sentence, and the next step if there is one.
-export type EmptyArt = 'mail' | 'notebook' | 'folder' | 'campfire';
+export type EmptyArt = SpotKind;
 export function EmptyState({ icon = 'inbox', art, children, action }: { icon?: IconName; art?: EmptyArt; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="empty">
-      {art ? <img className="empty-art" src={`/art/empty-${art}.webp`} alt="" width="160" loading="lazy" /> : <Icon name={icon} />}
+      {art ? <Spot kind={art} /> : <Icon name={icon} />}
       <p>{children}</p>
       {action}
     </div>
