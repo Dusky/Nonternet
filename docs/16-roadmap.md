@@ -173,6 +173,13 @@ The site wiki and ring wikis (`20`).
 - [x] **K2:** the Wiki app in the shell.
 - [x] **K3:** read-only in the BBS, Gopher and Gemini; an Atom feed of recent changes; docs.
 
+## Bookmarks (2026-10-06, owners' choice) — PLANNED
+A personal hub with saved links, shared as private, public or into a ring (`21`).
+- [ ] **B1:** core: table, routes, fetch of title and icon, search, export, import, deletion.
+- [ ] **B2:** the Bookmarks app and the home panel section, bookmarklet.
+- [ ] **B3:** sharing, reports and hiding.
+- [ ] **B4:** share target, browser file import, link checking.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

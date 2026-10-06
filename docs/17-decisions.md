@@ -141,6 +141,7 @@
   code from the theme's tokens and the site's own words instead. Wallpaper presets are now the operator's: pictures in
   `WALLPAPERS_DIR` listed in the site config (`ui.wallpapers`), with `ui.default_wallpaper` choosing what people see
   until they pick (admin-editable). The site ships with none; the owners will source the default themselves.
+- 2026-10-06: bookmarks (`21`), by the owners: a built-in app (not an installable one, because they can be shared, reported and exported) with each link private, public or shared into a ring. The site keeps the link, title, description and a small icon, not a copy of the page, so no third-party HTML is stored. Capture by typing, a bookmarklet that only prefills a form, and the phone's Share menu. Page archives and a browser extension are left open.
 
 ## Verify list
 | # | Fact | Affects |
