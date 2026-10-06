@@ -9,7 +9,10 @@ describe.skipIf(!dbAvailable)('status board and metrics', () => {
   let ctx: Awaited<ReturnType<typeof makeApp>>;
   let admin: Awaited<ReturnType<typeof makeAdmin>>;
 
+  // The status board pings whatever REDIS_URL names; these tests are about the app having none, wherever they run.
+  const redisUrl = process.env.REDIS_URL;
   beforeAll(async () => {
+    delete process.env.REDIS_URL;
     ({ db, drop } = await createTestDb());
     ctx = await makeApp(db);
     admin = await makeAdmin(ctx);
@@ -19,7 +22,7 @@ describe.skipIf(!dbAvailable)('status board and metrics', () => {
     await c.post('/api/v1/boards/general/posts', { subject: 'One', body: 'x' });
     await c.post('/api/v1/boards/general/posts', { subject: 'Two', body: 'y' });
   });
-  afterAll(async () => drop());
+  afterAll(async () => { if (redisUrl !== undefined) process.env.REDIS_URL = redisUrl; await drop(); });
 
   it('is for admins only', async () => {
     const u = await makeUser(ctx, { role: 'trusted' });
