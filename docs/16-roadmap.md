@@ -180,6 +180,10 @@ A personal hub with saved links, shared as private, public or into a ring (`21`)
 - [ ] **B3:** sharing, reports and hiding.
 - [ ] **B4:** share target, browser file import, link checking.
 
+## Memos (2026-10-06, owners' choice) — PLANNED
+A private-by-default microblog feed (`22`).
+- [ ] **M1:** core. [ ] **M2:** the app and the home panel box. [ ] **M3:** public and ring memos, replies, reactions, feeds, moderation.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

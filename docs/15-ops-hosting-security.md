@@ -163,3 +163,19 @@ report SLA breaches.
 - Redirects are followed by hand, at most three, each checked again.
 - 10 seconds in total, and a byte cap, both on the declared length and while reading.
 - `allowPrivateFetch` on the deps exists for tests only and is never set by `main`.
+
+## Personal content: memos and bookmarks (2026-10-06)
+Memos (`22`) and bookmarks (`21`) are private by default. The protection is the same level as mail and boards, decided
+2026-10-06: access checks, TLS, encrypted backups, strong sign-in (passkeys, 2FA). They are **not** encrypted in the
+database, so the operator can read private items; see `17` for the option of locked end-to-end encrypted memos later.
+Rules for both:
+- **One visibility check** is used by every read path: web, search, feeds, the Gopher, Gemini and BBS mirrors (which read
+  as a logged-out visitor), the palette and the home panel. Each path has a test that a private item never shows,
+  including to an admin who is not the owner.
+- **No accidental publishing:** new items are private; making one public asks once and can be undone; "recent sign-in
+  required" before switching items to public in bulk.
+- **Safe rendering:** text goes through the data-not-HTML parser. Outside links carry `rel="noopener noreferrer"`.
+- **Safe fetching:** titles and icons are fetched once through `safe-fetch.ts`; the icon is re-encoded.
+- **The bookmarklet and share target only prefill a form.** Nothing is saved or published without the person confirming.
+- **Limits and moderation:** rate limits, size and count caps, reports and hiding for public items, audit for
+  moderation actions only.
