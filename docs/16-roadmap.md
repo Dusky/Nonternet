@@ -173,6 +173,14 @@ The site wiki and ring wikis (`20`).
 - [x] **K2:** the Wiki app in the shell.
 - [x] **K3:** read-only in the BBS, Gopher and Gemini; an Atom feed of recent changes; docs.
 
+## Everyday apps (2026-10-07, owners' choice) — PLANNED
+Depth for boards, mail, notifications, profiles and directories (`23`).
+- [ ] **E1:** readable text (shared formatting in posts and mail, quote-reply).
+- [ ] **E2:** notifications that cover the site.
+- [ ] **E3:** boards depth. [ ] **E4:** mail depth. [ ] **E5:** profiles and directories.
+- [ ] **E6:** images in posts and mail. [ ] **E7:** chat check-up.
+Bookmarks and memos fit after E1.
+
 ## Bookmarks (2026-10-06, owners' choice) — PLANNED
 A personal hub with saved links, shared as private, public or into a ring (`21`).
 - [ ] **B1:** core: table, routes, fetch of title and icon, search, export, import, deletion.

@@ -153,6 +153,7 @@ behind it.
 | 20 | [Wiki](docs/20-wiki.md) | The site wiki and ring wikis |
 | 21 | [Bookmarks](docs/21-bookmarks.md) | Saving and sharing links (planned) |
 | 22 | [Memos](docs/22-memos.md) | A private-by-default memo feed (planned) |
+| 23 | [Everyday apps](docs/23-everyday-apps.md) | Depth for boards, mail, notifications and profiles (planned) |
 
 ## Status tags
 Used in the docs, and binding on anyone changing the code:

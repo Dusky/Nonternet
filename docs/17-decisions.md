@@ -145,6 +145,7 @@
 - 2026-10-06: memos (`22`), by the owners: a microblog-style feed, built in, private by default, with public and ring sharing, replies and reactions on shared memos. Following people is left open.
 - 2026-10-07: memos and `.plan` (`22`), by the owners: the newest public memos show under the plan in finger, Gemini and the profile, so memos join up the status line, `.plan` and profiles rather than becoming another place to write. The plan text and status line stay as they are.
 - 2026-10-07: wiki starter pages (`20`), by the owners, relaxing "nothing is seeded": an admin can choose to add six short, hand-written help pages filled in from the site config. Never added by themselves; ordinary editable pages credited to the admin; existing pages are kept.
+- 2026-10-07: everyday apps depth pass (`23`), by the owners: readable text first (the wiki's safe formatting in posts and mail), then notifications that cover the whole site, then boards, mail, profiles. Images in posts and mail are wanted but come late (E6), with the same visibility, moderation and export as the post.
 - 2026-10-06: protection for private memos and bookmarks (`15`), by the owners: the strong baseline (access checks on every read path, encrypted backups, safe rendering and fetching, no accidental publishing). Not encrypted in the database, so the operator can read private items. Encrypting them with per-person keys, or locked end-to-end encrypted memos, is a possible later option, not planned.
 
 ## Verify list
