@@ -22,6 +22,15 @@ default), `public` or `ring` (with `ring_id`, the owner being a member).
 - Public memos appear on the person's profile and in `/feeds/people/{handle}/memos.atom`, readable without signing in.
 - Ring memos appear on the ring page for members.
 
+## Memos and your .plan
+Memos connect the things that already overlap (the status line, `.plan`, profiles) instead of adding a fourth place to
+write:
+- The `.plan` text (`users.plan`, `05`) stays what it is: a short note you edit by hand.
+- Your newest public memos (up to three) are shown under it everywhere the plan shows: finger, the profile, and the
+  Gemini `/~handle` page. With no plan text, finger shows just the memos; with neither, "No plan." as now.
+- The status line stays a one-liner and is not a memo.
+- Private and ring memos never reach finger, Gemini or the profile (the mirrors read as a logged-out visitor).
+
 ## Replies and reactions (public and ring memos only)
 - People who can see a memo can reply, as short memos linked to it. Replies take the visibility of the memo.
 - Reactions reuse the post reactions (`reactions`).
@@ -54,4 +63,4 @@ person.
 ## Phases
 - [ ] **M1:** core: tables, routes, search, tags, limits, export, import, deletion, tests (private everywhere).
 - [ ] **M2:** the Memos app and the home panel box, e2e.
-- [ ] **M3:** public and ring memos, replies, reactions, feeds, profile, reports and hiding, audit.
+- [ ] **M3:** public and ring memos, replies, reactions, feeds, profile, reports and hiding, audit; newest public memos under the plan in finger, Gemini and the profile.
