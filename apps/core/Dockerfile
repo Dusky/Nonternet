@@ -9,7 +9,11 @@ COPY e2e/package.json ./e2e/package.json
 COPY apps/core ./apps/core
 # The app packages people can add (docs/10), built here and served by the homes server from APPS_DIR.
 COPY packs ./packs
-RUN pnpm install --frozen-lockfile --filter @app/core... --filter "./packs/apps/*..."
+# "./packs/apps/*..." is not enough: a directory glob with "..." installs the packs but skips
+# their workspace dependencies' own deps (pnpm 10), so penpal never landed and the build failed.
+# A name glob with "..." does include the dependency closure, and the plain glob catches any
+# pack that does not use the @app/pack-* name.
+RUN pnpm install --frozen-lockfile --filter @app/core... --filter "./packs/apps/*" --filter "@app/pack-*..."
 RUN pnpm --filter @app/core build && pnpm --filter "./packs/apps/*" build
 
 FROM node:22-alpine
@@ -23,7 +27,9 @@ ENV APPS_DIR=/app/apps
 # Native modules (argon2, sharp) are installed here, not bundled.
 RUN npm install --omit=dev --no-audit --no-fund && chown -R node:node /app
 # Homepage files live here; a named volume mounted on it starts with these permissions.
-RUN mkdir -p /data/homes && chown -R node:node /data
+# /data/gemini must exist too: without it the gemini-data volume mounts root-owned and the
+# container (USER node) cannot write its TLS key on first boot (EACCES key.pem).
+RUN mkdir -p /data/homes /data/gemini && chown -R node:node /data
 USER node
 ENV PORT=3000
 EXPOSE 3000
