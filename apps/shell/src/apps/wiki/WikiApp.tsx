@@ -72,6 +72,17 @@ const missing = (e: unknown) => e instanceof ApiError && e.status === 404;
 // "getting-started" -> "Getting started": a starting title for a page someone links to before it exists.
 const titleFromSlug = (slug: string) => { const s = slug.replace(/-/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1); };
 
+function StarterButton() {
+  const t = useT();
+  const qc = useQueryClient();
+  const add = useMutation({
+    mutationFn: () => api.post<{ added: string[] }>('/wiki/site/starter', {}),
+    onSuccess: (r) => { toast(t('wiki.starterAdded', { count: r.added.length })); void qc.invalidateQueries({ queryKey: ['wiki'] }); },
+    onError: (e) => toast(errorText(e), 'error'),
+  });
+  return <button type="button" className="btn" disabled={add.isPending} onClick={() => add.mutate()}>{t('wiki.addStarter')}</button>;
+}
+
 function PageScreen({ info, base, slug, home }: Props & { slug: string; home?: boolean }) {
   const t = useT();
   const me = useMe().data;
@@ -79,8 +90,11 @@ function PageScreen({ info, base, slug, home }: Props & { slug: string; home?: b
   const [tool, setTool] = useState<null | 'rename' | 'report' | 'hide' | 'delete'>(null);
   if (q.isPending) return <Loading rows={6} />;
   if (q.isError && missing(q.error)) {
+    const start = info.can_edit ? <AppLink className="btn btn-primary" to={`${base}p/${slug}/edit`}>{home ? t('wiki.startFirst') : t('wiki.startThis')}</AppLink> : undefined;
+    // An empty site wiki: an admin can add the starter help pages instead (docs/20). Nothing is added by itself.
+    const starter = home && info.ref === 'site' && me?.role === 'admin' ? <StarterButton /> : null;
     return (
-      <EmptyState art="notebook" action={info.can_edit ? <AppLink className="btn btn-primary" to={`${base}p/${slug}/edit`}>{home ? t('wiki.startFirst') : t('wiki.startThis')}</AppLink> : undefined}>
+      <EmptyState art="notebook" action={starter ? <div className="actions">{start}{starter}</div> : start}>
         {home ? t('wiki.empty') : t('wiki.noSuchPage', { name: titleFromSlug(slug) })}
       </EmptyState>
     );

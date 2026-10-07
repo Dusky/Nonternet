@@ -1,7 +1,9 @@
 import sharp from 'sharp';
+import { wikiSlug } from '@app/shared';
 import { newId } from './crypto';
 import type { AppDeps } from './deps';
 import { hashPassword } from './passwords';
+import { starterPages } from './wiki-starter';
 
 // A believable small community, for looking at the site (docs/19). People are made directly (so they are confirmed and have a known
 // password); everything else goes through the real API of a running core, so the demo uses the same paths a visitor would.
@@ -100,5 +102,7 @@ export async function seedDemo(deps: AppDeps, base: string): Promise<{ created: 
   for (const [who, line] of [['ada', 'Patch cables everywhere, send help'], ['lin', 'New 88×31 coming tonight'], ['tansy', 'Just found the synth board. Hello!'], ['ozzy', 'Tracker night on Friday']] as const) await api(who, 'POST', '/oneliners', { body: line });
   await must('mail', api('ada', 'POST', '/mail', { to: ['tansy'], subject: 'Welcome aboard', body: 'Glad you made it. The synth board is the busy one; the lounge is the friendly one.' }));
   await api('tansy', 'POST', '/mail', { to: ['ada'], subject: 'A question about patches', body: 'Where would you start if you had one oscillator and one filter?' });
+  // The wiki's starter help pages (docs/20), written by Ada through the same route an editor uses.
+  for (const sp of starterPages(deps.config)) await api('ada', 'PUT', `/wiki/site/pages/${wikiSlug(sp.title)}`, { title: sp.title, body: sp.body, base_revision: 0, summary: 'Starter page' });
   return { created, password: DEMO_PASSWORD };
 }

@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { wikiReasonSchema, wikiRefSchema, wikiRenameSchema, wikiRevertSchema, wikiSaveSchema } from '@app/shared';
 import { z } from 'zod';
-import { ctxOf, requireUser } from '../http';
+import { ctxOf, requireAdmin, requireUser } from '../http';
 import type { AppDeps } from '../deps';
 import * as wiki from '../wiki';
+import { addStarterPages } from '../wiki-starter';
 
 // The wiki (docs/20). `:wiki` is "site" or "ring:{slug}". Reading is open to visitors; everything else needs a session.
 const slug = z.string().min(1).max(100);
@@ -17,6 +18,8 @@ const MODERATE = ['protect', 'unprotect', 'hide', 'unhide', 'delete', 'restore']
 export function wikiRoutes(app: FastifyInstance, deps: AppDeps): void {
   const write = { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } };
   app.get('/api/v1/wiki/:wiki', async (req) => wiki.wikiInfo(deps, req.session, params(req).ref));
+  // The starter help pages (docs/20): only for the site wiki, only by an admin, only the pages that don't exist yet.
+  app.post('/api/v1/wiki/site/starter', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req) => ({ added: await addStarterPages(deps, requireAdmin(req), 'web') }));
   app.get('/api/v1/wiki/:wiki/pages', async (req) => ({ pages: await wiki.listPages(deps, req.session, params(req).ref) }));
   app.get('/api/v1/wiki/:wiki/changes', async (req) => ({ changes: await wiki.changes(deps, req.session, params(req).ref) }));
   app.get('/api/v1/wiki/:wiki/wanted', async (req) => ({ wanted: await wiki.wanted(deps, req.session, params(req).ref) }));

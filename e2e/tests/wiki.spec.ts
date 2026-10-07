@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
+import { makeAdmin, makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // The wiki (docs/20). Each test works in a fresh ring's wiki or on pages with unique names, because the site wiki is
@@ -120,4 +120,25 @@ test('people who are not trusted read but cannot edit, and search finds pages', 
   await expect(reader.getByRole('link', { name: title })).toBeVisible();
   await expect(reader.locator('mark')).toHaveText(word);
   await other.close();
+});
+
+test('an admin can fill the empty site wiki with the starter help pages; a trusted person cannot', async ({ page }, info) => {
+  // The site wiki is shared by the whole run, so this runs once (desktop) to see it empty.
+  test.skip(info.project.name !== 'desktop');
+  await trusted(page);
+  await page.goto('/wiki');
+  await expect(page.getByText('This wiki has no pages yet.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add the starter help pages' })).toHaveCount(0);
+  await page.context().clearCookies();
+
+  const admin = await makeAdmin(page);
+  await signIn(page, admin.handle, PASSWORD, { recovery: admin.recoveryCodes[0]! });
+  await page.goto('/wiki');
+  await page.getByRole('button', { name: 'Add the starter help pages' }).click();
+  await expect(page.getByText('Added 6 help pages.', { exact: false })).toBeVisible();
+  const article = page.getByRole('article');
+  await expect(article.getByRole('heading', { name: /^Welcome to / })).toBeVisible();
+  await article.getByRole('link', { name: 'Connecting' }).click();
+  await expect(page.getByRole('article').getByText('ssh -p', { exact: false })).toBeVisible();
+  await scan(page, 'a starter page');
 });

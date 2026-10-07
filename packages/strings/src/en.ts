@@ -1574,6 +1574,8 @@ export const en = {
   'wiki.noHits': 'No page matches that.',
   'wiki.empty': 'This wiki has no pages yet.',
   'wiki.startFirst': 'Start the first page',
+  'wiki.addStarter': 'Add the starter help pages',
+  'wiki.starterAdded': 'Added {count} help pages. Edit them to suit your site.',
   'wiki.startThis': 'Start this page',
   'wiki.noSuchPage': 'There is no page called “{name}” yet.',
   'wiki.missing': '(no page yet)',

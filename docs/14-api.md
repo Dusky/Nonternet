@@ -164,6 +164,7 @@ All need a session. The data routes are what the shell's bridge calls on an app'
 ## Wiki (2026-10-05, docs/20)
 `:wiki` is `site` or `ring:{slug}`. Reading is public; writing needs a session, and the rules in `20` decide who may.
 - `GET /api/v1/wiki/:wiki` (`can_edit`, `can_moderate`), `/pages`, `/changes`, `/wanted`, `/search?q=`.
+- `POST /api/v1/wiki/site/starter` (admins; 5 an hour): adds the starter help pages that don't exist yet, returns `{added: [titles]}`.
 - `GET /api/v1/wiki/:wiki/pages/:slug` (with `redirected_from` and `links`), `/history`, `/revisions/:n`, `/links-here`.
 - `PUT /api/v1/wiki/:wiki/pages/:slug {title, body, base_revision, summary}`: create (`base_revision: 0`) or edit; `409 edit_conflict` with `details.current`.
 - `POST …/pages/:slug/revert {revision, base_revision}`, `/rename {title, base_revision}`, `/protect|unprotect|hide|unhide|delete|restore {reason}`, `/revisions/:n/hide|show {reason}`, `/report {category, note}`.
