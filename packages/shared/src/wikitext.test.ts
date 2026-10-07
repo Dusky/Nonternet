@@ -50,3 +50,20 @@ describe('wiki text', () => {
     ]);
   });
 });
+
+describe('posts and mail (docs/23)', () => {
+  it('keep each line of a paragraph with lineBreaks, and wiki pages still join them', () => {
+    expect(parseWiki('one\ntwo')).toEqual([{ kind: 'paragraph', content: [{ kind: 'text', text: 'one two' }] }]);
+    expect(parseWiki('one\ntwo', { lineBreaks: true })).toEqual([{ kind: 'paragraph', content: [{ kind: 'text', text: 'one\ntwo' }] }]);
+  });
+  it('read the boards’ "AB> " quotes as quotes only when asked', () => {
+    expect(parseWiki('AB> hello\nAB> there', { fidoQuotes: true })).toEqual([{ kind: 'quote', content: [[{ kind: 'text', text: 'hello' }], [{ kind: 'text', text: 'there' }]] }]);
+    expect(parseWiki('AB> hello')[0]!.kind).toBe('paragraph');
+    expect(parseWiki('> plain', { fidoQuotes: true })[0]!.kind).toBe('quote');
+    expect(parseWiki('ABCD> not a quote', { fidoQuotes: true })[0]!.kind).toBe('paragraph');
+  });
+  it('still turn nothing hostile into a link', () => {
+    const b = parseWiki('[x](javascript:alert(1)) <script>bad()</script>', { lineBreaks: true, fidoQuotes: true });
+    expect(JSON.stringify(b)).not.toContain('"link"');
+  });
+});

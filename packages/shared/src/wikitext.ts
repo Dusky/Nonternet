@@ -71,11 +71,16 @@ export function parseInline(line: string): Inline[] {
   return out;
 }
 
-export function parseWiki(body: string): Block[] {
+// Options for text that is not a wiki page (posts, mail; docs/23). `lineBreaks` keeps each line of a paragraph on its
+// own line (people write posts line by line), and `fidoQuotes` also reads the boards' "AB> " quotes as quotes.
+export interface ParseOptions { lineBreaks?: boolean; fidoQuotes?: boolean }
+
+export function parseWiki(body: string, opts: ParseOptions = {}): Block[] {
   const lines = body.replace(/\r\n?/g, '\n').split('\n');
   const blocks: Block[] = [];
   let para: string[] = [];
-  const endPara = () => { if (para.length) { blocks.push({ kind: 'paragraph', content: parseInline(para.join(' ')) }); para = []; } };
+  const quoted = opts.fidoQuotes ? /^(?:[A-Z0-9]{1,3})?>\s?/ : /^>\s?/;
+  const endPara = () => { if (para.length) { blocks.push({ kind: 'paragraph', content: parseInline(para.join(opts.lineBreaks ? '\n' : ' ')) }); para = []; } };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (/^```/.test(line)) {
@@ -98,10 +103,10 @@ export function parseWiki(body: string): Block[] {
       blocks.push({ kind: 'list', ordered, items });
       continue;
     }
-    if (/^>\s?/.test(line)) {
+    if (quoted.test(line)) {
       endPara();
       const quote: Inline[][] = [];
-      while (i < lines.length && /^>\s?/.test(lines[i]!)) { quote.push(parseInline(lines[i]!.replace(/^>\s?/, ''))); i += 1; }
+      while (i < lines.length && quoted.test(lines[i]!)) { quote.push(parseInline(lines[i]!.replace(quoted, ''))); i += 1; }
       i -= 1;
       blocks.push({ kind: 'quote', content: quote });
       continue;

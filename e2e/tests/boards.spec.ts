@@ -207,7 +207,9 @@ test.describe('boards', () => {
       await page.goto(`/boards/${slug}/new`);
       await page.getByLabel('Message').fill('Preview this');
       await page.getByRole('button', { name: 'Preview' }).click();
-      await expect(page.getByTestId('preview')).toBeVisible();
+      await expect(page.locator('.preview .rich-text')).toHaveText('Preview this'); // as the web shows it
+      await page.getByText('How it looks in a terminal').click();
+      await expect(page.getByTestId('preview')).toBeVisible();                  // and as a terminal does
       await scan(page, `the composer with a preview (${theme})`);
     });
   }

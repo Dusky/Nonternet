@@ -33,6 +33,16 @@ for future federation (`12`).
 - Subject ≤ 71 chars, wrapped body, initials-style quoting (`ZC> text`) on reply.
 - Characters a classic (CP437) terminal can't show are flagged in the preview.
 
+## Formatting on the web (E1, 2026-10-07, `23`)
+- Posts, mail and bulletins are shown on the web through the wiki's safe parser (`wikitext.ts`, `parseWiki` with
+  `lineBreaks` and `fidoQuotes`) by `components/RichText.tsx`: emphasis, strong, code, lists, `>` and `AB>` quotes,
+  code blocks (kept exactly, for ASCII art) and links (http, https, gemini, gopher only, opened with
+  `rel="noopener noreferrer"`). Each line stays where it was written. `@handle` links to the person. `#` lines read as
+  bold lines; `[[wiki links]]` stay as typed outside the wiki.
+- The stored text doesn't change, so the terminal, QWK, Gopher, Gemini and feeds show exactly what was typed.
+- Replying with text selected in a post quotes just that text. The composer's preview shows the post as the web will,
+  with the 79-column terminal view under "How it looks in a terminal". A "?" next to the box lists the formatting.
+
 ## As built (M2, backend)
 - Boards, categories, private-board members, watches, read pointers, threads, replies, deletes by
   the author (a tombstone, text erased) and full-text search work through `/api/v1` (see `14`).

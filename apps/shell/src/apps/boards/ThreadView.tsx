@@ -12,6 +12,7 @@ import { Composer } from './Composer';
 import { canEditPost, EditedNote, EditPost, ReactionBar } from './PostExtras';
 import { useListKeys } from './keys';
 import { PostModTools, ReportPost } from './ModTools';
+import { RichText } from '../../components/RichText';
 import { CharacterBadge, PersonLink } from '../people/PersonLink';
 
 interface ThreadPage { board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }
@@ -131,7 +132,16 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
   const last = posts[posts.length - 1];
   const target = replyTo ?? last;
   const canReply = Boolean(board?.can_post) && (!locked || Boolean(board?.can_moderate));
-  const openReply = (p?: PostView) => { setReplyTo(p ?? target ?? null); setTimeout(() => document.getElementById('compose-body')?.focus(), 0); };
+  // Replying with some of a post's text selected quotes just that text (docs/23).
+  const [quote, setQuote] = useState<{ text: string; n: number } | null>(null);
+  const openReply = (p?: PostView) => {
+    const sel = window.getSelection();
+    const el = p && document.querySelector(`[data-post-body="${p.id}"]`);
+    const picked = el && sel && !sel.isCollapsed && sel.anchorNode && el.contains(sel.anchorNode) ? sel.toString().trim() : '';
+    setReplyTo(p ?? target ?? null);
+    setQuote(picked ? { text: picked, n: Date.now() } : null);
+    setTimeout(() => document.getElementById('compose-body')?.focus(), 0);
+  };
   useListKeys(root, { r: () => canReply && openReply(), n: goNextUnread });
 
   useSubtitle(posts[0]?.subject);
@@ -185,7 +195,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
                 {post.state === 'hidden' && <p className="muted">{t('boards.hidden')}</p>}
                 {editing === post.id
                   ? <EditPost post={post} slug={slug} isStart={post.id === id} asMod={editable.asMod} onDone={() => setEditing(null)} />
-                  : post.body !== null && <pre className="post-body">{post.body}</pre>}
+                  : post.body !== null && <div data-post-body={post.id}><RichText body={post.body} className="post-body" /></div>}
                 {post.state === 'ok' && boardPrefs.reactions && <ReactionBar post={post} slug={slug} signedIn={Boolean(me)} canReact={!board.archived} />}
                 <footer className="post-actions">
                   {post.state === 'ok' && <button type="button" className="link" onClick={() => { void copy(`${window.location.origin}${nav.href(`${slug}/t/${id}`)}#${post.id}`); setCopiedId(post.id); }}>{copied && copiedId === post.id ? t('common.copied') : t('post.copyLink')}</button>}
@@ -206,7 +216,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
       {del.isError && <Alert kind="error">{errorText(del.error)}</Alert>}
       {q.hasNextPage && <button className="btn" onClick={() => void q.fetchNextPage()} disabled={q.isFetchingNextPage}>{t('boards.more')}</button>}
       {canReply && target ? (
-        <Composer slug={slug} replyTo={target} onPosted={() => setReplyTo(null)} key={target.id} />
+        <Composer slug={slug} replyTo={target} quote={quote} onPosted={() => { setReplyTo(null); setQuote(null); }} key={target.id} />
       ) : (
         <p className="muted">{locked && board.can_post ? t('boards.locked') : postNote(t, board, Boolean(me))}</p>
       )}

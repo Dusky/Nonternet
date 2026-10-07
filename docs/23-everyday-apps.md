@@ -18,12 +18,14 @@ but late. Notifications come straight after readable text.
 Each phase is tested and pushed on its own. Bookmarks (`21`) and memos (`22`) fit after E1, because memos use the
 same formatting.
 
-### E1 — Readable text
+### E1 — Readable text (built 2026-10-07)
 - Board posts, mail and post previews render through the shared, safe parser (`packages/shared/src/wikitext.ts`, as
-  the wiki does): emphasis, lists, quotes, code, headings off for posts, and links (http, https, gemini, gopher only).
+  the wiki does): emphasis, lists, quotes, code, and links (http, https, gemini, gopher only). A `#` line reads as a
+  bold line.
   Data, never HTML. `[[wiki links]]` are not active outside the wiki.
 - Outside links open with `rel="noopener noreferrer"`.
-- Quote-reply: select text in a post (or press Quote) to start a reply with it as a `>` quote and a link back.
+- Quote-reply: select text in a post and press Reply to start with just that text quoted (the boards' `AB>` style);
+  the composer's "Quote the post" still quotes all of it.
 - Stored text does not change, so the BBS, QWK, Gopher, Gemini and feeds keep showing the raw text, which already reads
   well in a terminal.
 

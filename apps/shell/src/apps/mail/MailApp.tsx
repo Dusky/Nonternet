@@ -12,6 +12,8 @@ import { clearDraft } from '../../drafts';
 import { quoteReply } from '../../quote';
 import { useDebounced } from '../admin/useDebounced';
 import { useLiveQuery } from '@tanstack/react-db';
+import { RichText } from '../../components/RichText';
+import { FormatHelp } from '../../components/FormatHelp';
 import { conversationCollection, isPending, pendingId } from '../../collections';
 
 const ROUTES = ['', 'new', 'new/:to', ':id'] as const;
@@ -106,7 +108,7 @@ function Compose({ to: initial }: { to: string }) {
         <ToField value={to} onChange={setTo} />
         <TextField label={t('mail.subject')} value={subject} onChange={setSubject} maxLength={MAIL_SUBJECT_MAX} required />
         <Editor label={t('mail.body')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey="mail:new" mentions required
-          onSubmit={() => { if (to.trim() && subject.trim() && body.trim() && !send.isPending) send.mutate(); }} />
+          onSubmit={() => { if (to.trim() && subject.trim() && body.trim() && !send.isPending) send.mutate(); }}><FormatHelp /></Editor>
         {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
         <button type="submit" className="btn btn-primary" disabled={send.isPending}>{t('mail.send')}</button>
       </form>
@@ -192,6 +194,7 @@ function Conversation({ id }: { id: string }) {
             <Editor label={t('mail.reply')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey={`mail:${id}`} mentions required
               onSubmit={sendNow}>
               {lastTheirs && lastTheirs.body && <button type="button" className="link" onClick={() => setBody((b) => quoteReply(who(t, lastTheirs.author), lastTheirs.body!) + b)}>{t('mail.quote')}</button>}
+              <FormatHelp />
             </Editor>
             {sendError && <Alert kind="error">{sendError}</Alert>}
             <button type="submit" className="btn btn-primary" disabled={!body.trim()}>{t('mail.replySend')}</button>
@@ -226,7 +229,7 @@ function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; thread
           {m.author.handle ? <PersonLink app="people" to={m.author.handle} className="person"><Avatar id={m.author.id} name={name} size="sm" /><strong>{name}</strong></PersonLink> : <span className="person"><Avatar id={null} name={name} size="sm" /><strong>{name}</strong></span>}
           <span className="muted">· {isPending(m.id) ? t('mail.sending') : <RelativeTime iso={m.at} />}</span>
         </header>
-        {m.deleted ? <p className="muted">{t('mail.deleted')}</p> : <pre className="post-body">{m.body}</pre>}
+        {m.deleted ? <p className="muted">{t('mail.deleted')}</p> : <RichText body={m.body} className="post-body" />}
         {!m.deleted && canAct && !isPending(m.id) && (
           <footer className="post-actions">
             {m.mine ? <button type="button" className="link" onClick={onDelete}>{t('mail.delete')}</button> : m.author.id && <ReportMessage threadId={threadId} messageId={m.id} />}

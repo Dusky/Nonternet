@@ -5,6 +5,7 @@ import { api } from '../../api';
 import { useConfirm } from '../../components/feedback';
 import { Alert, BackLink, EmptyState, Loading, RelativeTime, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
+import { RichText } from '../../components/RichText';
 import { AppLink, useAppNav, useSubtitle } from '../../nav';
 
 // BBS classics on the web (M9-E): bulletins and the voting booth. The same rows as the terminal's.
@@ -83,7 +84,7 @@ export function BulletinPage({ number }: { number: number }) {
       <BackLink to="bulletins">{t('classics.bulletins')}</BackLink>
       <h2>{`#${b.number} ${b.title}`}</h2>
       <p className="hint"><RelativeTime iso={b.at} />{b.updated_at && <> · {t('classics.bulletins.updated')} <RelativeTime iso={b.updated_at} /></>}</p>
-      {editing ? <BulletinForm number={b.number} initial={{ title: b.title, body: b.body }} onDone={() => setEditing(false)} /> : <pre className="post-body">{b.body}</pre>}
+      {editing ? <BulletinForm number={b.number} initial={{ title: b.title, body: b.body }} onDone={() => setEditing(false)} /> : <RichText body={b.body} className="post-body" />}
       {me?.role === 'admin' && !editing && (
         <div className="toolbar">
           <button type="button" className="btn" onClick={() => setEditing(true)}>{t('edit.edit')}</button>
