@@ -27,9 +27,10 @@ ENV APPS_DIR=/app/apps
 # Native modules (argon2, sharp) are installed here, not bundled.
 RUN npm install --omit=dev --no-audit --no-fund && chown -R node:node /app
 # Homepage files live here; a named volume mounted on it starts with these permissions.
-# /data/gemini must exist too: without it the gemini-data volume mounts root-owned and the
-# container (USER node) cannot write its TLS key on first boot (EACCES key.pem).
-RUN mkdir -p /data/homes /data/gemini && chown -R node:node /data
+# Every named volume mounted under /data must exist here, or it mounts root-owned and the container
+# (USER node) cannot write to it: gemini-data (its TLS key, EACCES key.pem on first boot) and
+# files-data (uploads, avatars, wallpapers, ring banners, which fail on the first write).
+RUN mkdir -p /data/homes /data/files /data/gemini && chown -R node:node /data
 USER node
 ENV PORT=3000
 EXPOSE 3000
