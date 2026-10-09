@@ -29,12 +29,12 @@ same formatting.
 - Stored text does not change, so the BBS, QWK, Gopher, Gemini and feeds keep showing the raw text, which already reads
   well in a terminal.
 
-### E2 — Notifications that cover the site
+### E2 — Notifications that cover the site (built 2026-10-08: mail, reactions, ring news)
 - Migration: notifications get `target_type` / `target_id` (and a `group_key`) instead of requiring a post and board.
   Existing rows are converted.
 - New kinds: mail (new message in a conversation, honouring mutes), reactions to your posts (grouped), ring invites,
-  join requests (for ops) and approvals, vouches for you, the outcome of a report you made, changes to wiki pages you
-  started or edited (opt-in), a reply in a thread you follow (E3).
+  join requests (for ops) and approvals (all built). Still to do: vouches for you, the outcome of a report you made,
+  changes to wiki pages you started or edited (opt-in), a reply in a thread you follow (E3), and push for the new kinds.
 - Grouping: "3 replies in …", "Ada and 4 others reacted …".
 - Per-kind choices in Settings → Notifications (on the site, by push, off), building on the existing preferences and
   push subscriptions. Quiet by default for the noisy kinds (reactions, wiki).

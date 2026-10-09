@@ -66,7 +66,8 @@ mod_actions (id m_…, board_id, actor_id, action hide|unhide|lock|unlock|remove
 reports (id rp_…, target_type post, target_id, scope_type board, scope_id, reporter_id, category, note, status open|actioned|dismissed, resolved_by, resolved_at, resolution_note)
                                                 -- one open report per (reporter, target); migration 0008
 posts also has locked_at (thread starts only) and deleted_by (author|moderator).
-notifications (id n_…, user_id, kind reply|mention|watch, post_id, board_id, actor_id, created_at, read_at)
+notifications (id n_…, user_id, kind reply|mention|watch|mail|reaction|ring_invite|ring_request|ring_joined, post_id?, board_id?, actor_id, ref?, count, created_at, read_at;
+  `ref` is the thing a mail, reaction or ring notification is about; while one is unread, more of the same add to `count` (0044))
                                                 -- unique per (user, post); migration 0007
 read_state (user_id, board_id, last_read_seq)   -- read pointers; source of unread counts
 ```

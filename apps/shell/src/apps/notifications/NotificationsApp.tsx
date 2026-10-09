@@ -59,20 +59,24 @@ export default function NotificationsApp() {
       <ul className="rows notif-rows">
         {items.map((n) => {
           const name = n.actor.display_name || n.actor.handle;
+          // A repeated thing is one line with a count: "Ada and 2 more reacted", "new mail (3)".
+          const text = n.count > 1 && n.kind === 'reaction' ? t('notifications.reactionMany', { name, others: n.count - 1 })
+            : n.count > 1 && n.kind === 'mail' ? t('notifications.mailMany', { name, count: n.count })
+            : t(`notifications.${n.kind}`, { name });
           return (
             <li key={n.id} className={`mail-row${n.read ? '' : ' is-unread'}`}>
               <Avatar id={n.actor.id} name={name} />
               <div>
                 <div className="row-head">
                   <span>
-                    <OpenAppLink app="boards" to={`${n.board.slug}/t/${n.thread_id}`} onClick={() => { if (!n.read) markOne.mutate(n.id); }}>
-                      <strong>{t(`notifications.${n.kind}`, { name })}</strong>
+                    <OpenAppLink app={n.link.app} to={n.link.to} onClick={() => { if (!n.read) markOne.mutate(n.id); }}>
+                      <strong>{text}</strong>
                     </OpenAppLink>{' '}
                     {!n.read && <span className="badge badge-accent">{t('notifications.unreadBadge')}</span>}
                   </span>
                   <span className="row-meta"><RelativeTime iso={n.at} /></span>
                 </div>
-                <p className="row-meta">{n.subject && <>{n.subject} · </>}{t('notifications.in', { board: n.board.name })}</p>
+                <p className="row-meta">{[n.subject, n.place && t('notifications.in', { board: n.place })].filter(Boolean).join(' · ')}</p>
               </div>
             </li>
           );

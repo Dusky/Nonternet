@@ -72,6 +72,16 @@ for future federation (`12`).
 - Post text is shown as plain text (`white-space: pre-wrap`). Light markdown rendering is not built;
   if it is added it must render safely from the stored text without changing what is stored.
 
+## Site-wide notifications (E2, 2026-10-08, `23`)
+The notification list and the bell are no longer only about board posts. A notification now also comes from:
+- **mail:** new mail in a conversation (not muted, not left); opening the conversation answers it;
+- **reactions:** someone reacts to your post (not your own, not on a muted board);
+- **ring news:** an invitation, a request to join (to the founder and ops) and being let in.
+A repeat is one line with a count while it is unread ("Ada and 2 more reacted", "3 new in a conversation"), and goes to
+the top when it grows. Each belongs to one of the choices in Settings (reply, mention, watch, mail, reaction, ring);
+off means none is made. Not yet: vouches, report outcomes, wiki changes, followed threads (E3), and push for the new
+kinds (push stays mail, reply, mention and watch).
+
 ## As built (M2, notifications)
 - Three kinds, one per person per post, most direct first: a **reply** to your post, an
   **@mention**, and a **new thread on a board you watch**. Replies inside a watched board's

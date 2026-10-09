@@ -45,7 +45,7 @@ describe.skipIf(!dbAvailable)('notifications', () => {
   };
   // The unread ones: most tests clear the inbox as they go, and read notifications stay in the list.
   const inbox = async (who: string) => {
-    const b = (await p(who).c.get('/api/v1/notifications')).body as { notifications: { id: string; kind: string; read: boolean; actor: { handle: string }; thread_id: string; post_id: string }[]; unread: number; next: string | null };
+    const b = (await p(who).c.get('/api/v1/notifications')).body as { notifications: { id: string; kind: string; read: boolean; actor: { handle: string }; link: { app: string; to: string } }[]; unread: number; next: string | null };
     return { ...b, notifications: b.notifications.filter((n) => !n.read) };
   };
   const clear = (who: string) => p(who).c.post('/api/v1/notifications/read', { all: true });
@@ -54,10 +54,10 @@ describe.skipIf(!dbAvailable)('notifications', () => {
     const t = await post('alice', 'my thread');
     await post('alice', 'talking to myself', { reply_to: t.id });
     expect((await inbox('alice')).notifications).toHaveLength(0);
-    const r = await post('bob', 'a reply', { reply_to: t.id });
+    await post('bob', 'a reply', { reply_to: t.id });
     const n = await inbox('alice');
     expect(n.unread).toBe(1);
-    expect(n.notifications[0]).toMatchObject({ kind: 'reply', actor: { handle: 'bob' }, thread_id: t.id, post_id: r.id });
+    expect(n.notifications[0]).toMatchObject({ kind: 'reply', actor: { handle: 'bob' }, link: { app: 'boards', to: `lounge/t/${t.id}` } });
     await clear('alice');
   });
 

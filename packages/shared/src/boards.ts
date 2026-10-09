@@ -103,12 +103,22 @@ export interface PostPreview {
   warnings: string[];        // things a classic terminal cannot show
 }
 
+// What makes a notification (docs/23, E2). The first three come from board posts, the push kinds are in push.ts.
 export const NOTIFICATION_KINDS = ['reply', 'mention', 'watch'] as const;
-export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+export const SITE_NOTIFICATION_KINDS = ['mail', 'reaction', 'ring_invite', 'ring_request', 'ring_joined'] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number] | (typeof SITE_NOTIFICATION_KINDS)[number];
+
+// Each kind belongs to one of the choices in Settings (PREF_KINDS in profile.ts).
+export const NOTIFICATION_PREF: Record<NotificationKind, 'reply' | 'mention' | 'watch' | 'mail' | 'reaction' | 'ring'> = {
+  reply: 'reply', mention: 'mention', watch: 'watch', mail: 'mail', reaction: 'reaction', ring_invite: 'ring', ring_request: 'ring', ring_joined: 'ring',
+};
 
 export interface NotificationView {
   id: string; kind: NotificationKind; at: string; read: boolean;
-  board: { slug: string; name: string }; thread_id: string; post_id: string; subject: string;
+  count: number;                                  // how many of the same thing while unread (reactions, new mail)
+  subject: string;                                // the thread, conversation or ring it is about
+  place: string;                                  // the board it happened in, or ''
+  link: { app: 'boards' | 'mail' | 'rings'; to: string };
   actor: { id: string; handle: string; display_name: string | null };
 }
 

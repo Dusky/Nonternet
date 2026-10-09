@@ -7,7 +7,7 @@ import { ApiError } from './errors';
 import { emit } from './events';
 import { liveAll, liveTo } from './live';
 import { dropLandingCache } from './routes/landing';
-import { notifyForPost } from './notifications';
+import { notifyForPost, notifyOther } from './notifications';
 import { pushText, queuePush } from './push';
 import { normalizeBody, normalizeSubject, replySubject } from './text';
 import type { Ctx, SessionUser } from './accounts';
@@ -533,19 +533,24 @@ export async function pinThread(deps: AppDeps, v: SessionUser, slug: string, thr
 export async function react(deps: AppDeps, v: SessionUser, postId: string, reaction: ReactionName, on: boolean): Promise<{ reactions: NonNullable<PostView['reactions']> }> {
   if (!isMember(v)) throw new ApiError(403, 'email_not_verified', 'Confirm your email address to react.');
   let placed: { boardId: string; slug: string; visibility: string; thread: string } | null = null;
+  let told: string[] = [];
   await deps.db.tx(async (q) => {
-    const p = await q.query<{ board_id: string; thread_root_id: string | null; deleted_at: Date | null; hidden_at: Date | null; slug: string }>(
-      `SELECT p.board_id, p.thread_root_id, p.deleted_at, p.hidden_at, b.slug FROM posts p JOIN boards b ON b.id = p.board_id WHERE p.id = $1`, [postId]);
+    const p = await q.query<{ board_id: string; thread_root_id: string | null; deleted_at: Date | null; hidden_at: Date | null; slug: string; author_id: string | null }>(
+      `SELECT p.board_id, p.thread_root_id, p.deleted_at, p.hidden_at, p.author_id, b.slug FROM posts p JOIN boards b ON b.id = p.board_id WHERE p.id = $1`, [postId]);
     const post = p.rows[0];
     if (!post) throw gone();
     const b = await loadBoard(q, post.slug, v);
     if (post.deleted_at || post.hidden_at) throw new ApiError(409, 'gone', 'That post is not showing, so it cannot take a reaction.');
     if (b.archived_at) throw new ApiError(409, 'archived', 'This board is archived. It is read-only.');
-    if (on) await q.query(`INSERT INTO post_reactions (post_id, user_id, reaction) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [postId, v.userId, reaction]);
+    if (on) {
+      const added = await q.query(`INSERT INTO post_reactions (post_id, user_id, reaction) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [postId, v.userId, reaction]);
+      // Only a new reaction tells the author, and only once per person and kind (taking it back and adding it again doesn't).
+      if (added.rowCount && post.author_id) told = await notifyOther(q, { userIds: [post.author_id], kind: 'reaction', actorId: v.userId, ref: postId, postId, boardId: post.board_id });
+    }
     else await q.query(`DELETE FROM post_reactions WHERE post_id = $1 AND user_id = $2 AND reaction = $3`, [postId, v.userId, reaction]);
     placed = { boardId: post.board_id, slug: post.slug, visibility: b.visibility, thread: post.thread_root_id ?? postId };
   });
-  await tellTabs(deps, placed, []);
+  await tellTabs(deps, placed, told);
   const view = { state: 'ok' as const, id: postId } as PostView;
   await attachReactions(deps, v, [view]);
   return { reactions: view.reactions ?? [] };

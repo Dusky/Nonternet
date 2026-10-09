@@ -37,7 +37,7 @@ export const profileUpdateSchema = z
 export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 
 // Notifications you can switch off, by kind. Off means none is made: not in the list, not in the badge, not as a browser alert.
-export const PREF_KINDS = ['reply', 'mention', 'watch'] as const;
+export const PREF_KINDS = ['reply', 'mention', 'watch', 'mail', 'reaction', 'ring'] as const;
 export const notificationPrefSchema = z.object({ kind: z.enum(PREF_KINDS), enabled: z.boolean() });
 export type NotificationPrefs = Record<(typeof PREF_KINDS)[number], boolean>;
 

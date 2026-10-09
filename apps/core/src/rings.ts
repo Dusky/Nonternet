@@ -5,6 +5,8 @@ import { isUniqueViolation, type Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { emit } from './events';
+import { clearFor, notifyOther } from './notifications';
+import { liveTo } from './live';
 import * as admin from './admin';
 import { finishOpsChange } from './admin';
 import { opsFor, type Ctx, type SessionUser } from './accounts';
@@ -157,9 +159,19 @@ async function setStatus(q: Queryable, ring: RingRow, userId: string, status: Me
   await emit(q, 'ring.member_changed', { ring_id: ring.id, user_id: userId, status });
 }
 
+// Ring events that tell someone (docs/23, E2): ops hear about a request; a person hears about an invitation or approval.
+// They return who was told; the caller nudges their open tabs once the change is saved, so a tab never asks too early.
+async function tellOps(q: Queryable, ring: RingRow, actorId: string): Promise<string[]> {
+  const ops = await q.query<{ user_id: string }>(`SELECT user_id FROM scoped_roles WHERE scope_type = 'ring' AND scope_id = $1`, [ring.id]);
+  return notifyOther(q, { userIds: [ring.founder_id, ...ops.rows.map((o) => o.user_id)], kind: 'ring_request', actorId, ref: ring.id });
+}
+const tellPerson = (q: Queryable, ring: RingRow, userId: string, actorId: string, kind: 'ring_invite' | 'ring_joined') =>
+  notifyOther(q, { userIds: [userId], kind, actorId, ref: ring.id });
+
 export async function join(deps: AppDeps, v: SessionUser, slug: string, ctx: Ctx): Promise<{ status: MemberStatus }> {
   if (!isMember(v)) throw new ApiError(403, 'email_not_verified', 'Confirm your email address to join a ring.');
-  return deps.db.tx(async (q) => {
+  let told: string[] = [];
+  const result = await deps.db.tx(async (q) => {
     const ring = await loadRing(q, slug, v);
     if (ring.archived_at) throw new ApiError(409, 'archived', 'This ring is archived. It is not taking members.');
     await q.query(`SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, [v.userId]); // one join at a time per person, for the cap below
@@ -176,8 +188,12 @@ export async function join(deps: AppDeps, v: SessionUser, slug: string, ctx: Ctx
     else throw new ApiError(403, 'invite_only', 'This ring is by invitation only.');
     await setStatus(q, ring, v.userId, status);
     await audit(q, { actorId: v.userId, actorKind: 'user', action: `ring.${status === 'member' ? 'joined' : 'join_requested'}`, targetType: 'ring', targetId: ring.id, origin: 'web', ipHash: ctx.ipHash });
+    if (status === 'pending') told = await tellOps(q, ring, v.userId);   // the ring's ops hear that someone is waiting
+    if (have === 'invited') await clearFor(q, v.userId, 'ring_invite', ring.id); // accepting answers the invitation
     return { status };
   });
+  liveTo(told, { type: 'notifications' });
+  return result;
 }
 
 export async function leave(deps: AppDeps, v: SessionUser, slug: string, ctx: Ctx): Promise<void> {
@@ -193,6 +209,7 @@ export async function leave(deps: AppDeps, v: SessionUser, slug: string, ctx: Ct
 }
 
 export async function invite(deps: AppDeps, v: SessionUser, slug: string, handle: string, ctx: Ctx): Promise<void> {
+  let told: string[] = [];
   await deps.db.tx(async (q) => {
     const ring = await loadRing(q, slug, v);
     needOp(v, ring);
@@ -204,11 +221,14 @@ export async function invite(deps: AppDeps, v: SessionUser, slug: string, handle
     if (existing === 'member' || existing === 'invited') throw new ApiError(409, 'no_change', 'They are already in, or invited.');
     // Someone who had asked to join is simply let in.
     await setStatus(q, ring, u.rows[0].id, existing === 'pending' ? 'member' : 'invited');
+    told = await tellPerson(q, ring, u.rows[0].id, v.userId, existing === 'pending' ? 'ring_joined' : 'ring_invite');
     await audit(q, { actorId: v.userId, actorKind: 'user', action: 'ring.invited', targetType: 'ring', targetId: ring.id, after: { user_id: u.rows[0].id }, origin: 'web', ipHash: ctx.ipHash });
   });
+  liveTo(told, { type: 'notifications' });
 }
 
 export async function memberAction(deps: AppDeps, v: SessionUser, slug: string, userId: string, action: 'approve' | 'remove' | 'ban' | 'unban', reason: string | undefined, ctx: Ctx): Promise<void> {
+  let told: string[] = [];
   await deps.db.tx(async (q) => {
     const ring = await loadRing(q, slug, v);
     needOp(v, ring);
@@ -220,6 +240,8 @@ export async function memberAction(deps: AppDeps, v: SessionUser, slug: string, 
     if (action === 'approve') {
       if (status !== 'pending') throw new ApiError(409, 'no_change', 'That person is not waiting for approval.');
       await setStatus(q, ring, userId, 'member');
+      told = await tellPerson(q, ring, userId, v.userId, 'ring_joined');
+      await clearFor(q, v.userId, 'ring_request', ring.id); // this op has dealt with it
     } else if (action === 'remove') {
       if (status === 'banned') throw new ApiError(409, 'banned', 'That person is banned. Lift the ban to let them back.');
       await q.query(`DELETE FROM ring_members WHERE ring_id = $1 AND user_id = $2`, [ring.id, userId]);
@@ -237,6 +259,7 @@ export async function memberAction(deps: AppDeps, v: SessionUser, slug: string, 
     }
     await audit(q, { actorId: v.userId, actorKind: 'user', action: `ring.member_${action}${action === 'approve' ? 'd' : action === 'ban' ? 'ned' : action === 'unban' ? 'ned' : 'd'}`, targetType: 'ring', targetId: ring.id, after: { user_id: userId, reason: reason ?? null }, origin: 'web', ipHash: ctx.ipHash });
   });
+  liveTo(told, { type: 'notifications' });
 }
 
 // The order of the nav bar. People not listed keep their place after those who are.

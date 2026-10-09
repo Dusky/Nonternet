@@ -176,7 +176,7 @@ The site wiki and ring wikis (`20`).
 ## Everyday apps (2026-10-07, owners' choice) — PLANNED
 Depth for boards, mail, notifications, profiles and directories (`23`).
 - [x] **E1:** readable text (shared formatting in posts and mail, quote-reply).
-- [ ] **E2:** notifications that cover the site.
+- [x] **E2:** notifications that cover the site (mail, reactions, ring news; vouches, report outcomes, wiki and push to follow).
 - [ ] **E3:** boards depth. [ ] **E4:** mail depth. [ ] **E5:** profiles and directories.
 - [ ] **E6:** images in posts and mail. [ ] **E7:** chat check-up.
 Bookmarks and memos fit after E1.

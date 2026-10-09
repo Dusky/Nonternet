@@ -1,4 +1,4 @@
-import type { NotificationKind, NotificationView } from '@app/shared';
+import { NOTIFICATION_PREF, type NotificationKind, type NotificationView } from '@app/shared';
 import { newId } from './crypto';
 import type { Queryable } from './db';
 import type { AppDeps } from './deps';
@@ -59,28 +59,82 @@ export async function notifyForPost(q: Queryable, post: {
   ok.rows = ok.rows.filter((r) => !skip.has(r.id));
   for (const { id } of ok.rows) {
     await q.query(
-      `INSERT INTO notifications (id, user_id, kind, post_id, board_id, actor_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (user_id, post_id) DO NOTHING`,
+      `INSERT INTO notifications (id, user_id, kind, post_id, board_id, actor_id) VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id, post_id) WHERE post_id IS NOT NULL AND kind IN ('reply', 'mention', 'watch') DO NOTHING`,
       [newId('n'), id, chosen.get(id), post.id, post.boardId, post.authorId]);
   }
   return ok.rows.map((r) => r.id);
 }
 
-interface Row {
-  id: string; kind: NotificationKind; created_at: Date; read_at: Date | null; slug: string; board_name: string;
-  post_id: string; thread_id: string; subject: string; actor_id: string; handle: string; display_name: string | null; seq: string;
+// A notification about something other than a new post: new mail, a reaction, a ring event (docs/23, E2). `ref` is the
+// thing it is about (a conversation, a ring, the reacted post). While one is unread, more of the same add to its count
+// and move it to the top, so a busy conversation or a popular post is one line, not twenty.
+// Respects what the person switched off. Nobody is told about their own doing.
+export async function notifyOther(q: Queryable, n: {
+  userIds: string[]; kind: NotificationKind; actorId: string; ref: string; postId?: string; boardId?: string;
+}): Promise<string[]> {
+  const ids = [...new Set(n.userIds)].filter((id) => id !== n.actorId);
+  if (!ids.length) return [];
+  const pref = NOTIFICATION_PREF[n.kind];
+  const ok = await q.query<{ id: string }>(
+    `SELECT u.id FROM users u WHERE u.id = ANY($1) AND u.status = 'active' AND u.role <> 'guest'
+       AND NOT EXISTS (SELECT 1 FROM notification_prefs x WHERE x.user_id = u.id AND x.kind = $2 AND NOT x.enabled)`, [ids, pref]);
+  let muted = new Set<string>();
+  if (n.kind === 'reaction' && n.boardId) {
+    muted = new Set((await q.query<{ user_id: string }>(`SELECT user_id FROM board_notification_prefs WHERE user_id = ANY($1) AND board_id = $2`, [ids, n.boardId])).rows.map((r) => r.user_id));
+  }
+  const told: string[] = [];
+  for (const { id } of ok.rows) {
+    if (muted.has(id)) continue;
+    await q.query(
+      `INSERT INTO notifications (id, user_id, kind, post_id, board_id, actor_id, ref) VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (user_id, kind, ref) WHERE ref IS NOT NULL AND read_at IS NULL
+       DO UPDATE SET count = notifications.count + 1, actor_id = EXCLUDED.actor_id, created_at = now()`,
+      [newId('n'), id, n.kind, n.postId ?? null, n.boardId ?? null, n.actorId, n.ref]);
+    told.push(id);
+  }
+  return told;
 }
 
-// Notifications about posts that were deleted, hidden, or are on a board you can no longer read are not shown.
-const VISIBLE = `p.deleted_at IS NULL AND p.hidden_at IS NULL AND b.hidden_at IS NULL
-  AND (b.visibility IN ('public', 'members', 'ring') OR EXISTS (SELECT 1 FROM board_members m WHERE m.board_id = b.id AND m.user_id = n.user_id))`;
+// Opening a conversation or a ring page answers what was waiting about it.
+export async function clearFor(q: Queryable, userId: string, kind: NotificationKind, ref: string): Promise<void> {
+  await q.query(`UPDATE notifications SET read_at = now() WHERE user_id = $1 AND kind = $2 AND ref = $3 AND read_at IS NULL`, [userId, kind, ref]);
+}
+
+interface Row {
+  id: string; kind: NotificationKind; created_at: Date; read_at: Date | null; count: number; ref: string | null;
+  slug: string | null; board_name: string | null; post_id: string | null; thread_id: string | null; subject: string | null;
+  ring_slug: string | null; ring_name: string | null; mail_subject: string | null;
+  actor_id: string; handle: string; display_name: string | null;
+}
+
+// What a notification is joined to, and when it still counts. Posts that were deleted or hidden, boards you can no
+// longer read, conversations you left and rings that are gone are not shown.
+const FROM = `FROM notifications n
+  JOIN users u ON u.id = n.actor_id
+  LEFT JOIN posts p ON p.id = n.post_id
+  LEFT JOIN boards b ON b.id = n.board_id
+  LEFT JOIN rings r ON r.id = n.ref AND n.kind IN ('ring_invite', 'ring_request', 'ring_joined')
+  LEFT JOIN mail_threads mt ON mt.id = n.ref AND n.kind = 'mail'`;
+const VISIBLE = `(n.post_id IS NULL OR (p.deleted_at IS NULL AND p.hidden_at IS NULL AND b.hidden_at IS NULL
+    AND (b.visibility IN ('public', 'members', 'ring') OR EXISTS (SELECT 1 FROM board_members m WHERE m.board_id = b.id AND m.user_id = n.user_id))))
+  AND (n.kind <> 'mail' OR EXISTS (SELECT 1 FROM mail_participants mp WHERE mp.thread_id = n.ref AND mp.user_id = n.user_id AND mp.left_at IS NULL))
+  AND (n.kind NOT IN ('ring_invite', 'ring_request', 'ring_joined') OR r.id IS NOT NULL)`;
+
+function linkOf(x: Row): NotificationView['link'] {
+  if (x.kind === 'mail') return { app: 'mail', to: x.ref! };
+  if (x.ring_slug) return { app: 'rings', to: x.ring_slug };
+  return { app: 'boards', to: `${x.slug}/t/${x.thread_id}` };
+}
 
 export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { before?: string; limit?: number }): Promise<{ notifications: NotificationView[]; unread: number; next: string | null }> {
   const limit = Math.min(opts.limit ?? 30, 100);
   const r = await deps.db.query<Row>(
-    `SELECT n.id, n.kind, n.created_at, n.read_at, b.slug, b.name AS board_name, p.id AS post_id,
+    `SELECT n.id, n.kind, n.created_at, n.read_at, n.count, n.ref, b.slug, b.name AS board_name, p.id AS post_id,
             COALESCE(p.thread_root_id, p.id) AS thread_id,
-            COALESCE(NULLIF(p.subject, ''), '') AS subject, u.id AS actor_id, u.handle, u.display_name, p.seq
-     FROM notifications n JOIN posts p ON p.id = n.post_id JOIN boards b ON b.id = n.board_id JOIN users u ON u.id = n.actor_id
+            COALESCE(NULLIF(p.subject, ''), mt.subject, '') AS subject, r.slug AS ring_slug, r.name AS ring_name, mt.subject AS mail_subject,
+            u.id AS actor_id, u.handle, u.display_name
+     ${FROM}
      WHERE n.user_id = $1 AND ${VISIBLE}
        AND ($2::text IS NULL OR (n.created_at, n.id) < (SELECT created_at, id FROM notifications WHERE id = $2 AND user_id = $1))
      ORDER BY n.created_at DESC, n.id DESC LIMIT $3`,
@@ -88,8 +142,9 @@ export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { b
   const page = r.rows.slice(0, limit);
   return {
     notifications: page.map((x) => ({
-      id: x.id, kind: x.kind, at: x.created_at.toISOString(), read: x.read_at !== null, board: { slug: x.slug, name: x.board_name },
-      thread_id: x.thread_id, post_id: x.post_id, subject: x.subject, actor: { id: x.actor_id, handle: x.handle, display_name: x.display_name },
+      id: x.id, kind: x.kind, at: x.created_at.toISOString(), read: x.read_at !== null, count: x.count,
+      subject: x.ring_name ?? x.subject ?? '', place: x.board_name ?? '', link: linkOf(x),
+      actor: { id: x.actor_id, handle: x.handle, display_name: x.display_name },
     })),
     unread: await unreadCount(deps, v),
     next: r.rows.length > limit ? page[page.length - 1]!.id : null,
@@ -97,9 +152,7 @@ export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { b
 }
 
 export async function unreadCount(deps: AppDeps, v: SessionUser): Promise<number> {
-  const r = await deps.db.query<{ n: string }>(
-    `SELECT count(*) AS n FROM notifications n JOIN posts p ON p.id = n.post_id JOIN boards b ON b.id = n.board_id
-     WHERE n.user_id = $1 AND n.read_at IS NULL AND ${VISIBLE}`, [v.userId]);
+  const r = await deps.db.query<{ n: string }>(`SELECT count(*) AS n ${FROM} WHERE n.user_id = $1 AND n.read_at IS NULL AND ${VISIBLE}`, [v.userId]);
   return Number(r.rows[0]!.n);
 }
 
