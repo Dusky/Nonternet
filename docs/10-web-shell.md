@@ -67,6 +67,8 @@ xterm.js support). The Boards app is the accessible path to BBS content.
   real address so it opens in a new tab like any link.
 - The taskbar is a fixed 48px high (the window manager relies on it) and has a bell with the unread
   count of notifications.
+- App icons carry badges for what is waiting (mail, things aimed at you in Boards, ring news, chat, and open reports
+  for admins); see docs/23, E2. The numbers come from one place (`shell/appBadges.ts`), so every icon agrees.
 - Logout is a full page load, so no client state survives it.
 
 ## Tech (PROPOSED)

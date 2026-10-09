@@ -212,6 +212,12 @@ export async function deleteMessage(deps: AppDeps, me: SessionUser, threadId: st
   if (!r.rowCount) throw new ApiError(404, 'not_found', 'You have no message like that here.');
 }
 
+// "Mark these read" on the Mail icon: everything waiting counts as seen.
+export async function readAll(deps: AppDeps, me: SessionUser): Promise<void> {
+  await deps.db.query(`UPDATE mail_participants SET last_read_at = now() WHERE user_id = $1 AND left_at IS NULL`, [me.userId]);
+  await deps.db.query(`UPDATE notifications SET read_at = now() WHERE user_id = $1 AND kind = 'mail' AND read_at IS NULL`, [me.userId]);
+}
+
 export async function unreadMail(deps: AppDeps, me: SessionUser): Promise<number> {
   const r = await deps.db.query<{ n: string }>(
     `SELECT count(*) AS n FROM mail_participants p WHERE p.user_id = $1 AND p.left_at IS NULL AND NOT EXISTS (SELECT 1 FROM mail_mutes x WHERE x.user_id = $1 AND x.thread_id = p.thread_id) AND EXISTS (

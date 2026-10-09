@@ -4,6 +4,9 @@ import { useSite, useT } from '../hooks';
 import { appById, appName, useVisibleApps, visibleApps } from './apps';
 import { useInstalled } from './installed';
 import { HomePanel } from './HomePanel';
+import { useQueryClient } from '@tanstack/react-query';
+import { AppBadge, useAppLabel } from '../components/AppBadge';
+import { markAppRead, READ_KINDS, useAppBadge } from './appBadges';
 import { AppTile } from './icons';
 import { focusedWindow, restoreSession, saveSession, snapGeometry, useWindows } from './windows';
 import { Window } from './Window';
@@ -56,14 +59,18 @@ function DesktopIcon({ app }: { app: AppDef }) {
   const t = useT();
   const open = useWindows((s) => s.open);
   const title = appName(app, t);
+  const qc = useQueryClient();
+  const badge = useAppBadge(app.id);
+  const named = useAppLabel(app.id, title);
   const ctx = useContextMenu(() => [
     { label: t('app.openApp', { app: title }), onSelect: () => open(app.id) },
     { label: t('ctx.openPage'), onSelect: () => window.open(app.path, '_blank', 'noopener') },
+    ...(badge && READ_KINDS[app.id] ? [{ label: t('ctx.markRead'), onSelect: () => void markAppRead(qc, app.id) }] : []),
   ]);
   return (
     <>
-      <button type="button" className="icon" data-app-icon={app.id} onClick={() => open(app.id)} aria-label={t('app.openApp', { app: title })} {...ctx.bind}>
-        <AppTile id={app.id} />
+      <button type="button" className="icon" data-app-icon={app.id} onClick={() => open(app.id)} aria-label={t('app.openApp', { app: named })} {...ctx.bind}>
+        <AppTile id={app.id} /><AppBadge id={app.id} />
         <span className="icon-label">{title}</span>
       </button>
       {ctx.menu}

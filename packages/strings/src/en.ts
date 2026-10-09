@@ -150,6 +150,8 @@ export const en = {
   'app.settings': 'Settings',
   'app.admin': 'Admin console',
   'app.openApp': 'Open {app}',
+  'app.badge': '{app}, {count} unread',
+  'ctx.markRead': 'Mark these read',
   'window.label': '{app} window',
   'window.close': 'Close {app}',
   'window.minimize': 'Minimize {app}',

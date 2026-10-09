@@ -125,7 +125,7 @@ export function boardRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.get('/api/v1/notifications', async (req) =>
     notifications.listNotifications(deps, requireUser(req), z.object({ before: z.string().regex(/^n_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(100).optional() }).parse(req.query)));
-  app.get('/api/v1/notifications/count', async (req) => ({ unread: await notifications.unreadCount(deps, requireUser(req)) }));
+  app.get('/api/v1/notifications/count', async (req) => notifications.unreadCounts(deps, requireUser(req)));
   app.post('/api/v1/notifications/read', async (req, reply) => {
     await notifications.markRead(deps, requireUser(req), notificationsReadSchema.parse(req.body));
     return reply.code(204).send();

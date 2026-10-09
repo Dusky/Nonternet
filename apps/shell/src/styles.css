@@ -1293,3 +1293,17 @@ div.post-body.rich-text { white-space: normal; }
 
 /* On a picture wallpaper the greeting sits on a strip of paper, outlined like a card, so it stays readable over the art. */
 :root[data-wallpaper="picture"] .home-greeting { justify-self: start; width: fit-content; max-width: 100%; background: var(--surface); border: var(--control-line) solid var(--line-strong); padding: var(--space-2) var(--space-3); }
+
+/* Badges on app icons (docs/10): accent normally, danger-tinted when it is aimed at you (mentions, chat, reports). */
+.badge-wrap, .icon, .tabbar a, .taskbar-windows .btn { position: relative; }
+.badge-wrap { display: inline-flex; }
+.app-badge { position: absolute; top: -.3rem; right: -.4rem; min-width: 1.15rem; min-height: 1.15rem; padding: 0 .3rem; display: inline-flex; align-items: center; justify-content: center;
+  font-size: .65rem; font-weight: 700; line-height: 1; border: 2px solid var(--line); border-radius: 999px; background: var(--accent); color: var(--accent-text); pointer-events: none; }
+.app-badge.is-strong { background: var(--danger); color: var(--danger-text, #fff); border-color: var(--danger); }
+.icon .app-badge { top: .1rem; right: calc(50% - 2.6rem); }
+.tabbar .app-badge { top: 4px; left: calc(50% + 6px); right: auto; }
+.taskbar-windows .app-badge { position: static; margin-left: var(--space-1); }
+@media (prefers-reduced-motion: no-preference) {
+  .taskbar-windows .btn.is-nudged { animation: nudge .5s ease-in-out 3; }
+  @keyframes nudge { 50% { transform: translateY(-3px); } }
+}

@@ -1,8 +1,8 @@
 import { clearAllDrafts } from '../drafts';
-import { useEffect, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import type { CatalogApp, Me } from '@app/shared';
+import type { CatalogApp, Me, NotificationCounts } from '@app/shared';
 import { appKey, useInstalled } from './installed';
 import { api } from '../api';
 import { AnnouncementBanner } from '../components/Announcements';
@@ -16,6 +16,8 @@ import { APPS, appById, appName, useVisibleApps } from './apps';
 import { CommandPalette } from './CommandPalette';
 import type { OnlinePerson } from './HomePanel';
 import { AppIcon, AppTile } from './icons';
+import { AppBadge, useAppLabel } from '../components/AppBadge';
+import { badgeMap, markAppRead, READ_KINDS, setAppBadges, useAppBadge } from './appBadges';
 import { ShortcutsSheet } from './ShortcutsSheet';
 import { StatusBanners } from './StatusBanners';
 import { MenuButton, useContextMenu } from '../components/Menu';
@@ -49,7 +51,8 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   // Numbers on the mail and notification buttons: pushed by the live stream, with a slow check as a safety net
   // (every minute when the stream is down).
   const unreadMail = useQuery({ queryKey: ['mail', 'unread', me.id], queryFn: () => api.get<{ unread: number }>('/mail/unread'), refetchInterval: poll, staleTime: 15_000, enabled: confirmed }).data?.unread ?? 0;
-  const unread = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<{ unread: number }>('/notifications/count'), refetchInterval: poll, staleTime: 15_000 }).data?.unread ?? 0;
+  const counts = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<NotificationCounts>('/notifications/count'), refetchInterval: poll, staleTime: 15_000 }).data;
+  const unread = counts?.unread ?? 0;
   useInstalledSync(me.id);
   const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), refetchInterval: 60_000, enabled: confirmed && desktop }).data?.people;
 
@@ -59,6 +62,17 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const appHere = desktop && location.pathname === '/' ? (top ? appById(top.id) : null) : byPath;
   const chatWaiting = useChatWaiting();
   const waiting = unreadMail + unread + chatWaiting;
+  const badges = badgeMap({ mail: unreadMail, counts, chat: chatWaiting });
+  const badgeKey = JSON.stringify(badges);
+  useEffect(() => { setAppBadges(badges); }, [badgeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The installed app's own badge (Chrome, Edge and Safari), where the browser allows it.
+  useEffect(() => {
+    try {
+      const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+      if (waiting > 0) void nav.setAppBadge?.(waiting)?.catch(() => undefined);
+      else void nav.clearAppBadge?.()?.catch(() => undefined);
+    } catch { /* not supported here */ }
+  }, [waiting]);
   const subtitle = useWindows((w) => (appHere ? w.subtitles[appHere.id] : undefined));
   useEffect(() => {
     const where = appHere ? [appName(appHere, t), subtitle].filter(Boolean).join(' — ') : null;
@@ -102,7 +116,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
 
         {desktop && (
           <div className="taskbar-apps">
-            <MenuButton label={t('nav.apps')} menuClassName="menu-grid" items={apps.map((a) => ({ label: appName(a, t), icon: <AppTile id={a.id} />, onSelect: () => launch(a.id) }))}>
+            <MenuButton label={t('nav.apps')} menuClassName="menu-grid" items={apps.map((a) => ({ label: appName(a, t), icon: <span className="badge-wrap"><AppTile id={a.id} /><AppBadge id={a.id} /></span>, onSelect: () => launch(a.id) }))}>
               <Icon name="grid" />{t('nav.apps')}
             </MenuButton>
             <button type="button" className="btn btn-quiet btn-icon" onClick={() => setPalette(true)} aria-label={t('palette.open')} aria-keyshortcuts="Control+K Meta+K" title={`${t('palette.open')} (Ctrl+K)`}><Icon name="search" /></button>
@@ -152,7 +166,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
       </div>
       <AnnouncementBanner lookNote />
       <main id="main" tabIndex={-1} className="stage">{children}</main>
-      {!desktop && <TabBar me={me} mail={unreadMail} notes={unread} />}
+      {!desktop && <TabBar me={me} />}
       <CommandPalette me={me} open={palette} onClose={() => setPalette(false)} />
       <ShortcutsSheet open={shortcuts} onClose={() => setShortcuts(false)} />
     </div>
@@ -195,26 +209,30 @@ function Clock() {
 }
 
 // Phones: the places people go most, one tap away, with the same unread numbers as the taskbar.
-function TabBar({ me, mail, notes }: { me: Me; mail: number; notes: number }) {
+function TabBar({ me }: { me: Me }) {
   const t = useT();
   const location = useLocation();
   const here = (path: string) => (path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`));
-  const items: { path: string; label: string; icon: ReactNode; count?: number }[] = [
+  const items: { path: string; label: string; icon: ReactNode; id?: AppId }[] = [
     { path: '/', label: t('tabbar.home'), icon: <Icon name="home" /> },
-    { path: '/boards', label: t('app.boards'), icon: <AppIcon id="boards" size={24} /> },
-    ...(me.role !== 'guest' ? [{ path: '/mail', label: t('app.mail'), icon: <AppIcon id="mail" size={24} />, count: mail }] : []),
-    { path: '/notifications', label: t('app.notifications'), icon: <AppIcon id="notifications" size={24} />, count: notes },
+    { path: '/boards', label: t('app.boards'), icon: <AppIcon id="boards" size={24} />, id: 'boards' as AppId },
+    ...(me.role !== 'guest' ? [{ path: '/mail', label: t('app.mail'), icon: <AppIcon id="mail" size={24} />, id: 'mail' as AppId }] : []),
+    { path: '/notifications', label: t('app.notifications'), icon: <AppIcon id="notifications" size={24} />, id: 'notifications' as AppId },
     { path: '/settings', label: t('tabbar.me'), icon: <Icon name="user" /> },
   ];
   return (
     <nav className="tabbar" aria-label={t('tabbar.label')}>
-      {items.map((i) => (
-        <Link key={i.path} to={i.path} aria-current={here(i.path) ? 'page' : undefined}>
-          {i.icon}<span>{i.label}</span>
-          {i.count ? <span className="badge badge-accent" aria-label={t('common.unreadCount', { count: i.count })}>{i.count > 99 ? t('common.lots') : i.count}</span> : null}
-        </Link>
-      ))}
+      {items.map((i) => <TabLink key={i.path} item={i} current={here(i.path)} />)}
     </nav>
+  );
+}
+
+function TabLink({ item, current }: { item: { path: string; label: string; icon: ReactNode; id?: AppId }; current: boolean }) {
+  const named = useAppLabel(item.id ?? 'boards', item.label);
+  return (
+    <Link to={item.path} aria-current={current ? 'page' : undefined} aria-label={item.id ? named : undefined}>
+      {item.icon}<span>{item.label}</span>{item.id && <AppBadge id={item.id} />}
+    </Link>
   );
 }
 
@@ -223,7 +241,22 @@ function TabBar({ me, mail, notes }: { me: Me; mail: number; notes: number }) {
 function TaskbarWindow({ win, front }: { win: Win; front: boolean }) {
   const t = useT();
   const { focus, minimize, toggleMaximize, snap, close } = useWindows();
+  const qc = useQueryClient();
   const title = appName(appById(win.id), t);
+  const named = useAppLabel(win.id, title);
+  const badge = useAppBadge(win.id);
+  // A window behind the others that has just got more waiting gives its button a nudge (not with reduced motion).
+  const last = useRef(0);
+  const [nudge, setNudge] = useState(false);
+  useEffect(() => {
+    const n = badge?.count ?? 0;
+    const grew = n > last.current;
+    last.current = n;
+    if (!grew || front || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setNudge(true);
+    const id = setTimeout(() => setNudge(false), 2000);
+    return () => clearTimeout(id);
+  }, [badge?.count, front]);
   const ctx = useContextMenu(() => [
     { label: win.minimized || !front ? t('window.focus', { app: title }) : t('window.minimize', { app: title }), onSelect: () => (win.minimized || !front ? focus(win.id) : minimize(win.id)) },
     { label: win.maximized ? t('window.restore', { app: title }) : t('window.maximize', { app: title }), onSelect: () => toggleMaximize(win.id) },
@@ -233,15 +266,16 @@ function TaskbarWindow({ win, front }: { win: Win; front: boolean }) {
     { label: t('window.snapTopRight'), onSelect: () => snap(win.id, 'top-right') },
     { label: t('window.snapBottomLeft'), onSelect: () => snap(win.id, 'bottom-left') },
     { label: t('window.snapBottomRight'), onSelect: () => snap(win.id, 'bottom-right') },
+    ...(badge && READ_KINDS[win.id] ? [{ label: t('ctx.markRead'), onSelect: () => void markAppRead(qc, win.id) }] : []),
     { label: t('window.close', { app: title }), onSelect: () => close(win.id), danger: true },
   ]);
   return (
     <>
       <button
-        type="button" className={`btn btn-quiet${front ? ' is-active' : ''}`}
-        aria-label={t('window.focus', { app: title })} aria-pressed={front}
+        type="button" className={`btn btn-quiet${front ? ' is-active' : ''}${nudge ? ' is-nudged' : ''}`}
+        aria-label={t('window.focus', { app: named })} aria-pressed={front}
         onClick={() => (front ? minimize(win.id) : focus(win.id))} {...ctx.bind}
-      ><AppIcon id={win.id} size={18} />{title}</button>
+      ><AppIcon id={win.id} size={18} />{title}<AppBadge id={win.id} /></button>
       {ctx.menu}
     </>
   );

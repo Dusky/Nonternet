@@ -39,6 +39,13 @@ same formatting.
 - Per-kind choices in Settings → Notifications (on the site, by push, off), building on the existing preferences and
   push subscriptions. Quiet by default for the noisy kinds (reactions, wiki).
 - The app: filter by kind, mark one or all read, jump to the thing.
+- Badges on app icons (built 2026-10-09): desktop icons, the Apps menu, taskbar buttons, the phone grid and tab bar show
+  what is waiting. Mail: conversations with something new. Boards: things aimed at you (replies, @mentions, reactions,
+  new threads on watched boards), in a stronger colour when one is a mention. Rings: invites, requests and joins.
+  Chat: mentions and direct messages. Admin: open reports (admins only). Counts cap at 99+, and an icon's accessible
+  name says "Boards, 3 unread". Right-click an icon for "Mark these read". A background window that gets more
+  waiting nudges its taskbar button (not with reduced motion), and the installed app's own badge follows the total.
+  Not yet: badges for wiki, files and the MUD, and a switch to hide badges.
 - Everything a notification links to is checked against what the person can still see.
 
 ### E3 — Boards depth

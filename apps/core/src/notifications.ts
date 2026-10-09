@@ -1,4 +1,4 @@
-import { NOTIFICATION_PREF, type NotificationKind, type NotificationView } from '@app/shared';
+import { NOTIFICATION_PREF, type NotificationCounts, type NotificationKind, type NotificationView } from '@app/shared';
 import { newId } from './crypto';
 import type { Queryable } from './db';
 import type { AppDeps } from './deps';
@@ -152,11 +152,29 @@ export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { b
 }
 
 export async function unreadCount(deps: AppDeps, v: SessionUser): Promise<number> {
-  const r = await deps.db.query<{ n: string }>(`SELECT count(*) AS n ${FROM} WHERE n.user_id = $1 AND n.read_at IS NULL AND ${VISIBLE}`, [v.userId]);
-  return Number(r.rows[0]!.n);
+  return (await unreadCounts(deps, v)).unread;
 }
 
-export async function markRead(deps: AppDeps, v: SessionUser, target: { ids: string[] } | { all: true }): Promise<void> {
+// The bell's number, split by the app each kind belongs to. Mail and chat have their own counts. Admins also get the
+// open reports, the same number the console shows.
+export async function unreadCounts(deps: AppDeps, v: SessionUser): Promise<NotificationCounts> {
+  const r = await deps.db.query<{ kind: NotificationKind; n: string }>(
+    `SELECT n.kind, count(*) AS n ${FROM} WHERE n.user_id = $1 AND n.read_at IS NULL AND ${VISIBLE} GROUP BY n.kind`, [v.userId]);
+  const by = (kinds: string[]) => r.rows.filter((x) => kinds.includes(x.kind)).reduce((a, x) => a + Number(x.n), 0);
+  const out: NotificationCounts = {
+    unread: by(r.rows.map((x) => x.kind)),
+    by_app: { boards: by(['reply', 'mention', 'watch', 'reaction']), rings: by(['ring_invite', 'ring_request', 'ring_joined']) },
+    mentions: by(['mention']),
+  };
+  if (v.role === 'admin') out.by_app.admin = Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM reports WHERE status = 'open'`)).rows[0]!.n);
+  return out;
+}
+
+export async function markRead(deps: AppDeps, v: SessionUser, target: { ids: string[] } | { all: true } | { kinds: NotificationKind[] }): Promise<void> {
+  if ('kinds' in target) {
+    await deps.db.query(`UPDATE notifications SET read_at = now() WHERE user_id = $1 AND kind = ANY($2) AND read_at IS NULL`, [v.userId, target.kinds]);
+    return;
+  }
   if ('all' in target) {
     await deps.db.query(`UPDATE notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL`, [v.userId]);
     return;

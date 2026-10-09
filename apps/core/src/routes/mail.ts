@@ -17,6 +17,7 @@ export function mailRoutes(app: FastifyInstance, deps: AppDeps): void {
     }).parse(req.query);
     return mail.listThreads(deps, requireUser(req), o);
   });
+  app.post('/api/v1/mail/read-all', async (req, reply) => { await mail.readAll(deps, requireUser(req)); return reply.code(204).send(); });
   app.get('/api/v1/mail/unread', async (req) => ({ unread: await mail.unreadMail(deps, requireUser(req)) }));
   app.post('/api/v1/mail', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req, reply) => {
     const b = mailStartSchema.parse(req.body);

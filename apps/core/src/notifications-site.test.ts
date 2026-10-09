@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { client, createTestDb, dbAvailable, loginAs, makeApp, makeUser } from './test/harness';
+import { client, createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser } from './test/harness';
 
 // Notifications beyond board posts (docs/23, E2): mail, reactions and ring news.
 describe.skipIf(!dbAvailable)('site-wide notifications', () => {
@@ -144,5 +144,33 @@ describe.skipIf(!dbAvailable)('site-wide notifications', () => {
     const s = (await p('bob').c.get('/api/v1/me/personal')).body.prefs;
     expect(Object.keys(s).sort()).toEqual(['mail', 'mention', 'reaction', 'reply', 'ring', 'watch']);
     expect((await p('bob').c.put('/api/v1/me/notification-prefs', { kind: 'nonsense', enabled: false })).status).toBe(400);
+  });
+  describe('counts for the badges on the icons', () => {
+    it('splits by app, flags mentions, shows reports only to admins, and marks read by kind', async () => {
+      await p('alice').c.post('/api/v1/notifications/read', { all: true }); // start clean
+      const th = (await p('owner').c.post('/api/v1/boards/lounge/posts', { subject: 'Badges', body: 'start' })).body as { id: string };
+      await p('bob').c.post('/api/v1/boards/lounge/posts', { subject: 'Re: Badges', body: 'hi @alice', parent_id: th.id });
+      await p('bob').c.post('/api/v1/mail', { to: ['alice'], subject: 'Badge mail', body: 'x' });
+      const c = (await p('alice').c.get('/api/v1/notifications/count')).body;
+      expect(c.by_app.boards).toBe(1);
+      expect(c.mentions).toBe(1);
+      expect(c.by_app.rings).toBe(0);
+      expect(c.by_app.admin).toBeUndefined();
+      expect(c.unread).toBeGreaterThanOrEqual(2); // the mention and the mail
+      // Marking only Boards' kinds leaves the mail.
+      expect((await p('alice').c.post('/api/v1/notifications/read', { kinds: ['reply', 'mention', 'watch', 'reaction'] })).status).toBe(204);
+      const after = (await p('alice').c.get('/api/v1/notifications/count')).body;
+      expect(after.by_app.boards).toBe(0);
+      expect(after.unread).toBe(c.unread - 1);
+      expect((await p('alice').c.post('/api/v1/notifications/read', { kinds: ['nonsense'] })).status).toBe(400);
+      // Mail's own "mark these read".
+      expect((await p('alice').c.post('/api/v1/mail/read-all')).status).toBe(204);
+      expect((await p('alice').c.get('/api/v1/mail/unread')).body.unread).toBe(0);
+      expect((await p('alice').c.get('/api/v1/notifications/count')).body.unread).toBe(0);
+      // Admins see open reports; the number matches what is open.
+      await p('carol').c.post('/api/v1/reports', { post_id: th.id, category: 'spam' });
+      const admin = await makeAdmin(ctx);
+      expect((await admin.client.get('/api/v1/notifications/count')).body.by_app.admin).toBeGreaterThanOrEqual(1);
+    });
   });
 });
