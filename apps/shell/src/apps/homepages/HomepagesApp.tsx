@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, BackLink, EmptyState, NotFound, TextField } from '../../components/ui';
 import { errorText, formatWhen, useMe, useT } from '../../hooks';
@@ -22,11 +22,14 @@ function Directory() {
   const [q, setQ] = useState('');
   const [term, setTerm] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
+  const [fresh, setFresh] = useState(false);
+  const [ring, setRing] = useState('');
+  const rings = useQuery({ queryKey: ['rings', 'names'], queryFn: () => api.get<{ rings: { slug: string; name: string }[] }>('/rings?limit=60&sort=name'), staleTime: 60_000 });
   const [error, setError] = useState<string | null>(null);
   const list = useInfiniteQuery({
-    queryKey: ['homepages', term, sort],
+    queryKey: ['homepages', term, sort, fresh, ring],
     placeholderData: keepPreviousData, // the last results stay while new ones load, so typing doesn't flash "Loading"
-    queryFn: ({ pageParam }) => api.get<{ homepages: Entry[]; next: number | null }>(`/homepages?sort=${sort}&offset=${pageParam}${term ? `&q=${encodeURIComponent(term)}` : ''}`),
+    queryFn: ({ pageParam }) => api.get<{ homepages: Entry[]; next: number | null }>(`/homepages?sort=${sort}&offset=${pageParam}${fresh ? '&filter=new' : ''}${ring ? `&ring=${encodeURIComponent(ring)}` : ''}${term ? `&q=${encodeURIComponent(term)}` : ''}`),
     initialPageParam: 0,
     getNextPageParam: (last) => last.next ?? undefined,
   });
@@ -40,6 +43,13 @@ function Directory() {
       <form role="search" className="search-form" onSubmit={(e: FormEvent) => { e.preventDefault(); setTerm(q.trim()); }}>
         <TextField label={t('homepages.search')} value={q} onChange={setQ} type="search" />
         <div className="field">
+          <button type="button" className={`btn btn-quiet${fresh ? ' is-active' : ''}`} aria-pressed={fresh} onClick={() => setFresh((f) => !f)}>{t('homepages.filter.new')}</button>
+          {rings.data && rings.data.rings.length > 0 && (
+            <select aria-label={t('homepages.filter.ring')} value={ring} onChange={(e) => setRing(e.target.value)}>
+              <option value="">{t('homepages.filter.anyRing')}</option>
+              {rings.data.rings.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+            </select>
+          )}
           <label htmlFor="hp-sort">{t('homepages.sort')}</label>
           <select id="hp-sort" value={sort} onChange={(e) => setSort(e.target.value as 'recent' | 'name')}>
             <option value="recent">{t('homepages.sort.recent')}</option>

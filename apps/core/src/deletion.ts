@@ -102,7 +102,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`INSERT INTO handle_history (user_id, handle) VALUES ($1, lower($2))`, [userId, u.handle]);
     const gone = `deleted-${userId.slice(-8).toLowerCase()}`;
     await q.query(
-      `UPDATE users SET status = 'deleted', handle = $2, display_name = NULL, bio = NULL, plan = '', email = $3, email_verified_at = NULL, password_hash = 'deleted',
+      `UPDATE users SET status = 'deleted', handle = $2, display_name = NULL, bio = NULL, plan = '', pronouns = NULL, location = NULL, links = '[]', email = $3, email_verified_at = NULL, password_hash = 'deleted',
          totp_secret_enc = NULL, totp_enabled_at = NULL, totp_last_step = NULL, public_key = NULL, private_key_enc = NULL, theme = NULL, theme_variant = NULL,
          status_line = NULL, away = false, avatar_at = NULL, email_digest = false, wallpaper = NULL, wallpaper_at = NULL, wallpaper_url = NULL,
          role = 'guest', role_rev = role_rev + 1, updated_at = now() WHERE id = $1`, [userId, gone, `${gone}@deleted.invalid`]);

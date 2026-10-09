@@ -86,10 +86,10 @@ export async function charactersOf(deps: AppDeps, userId: string): Promise<Chara
 // Suspended and deleted people, and guests, have none.
 export async function publicProfile(deps: AppDeps, handle: string): Promise<PublicProfile> {
   const r = await deps.db.query<{ id: string; handle: string; display_name: string | null; bio: string | null; role: PublicProfile['role']; created_at: Date; featured_character_id: string | null; has_page: boolean;
-    status_line: string | null; plan: string; away: boolean; last_seen_at: Date | null; show_last_seen: boolean; hp_title: string | null; hp_updated: Date | null }>(
+    status_line: string | null; plan: string; pronouns: string | null; location: string | null; links: { label: string; url: string }[]; away: boolean; last_seen_at: Date | null; show_last_seen: boolean; hp_title: string | null; hp_updated: Date | null }>(
     `SELECT u.id, u.handle, u.display_name, u.bio, u.role, u.created_at, u.featured_character_id,
             (h.has_index AND h.hidden_at IS NULL) AS has_page,
-            u.status_line, u.plan, u.away, u.last_seen_at, u.show_last_seen, h.title AS hp_title, h.last_updated_at AS hp_updated
+            u.status_line, u.plan, u.pronouns, u.location, u.links, u.away, u.last_seen_at, u.show_last_seen, h.title AS hp_title, h.last_updated_at AS hp_updated
      FROM users u LEFT JOIN homepages h ON h.user_id = u.id
      WHERE lower(u.handle) = lower($1) AND u.status = 'active' AND u.role <> 'guest'`, [handle]);
   const u = r.rows[0];
@@ -103,10 +103,21 @@ export async function publicProfile(deps: AppDeps, handle: string): Promise<Publ
        FROM posts p JOIN boards b ON b.id = p.board_id LEFT JOIN posts t ON t.id = p.thread_root_id
       WHERE p.author_id = $1 AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND b.visibility = 'public' AND b.hidden_at IS NULL
       ORDER BY p.seq DESC LIMIT 5`, [u.id]);
+  // Pages they edited in the site wiki that anyone can read (latest edit per page).
+  const wiki = await deps.db.query<{ slug: string; title: string; at: Date }>(
+    `SELECT * FROM (SELECT DISTINCT ON (p.id) p.slug, p.title, r.created_at AS at
+       FROM wiki_revisions r JOIN wiki_pages p ON p.id = r.page_id JOIN wikis w ON w.id = p.wiki_id AND w.scope_type = 'site'
+      WHERE r.editor_id = $1 AND p.hidden_at IS NULL AND p.deleted_at IS NULL AND r.text_hidden_at IS NULL
+      ORDER BY p.id, r.created_at DESC) x ORDER BY at DESC LIMIT 5`, [u.id]);
+  const activity: PublicProfile['activity'] = [
+    ...recent.rows.map((p) => ({ kind: 'post' as const, at: p.posted_at.toISOString(), title: p.subject, link: { app: 'boards' as const, to: `${p.slug}/t/${p.thread_id}` }, place: p.board_name })),
+    ...wiki.rows.map((p) => ({ kind: 'wiki' as const, at: p.at.toISOString(), title: p.title, link: { app: 'wiki' as const, to: p.slug }, place: null })),
+    ...(u.has_page && u.hp_updated ? [{ kind: 'homepage' as const, at: u.hp_updated.toISOString(), title: u.hp_title || u.handle, link: { app: 'homepages' as const, to: u.handle }, place: null }] : []),
+  ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10);
   return {
     id: u.id, handle: u.handle, display_name: u.display_name, bio: u.bio, role: u.role, joined_at: u.created_at.toISOString(),
     homepage_url: u.has_page ? deps.homesUrl(u.handle) : null, rings: rings.rows,
-    status_line: u.status_line, plan: u.plan, away: u.away, last_seen: coarseLastSeen(u.last_seen_at, u.show_last_seen),
+    status_line: u.status_line, plan: u.plan, pronouns: u.pronouns, location: u.location, links: u.links, activity, away: u.away, last_seen: coarseLastSeen(u.last_seen_at, u.show_last_seen),
     homepage: u.has_page ? { title: u.hp_title || u.handle, updated_at: u.hp_updated?.toISOString() ?? null } : null,
     recent_posts: recent.rows.map((p) => ({ id: p.id, thread_id: p.thread_id, subject: p.subject, posted_at: p.posted_at.toISOString(), board: { slug: p.slug, name: p.board_name } })),
     characters: await charactersOf(deps, u.id), featured_character_id: u.featured_character_id,

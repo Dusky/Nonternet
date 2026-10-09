@@ -305,6 +305,9 @@ export async function updateProfile(deps: AppDeps, user: SessionUser, changes: P
   if (changes.theme_variant !== undefined) add('theme_variant', changes.theme_variant);
   if (changes.status_line !== undefined) add('status_line', changes.status_line || null);
   if (changes.plan !== undefined) add('plan', changes.plan);
+  if (changes.pronouns !== undefined) add('pronouns', changes.pronouns || null);
+  if (changes.location !== undefined) add('location', changes.location || null);
+  if (changes.links !== undefined) add('links', JSON.stringify(changes.links.filter((l) => l.url)));
   if (changes.away !== undefined) add('away', changes.away);
   if (changes.show_last_seen !== undefined) add('show_last_seen', changes.show_last_seen);
   if (changes.email_digest !== undefined) add('email_digest', changes.email_digest);

@@ -17,7 +17,7 @@ export function homeRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   // The directory of homepages (docs/07): recently updated, search, and a random one.
   app.get('/api/v1/homepages', async (req) => homes.directory(deps, z.object({
-    q: z.string().trim().max(100).optional(), sort: z.enum(['recent', 'name']).optional(),
+    q: z.string().trim().max(100).optional(), sort: z.enum(['recent', 'name']).optional(), filter: z.enum(['new']).optional(), ring: z.string().trim().max(40).optional(),
     limit: z.coerce.number().int().min(1).max(60).optional(), offset: z.coerce.number().int().min(0).max(5000).optional(),
   }).parse(req.query)));
   app.get('/api/v1/homepages/random', async () => {

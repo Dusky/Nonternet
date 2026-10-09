@@ -126,7 +126,9 @@ function Profile({ handle }: { handle: string }) {
         {(p.status_line || p.away) && <p className="profile-status">{p.away && <span className="badge">{t('people.away')}</span>} {p.status_line}</p>}
         </div>
       </header>
+      {(p.pronouns || p.location) && <p className="muted profile-about">{[p.pronouns, p.location].filter(Boolean).join(' · ')}</p>}
       {p.bio && <p className="profile-bio">{p.bio}</p>}
+      {p.links.length > 0 && <ul className="plain profile-links">{p.links.map((l, i) => <li key={i}><a href={l.url} target="_blank" rel="noopener noreferrer nofollow">{l.label || l.url}</a></li>)}</ul>}
       {p.plan && <section aria-labelledby="plan-h"><h3 id="plan-h">{t('people.plan')}</h3><pre className="profile-plan">{p.plan}</pre></section>}
       <PersonActions p={p} />
       <p className="toolbar"><CopyButton text={`${window.location.origin}/people/${encodeURIComponent(p.handle)}`} label={t('people.copyLink')} /><FeedLink href={`/feeds/people/${encodeURIComponent(p.handle)}.atom`} title={p.handle} /></p>
@@ -137,12 +139,16 @@ function Profile({ handle }: { handle: string }) {
           {p.homepage?.updated_at && <span className="muted"> · {t('people.homepageUpdated')} <RelativeTime iso={p.homepage.updated_at} /></span>}
         </p>
       )}
-      {p.recent_posts.length > 0 && (
+      {p.activity.length > 0 && (
         <section aria-labelledby="profile-posts" className="panel">
-          <div className="panel-head"><h3 id="profile-posts">{t('people.recentPosts')}</h3></div>
+          <div className="panel-head"><h3 id="profile-posts">{t('people.activity')}</h3></div>
           <ul className="rows">
-            {p.recent_posts.map((x) => (
-              <li key={x.id}><PersonLink app="boards" to={`${x.board.slug}/t/${x.thread_id}`}>{x.subject || t('people.untitled')}</PersonLink> <span className="muted">· {x.board.name} · <RelativeTime iso={x.posted_at} /></span></li>
+            {p.activity.map((x, i) => (
+              <li key={`${x.kind}-${i}`}>
+                <span className="muted">{t(`people.activity.${x.kind}` as StringKey)}</span>{' '}
+                {x.kind === 'homepage' && p.homepage_url ? <a href={p.homepage_url} rel="noopener">{x.title}</a> : <PersonLink app={x.link.app === 'homepages' ? 'boards' : x.link.app} to={x.link.to}>{x.title || t('people.untitled')}</PersonLink>}
+                <span className="muted"> · {x.place ? `${x.place} · ` : ''}<RelativeTime iso={x.at} /></span>
+              </li>
             ))}
           </ul>
         </section>

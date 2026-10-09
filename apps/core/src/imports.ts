@@ -194,7 +194,7 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
   await run('profile', async () => {
     const p = json<Record<string, unknown>>(a, 'profile.json');
     if (!p) return { restored: 0, codes: [] };
-    const parsed = profileUpdateSchema.safeParse({ display_name: p.display_name ?? null, bio: p.bio ?? null, theme: p.theme ?? null, theme_variant: p.theme_variant ?? null, ...(typeof p.plan === 'string' ? { plan: p.plan } : {}) });
+    const parsed = profileUpdateSchema.safeParse({ display_name: p.display_name ?? null, bio: p.bio ?? null, theme: p.theme ?? null, theme_variant: p.theme_variant ?? null, ...(typeof p.plan === 'string' ? { plan: p.plan } : {}), ...(typeof p.pronouns === 'string' ? { pronouns: p.pronouns } : {}), ...(typeof p.location === 'string' ? { location: p.location } : {}), ...(Array.isArray(p.links) ? { links: p.links } : {}) });
     if (!parsed.success) return { restored: 0, codes: ['invalid'] };
     await accounts.updateProfile(deps, v, parsed.data);
     return { restored: 1, codes: [] };

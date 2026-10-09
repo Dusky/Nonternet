@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AVATAR_MAX_BYTES, PLAN_MAX, PREF_KINDS, type ChatClient, type Me, type PersonalSettings } from '@app/shared';
+import { AVATAR_MAX_BYTES, PLAN_MAX, PREF_KINDS, PROFILE_LINKS_MAX, type ChatClient, type Me, type PersonalSettings } from '@app/shared';
 import { api } from '../../api';
 import { Avatar, Alert, TextField } from '../../components/ui';
 import { useToast } from '../../components/feedback';
@@ -87,6 +87,7 @@ export function PersonalProfile({ me }: { me: Me }) {
         <TextField label={t('settings.plan.label')} hint={t('settings.plan.hint')} value={planShown} onChange={setPlan} maxLength={PLAN_MAX} multiline />
         <button className="btn" type="submit" disabled={patch.isPending || planShown === p.plan}>{t('settings.plan.save')}</button>
       </form>
+      <AboutYou p={p} patch={(body, done) => patch.mutate(body, { onSuccess: done })} pending={patch.isPending} />
       <Switch label={t('settings.status.away')} checked={p.away} save={(on) => saveFlag({ away: on })} />
       <Switch label={t('settings.lastSeen')} checked={p.show_last_seen} save={(on) => saveFlag({ show_last_seen: on })} />
       {error && <Alert kind="error">{error}</Alert>}
@@ -231,5 +232,32 @@ export function TerminalDisplay() {
       <DeviceSwitch label={t('settings.terminal.copyOnSelect')} checked={prefs.copyOnSelect} onChange={(on) => set({ copyOnSelect: on })} />
       <DeviceSwitch label={t('terminal.reader')} checked={prefs.reader} onChange={(on) => set({ reader: on })} />
     </Section>
+  );
+}
+
+// Optional plain-text fields on the public profile: pronouns, where you are, and up to four links.
+function AboutYou({ p, patch, pending }: { p: PersonalSettings; patch: (body: object, done: () => void) => void; pending: boolean }) {
+  const t = useT();
+  const [pronouns, setPronouns] = useState<string | null>(null);
+  const [location, setLocation] = useState<string | null>(null);
+  const [links, setLinks] = useState<{ label: string; url: string }[] | null>(null);
+  const shownLinks = links ?? [...p.links, ...Array.from({ length: Math.max(0, PROFILE_LINKS_MAX - p.links.length) }, () => ({ label: '', url: '' }))];
+  const same = (pronouns ?? p.pronouns ?? '') === (p.pronouns ?? '') && (location ?? p.location ?? '') === (p.location ?? '') && links === null;
+  return (
+    <form onSubmit={(e: FormEvent) => {
+      e.preventDefault();
+      patch({ pronouns: (pronouns ?? p.pronouns ?? '').trim() || null, location: (location ?? p.location ?? '').trim() || null, links: shownLinks.filter((l) => l.url.trim()).map((l) => ({ label: l.label.trim(), url: l.url.trim() })) },
+        () => { setPronouns(null); setLocation(null); setLinks(null); });
+    }}>
+      <TextField label={t('settings.about.pronouns')} value={pronouns ?? p.pronouns ?? ''} onChange={setPronouns} maxLength={40} />
+      <TextField label={t('settings.about.location')} value={location ?? p.location ?? ''} onChange={setLocation} maxLength={60} />
+      {shownLinks.map((l, i) => (
+        <div key={i} className="link-row">
+          <TextField label={t('settings.about.linkLabel', { n: i + 1 })} value={l.label} maxLength={40} onChange={(v) => setLinks(shownLinks.map((x, j) => (j === i ? { ...x, label: v } : x)))} />
+          <TextField label={t('settings.about.linkUrl', { n: i + 1 })} value={l.url} maxLength={300} inputMode="url" autoCapitalize="none" spellCheck={false} onChange={(v) => setLinks(shownLinks.map((x, j) => (j === i ? { ...x, url: v } : x)))} />
+        </div>
+      ))}
+      <button className="btn" type="submit" disabled={pending || same}>{t('settings.about.save')}</button>
+    </form>
   );
 }

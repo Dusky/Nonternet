@@ -14,6 +14,14 @@ export type TerminalScheme = (typeof TERMINAL_SCHEMES)[number];
 export const themeVariantSchema = z.enum(TERMINAL_SCHEMES);
 
 export const PLAN_MAX = 2000;
+export const PROFILE_LINKS_MAX = 4;
+const oneLine = (max: number) => z.string().trim().max(max).regex(/^[^\p{C}]*$/u, 'no line breaks or control characters');
+// Links on a profile: only addresses people can safely follow (never javascript: or data:), with an optional label.
+export const profileLinkSchema = z.object({
+  label: oneLine(40).default(''),
+  url: z.string().trim().max(300).refine((s) => { try { return ['http:', 'https:', 'gemini:', 'gopher:'].includes(new URL(s).protocol); } catch { return false; } }, 'use a full address like https://example.org'),
+});
+export type ProfileLink = z.infer<typeof profileLinkSchema>;
 
 // Editing your own profile. Send only what changes. An empty display name or bio clears it.
 export const profileUpdateSchema = z
@@ -28,6 +36,9 @@ export const profileUpdateSchema = z
     // characters (which could move a terminal's cursor) are refused.
     plan: z.string().max(PLAN_MAX, `keep the plan to ${PLAN_MAX} characters`).transform((s) => s.replace(/\r\n?/g, '\n').replace(/\s+$/, ''))
       .refine((s) => /^[^\p{C}]*$/u.test(s.replace(/[\n\t]/g, '')), 'no control characters'),
+    pronouns: oneLine(40).nullable(),
+    location: oneLine(60).nullable(),
+    links: z.array(profileLinkSchema).max(PROFILE_LINKS_MAX, `up to ${PROFILE_LINKS_MAX} links`),
     away: z.boolean(),
     show_last_seen: z.boolean(),
     email_digest: z.boolean(),
@@ -43,7 +54,7 @@ export type NotificationPrefs = Record<(typeof PREF_KINDS)[number], boolean>;
 
 // Everything the Settings pages need that is not on `Me`.
 export interface PersonalSettings {
-  status_line: string | null; plan: string; away: boolean; has_avatar: boolean; show_last_seen: boolean; email_digest: boolean; can_email: boolean;
+  status_line: string | null; plan: string; pronouns: string | null; location: string | null; links: ProfileLink[]; away: boolean; has_avatar: boolean; show_last_seen: boolean; email_digest: boolean; can_email: boolean;
   prefs: NotificationPrefs; muted_boards: { slug: string; name: string }[];
 }
 

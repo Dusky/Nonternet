@@ -137,7 +137,7 @@ const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 export interface DirectoryEntry { handle: string; display_name: string | null; title: string; description: string; url: string; updated: string | null }
 
-export async function directory(deps: AppDeps, opts: { q?: string; sort?: 'recent' | 'name'; limit?: number; offset?: number }): Promise<{ homepages: DirectoryEntry[]; next: number | null }> {
+export async function directory(deps: AppDeps, opts: { q?: string; sort?: 'recent' | 'name'; filter?: 'new'; ring?: string; limit?: number; offset?: number }): Promise<{ homepages: DirectoryEntry[]; next: number | null }> {
   const limit = Math.min(opts.limit ?? 24, 60);
   const offset = opts.offset ?? 0;
   const like = opts.q ? `%${escapeLike(opts.q)}%` : null;
@@ -145,7 +145,10 @@ export async function directory(deps: AppDeps, opts: { q?: string; sort?: 'recen
     `SELECT u.handle, u.display_name, h.title, h.description, h.last_updated_at FROM homepages h JOIN users u ON u.id = h.user_id
      WHERE h.has_index AND h.hidden_at IS NULL AND u.status = 'active'
        AND ($1::text IS NULL OR h.title ILIKE $1 ESCAPE '\\' OR h.description ILIKE $1 ESCAPE '\\' OR u.handle ILIKE $1 ESCAPE '\\')
-     ORDER BY ${opts.sort === 'name' ? 'lower(u.handle)' : 'h.last_updated_at DESC NULLS LAST, u.id'} OFFSET $2 LIMIT $3`, [like, offset, limit + 1]);
+       AND ($4::boolean IS NOT TRUE OR h.created_at > now() - interval '7 days')
+       AND ($5::text IS NULL OR EXISTS (SELECT 1 FROM ring_members m JOIN rings r ON r.id = m.ring_id
+            WHERE m.user_id = u.id AND m.status = 'member' AND r.slug = $5 AND r.archived_at IS NULL AND r.hidden_at IS NULL))
+     ORDER BY ${opts.sort === 'name' ? 'lower(u.handle)' : opts.filter === 'new' ? 'h.created_at DESC, u.id' : 'h.last_updated_at DESC NULLS LAST, u.id'} OFFSET $2 LIMIT $3`, [like, offset, limit + 1, opts.filter === 'new', opts.ring ?? null]);
   const page = r.rows.slice(0, limit);
   return {
     homepages: page.map((x) => ({ handle: x.handle, display_name: x.display_name, title: x.title, description: x.description, url: deps.homesUrl(x.handle), updated: x.last_updated_at ? x.last_updated_at.toISOString() : null })),

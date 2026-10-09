@@ -41,6 +41,9 @@ export async function answer(deps: AppDeps, raw: string): Promise<string> {
     if (p.last_seen) lines.push(`Last here ${LAST_SEEN[p.last_seen]}.`);
     lines.push(`Profile: ${deps.publicUrl}/people/${encodeURIComponent(p.handle)}`);
     if (p.homepage_url) lines.push(`Homepage: ${p.homepage_url}`);
+    if (p.pronouns) lines.push(`Pronouns: ${p.pronouns}`);
+    if (p.location) lines.push(`Location: ${p.location}`);
+    for (const l of p.links) lines.push(`Link: ${l.label ? `${l.label} ` : ''}${l.url}`);
     lines.push('', p.plan ? 'Plan:' : 'No plan.');
     if (p.plan) lines.push(p.plan);
     return lines.join('\n');

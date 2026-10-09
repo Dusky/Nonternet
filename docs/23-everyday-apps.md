@@ -74,11 +74,17 @@ same formatting.
   line for everyone; the BBS shows it too). Archive and star are in the export as lists of conversation ids and are not
   restored on import, because the conversations themselves stay with the people in them.
 
-### E5 — Profiles and directories
+### E5 — Profiles and directories (built 2026-10-09)
 - Profiles show recent public activity: posts on public boards, rings, wiki pages edited, homepage updates. Only what a
   logged-out visitor could see anyway, through the same visibility check.
 - Optional fields: up to 4 links, pronouns, location. All plain text, all in the export.
 - Homepages directory: sort by recently updated, "new this week", filter by ring.
+- Built: pronouns (40 characters), location (60) and up to four links (http, https, gemini or gopher addresses only, with an
+  optional name) in Settings → Profile; plain text everywhere, links open in a new tab with `noopener noreferrer nofollow`.
+  Profiles show "Recent activity" (public-board posts, site-wiki pages edited, and the homepage being updated), only what a
+  logged-out visitor could see. finger and the Gemini profile list the new fields as plain lines. The directory has a "New
+  this week" filter and a ring filter. The fields are in `profile.json` in the export, restored on import, and cleared on
+  account deletion. Not built: wiki pages edited in ring wikis (ring-private) and "rings joined" as activity items.
 
 ### E6 — Images in posts and mail
 - Upload an image while writing; it is re-encoded (as avatars are), metadata removed, capped in size and pixels, and
