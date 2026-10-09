@@ -108,7 +108,7 @@ Settings, Your data, "Bring back an export". Upload the zip, see a preview, then
   a redirect for the homepage and profile.
 - **Points / self-hosting / federation**: hub-and-spoke with this site as hub, desktop
   "point" apps, or full self-hosted nodes. Boards stay plain-text so FTN federation remains
-  possible. See `17-decisions.md` future items.
+  possible. See `17-decisions.md` future items. The proposed direction (2026-10-09): hub-and-spoke, opt-in at setup, shared MUD and IRC channels first (`17`, Q12).
 
 ## As built (M9-D)
 `settings.json` holds the status line, away flag, last-seen and digest choices, per-kind notification choices, muted boards and
