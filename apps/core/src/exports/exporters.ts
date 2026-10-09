@@ -68,12 +68,12 @@ const profile: Exporter = {
     const [lines, votes, asked] = await Promise.all([
       q.query<{ body: string; created_at: Date; hidden_at: Date | null }>(`SELECT body, created_at, hidden_at FROM oneliners WHERE author_id = $1 ORDER BY created_at`, [user.id]),
       q.query<{ question: string; label: string; voted_at: Date }>(`SELECT p.question, o.label, v.voted_at FROM poll_votes v JOIN polls p ON p.id = v.poll_id JOIN poll_options o ON o.id = v.option_id WHERE v.user_id = $1 ORDER BY v.voted_at`, [user.id]),
-      q.query<{ id: string; question: string; created_at: Date; closes_at: Date | null }>(`SELECT id, question, created_at, closes_at FROM polls WHERE created_by = $1 ORDER BY created_at`, [user.id]),
+      q.query<{ id: string; question: string; created_at: Date; closes_at: Date | null; post_id: string | null }>(`SELECT id, question, created_at, closes_at, post_id FROM polls WHERE created_by = $1 ORDER BY created_at`, [user.id]),
     ]);
     add('classics.json', json({
       oneliners: lines.rows.map((l) => ({ text: l.body, at: l.created_at.toISOString(), hidden_by_moderator: l.hidden_at !== null })),
       poll_votes: votes.rows.map((x) => ({ poll: x.question, choice: x.label, at: x.voted_at.toISOString() })),
-      polls_asked: asked.rows.map((x) => ({ question: x.question, at: x.created_at.toISOString(), closes: iso(x.closes_at) })),
+      polls_asked: asked.rows.map((x) => ({ question: x.question, at: x.created_at.toISOString(), closes: iso(x.closes_at), ...(x.post_id ? { thread: x.post_id } : {}) })),
     }));
     // What they wrote when they signed up by application (docs/02), and how it was decided. The admin's reason is theirs to know.
     const app = (await q.query<{ text: string; state: string; created_at: Date; decided_at: Date | null; reason: string | null }>(

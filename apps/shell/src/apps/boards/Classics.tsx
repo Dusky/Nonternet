@@ -169,11 +169,6 @@ export function PollPage({ id }: { id: string }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const q = useQuery({ queryKey: ['classics', 'poll', id], queryFn: () => api.get<PollView>(`/polls/${id}`) });
-  const [choice, setChoice] = useState('');
-  const vote = useMutation({
-    mutationFn: () => api.post<PollView>(`/polls/${id}/vote`, { option_id: choice }),
-    onSuccess: (p) => { qc.setQueryData(['classics', 'poll', id], p); void qc.invalidateQueries({ queryKey: ['classics', 'polls'] }); },
-  });
   const hide = useMutation({
     mutationFn: () => api.post(`/admin/polls/${id}/hide`, { reason: 'Taken down by an admin' }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['classics'] }); nav.go('polls'); },
@@ -182,12 +177,33 @@ export function PollPage({ id }: { id: string }) {
   if (q.isError) return <><BackLink to="polls">{t('classics.polls')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   const p = q.data;
   if (!p) return <Loading rows={3} />;
-  const canVote = !p.voted && !p.closed;
   return (
     <article>
       <BackLink to="polls">{t('classics.polls')}</BackLink>
       <h2>{p.question}</h2>
       <p className="hint">{p.by ? `${t('classics.polls.by', { name: p.by })} · ` : ''}{p.closed ? t('classics.polls.closed') : p.closes_at ? <>{t('classics.polls.until')} <RelativeTime iso={p.closes_at} /></> : t('classics.polls.open')}</p>
+      <PollBody poll={p} id={id} />
+      {me?.role === 'admin' && (
+        <p><button type="button" className="btn btn-quiet" onClick={() => { void confirm({ message: t('classics.polls.hideConfirm'), confirmLabel: t('classics.hide'), danger: true }).then((ok) => ok && hide.mutate()); }}>{t('classics.hide')}</button></p>
+      )}
+    </article>
+  );
+}
+
+// Voting and results for one poll: used by the voting booth page and by polls inside a thread. The tally stays hidden
+// until the person has voted or the poll has closed.
+export function PollBody({ poll: p, id, queryKey = ['classics', 'poll', id] }: { poll: PollView; id: string; queryKey?: readonly unknown[] }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [choice, setChoice] = useState('');
+  const vote = useMutation({
+    mutationFn: () => api.post<PollView>(`/polls/${id}/vote`, { option_id: choice }),
+    onSuccess: (p) => { qc.setQueryData(queryKey, p); void qc.invalidateQueries({ queryKey: ['classics', 'polls'] }); },
+  });
+  const canVote = !p.voted && !p.closed;
+  const close = useMutation({ mutationFn: () => api.post(`/polls/${id}/close`), onSuccess: () => { void qc.invalidateQueries({ queryKey }); void qc.invalidateQueries({ queryKey: ['thread'] }); } });
+  return (
+    <>
       {canVote ? (
         <form onSubmit={(e) => { e.preventDefault(); if (choice) vote.mutate(); }}>
           <fieldset>
@@ -212,9 +228,7 @@ export function PollPage({ id }: { id: string }) {
           <p className="hint">{t('classics.polls.total', { count: p.total ?? 0 })}</p>
         </>
       )}
-      {me?.role === 'admin' && (
-        <p><button type="button" className="btn btn-quiet" onClick={() => { void confirm({ message: t('classics.polls.hideConfirm'), confirmLabel: t('classics.hide'), danger: true }).then((ok) => ok && hide.mutate()); }}>{t('classics.hide')}</button></p>
-      )}
-    </article>
+      {p.can_close && <p><button type="button" className="btn btn-quiet" onClick={() => close.mutate()} disabled={close.isPending}>{t('classics.polls.close')}</button></p>}
+    </>
   );
 }

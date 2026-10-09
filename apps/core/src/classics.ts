@@ -1,7 +1,7 @@
 import { ONELINER_GAP_MINUTES, type BulletinSummary, type BulletinView, type OnelinerView, type PollSummary, type PollView } from '@app/shared';
 import type { SessionUser } from './accounts';
 import { audit } from './audit';
-import { isMember } from './boards';
+import { canModerate, isMember, loadBoard } from './boards';
 import { newId } from './crypto';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
@@ -13,6 +13,20 @@ const member = (v: SessionUser) => { if (!isMember(v)) throw new ApiError(403, '
 const admin = (v: SessionUser) => { if (v.role !== 'admin') throw new ApiError(403, 'forbidden', 'Only admins can do that.'); };
 const tell = () => liveAll({ type: 'classics' }, { confirmedOnly: true });
 const notFound = (what: string) => new ApiError(404, 'not_found', `No such ${what}.`);
+
+// A poll that belongs to a thread (E3b) is only for people who can read that board, and goes when the thread does.
+// Returns whether the viewer may close it (its author, or a moderator of the board); site polls: only admins hide them.
+async function gate(deps: AppDeps, v: SessionUser, pollId: string): Promise<{ canClose: boolean; threadPoll: boolean }> {
+  const r = await deps.db.query<{ post_id: string | null; created_by: string | null; slug: string | null; hidden_at: Date | null; deleted_at: Date | null }>(
+    `SELECT p.post_id, p.created_by, b.slug, t.hidden_at, t.deleted_at FROM polls p LEFT JOIN posts t ON t.id = p.post_id LEFT JOIN boards b ON b.id = t.board_id WHERE p.id = $1`, [pollId]);
+  const row = r.rows[0];
+  if (!row) throw notFound('poll');
+  if (!row.post_id) return { canClose: false, threadPoll: false };
+  const board = await loadBoard(deps.db, row.slug!, v);
+  const mod = canModerate(v, board);
+  if ((row.hidden_at || row.deleted_at) && !mod) throw notFound('poll');
+  return { canClose: mod || row.created_by === v.userId, threadPoll: true };
+}
 
 // ---------------------------------------------------------------- oneliners
 
@@ -122,12 +136,13 @@ export async function listPolls(deps: AppDeps, v: SessionUser): Promise<{ polls:
   const r = await deps.db.query<{ id: string; question: string; closes_at: Date | null; closed: boolean; voted: boolean; handle: string | null }>(
     `SELECT p.id, p.question, p.closes_at, ${closedSql} AS closed, EXISTS (SELECT 1 FROM poll_votes x WHERE x.poll_id = p.id AND x.user_id = $1) AS voted, u.handle
        FROM polls p LEFT JOIN users u ON u.id = p.created_by AND u.status = 'active'
-      WHERE p.hidden_at IS NULL ORDER BY p.created_at DESC, p.id DESC LIMIT 100`, [v.userId]);
+      WHERE p.hidden_at IS NULL AND p.post_id IS NULL ORDER BY p.created_at DESC, p.id DESC LIMIT 100`, [v.userId]);
   return { polls: r.rows.map((p) => ({ id: p.id, question: p.question, closes_at: p.closes_at?.toISOString() ?? null, closed: p.closed, voted: p.voted, by: p.handle })) };
 }
 
 export async function getPoll(deps: AppDeps, v: SessionUser, id: string): Promise<PollView> {
   member(v);
+  const g = await gate(deps, v, id);
   const r = await deps.db.query<{ id: string; question: string; closes_at: Date | null; closed: boolean; handle: string | null; mine: string | null }>(
     `SELECT p.id, p.question, p.closes_at, ${closedSql} AS closed, u.handle, (SELECT option_id FROM poll_votes x WHERE x.poll_id = p.id AND x.user_id = $2) AS mine
        FROM polls p LEFT JOIN users u ON u.id = p.created_by AND u.status = 'active' WHERE p.id = $1 AND p.hidden_at IS NULL`, [id, v.userId]);
@@ -138,7 +153,7 @@ export async function getPoll(deps: AppDeps, v: SessionUser, id: string): Promis
     `SELECT o.id, o.label, (SELECT count(*) FROM poll_votes x WHERE x.option_id = o.id) AS votes FROM poll_options o WHERE o.poll_id = $1 ORDER BY o.position`, [id]);
   const total = opts.rows.reduce((n, o) => n + Number(o.votes), 0);
   return {
-    id: p.id, question: p.question, closes_at: p.closes_at?.toISOString() ?? null, closed: p.closed, voted: p.mine !== null, by: p.handle,
+    id: p.id, question: p.question, closes_at: p.closes_at?.toISOString() ?? null, closed: p.closed, voted: p.mine !== null, by: p.handle, can_close: g.canClose && !p.closed,
     options: opts.rows.map((o) => ({ id: o.id, label: o.label, votes: see ? Number(o.votes) : null })), my_vote: p.mine, total: see ? total : null, can_see_results: see,
   };
 }
@@ -158,6 +173,7 @@ export async function createPoll(deps: AppDeps, v: SessionUser, input: { questio
 export async function vote(deps: AppDeps, v: SessionUser, pollId: string, optionId: string): Promise<PollView> {
   member(v);
   if (v.limited) throw new ApiError(403, 'totp_setup_required', 'Set up two-factor authentication to continue.');
+  await gate(deps, v, pollId);
   await deps.db.tx(async (q) => {
     const p = await q.query<{ closed: boolean }>(`SELECT ${closedSql} AS closed FROM polls p WHERE p.id = $1 AND p.hidden_at IS NULL`, [pollId]);
     if (!p.rows[0]) throw notFound('poll');
@@ -169,6 +185,20 @@ export async function vote(deps: AppDeps, v: SessionUser, pollId: string, option
   });
   tell();
   return getPoll(deps, v, pollId);
+}
+
+// Ends a thread's poll now. Its author can do it; a moderator doing it is written to the audit log.
+export async function closePoll(deps: AppDeps, v: SessionUser, id: string, ipHash?: string): Promise<void> {
+  member(v);
+  const g = await gate(deps, v, id);
+  if (!g.threadPoll) throw new ApiError(403, 'forbidden', 'Only a poll inside a thread can be closed this way.');
+  if (!g.canClose) throw new ApiError(403, 'forbidden', 'Only the person who asked, or a moderator, can close this poll.');
+  await deps.db.tx(async (q) => {
+    const r = await q.query<{ created_by: string | null }>(`UPDATE polls SET closes_at = now() WHERE id = $1 AND (closes_at IS NULL OR closes_at > now()) RETURNING created_by`, [id]);
+    if (!r.rows[0]) throw new ApiError(409, 'closed', 'That poll has already closed.');
+    if (r.rows[0].created_by !== v.userId) await audit(q, { actorId: v.userId, actorKind: 'user', action: 'poll.closed', targetType: 'poll', targetId: id, origin: 'web', ipHash });
+  });
+  tell();
 }
 
 export async function hidePoll(deps: AppDeps, v: SessionUser, id: string, reason: string, ipHash?: string): Promise<void> {

@@ -31,5 +31,6 @@ export function classicsRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/polls', { config: { rateLimit: { max: 5, timeWindow: '1 day' } } }, async (req, reply) => reply.code(201).send(await c.createPoll(deps, requireUser(req), pollSchema.parse(req.body))));
   app.post('/api/v1/polls/:id/vote', { config: { rateLimit: { max: 60, timeWindow: '1 hour' } } }, async (req) =>
     c.vote(deps, requireUser(req), idOf('pl').parse(req.params).id, z.object({ option_id: z.string().regex(/^po_[0-9A-Z]{26}$/) }).parse(req.body).option_id));
+  app.post('/api/v1/polls/:id/close', async (req, reply) => { await c.closePoll(deps, requireUser(req), idOf('pl').parse(req.params).id, ip(req)); return reply.code(204).send(); });
   app.post('/api/v1/admin/polls/:id/hide', async (req, reply) => { await c.hidePoll(deps, requireUser(req), idOf('pl').parse(req.params).id, reason.parse(req.body).reason, ip(req)); return reply.code(204).send(); });
 }

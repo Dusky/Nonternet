@@ -21,12 +21,18 @@ export const POLL_QUESTION_MAX = 140;
 export const POLL_OPTION_MAX = 60;
 export const POLL_OPTIONS_MIN = 2;
 export const POLL_OPTIONS_MAX = 8;
+export const POLL_THREAD_OPTIONS_MAX = 10;
 export const pollSchema = z.object({
   question: z.string().trim().min(3).max(POLL_QUESTION_MAX).regex(/^[^\p{C}]*$/u, 'no line breaks or control characters'),
   options: z.array(z.string().trim().min(1).max(POLL_OPTION_MAX).regex(/^[^\p{C}]*$/u, 'no line breaks or control characters')).min(POLL_OPTIONS_MIN).max(POLL_OPTIONS_MAX)
     .refine((o) => new Set(o.map((x) => x.toLowerCase())).size === o.length, 'each choice must be different'),
   closes_in_days: z.number().int().min(1).max(90).optional(),
 });
+// A poll started with a thread (E3b): the same shape, with up to ten choices.
+export const threadPollSchema = pollSchema.extend({
+  options: z.array(z.string().trim().min(1).max(POLL_OPTION_MAX).regex(/^[^\p{C}]*$/u, 'no line breaks or control characters')).min(POLL_OPTIONS_MIN).max(POLL_THREAD_OPTIONS_MAX)
+    .refine((o) => new Set(o.map((x) => x.toLowerCase())).size === o.length, 'each choice must be different'),
+});
 export interface PollSummary { id: string; question: string; closes_at: string | null; closed: boolean; voted: boolean; by: string | null }
 // Counts are present only once the viewer has voted or the poll has closed (so nobody votes with the tally in front of them).
-export interface PollView extends PollSummary { options: { id: string; label: string; votes: number | null }[]; my_vote: string | null; total: number | null; can_see_results: boolean }
+export interface PollView extends PollSummary { can_close: boolean; options: { id: string; label: string; votes: number | null }[]; my_vote: string | null; total: number | null; can_see_results: boolean }

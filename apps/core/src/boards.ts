@@ -288,7 +288,7 @@ export async function listThreads(
   const limit = Math.min(opts.limit ?? 30, 100);
   const sort = opts.sort ?? 'activity';
   const filter = opts.filter ?? 'all';
-  type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean; following: boolean };
+  type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean; following: boolean; has_poll: boolean };
   const UNREAD = `EXISTS (SELECT 1 FROM posts x
          WHERE (x.id = p.id OR x.thread_root_id = p.id) AND x.deleted_at IS NULL AND x.hidden_at IS NULL AND x.author_id IS DISTINCT FROM $2
            AND x.seq > COALESCE((SELECT s.last_read_seq FROM read_state s WHERE s.user_id = $2 AND s.board_id = p.board_id), 0))`;
@@ -297,7 +297,8 @@ export async function listThreads(
     `SELECT ${POST_COLUMNS}, p.reply_count, p.last_seq,
        (SELECT max(x.posted_at) FROM posts x WHERE x.id = p.id OR x.thread_root_id = p.id) AS last_at,
        CASE WHEN $2::text IS NULL THEN false ELSE ${UNREAD} END AS unread,
-       EXISTS (SELECT 1 FROM thread_follows f WHERE f.user_id = $2 AND f.thread_id = p.id) AS following
+       EXISTS (SELECT 1 FROM thread_follows f WHERE f.user_id = $2 AND f.thread_id = p.id) AS following,
+       EXISTS (SELECT 1 FROM polls pl WHERE pl.post_id = p.id AND pl.hidden_at IS NULL) AS has_poll
      FROM ${POST_FROM}
      WHERE p.board_id = $1 AND p.thread_root_id IS NULL AND ${where} ${filterSql}
        AND (p.hidden_at IS NULL OR $3::boolean) -- hidden threads are listed for moderators only
@@ -315,7 +316,7 @@ export async function listThreads(
   const threads = [...head.rows, ...page].map((row): ThreadSummary => {
     const post = toPostView(row, mod);
     return { id: row.id, subject: post.subject, author: post.author, posted_at: post.posted_at, reply_count: row.reply_count,
-      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, following: row.following,
+      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, following: row.following, has_poll: row.has_poll,
       locked: row.locked_at !== null, pinned: row.pinned_at !== null, state: post.state };
   });
   const last = page[page.length - 1];
@@ -340,7 +341,7 @@ export async function newPosts(deps: AppDeps, v: SessionUser, slug: string, opts
   return { last_read_seq: pointer, posts: page.map((row) => ({ ...toPostView(row, false), thread_subject: row.thread_subject })), next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
 }
 
-export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; following: boolean; posts: PostView[]; next: number | null }> {
+export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; following: boolean; poll_id: string | null; posts: PostView[]; next: number | null }> {
   const b = await loadBoard(deps.db, slug, v);
   const mod = canModerate(v, b);
   const root = await deps.db.query<{ hidden_at: Date | null; locked_at: Date | null }>(`SELECT hidden_at, locked_at FROM posts WHERE id = $1 AND board_id = $2 AND thread_root_id IS NULL`, [threadId, b.id]);
@@ -354,7 +355,8 @@ export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId
   const posts = page.map((row) => toPostView(row, mod));
   await attachReactions(deps, v, posts);
   const following = v ? (await deps.db.query(`SELECT 1 FROM thread_follows WHERE user_id = $1 AND thread_id = $2`, [v.userId, threadId])).rowCount === 1 : false;
-  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, following, posts, next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
+  const poll = (await deps.db.query<{ id: string }>(`SELECT id FROM polls WHERE post_id = $1 AND hidden_at IS NULL`, [threadId])).rows[0];
+  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, following, poll_id: poll?.id ?? null, posts, next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
 }
 
 // Reactions on the posts shown (not on ones that are deleted, removed or hidden): counts in a fixed order, and
@@ -371,8 +373,9 @@ async function attachReactions(deps: AppDeps, v: Viewer, posts: PostView[]): Pro
 }
 
 export async function createPost(
-  deps: AppDeps, v: SessionUser, slug: string, input: { subject?: string; body: string; reply_to?: string },
+  deps: AppDeps, v: SessionUser, slug: string, input: { subject?: string; body: string; reply_to?: string; poll?: { question: string; options: string[]; closes_in_days?: number } },
 ): Promise<PostView> {
+  if (input.poll && input.reply_to) throw new ApiError(400, 'poll_on_reply', 'A poll can only be added when you start a thread.');
   const body = normalizeBody(input.body);
   const id = newId('p');
   let notified: string[] = [];
@@ -411,6 +414,12 @@ export async function createPost(
       `INSERT INTO posts (id, board_id, author_id, thread_root_id, reply_to_id, subject, body) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING seq`,
       [id, b.id, v.userId, rootId, replyTo, subject, body]);
     const seq = ins.rows[0]!.seq;
+    if (input.poll) {
+      const pollId = newId('pl');
+      await q.query(`INSERT INTO polls (id, question, created_by, closes_at, post_id) VALUES ($1, $2, $3, CASE WHEN $4::int IS NULL THEN NULL ELSE now() + make_interval(days => $4::int) END, $5)`,
+        [pollId, input.poll.question, v.userId, input.poll.closes_in_days ?? null, id]);
+      for (const [i, label] of input.poll.options.entries()) await q.query(`INSERT INTO poll_options (id, poll_id, label, position) VALUES ($1, $2, $3, $4)`, [newId('po'), pollId, label, i]);
+    }
     if (rootId) await q.query(`UPDATE posts SET reply_count = reply_count + 1, last_seq = $2 WHERE id = $1`, [rootId, seq]);
     else await q.query(`UPDATE posts SET last_seq = $2 WHERE id = $1`, [id, seq]);
     await emit(q, 'post.created', { post_id: id, board_id: b.id, thread_id: rootId ?? id, author_id: v.userId, visibility: b.visibility });

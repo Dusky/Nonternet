@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { BODY_MAX, SUBJECT_MAX, type PostPreview, type PostView } from '@app/shared';
+import { BODY_MAX, POLL_OPTION_MAX, POLL_QUESTION_MAX, POLL_THREAD_OPTIONS_MAX, SUBJECT_MAX, type PostPreview, type PostView } from '@app/shared';
 import { api } from '../../api';
 import { Editor } from '../../components/Editor';
 import { FormatHelp } from '../../components/FormatHelp';
@@ -27,6 +27,12 @@ export function Composer({ slug, replyTo, quote, onPosted, onCancel }: Props) {
   const draftKey = `board:${slug}:${replyTo?.id ?? 'new'}`;
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [pollOn, setPollOn] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [choices, setChoices] = useState(['', '']);
+  const [days, setDays] = useState('');
+  const filled = choices.map((c) => c.trim()).filter(Boolean);
+  const poll = !replyTo && pollOn ? { question: question.trim(), options: filled, ...(days.trim() ? { closes_in_days: Number(days) } : {}) } : null;
   const [preview, setPreview] = useState<PostPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const name = replyTo?.author?.display_name || replyTo?.author?.handle || '';
@@ -38,7 +44,7 @@ export function Composer({ slug, replyTo, quote, onPosted, onCancel }: Props) {
   });
   const send = useMutation({
     mutationFn: () => api.post<PostView>(`/boards/${slug}/posts`, {
-      body, ...(replyTo ? { reply_to: replyTo.id } : {}), ...(subject.trim() ? { subject } : {}),
+      body, ...(replyTo ? { reply_to: replyTo.id } : {}), ...(subject.trim() ? { subject } : {}), ...(poll ? { poll } : {}),
     }),
     onSuccess: (post) => {
       void qc.invalidateQueries({ queryKey: ['boards'] });
@@ -70,6 +76,15 @@ export function Composer({ slug, replyTo, quote, onPosted, onCancel }: Props) {
         )}
         <FormatHelp />
       </Editor>
+      {!replyTo && (
+        <details className="poll-form" open={pollOn} onToggle={(e) => setPollOn((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary>{t('boards.compose.addPoll')}</summary>
+          <TextField label={t('boards.compose.pollQuestion')} value={question} onChange={setQuestion} maxLength={POLL_QUESTION_MAX} />
+          {choices.map((c, i) => <TextField key={i} label={t('boards.compose.pollChoice', { n: i + 1 })} value={c} onChange={(v) => setChoices((cs) => cs.map((x, j) => (j === i ? v : x)))} maxLength={POLL_OPTION_MAX} />)}
+          {choices.length < POLL_THREAD_OPTIONS_MAX && <p><button type="button" className="btn btn-quiet" onClick={() => setChoices((cs) => [...cs, ''])}>{t('boards.compose.pollAdd')}</button></p>}
+          <TextField label={t('boards.compose.pollDays')} value={days} onChange={(v) => setDays(v.replace(/\D/g, '').slice(0, 2))} inputMode="numeric" />
+        </details>
+      )}
       {error && <Alert kind="error">{error}</Alert>}
       {preview && (
         <div className="preview">
@@ -82,7 +97,7 @@ export function Composer({ slug, replyTo, quote, onPosted, onCancel }: Props) {
         </div>
       )}
       <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={send.isPending || !body.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={send.isPending || !body.trim() || (poll !== null && (poll.question.length < 3 || poll.options.length < 2))}>
           {send.isPending ? t('boards.compose.posting') : t('boards.compose.post')}
         </button>
         <button type="button" className="btn" disabled={previewIt.isPending || !body.trim()} onClick={() => previewIt.mutate()}>{t('boards.compose.preview')}</button>

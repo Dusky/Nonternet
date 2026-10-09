@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { threadPollSchema } from './classics';
 
 // Boards and posts (docs/05). Posts are plain text so the terminal BBS can show every one.
 export const BOARD_VISIBILITIES = ['public', 'members', 'ring', 'private'] as const;
@@ -43,6 +44,8 @@ export const postCreateSchema = z.object({
   subject: z.string().max(200).optional(),
   body: z.string().max(BODY_MAX * 2),
   reply_to: z.string().regex(/^p_[0-9A-Z]{26}$/).optional(),
+  // A new thread may carry one poll (E3b).
+  poll: threadPollSchema.optional(),
 });
 
 // Mark up to one post read, or the whole board.
@@ -96,7 +99,7 @@ export interface PostView {
 
 export interface ThreadSummary {
   id: string; subject: string; author: PostView['author']; posted_at: string;
-  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; following: boolean; locked: boolean; pinned: boolean; state: PostView['state'];
+  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; following: boolean; has_poll: boolean; locked: boolean; pinned: boolean; state: PostView['state'];
 }
 
 export interface PostPreview {

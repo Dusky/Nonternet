@@ -48,7 +48,7 @@ same formatting.
   Not yet: badges for wiki, files and the MUD, and a switch to hide badges.
 - Everything a notification links to is checked against what the person can still see.
 
-### E3 — Boards depth (E3a built 2026-10-09: follow, sort/filter, rules; E3b polls still to do)
+### E3 — Boards depth (built 2026-10-09: E3a follow, sort/filter, rules; E3b polls; the last-visit marker is still to do)
 - Follow a thread (notifications for replies), separate from watching a board.
 - Thread lists: sort by latest activity, newest, most replies; an "unanswered" view; a "since your last visit" marker.
 - Polls inside a thread (reuse the voting booth's tables): one question, up to 10 options, closes on a date.
@@ -57,7 +57,12 @@ same formatting.
   the Settings choice and the Boards badge cover them), sort by latest activity / newest / most replies, filters for
   "no replies yet" and "unread" (remembered per device), and board rules edited in board settings and audited.
   Follows are in the export and cleared on account deletion. Still to do from this list: the "since your last visit"
-  marker and polls (E3b).
+  marker.
+- Built (E3b): a thread can carry one poll, added when the thread is started (2 to 10 choices, optional closing in days).
+  It uses the voting booth's tables and the same rules (one vote each, tally after you vote or when it closes), is
+  readable and votable only by people who can read the board, and goes with the thread when it is hidden. The author or a
+  board moderator can close it early (a moderator doing it is audited). Thread polls are not in the site-wide voting booth
+  list, the BBS or the mirrors yet.
 
 ### E4 — Mail depth (built 2026-10-09)
 - Archive and star per person (not shared with the others in the conversation); an Archive view; unread filter.

@@ -236,6 +236,7 @@ function BoardPage({ slug }: { slug: string }) {
                 <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link" prefetch={() => void qc.prefetchInfiniteQuery(threadQuery(slug, th.id, me?.id ?? null))}><strong>{th.subject || '…'}</strong></AppLink>
                 {th.pinned && <>{' '}<span className="badge sticker">{t('pin.badge')}</span></>}
                 {th.locked && <>{' '}<span className="badge">{t('boards.badge.locked')}</span></>}
+                {th.has_poll && <>{' '}<span className="badge">{t('boards.badge.poll')}</span></>}
                 {th.following && <>{' '}<span className="badge">{t('boards.badge.following')}</span></>}
               </span>
               {th.unread && <span className="badge badge-accent">{t('boards.newBadge')}</span>}

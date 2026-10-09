@@ -2,9 +2,10 @@ import { useConfirm } from '../../components/feedback';
 import { FeedLink } from '../../components/FeedLink';
 import { Fragment, type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { infiniteQueryOptions, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
+import type { PollView, BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, Loading, RelativeTime, useCopy } from '../../components/ui';
+import { PollBody } from './Classics';
 import { errorText, useMe, useT } from '../../hooks';
 import { toast } from '../../components/feedback';
 import { usePrefs } from '../../devicePrefs';
@@ -16,7 +17,7 @@ import { PostModTools, ReportPost } from './ModTools';
 import { RichText } from '../../components/RichText';
 import { CharacterBadge, PersonLink } from '../people/PersonLink';
 
-interface ThreadPage { board: BoardSummary; locked: boolean; following: boolean; posts: PostView[]; next: number | null }
+interface ThreadPage { board: BoardSummary; locked: boolean; following: boolean; poll_id: string | null; posts: PostView[]; next: number | null }
 
 // One thread's pages: shared by the thread screen and the links that prefetch it.
 export const threadQuery = (slug: string, id: string, meId: string | null) => infiniteQueryOptions({
@@ -91,6 +92,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
     if (h.startsWith('p_') && posts.some((p) => p.id === h)) document.getElementById(`post-${h}`)?.scrollIntoView({ block: 'center' });
   }, [posts.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const locked = q.data?.pages[0]?.locked ?? false;
+  const pollId = q.data?.pages[0]?.poll_id ?? null;
 
   // Reading a thread moves your read pointer up to the last post you have loaded, but only while the tab is in
   // front: a reply that arrives while it is in the background is not read until you come back to it.
@@ -168,6 +170,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
     <div ref={root}>
       <BackLink to={slug}>{t('boards.back', { name: board.name })}</BackLink>
       <h2 className="thread-title">{subject} {posts[0]?.pinned && <span className="badge sticker">{t('pin.badge')}</span>} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
+      {pollId && <ThreadPoll id={pollId} />}
       <div className="toolbar" role="group" aria-label={t('boards.view.label')}>
         <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
         <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>
@@ -244,4 +247,20 @@ export function postNote(t: ReturnType<typeof useT>, board: BoardSummary, signed
   if (board.archived) return t('boards.archivedNote');
   if (!signedIn) return t('boards.loginToPost');
   return board.visibility === 'private' ? t('boards.cannotPost') : t('boards.verifyToPost');
+}
+
+// The poll that came with the thread: the same voting and results as the voting booth, inside the thread.
+function ThreadPoll({ id }: { id: string }) {
+  const key = ['thread-poll', id];
+  const q = useQuery({ queryKey: key, queryFn: () => api.get<PollView>(`/polls/${id}`) });
+  const t = useT();
+  if (!q.data) return null;
+  const p = q.data;
+  return (
+    <section className="panel thread-poll" aria-label={t('boards.badge.poll')}>
+      <h3>{p.question}</h3>
+      <p className="hint">{p.closed ? t('classics.polls.closed') : p.closes_at ? <>{t('classics.polls.until')} <RelativeTime iso={p.closes_at} /></> : t('classics.polls.open')}</p>
+      <PollBody poll={p} id={id} queryKey={key} />
+    </section>
+  );
 }
