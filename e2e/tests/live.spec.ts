@@ -29,10 +29,10 @@ test('a reply and a mail reach an open tab without a reload', async ({ page, bro
 
   await signIn(page, other.handle, PASSWORD);
   await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `Yes, hello @${owner.handle}`, reply_to: t.id }, headers: h });
-  await expect(op.getByRole('button', { name: 'Notifications, 1 unread' })).toBeVisible({ timeout: 8000 });
+  await expect(op.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible({ timeout: 8000 });
 
   await page.request.post('/api/v1/mail', { data: { to: [owner.handle], subject: 'Live mail', body: 'Hello.' }, headers: h });
-  await expect(op.getByRole('button', { name: 'Mail, 1 unread' })).toBeVisible({ timeout: 8000 });
+  await expect(op.getByRole('button', { name: 'Mail, 1 unread', exact: true })).toBeVisible({ timeout: 8000 });
   await op.context().close();
 });
 

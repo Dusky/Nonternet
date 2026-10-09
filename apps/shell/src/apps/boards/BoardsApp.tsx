@@ -122,7 +122,6 @@ function BoardList() {
                   {b.unread ? <span className="badge badge-accent">{t('boards.unread', { count: b.unread })}</span> : null}
                 </div>
                 {b.description && <p>{b.description}</p>}
-      {b.rules && <details className="board-rules"><summary>{t('boards.rules')}</summary><RichText body={b.rules} /></details>}
                 <p className="row-meta">{t('boards.threads', { count: b.thread_count })}{b.last_post_at ? <> · <RelativeTime iso={b.last_post_at} /></> : null}</p>
               </li>
             ))}
@@ -209,6 +208,7 @@ function BoardPage({ slug }: { slug: string }) {
       <BackLink to="">{t('boards.backToBoards')}</BackLink>
       <h2>{b.name} <Badges board={b} /></h2>
       {b.description && <p>{b.description}</p>}
+      {b.rules && <details className="board-rules"><summary>{t('boards.rules')}</summary><RichText body={b.rules} /></details>}
       <p className="hint">{t('boards.ownedBy')} <PersonLink app="people" to={b.owner.handle}>@{b.owner.handle}</PersonLink></p>
       <div className="toolbar">
         {b.can_post && <AppLink className="btn btn-primary" to={`${slug}/new`}>{t('boards.newThread')}</AppLink>}

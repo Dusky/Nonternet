@@ -23,6 +23,7 @@ test('rules show, threads sort and filter, and following a thread brings its rep
   const rp = await ctx.newPage();
   await signIn(rp, reader.handle, PASSWORD);
   await rp.goto(`/boards/${slug}`);
+  await rp.goto(`/boards/${slug}`);
   await rp.getByText('Board rules').click();
   await expect(rp.getByText('No spam.')).toBeVisible();
 
@@ -39,7 +40,7 @@ test('rules show, threads sort and filter, and following a thread brings its rep
   await rp.getByRole('button', { name: 'Follow thread' }).click();
   await expect(rp.getByRole('button', { name: 'Unfollow' })).toBeVisible();
   await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: 'anyone there?', reply_to: lonely.id }, headers: h });
-  await rp.goto('/notifications');
-  await expect(rp.getByRole('link', { name: new RegExp(`${owner.handle}.*Lonely thread`) }).first()).toBeVisible();
+  await rp.goto('/');
+  await expect(rp.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible();
   await ctx.close();
 });

@@ -36,13 +36,13 @@ test('mail and reactions show up as notifications, grouped, and opening them cle
   const mailLine = page.getByRole('link', { name: /wrote to you \(2 new\)|and others wrote to you/ });
   await expect(mailLine).toBeVisible();
   await expect(page.getByRole('link', { name: `${bob.handle} reacted to your post` })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Notifications, 2 unread/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Notifications, 2 unread', exact: true })).toBeVisible();
   await scan(page, 'the notifications list');
 
   // Opening the conversation answers it.
   await mailLine.click();
   await expect(page.getByRole('heading', { name: subject }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: /Notifications, 1 unread/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible();
   await ctx.close();
 });
 

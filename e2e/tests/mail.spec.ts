@@ -36,7 +36,7 @@ test.describe('mail', () => {
 
     // b sees it unread, in the taskbar and the inbox, and replies.
     const bp = await signedInPage(browser, b.handle);
-    await expect(bp.getByRole('button', { name: 'Mail, 1 unread' })).toBeVisible();
+    await expect(bp.getByRole('button', { name: 'Mail, 1 unread', exact: true })).toBeVisible();
     await bp.goto('/mail');
     const row = bp.getByRole('listitem').filter({ has: bp.getByRole('link', { name: 'Board games' }) });
     await expect(row.getByText('new', { exact: true })).toBeVisible();

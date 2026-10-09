@@ -177,8 +177,8 @@ test.describe('boards', () => {
     await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `Yes, hello @${owner.handle}`, reply_to: t.id }, headers: h });
 
     await op.goto('/');
-    await expect(op.getByRole('button', { name: 'Notifications, 1 unread' })).toBeVisible();
-    await op.getByRole('button', { name: 'Notifications, 1 unread' }).click();
+    await expect(op.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible();
+    await op.getByRole('button', { name: 'Notifications, 1 unread', exact: true }).click();
     await expect(op.getByText(`${other.handle} replied to you`)).toBeVisible();
     await op.getByRole('link', { name: `${other.handle} replied to you` }).click();
     await expect(op.getByRole('heading', { level: 2, name: subject, exact: true })).toBeVisible();

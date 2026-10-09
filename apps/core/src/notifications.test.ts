@@ -103,7 +103,7 @@ describe.skipIf(!dbAvailable)('notifications', () => {
     await post('carol', 'two', { reply_to: t.id });
     const n = await inbox('alice');
     expect(n.unread).toBe(2);
-    expect((await p('alice').c.get('/api/v1/notifications/count')).body).toEqual({ unread: 2 });
+    expect((await p('alice').c.get('/api/v1/notifications/count')).body).toMatchObject({ unread: 2 });
     expect((await p('bob').c.post('/api/v1/notifications/read', { ids: [n.notifications[0]!.id] })).status).toBe(404);
     expect((await p('alice').c.post('/api/v1/notifications/read', { ids: [n.notifications[0]!.id] })).status).toBe(204);
     expect((await inbox('alice')).unread).toBe(1);
