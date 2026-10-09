@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { REPORT_CATEGORIES, mailBodySchema as body, mailStartSchema } from '@app/shared';
+import { MAIL_VIEWS, REPORT_CATEGORIES, mailBodySchema as body, mailRenameSchema, mailStartSchema } from '@app/shared';
 import { z } from 'zod';
 import { ctxOf, requireUser } from '../http';
 import type { AppDeps } from '../deps';
@@ -13,7 +13,7 @@ export function mailRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/mail', async (req) => {
     const o = z.object({
       q: z.string().max(80).optional(), unread: z.enum(['1', 'true']).optional().transform((v) => (v ? true : undefined)),
-      before: z.string().regex(/^mt_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(50).optional(),
+      view: z.enum(MAIL_VIEWS).optional(), before: z.string().regex(/^mt_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(50).optional(),
     }).parse(req.query);
     return mail.listThreads(deps, requireUser(req), o);
   });
@@ -28,6 +28,15 @@ export function mailRoutes(app: FastifyInstance, deps: AppDeps): void {
     reply.code(201).send(await mail.reply(deps, requireUser(req), threadId.parse(req.params).id, z.object({ body }).parse(req.body).body)));
   app.post('/api/v1/mail/:id/people', async (req, reply) => {
     await mail.addPerson(deps, requireUser(req), threadId.parse(req.params).id, z.object({ handle }).parse(req.body).handle);
+    return reply.code(204).send();
+  });
+  app.put('/api/v1/mail/:id/archive', async (req, reply) => { await mail.setArchived(deps, requireUser(req), threadId.parse(req.params).id, true); return reply.code(204).send(); });
+  app.delete('/api/v1/mail/:id/archive', async (req, reply) => { await mail.setArchived(deps, requireUser(req), threadId.parse(req.params).id, false); return reply.code(204).send(); });
+  app.put('/api/v1/mail/:id/star', async (req, reply) => { await mail.setStarred(deps, requireUser(req), threadId.parse(req.params).id, true); return reply.code(204).send(); });
+  app.delete('/api/v1/mail/:id/star', async (req, reply) => { await mail.setStarred(deps, requireUser(req), threadId.parse(req.params).id, false); return reply.code(204).send(); });
+  app.post('/api/v1/mail/:id/unread', async (req, reply) => { await mail.markUnread(deps, requireUser(req), threadId.parse(req.params).id); return reply.code(204).send(); });
+  app.patch('/api/v1/mail/:id', async (req, reply) => {
+    await mail.rename(deps, requireUser(req), threadId.parse(req.params).id, mailRenameSchema.parse(req.body).subject);
     return reply.code(204).send();
   });
   app.post('/api/v1/mail/:id/leave', async (req, reply) => {

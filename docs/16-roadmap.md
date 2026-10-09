@@ -177,7 +177,7 @@ The site wiki and ring wikis (`20`).
 Depth for boards, mail, notifications, profiles and directories (`23`).
 - [x] **E1:** readable text (shared formatting in posts and mail, quote-reply).
 - [x] **E2:** notifications that cover the site (mail, reactions, ring news, with badges on app icons; vouches, report outcomes, wiki and push to follow).
-- [~] **E3:** boards depth (E3a built: follow, sort/filter, rules; polls and the last-visit marker to follow). [ ] **E4:** mail depth. [ ] **E5:** profiles and directories.
+- [~] **E3:** boards depth (E3a built: follow, sort/filter, rules; polls and the last-visit marker to follow). [ ] **E4:** mail depth (archive, star, mark unread, rename a group: built). [ ] **E5:** profiles and directories.
 - [ ] **E6:** images in posts and mail. [ ] **E7:** chat check-up.
 Bookmarks and memos fit after E1.
 

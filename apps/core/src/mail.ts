@@ -1,4 +1,4 @@
-import { MAIL_MAX_PEOPLE, type MailMessageView, type MailPerson, type MailThreadSummary } from '@app/shared';
+import { MAIL_MAX_PEOPLE, type MailMessageView, type MailPerson, type MailThreadSummary, type MailThreadView, type MailView } from '@app/shared';
 import { audit } from './audit';
 import { newId } from './crypto';
 import type { Queryable } from './db';
@@ -70,6 +70,8 @@ export async function startThread(deps: AppDeps, me: SessionUser, input: { to: s
 async function tellThread(deps: AppDeps, threadId: string, exceptUserId: string): Promise<void> {
   const r = await deps.db.query<{ user_id: string }>(`SELECT user_id FROM mail_participants p WHERE thread_id = $1 AND left_at IS NULL AND user_id <> $2 AND NOT EXISTS (SELECT 1 FROM mail_mutes x WHERE x.user_id = p.user_id AND x.thread_id = p.thread_id)`, [threadId, exceptUserId]);
   const ids = r.rows.map((x) => x.user_id);
+  // Something new brings an archived conversation back to the inbox.
+  if (ids.length) await deps.db.query(`UPDATE mail_participants SET archived_at = NULL WHERE thread_id = $1 AND user_id = ANY($2) AND archived_at IS NOT NULL`, [threadId, ids]);
   await notifyOther(deps.db, { userIds: ids, kind: 'mail', actorId: exceptUserId, ref: threadId });
   liveTo(ids, { type: 'mail', thread: threadId });
   liveTo(ids, { type: 'notifications' });
@@ -132,7 +134,7 @@ export async function leave(deps: AppDeps, me: SessionUser, threadId: string): P
   });
 }
 
-export interface InboxQuery { q?: string; unread?: boolean; before?: string; limit?: number }
+export interface InboxQuery { q?: string; unread?: boolean; before?: string; limit?: number; view?: MailView }
 
 // One page of the inbox, newest first. `q` matches the subject, who is in it, and the last message you can see;
 // `unread` keeps only conversations with something new from someone else. `unread` in the answer is the true
@@ -140,8 +142,9 @@ export interface InboxQuery { q?: string; unread?: boolean; before?: string; lim
 export async function listThreads(deps: AppDeps, me: SessionUser, opts: InboxQuery = {}): Promise<{ threads: MailThreadSummary[]; unread: number; next: string | null }> {
   const limit = Math.min(50, Math.max(1, opts.limit ?? 30));
   const like = opts.q?.trim() ? `%${opts.q.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
-  const r = await deps.db.query<{ id: string; subject: string; last_message_at: Date; last_read_at: Date | null; left_at: Date | null; handle: string | null; body: string | null; deleted_at: Date | null; l_at: Date | null; author_id: string | null }>(
-    `SELECT t.id, t.subject, t.last_message_at, p.last_read_at, p.left_at, l.handle, l.body, l.deleted_at, l.created_at AS l_at, l.author_id
+  const view = opts.view ?? 'inbox';
+  const r = await deps.db.query<{ id: string; subject: string; last_message_at: Date; last_read_at: Date | null; left_at: Date | null; starred_at: Date | null; archived_at: Date | null; handle: string | null; body: string | null; deleted_at: Date | null; l_at: Date | null; author_id: string | null }>(
+    `SELECT t.id, t.subject, t.last_message_at, p.last_read_at, p.left_at, p.starred_at, p.archived_at, l.handle, l.body, l.deleted_at, l.created_at AS l_at, l.author_id
      FROM mail_participants p JOIN mail_threads t ON t.id = p.thread_id
      LEFT JOIN LATERAL (
        SELECT u.handle, m.body, m.deleted_at, m.created_at, m.author_id FROM mail_messages m LEFT JOIN users u ON u.id = m.author_id
@@ -149,6 +152,7 @@ export async function listThreads(deps: AppDeps, me: SessionUser, opts: InboxQue
          AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.user_id = $1 AND b.blocked_id = m.author_id)
        ORDER BY m.created_at DESC, m.id DESC LIMIT 1) l ON true
      WHERE p.user_id = $1
+       AND (($6::text = 'inbox' AND p.archived_at IS NULL) OR ($6::text = 'archived' AND p.archived_at IS NOT NULL) OR ($6::text = 'starred' AND p.starred_at IS NOT NULL))
        AND ($2::text IS NULL OR (t.last_message_at, t.id) < (
          SELECT t2.last_message_at, t2.id FROM mail_threads t2 JOIN mail_participants p2 ON p2.thread_id = t2.id AND p2.user_id = $1 WHERE t2.id = $2))
        AND ($3::boolean IS NOT TRUE OR (p.left_at IS NULL AND l.created_at IS NOT NULL AND l.author_id IS DISTINCT FROM $1 AND (p.last_read_at IS NULL OR l.created_at > p.last_read_at)))
@@ -156,13 +160,13 @@ export async function listThreads(deps: AppDeps, me: SessionUser, opts: InboxQue
          SELECT 1 FROM mail_participants pp JOIN users u ON u.id = pp.user_id
          WHERE pp.thread_id = t.id AND pp.left_at IS NULL AND u.status <> 'deleted' AND (u.handle ILIKE $4 ESCAPE '\\' OR u.display_name ILIKE $4 ESCAPE '\\')))
      ORDER BY t.last_message_at DESC, t.id DESC LIMIT $5`,
-    [me.userId, opts.before ?? null, opts.unread ?? null, like, limit + 1]);
+    [me.userId, opts.before ?? null, opts.unread ?? null, like, limit + 1, view]);
   const page = r.rows.slice(0, limit);
   const muted = new Set((await deps.db.query<{ thread_id: string }>(`SELECT thread_id FROM mail_mutes WHERE user_id = $1`, [me.userId])).rows.map((x) => x.thread_id));
   const threads: MailThreadSummary[] = [];
   for (const t of page) {
     threads.push({
-      id: t.id, subject: t.subject, people: await peopleIn(deps.db, t.id), last_message_at: t.last_message_at.toISOString(), left: t.left_at !== null, muted: muted.has(t.id),
+      id: t.id, subject: t.subject, people: await peopleIn(deps.db, t.id), last_message_at: t.last_message_at.toISOString(), left: t.left_at !== null, muted: muted.has(t.id), starred: t.starred_at !== null, archived: t.archived_at !== null,
       unread: !t.left_at && t.l_at !== null && t.author_id !== me.userId && (!t.last_read_at || t.l_at > t.last_read_at),
       last: t.l_at ? { author: t.handle, excerpt: t.deleted_at ? '' : [...(t.body ?? '')].slice(0, 120).join('') } : null,
     });
@@ -177,7 +181,7 @@ async function peopleIn(q: Queryable, threadId: string): Promise<MailPerson[]> {
   return r.rows.map((u) => (u.status === 'deleted' ? { id: null, handle: null, display_name: null } : { id: u.id, handle: u.handle, display_name: u.display_name }));
 }
 
-export async function readThread(deps: AppDeps, me: SessionUser, threadId: string): Promise<{ id: string; subject: string; people: MailPerson[]; left: boolean; muted: boolean; messages: MailMessageView[] }> {
+export async function readThread(deps: AppDeps, me: SessionUser, threadId: string): Promise<MailThreadView> {
   const p = await requireParticipant(deps.db, threadId, me.userId);
   const t = (await deps.db.query<{ subject: string }>(`SELECT subject FROM mail_threads WHERE id = $1`, [threadId])).rows[0]!;
   // Someone added later reads from when they joined; someone who left reads up to when they left.
@@ -187,12 +191,13 @@ export async function readThread(deps: AppDeps, me: SessionUser, threadId: strin
      WHERE m.thread_id = $1 AND m.created_at >= $2 AND ($3::timestamptz IS NULL OR m.created_at <= $3)
        AND NOT (m.kind = 'message' AND EXISTS (SELECT 1 FROM user_blocks b WHERE b.user_id = $4 AND b.blocked_id = m.author_id))
      ORDER BY m.created_at, m.id LIMIT 1000`, [threadId, p.joined_at, p.left_at, me.userId]);
+  const flags = (await deps.db.query<{ starred_at: Date | null; archived_at: Date | null }>(`SELECT starred_at, archived_at FROM mail_participants WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId])).rows[0]!;
   if (!p.left_at) {
     await deps.db.query(`UPDATE mail_participants SET last_read_at = now() WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId]);
     await clearFor(deps.db, me.userId, 'mail', threadId); // reading it answers what was waiting
   }
   return {
-    id: threadId, subject: t.subject, people: await peopleIn(deps.db, threadId), left: p.left_at !== null,
+    id: threadId, subject: t.subject, people: await peopleIn(deps.db, threadId), left: p.left_at !== null, starred: flags.starred_at !== null, archived: flags.archived_at !== null,
     muted: (await deps.db.query(`SELECT 1 FROM mail_mutes WHERE user_id = $1 AND thread_id = $2`, [me.userId, threadId])).rowCount === 1,
     messages: r.rows.map((m) => {
       const gone = !m.author_id || m.status === 'deleted';
@@ -212,6 +217,39 @@ export async function deleteMessage(deps: AppDeps, me: SessionUser, threadId: st
   if (!r.rowCount) throw new ApiError(404, 'not_found', 'You have no message like that here.');
 }
 
+// Archive, star and mark-unread are one person's own view of a conversation: nobody else sees or is told about them.
+export async function setArchived(deps: AppDeps, me: SessionUser, threadId: string, on: boolean): Promise<void> {
+  await requireParticipant(deps.db, threadId, me.userId);
+  await deps.db.query(`UPDATE mail_participants SET archived_at = CASE WHEN $3::boolean THEN COALESCE(archived_at, now()) ELSE NULL END WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId, on]);
+  liveTo([me.userId], { type: 'mail', thread: threadId });
+}
+export async function setStarred(deps: AppDeps, me: SessionUser, threadId: string, on: boolean): Promise<void> {
+  await requireParticipant(deps.db, threadId, me.userId);
+  await deps.db.query(`UPDATE mail_participants SET starred_at = CASE WHEN $3::boolean THEN COALESCE(starred_at, now()) ELSE NULL END WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId, on]);
+}
+export async function markUnread(deps: AppDeps, me: SessionUser, threadId: string): Promise<void> {
+  const p = await requireParticipant(deps.db, threadId, me.userId);
+  if (p.left_at) throw new ApiError(403, 'left', 'You left this conversation.');
+  await deps.db.query(`UPDATE mail_participants SET last_read_at = NULL, archived_at = NULL WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId]);
+  liveTo([me.userId], { type: 'mail', thread: threadId });
+}
+
+// Renaming is for groups (three or more people) and is shared, so it leaves a line in the conversation.
+export async function rename(deps: AppDeps, me: SessionUser, threadId: string, subject: string): Promise<void> {
+  mayMail(me);
+  let ids: string[] = [];
+  await deps.db.tx(async (q) => {
+    const p = await requireParticipant(q, threadId, me.userId);
+    if (p.left_at) throw new ApiError(403, 'left', 'You left this conversation.');
+    const people = await q.query<{ user_id: string }>(`SELECT user_id FROM mail_participants WHERE thread_id = $1 AND left_at IS NULL`, [threadId]);
+    if (people.rowCount! < 3) throw new ApiError(409, 'not_a_group', 'Only conversations with three or more people can be renamed.');
+    ids = people.rows.map((x) => x.user_id);
+    await q.query(`UPDATE mail_threads SET subject = $2, last_message_at = now() WHERE id = $1`, [threadId, subject]);
+    await q.query(`INSERT INTO mail_messages (id, thread_id, author_id, kind, body) VALUES ($1, $2, $3, 'renamed', $4)`, [newId('mm'), threadId, me.userId, subject]);
+  });
+  liveTo(ids, { type: 'mail', thread: threadId });
+}
+
 // "Mark these read" on the Mail icon: everything waiting counts as seen.
 export async function readAll(deps: AppDeps, me: SessionUser): Promise<void> {
   await deps.db.query(`UPDATE mail_participants SET last_read_at = now() WHERE user_id = $1 AND left_at IS NULL`, [me.userId]);
@@ -220,7 +258,7 @@ export async function readAll(deps: AppDeps, me: SessionUser): Promise<void> {
 
 export async function unreadMail(deps: AppDeps, me: SessionUser): Promise<number> {
   const r = await deps.db.query<{ n: string }>(
-    `SELECT count(*) AS n FROM mail_participants p WHERE p.user_id = $1 AND p.left_at IS NULL AND NOT EXISTS (SELECT 1 FROM mail_mutes x WHERE x.user_id = $1 AND x.thread_id = p.thread_id) AND EXISTS (
+    `SELECT count(*) AS n FROM mail_participants p WHERE p.user_id = $1 AND p.left_at IS NULL AND p.archived_at IS NULL AND NOT EXISTS (SELECT 1 FROM mail_mutes x WHERE x.user_id = $1 AND x.thread_id = p.thread_id) AND EXISTS (
        SELECT 1 FROM mail_messages m WHERE m.thread_id = p.thread_id AND m.kind = 'message' AND m.author_id IS DISTINCT FROM $1
          AND m.created_at >= p.joined_at AND (p.last_read_at IS NULL OR m.created_at > p.last_read_at)
          AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.user_id = $1 AND b.blocked_id = m.author_id))`, [me.userId]);

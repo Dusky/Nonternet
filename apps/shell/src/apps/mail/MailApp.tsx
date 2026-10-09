@@ -1,7 +1,7 @@
-import { undoable, useConfirm } from '../../components/feedback';
+import { toast, undoable, useConfirm } from '../../components/feedback';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, REPORT_CATEGORIES, type MailInbox, type MailMessageView, type MailPerson, type MailThreadView } from '@app/shared';
+import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, MAIL_VIEWS, REPORT_CATEGORIES, type MailInbox, type MailView, type MailMessageView, type MailPerson, type MailThreadView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
@@ -39,23 +39,39 @@ function Inbox() {
   const t = useT();
   const [find, setFind] = useState('');
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [view, setView] = useState<MailView>('inbox');
+  const qc = useQueryClient();
+  const [gone, setGone] = useState<string[]>([]); // archived or unarchived a moment ago: out of the list at once
   const term = useDebounced(find.trim(), 250);
   const q = useInfiniteQuery({
-    queryKey: ['mail', 'list', term, unreadOnly],
+    queryKey: ['mail', 'list', term, unreadOnly, view],
     placeholderData: keepPreviousData, // the last results stay while new ones load, so typing doesn't flash "Loading"
-    queryFn: ({ pageParam }) => api.get<MailInbox>(`/mail?${new URLSearchParams({ ...(term ? { q: term } : {}), ...(unreadOnly ? { unread: '1' } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
+    queryFn: ({ pageParam }) => api.get<MailInbox>(`/mail?${new URLSearchParams({ ...(term ? { q: term } : {}), ...(unreadOnly ? { unread: '1' } : {}), ...(view !== 'inbox' ? { view } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
     refetchInterval: 60_000,
   });
-  const shown = q.data?.pages.flatMap((p) => p.threads) ?? [];
+  const shown = (q.data?.pages.flatMap((p) => p.threads) ?? []).filter((th) => !gone.includes(th.id));
   const filtering = term !== '' || unreadOnly;
+  const refresh = () => { void qc.invalidateQueries({ queryKey: ['mail'] }); };
+  const star = useMutation({ mutationFn: (v: { id: string; on: boolean }) => (v.on ? api.put(`/mail/${v.id}/star`, {}) : api.del(`/mail/${v.id}/star`)), onSettled: refresh });
+  // Archiving happens at once, and the note offers to take it back.
+  const archive = (id: string, on: boolean) => {
+    setGone((g) => [...g, id]);
+    const send = (v: boolean) => (v ? api.put(`/mail/${id}/archive`, {}) : api.del(`/mail/${id}/archive`));
+    const back = () => setGone((g) => g.filter((x) => x !== id));
+    send(on).then(() => qc.invalidateQueries({ queryKey: ['mail'] })).then(back, (e) => { back(); toast(errorText(e), 'error'); });
+    toast(t(on ? 'mail.archived' : 'mail.unarchived'), 'ok', { undo: () => { void send(!on).then(() => qc.invalidateQueries({ queryKey: ['mail'] })).then(back); } });
+  };
   return (
     <>
       <div className="toolbar">
         <AppLink to="new" className="btn btn-primary">{t('mail.new')}</AppLink>
         <input type="search" aria-label={t('mail.search')} placeholder={t('mail.search')} value={find} onChange={(e) => setFind(e.target.value)} maxLength={80} />
         <button type="button" className={`btn btn-quiet${unreadOnly ? ' is-active' : ''}`} aria-pressed={unreadOnly} onClick={() => setUnreadOnly((u) => !u)}>{t('mail.unreadOnly')}</button>
+      </div>
+      <div className="toolbar" role="group" aria-label={t('mail.views')}>
+        {MAIL_VIEWS.map((v) => <button key={v} type="button" className={`btn btn-quiet${view === v ? ' is-active' : ''}`} aria-pressed={view === v} onClick={() => setView(v)}>{t(`mail.view.${v}`)}</button>)}
       </div>
       <p className="hint">{t('mail.private')}</p>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
@@ -75,6 +91,10 @@ function Inbox() {
               </div>
               <p className="row-meta">{t('mail.with', { names: th.people.length ? th.people.map((p) => who(t, p)).join(', ') : t('mail.nobody') })}</p>
               {th.last && th.last.excerpt && <p className="mail-excerpt">{th.last.author ? `${th.last.author}: ` : ''}{th.last.excerpt}</p>}
+              <p className="row-actions">
+                <button type="button" className="link" aria-pressed={th.starred} onClick={() => star.mutate({ id: th.id, on: !th.starred })}>{th.starred ? t('mail.unstar') : t('mail.star')}</button>
+                <button type="button" className="link" onClick={() => archive(th.id, !th.archived)}>{th.archived ? t('mail.unarchive') : t('mail.archive')}</button>
+              </p>
             </div>
           </li>
         ))}
@@ -156,6 +176,16 @@ function Conversation({ id }: { id: string }) {
   };
   const add = useMutation({ mutationFn: () => api.post(`/mail/${id}/people`, { handle: adding.trim().replace(/^@/, '') }), onSuccess: () => { setAdding(''); void refresh(); } });
   const leave = useMutation({ mutationFn: () => api.post(`/mail/${id}/leave`), onSuccess: () => { void refresh(); nav.go(''); } });
+  const star = useMutation({ mutationFn: (on: boolean) => (on ? api.put(`/mail/${id}/star`, {}) : api.del(`/mail/${id}/star`)), onSuccess: () => { void qc.invalidateQueries({ queryKey: key }); void refresh(); } });
+  const archive = () => {
+    void api.put(`/mail/${id}/archive`, {}).then(() => {
+      void refresh(); nav.go('');
+      toast(t('mail.archived'), 'ok', { undo: () => { void api.del(`/mail/${id}/archive`).then(() => void refresh()); } });
+    }, (e) => toast(errorText(e), 'error'));
+  };
+  const unread = useMutation({ mutationFn: () => api.post(`/mail/${id}/unread`), onSuccess: () => { void refresh(); nav.go(''); } });
+  const [newName, setNewName] = useState('');
+  const rename = useMutation({ mutationFn: () => api.patch(`/mail/${id}`, { subject: newName.trim() }), onSuccess: () => { setNewName(''); void qc.invalidateQueries({ queryKey: key }); void refresh(); } });
   const mute = useMutation({ mutationFn: (on: boolean) => (on ? api.put(`/mail/${id}/mute`, {}) : api.del(`/mail/${id}/mute`)), onSuccess: () => void refresh() });
 
   const inboxMuted = q.data?.muted ?? false;
@@ -184,6 +214,13 @@ function Conversation({ id }: { id: string }) {
           <span key={p.id ?? i}>{i > 0 && ', '}{p.handle ? <PersonLink app="people" to={p.handle}>{who(t, p)}</PersonLink> : who(t, p)}</span>
         ))}</p>
       </section>
+      {!th.left && (
+        <div className="toolbar">
+          <button type="button" className="btn btn-quiet" aria-pressed={th.starred} onClick={() => star.mutate(!th.starred)}>{th.starred ? t('mail.unstar') : t('mail.star')}</button>
+          <button type="button" className="btn btn-quiet" onClick={archive}>{t('mail.archive')}</button>
+          <button type="button" className="btn btn-quiet" onClick={() => unread.mutate()} disabled={unread.isPending}>{t('mail.markUnread')}</button>
+        </div>
+      )}
       {th.left && <Alert kind="info">{t('mail.youLeft')}</Alert>}
       <ol className="posts mail-messages" ref={end}>
         {messages.map((m) => <Message key={m.id} m={deleting.includes(m.id) ? { ...m, deleted: true } : m} threadId={id} canAct={!th.left} onDelete={() => deleteSoon(m.id)} />)}
@@ -208,6 +245,13 @@ function Conversation({ id }: { id: string }) {
               <button type="submit" className="btn" disabled={add.isPending}>{t('mail.addButton')}</button>
             </form>
           )}
+          {th.people.length >= 3 && (
+            <form onSubmit={(e) => { e.preventDefault(); if (newName.trim()) rename.mutate(); }}>
+              <TextField label={t('mail.rename')} value={newName} onChange={setNewName} maxLength={MAIL_SUBJECT_MAX} required />
+              {rename.isError && <Alert kind="error">{errorText(rename.error)}</Alert>}
+              <button type="submit" className="btn" disabled={rename.isPending || !newName.trim()}>{t('mail.renameButton')}</button>
+            </form>
+          )}
           <p><button type="button" className="btn" aria-pressed={inboxMuted} disabled={mute.isPending} onClick={() => mute.mutate(!inboxMuted)}>{inboxMuted ? t('mail.unmute') : t('mail.mute')}</button> <span className="hint">{t('mail.muteHint')}</span></p>
           <p><button type="button" className="btn btn-danger" onClick={() => { void confirm({ message: t('mail.leaveConfirm'), confirmLabel: t('confirm.leave'), danger: true }).then((ok) => ok && leave.mutate()); }} disabled={leave.isPending}>{t('mail.leave')}</button></p>
           {leave.isError && <Alert kind="error">{errorText(leave.error)}</Alert>}
@@ -221,7 +265,7 @@ function Conversation({ id }: { id: string }) {
 function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; threadId: string; canAct: boolean; onDelete: () => void }) {
   const t = useT();
   const name = who(t, m.author);
-  if (m.kind !== 'message') return <li className="mail-event">{t(m.kind === 'joined' ? 'mail.joined' : 'mail.left', { name })} · <RelativeTime iso={m.at} /></li>;
+  if (m.kind !== 'message') return <li className="mail-event">{m.kind === 'renamed' ? t('mail.renamed', { name, subject: m.body }) : t(m.kind === 'joined' ? 'mail.joined' : 'mail.left', { name })} · <RelativeTime iso={m.at} /></li>;
   return (
     <li>
       <article className={`post${m.mine ? ' is-mine' : ''}`} aria-label={t('boards.by', { name })}>

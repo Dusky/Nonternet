@@ -37,7 +37,7 @@ async function conversation(s: Session, id: string): Promise<void> {
     const lines = [heading(cut(th.subject, 60), t.cols), dim(`With ${th.people.map((p) => p.handle ?? 'a deleted account').join(', ') || 'nobody else'}`), ''];
     for (const m of th.messages) {
       const name = m.author.handle ?? 'a deleted account';
-      if (m.kind !== 'message') { lines.push(dim(`${name} ${m.kind === 'joined' ? 'joined' : 'left'} · ${when(m.at)}`), ''); continue; }
+      if (m.kind !== 'message') { lines.push(dim(m.kind === 'renamed' ? `${name} renamed this conversation to ${m.body} · ${when(m.at)}` : `${name} ${m.kind === 'joined' ? 'joined' : 'left'} · ${when(m.at)}`), ''); continue; }
       lines.push(`${bold(name)} ${dim(when(m.at))}`, ...(m.deleted ? [dim('Message deleted.')] : wrap(m.body, w)), '');
     }
     if (th.left) lines.push(dim('You left this conversation.'));

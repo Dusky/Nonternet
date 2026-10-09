@@ -42,17 +42,19 @@ const profile: Exporter = {
         `SELECT created_at, action, before, after FROM audit_log WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.role_changed', 'user.ops_changed', 'user.renamed') ORDER BY id`, [user.id]),
     ]);
     // What they chose about how the site treats them (M9-D), and their avatar picture if they have one.
-    const [me, prefs, mutedBoards, mutedMail] = await Promise.all([
+    const [me, prefs, mutedBoards, mutedMail, mailFlags] = await Promise.all([
       q.query<{ status_line: string | null; away: boolean; show_last_seen: boolean; email_digest: boolean; avatar_at: Date | null; wallpaper: string | null; wallpaper_fit: string; wallpaper_at: Date | null; wallpaper_url: string | null }>(
         `SELECT status_line, away, show_last_seen, email_digest, avatar_at, wallpaper, wallpaper_fit, wallpaper_at, wallpaper_url FROM users WHERE id = $1`, [user.id]),
       q.query<{ kind: string; enabled: boolean }>(`SELECT kind, enabled FROM notification_prefs WHERE user_id = $1 ORDER BY kind`, [user.id]),
       q.query<{ slug: string }>(`SELECT b.slug FROM board_notification_prefs p JOIN boards b ON b.id = p.board_id WHERE p.user_id = $1 ORDER BY b.slug`, [user.id]),
       q.query<{ thread_id: string }>(`SELECT thread_id FROM mail_mutes WHERE user_id = $1 ORDER BY thread_id`, [user.id]),
+      q.query<{ thread_id: string; starred: boolean; archived: boolean }>(`SELECT thread_id, starred_at IS NOT NULL AS starred, archived_at IS NOT NULL AS archived FROM mail_participants WHERE user_id = $1 AND (starred_at IS NOT NULL OR archived_at IS NOT NULL) ORDER BY thread_id`, [user.id]),
     ]);
     add('settings.json', json({
       status_line: me.rows[0]!.status_line, away: me.rows[0]!.away, show_last_seen: me.rows[0]!.show_last_seen, email_digest: me.rows[0]!.email_digest,
       notifications: Object.fromEntries(prefs.rows.map((p) => [p.kind, p.enabled])),
       muted_boards: mutedBoards.rows.map((b) => b.slug), muted_mail_conversations: mutedMail.rows.map((m) => m.thread_id),
+      starred_mail_conversations: mailFlags.rows.filter((m) => m.starred).map((m) => m.thread_id), archived_mail_conversations: mailFlags.rows.filter((m) => m.archived).map((m) => m.thread_id),
       wallpaper: me.rows[0]!.wallpaper ? { choice: me.rows[0]!.wallpaper, fit: me.rows[0]!.wallpaper_fit, source_url: me.rows[0]!.wallpaper_url } : null,
     }));
     // Their own desktop wallpaper picture, if they have one (docs/10).

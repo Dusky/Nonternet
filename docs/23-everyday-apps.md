@@ -59,10 +59,15 @@ same formatting.
   Follows are in the export and cleared on account deletion. Still to do from this list: the "since your last visit"
   marker and polls (E3b).
 
-### E4 — Mail depth
+### E4 — Mail depth (built 2026-10-09)
 - Archive and star per person (not shared with the others in the conversation); an Archive view; unread filter.
 - Rename a group conversation (any member; shown to all, noted in the conversation).
 - Mark unread.
+- Built: Inbox / Starred / Archived views, star and archive on each row and in the conversation (archiving is at once, with
+  an Undo note; a new message from someone else brings an archived conversation back, and archived ones don't count in the
+  unread number), mark unread, and rename for conversations of three or more people (leaves a "renamed this conversation"
+  line for everyone; the BBS shows it too). Archive and star are in the export as lists of conversation ids and are not
+  restored on import, because the conversations themselves stay with the people in them.
 
 ### E5 — Profiles and directories
 - Profiles show recent public activity: posts on public boards, rings, wiki pages edited, homepage updates. Only what a

@@ -62,6 +62,7 @@ posts (id text pk,                             -- p_…
        body_tsv tsvector, posted_at timestamptz,
        edited_at timestamptz null, hidden_at timestamptz null, deleted_at timestamptz null)
 watches (user_id, board_id)
+mail_participants.archived_at, .starred_at            -- E4; one person's own view
 thread_follows (user_id, thread_id, created_at)      -- E3a; replies to a followed thread notify as 'reply'
 boards.rules text                                     -- E3a; plain text shown above the threads
 mod_actions (id m_…, board_id, actor_id, action hide|unhide|lock|unlock|remove|move, post_id, reason, detail, created_at, undone_at, undone_by)
