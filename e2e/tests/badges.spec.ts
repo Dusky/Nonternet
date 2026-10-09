@@ -45,7 +45,7 @@ test('icons show what is waiting, name it for screen readers, and can be marked 
   }
 });
 
-test('the installed-app badge follows the count, and a user sees no Admin badge', async ({ page }) => {
+test('the installed-app badge follows the count, and a user sees no Admin badge', async ({ page, browser }) => {
   await page.addInitScript(() => {
     (window as unknown as { __badge: number | null }).__badge = null;
     Object.assign(navigator, {
@@ -55,8 +55,11 @@ test('the installed-app badge follows the count, and a user sees no Admin badge'
   });
   const alice = await makeUser(page);
   const bob = await makeUser(page);
-  await signIn(page, bob.handle, PASSWORD);
-  await page.request.post('/api/v1/mail', { data: { to: [alice.handle], subject: uniq('Ping '), body: 'x' }, headers: h });
+  const ctx = await browser.newContext({ baseURL: BASE_URL });
+  const bp = await ctx.newPage();
+  await signIn(bp, bob.handle, PASSWORD);
+  await bp.request.post('/api/v1/mail', { data: { to: [alice.handle], subject: uniq('Ping '), body: 'x' }, headers: h });
+  await ctx.close();
   await signIn(page, alice.handle, PASSWORD);
   await page.goto('/');
   await expect.poll(() => page.evaluate(() => (window as unknown as { __badge: number | null }).__badge)).toBeGreaterThan(0);
