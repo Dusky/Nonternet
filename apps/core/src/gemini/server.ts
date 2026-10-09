@@ -6,7 +6,7 @@ import * as files from '../files';
 import { directory } from '../homes/service';
 import { publicProfile } from '../characters';
 import * as wiki from '../wiki';
-import { parseWiki, type Inline } from '@app/shared';
+import { describeImages, parseWiki, type Inline } from '@app/shared';
 import type { GeminiCert } from './cert';
 
 // A read-only Gemini mirror (gemini://, docs/05, decided 2026-10-05). It shows what the Gopher mirror shows (public
@@ -97,7 +97,7 @@ export async function answer(deps: AppDeps, raw: string): Promise<GeminiReply> {
       const lines = [`# ${oneLine(posts[0]?.subject || 'Thread')}`, ''];
       for (const p of posts) {
         lines.push(`## ${p.author?.handle ?? 'deleted account'}, ${p.posted_at.slice(0, 16).replace('T', ' ')} UTC`);
-        lines.push(...(p.state === 'ok' && p.body !== null ? quoted(p.body) : [`[${p.state === 'hidden' ? 'hidden by a moderator' : p.state === 'removed' ? 'removed by a moderator' : 'deleted'}]`]), '');
+        lines.push(...(p.state === 'ok' && p.body !== null ? quoted(describeImages(p.body, deps.publicUrl)) : [`[${p.state === 'hidden' ? 'hidden by a moderator' : p.state === 'removed' ? 'removed by a moderator' : 'deleted'}]`]), '');
       }
       lines.push(link(`${deps.publicUrl}/boards/${slug}/t/${id}`, 'Reply on the web'), link(`/boards/${slug}/`, 'Back to the board'));
       return ok(lines);

@@ -1,3 +1,4 @@
+import { describeImages } from '@app/shared';
 import { createHash } from 'node:crypto';
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import iconv from 'iconv-lite';
@@ -188,7 +189,7 @@ export async function makePacket(deps: AppDeps, v: SessionUser): Promise<{ name:
          AND NOT EXISTS (SELECT 1 FROM posts t WHERE t.id = p.thread_root_id AND t.hidden_at IS NOT NULL)
        ORDER BY p.seq LIMIT $3`, [c.board_id, v.userId, MAX_PACKET_MESSAGES - messages.length]);
     for (const p of r.rows) {
-      messages.push({ conf: c.conf, number: Number(p.seq), ref: p.ref_seq ? Number(p.ref_seq) : 0, date: p.posted_at, from: p.author ?? 'deleted account', to: p.ref_author ?? 'ALL', subject: p.subject || p.thread_subject, body: p.body });
+      messages.push({ conf: c.conf, number: Number(p.seq), ref: p.ref_seq ? Number(p.ref_seq) : 0, date: p.posted_at, from: p.author ?? 'deleted account', to: p.ref_author ?? 'ALL', subject: p.subject || p.thread_subject, body: describeImages(p.body, deps.publicUrl) });
     }
     if (r.rows.length) upTo.set(c.slug, r.rows.at(-1)!.id);
   }

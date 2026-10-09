@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
-import { parseWiki, type Inline } from '@app/shared';
+import { imageUrl, parseWiki, type Inline } from '@app/shared';
 import { PersonLink } from '../apps/people/PersonLink';
 
 // A post's or a message's text as the reader sees it (docs/23). The same safe parser as the wiki gives data, never
@@ -30,6 +30,7 @@ function inline(segs: Inline[], key: string): ReactNode {
       case 'em': return <em key={k}>{s.text}</em>;
       case 'strong': return <strong key={k}>{s.text}</strong>;
       case 'code': return <code key={k}>{s.text}</code>;
+      case 'image': return <img key={k} className="post-image" src={imageUrl(s.id)} alt={s.text} loading="lazy" decoding="async" />;
       case 'link': return <a key={k} href={s.href} target="_blank" rel="noopener noreferrer">{s.text}</a>;
       // Wiki links only work on wiki pages; elsewhere they stay as typed.
       case 'wiki': return <Fragment key={k}>{`[[${s.target}${s.text !== s.target ? `|${s.text}` : ''}]]`}</Fragment>;

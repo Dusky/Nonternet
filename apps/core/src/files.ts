@@ -1,3 +1,4 @@
+import { usedBytes } from './images';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
@@ -91,7 +92,7 @@ export function cleanFileName(input: string): string {
 }
 
 export async function usage(deps: AppDeps, v: SessionUser): Promise<FileUsage> {
-  const r = await deps.db.query<{ n: string | null }>(`SELECT sum(size_bytes) AS n FROM files WHERE uploader_id = $1 AND deleted_at IS NULL`, [v.userId]);
+  const r = await deps.db.query<{ n: string | null }>(`SELECT (SELECT COALESCE(sum(size_bytes), 0) FROM files WHERE uploader_id = $1 AND deleted_at IS NULL) + (SELECT COALESCE(sum(bytes), 0) FROM images WHERE owner_id = $1) AS n`, [v.userId]);
   return { used_bytes: Number(r.rows[0]!.n ?? 0), quota_bytes: v.role === 'admin' ? null : Math.floor(deps.config.limits.file_quota_mb * MB), max_file_bytes: maxFileBytes(deps) };
 }
 export const maxFileBytes = (deps: AppDeps) => Math.floor(deps.config.limits.file_max_mb * MB);
@@ -115,7 +116,7 @@ export async function upload(deps: AppDeps, v: SessionUser, slug: string, input:
     await deps.db.tx(async (q) => {
       await q.query(`SELECT pg_advisory_xact_lock(hashtext('files:' || $1))`, [v.userId]); // one upload at a time per person, so the quota holds
       if (v.role !== 'admin') {
-        const used = Number((await q.query<{ n: string | null }>(`SELECT sum(size_bytes) AS n FROM files WHERE uploader_id = $1 AND deleted_at IS NULL`, [v.userId])).rows[0]!.n ?? 0);
+        const used = await usedBytes(q, v.userId);
         if (used + body.length > deps.config.limits.file_quota_mb * MB) throw new ApiError(413, 'over_quota', `That would take you over your ${deps.config.limits.file_quota_mb} MB of file space. Delete something first.`);
       }
       try {

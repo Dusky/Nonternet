@@ -127,7 +127,7 @@ function Compose({ to: initial }: { to: string }) {
       <form onSubmit={submit} className="panel">
         <ToField value={to} onChange={setTo} />
         <TextField label={t('mail.subject')} value={subject} onChange={setSubject} maxLength={MAIL_SUBJECT_MAX} required />
-        <Editor label={t('mail.body')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey="mail:new" mentions required
+        <Editor label={t('mail.body')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey="mail:new" mentions pictures required
           onSubmit={() => { if (to.trim() && subject.trim() && body.trim() && !send.isPending) send.mutate(); }}><FormatHelp /></Editor>
         {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
         <button type="submit" className="btn btn-primary" disabled={send.isPending}>{t('mail.send')}</button>
@@ -228,7 +228,7 @@ function Conversation({ id }: { id: string }) {
       {!th.left && (
         <>
           <form className="panel" onSubmit={(e) => { e.preventDefault(); sendNow(); }}>
-            <Editor label={t('mail.reply')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey={`mail:${id}`} mentions required
+            <Editor label={t('mail.reply')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey={`mail:${id}`} mentions pictures required
               onSubmit={sendNow}>
               {lastTheirs && lastTheirs.body && <button type="button" className="link" onClick={() => setBody((b) => quoteReply(who(t, lastTheirs.author), lastTheirs.body!) + b)}>{t('mail.quote')}</button>}
               <FormatHelp />

@@ -13,6 +13,7 @@ export type Inline =
   | { kind: 'strong'; text: string }
   | { kind: 'code'; text: string }
   | { kind: 'link'; text: string; href: string }
+  | { kind: 'image'; text: string; id: string }   // text is the description
   | { kind: 'wiki'; text: string; target: string; slug: string };
 
 export type Block =
@@ -52,6 +53,7 @@ export function parseInline(line: string): Inline[] {
       const slug = wikiSlug(target);
       if (slug) { push({ kind: 'wiki', target, slug, text: (m[2] ?? target).trim() }); i += m[0].length; continue; }
     }
+    if ((m = /^!\[([^\[\]\n]{0,200})\]\(image:(i_[0-9A-Z]{26})\)/.exec(rest))) { push({ kind: 'image', text: m[1]!.trim(), id: m[2]! }); i += m[0].length; continue; }
     if ((m = /^\[([^\[\]\n]{1,200})\]\(([^()\s]{1,2000})\)/.exec(rest)) && isSafeUrl(m[2]!)) {
       push({ kind: 'link', text: m[1]!, href: m[2]! }); i += m[0].length; continue;
     }

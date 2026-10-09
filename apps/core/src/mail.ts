@@ -4,6 +4,7 @@ import { newId } from './crypto';
 import type { Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
+import { attachImages } from './images';
 import { liveTo } from './live';
 import { clearFor, notifyOther } from './notifications';
 import { pushText, queuePush } from './push';
@@ -59,7 +60,9 @@ export async function startThread(deps: AppDeps, me: SessionUser, input: { to: s
     for (const uid of [me.userId, ...people.map((p) => p.id)]) {
       await q.query(`INSERT INTO mail_participants (thread_id, user_id, last_read_at) VALUES ($1, $2, $3)`, [id, uid, uid === me.userId ? new Date() : null]);
     }
-    await q.query(`INSERT INTO mail_messages (id, thread_id, author_id, body) VALUES ($1, $2, $3, $4)`, [newId('mm'), id, me.userId, input.body]);
+    const first = newId('mm');
+    await q.query(`INSERT INTO mail_messages (id, thread_id, author_id, body) VALUES ($1, $2, $3, $4)`, [first, id, me.userId, input.body]);
+    await attachImages(q, me.userId, { mail: first }, input.body);
   });
   await tellThread(deps, id, me.userId);
   return { id };
@@ -95,6 +98,7 @@ export async function reply(deps: AppDeps, me: SessionUser, threadId: string, bo
     const p = await requireParticipant(q, threadId, me.userId);
     if (p.left_at) throw new ApiError(403, 'left', 'You left this conversation.');
     await q.query(`INSERT INTO mail_messages (id, thread_id, author_id, body) VALUES ($1, $2, $3, $4)`, [id, threadId, me.userId, body]);
+    await attachImages(q, me.userId, { mail: id }, body);
     await q.query(`UPDATE mail_threads SET last_message_at = now() WHERE id = $1`, [threadId]);
     await q.query(`UPDATE mail_participants SET last_read_at = now() WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId]);
   });

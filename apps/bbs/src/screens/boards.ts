@@ -1,4 +1,4 @@
-import type { BoardSummary, PostPreview, PostView, ThreadSummary } from '@app/shared';
+import { describeImages, type BoardSummary, type PostPreview, type PostView, type ThreadSummary } from '@app/shared';
 import { editMessage } from '../editor';
 import type { Session } from '../session';
 import { page } from './pager';
@@ -88,7 +88,7 @@ function renderPost(s: Session, p: PostView, n: number, total: number, depth = 0
   const indent = ' '.repeat(Math.min(depth, 6) * 2);
   const who = p.author ? `${p.author.display_name ? `${p.author.display_name} (${p.author.handle})` : p.author.handle}${p.author.character ? `, as ${p.author.character.name}` : ''}` : 'a deleted account';
   const head = [`${indent}${bold(`[${n}/${total}]`)} ${bold(cut(p.subject || '', w - 10))}`, `${indent}${dim(`From ${who} · ${when(p.posted_at)} UTC${p.edited_at ? ' (edited)' : ''}${reactionLine(p)}`)}`];
-  const body = p.state === 'deleted' ? ['[deleted by its author]'] : p.state === 'removed' ? ['[removed by a moderator]'] : p.body === null ? ['[hidden by a moderator]'] : wrap(p.body, w);
+  const body = p.state === 'deleted' ? ['[deleted by its author]'] : p.state === 'removed' ? ['[removed by a moderator]'] : p.body === null ? ['[hidden by a moderator]'] : wrap(describeImages(p.body, s.ctx.siteUrl), w);
   return [...head, '', ...body.map((l) => indent + l), ''];
 }
 
@@ -143,7 +143,7 @@ async function compose(s: Session, b: BoardSummary, replyTo: PostView | null): P
     if (!sub?.trim()) { t.line('No subject, so nothing was posted.'); return null; }
     subject = sub.trim();
   } else t.line(dim(`Replying to ${replyTo.author?.handle ?? 'a deleted account'}: ${replyTo.subject}`));
-  const body = await editMessage(s, { quote: replyTo?.body ? { author: replyTo.author?.handle ?? 'Someone', body: replyTo.body } : undefined });
+  const body = await editMessage(s, { quote: replyTo?.body ? { author: replyTo.author?.handle ?? 'Someone', body: describeImages(replyTo.body, s.ctx.siteUrl) } : undefined });
   if (body === null) return null;
   const preview = await s.api.post<PostPreview>(`/boards/${b.slug}/posts/preview`, { body }).catch(() => null);
   for (const w of preview?.warnings ?? []) t.line(`\x1b[33m${w}\x1b[0m`);

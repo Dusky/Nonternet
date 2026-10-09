@@ -62,6 +62,7 @@ posts (id text pk,                             -- p_…
        body_tsv tsvector, posted_at timestamptz,
        edited_at timestamptz null, hidden_at timestamptz null, deleted_at timestamptz null)
 watches (user_id, board_id)
+images (id, owner_id, post_id, mail_message_id, alt, width, height, bytes, hidden_at)   -- E6; bytes in <files dir>/images/<id>.webp
 users.pronouns, users.location, users.links (jsonb)   -- E5; optional profile fields
 mail_participants.archived_at, .starred_at            -- E4; one person's own view
 polls.post_id                                         -- E3b; set when the poll belongs to a thread

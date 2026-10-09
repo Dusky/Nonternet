@@ -26,6 +26,7 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['POST', /^\/api\/v1\/homes\/:handle\/guestbook$/, 'guestbooks take signatures from visitors'],
   ['GET', /^\/api\/v1\/users\/:handle$/, 'public profiles'],
   ['GET', /^\/api\/v1\/files(\/areas\/:slug|\/:id(\/download)?)?$/, 'public file areas (docs/05)'],
+  ['GET', /^\/api\/v1\/images\/:id$/, 'pictures in posts on public boards; the route itself checks who may see each one (docs/23)'],
   ['GET', /^\/api\/v1\/search$/, 'searching public boards'],
   ['GET', /^\/ring\//, 'webring navigation for visitors of homepages'],
   ['GET', /^\/api\/v1\/wiki\/:wiki(\/(pages|changes|wanted|search)(\/:slug(\/(history|links-here|revisions\/:revision))?)?)?$/, 'reading the site wiki and ring wikis, as public boards are read (docs/20)'],

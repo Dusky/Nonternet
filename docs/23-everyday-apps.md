@@ -86,7 +86,7 @@ same formatting.
   this week" filter and a ring filter. The fields are in `profile.json` in the export, restored on import, and cleared on
   account deletion. Not built: wiki pages edited in ring wikis (ring-private) and "rings joined" as activity items.
 
-### E6 — Images in posts and mail
+### E6 — Images in posts and mail (built 2026-10-09)
 - Upload an image while writing; it is re-encoded (as avatars are), metadata removed, capped in size and pixels, and
   stored with a stable id.
 - It inherits the post's or conversation's visibility; it is reported and hidden with the post; deleted with it; and
@@ -94,6 +94,15 @@ same formatting.
 - Per-person storage quota counted with file-area uploads. Off-site images are never hot-linked (content policy stays
   `img-src 'self'`).
 - The BBS and mirrors show a text placeholder with the image's address.
+- Built: in the text a picture is `![what it shows](image:i_…)` (a description is required in the editor). Upload
+  (`POST /images`, 8 MB in, 25 megapixels) is drawn again as a WebP at most 1600 px on a side, metadata gone, a GIF as its
+  first frame; up to four pictures in a post or message, 30 uploads an hour, counted in the same file space as file-area
+  uploads. A picture is its owner's alone until a post or message that names it is saved; then whoever can read that post
+  or message can see it (pictures on public boards load for visitors), and hiding or deleting the post takes it away.
+  Admins can hide one picture (`image.hidden` in the audit log). Unused uploads older than a day are deleted whenever
+  someone uploads. In the export (`images/` with a list of where each was used); not restored on import; erased with the
+  account when "erase my posts" is chosen. The BBS, QWK packets, Gopher, Gemini and feeds show `[picture: description]` and
+  the address. Wiki pages do not take pictures yet.
 
 ### E7 — Chat check-up
 Review the web chat window against the other apps (channel list and joining, topics, the people list, search in

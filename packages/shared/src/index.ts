@@ -18,3 +18,4 @@ export * from './push';
 export * from './wikitext';
 export * from './wiki';
 export * from './wallpaper';
+export * from './images';

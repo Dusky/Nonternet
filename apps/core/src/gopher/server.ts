@@ -7,7 +7,7 @@ import * as files from '../files';
 import { directory } from '../homes/service';
 import { wrapForTerminal } from '../text';
 import * as wiki from '../wiki';
-import { parseWiki, type Inline } from '@app/shared';
+import { describeImages, parseWiki, type Inline } from '@app/shared';
 
 // A read-only Gopher mirror (RFC 1436; docs/05, M7). Everything here is what a logged-out visitor
 // sees on the web: public boards and their threads, the homepage directory, public file areas. It
@@ -89,7 +89,7 @@ export async function answer(deps: AppDeps, raw: string): Promise<GopherReply> {
       const body = posts.map((p) => {
         const who = p.author?.handle ?? 'deleted account';
         const head = `${p.subject || ''}\r\nFrom: ${who}   Date: ${p.posted_at.slice(0, 16).replace('T', ' ')} UTC`;
-        const text = p.state === 'ok' && p.body !== null ? wrapForTerminal(p.body).join('\r\n') : `[${p.state === 'hidden' ? 'hidden by a moderator' : p.state === 'removed' ? 'removed by a moderator' : 'deleted'}]`;
+        const text = p.state === 'ok' && p.body !== null ? wrapForTerminal(describeImages(p.body, deps.publicUrl)).join('\r\n') : `[${p.state === 'hidden' ? 'hidden by a moderator' : p.state === 'removed' ? 'removed by a moderator' : 'deleted'}]`;
         return `${head}\r\n\r\n${text}`;
       }).join(`\r\n${rule}\r\n`);
       return { kind: 'text', text: `${body}\r\n${rule}\r\nOn the web: ${deps.publicUrl}/boards/${slug}/t/${id}\r\n` };

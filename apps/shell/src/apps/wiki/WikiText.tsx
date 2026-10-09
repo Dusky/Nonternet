@@ -13,6 +13,7 @@ export function WikiText({ body, base, exists }: { body: string; base: string; e
       case 'em': return <em key={i}>{s.text}</em>;
       case 'strong': return <strong key={i}>{s.text}</strong>;
       case 'code': return <code key={i}>{s.text}</code>;
+      case 'image': return <Fragment key={i}>{`[picture: ${s.text || t('editor.picture.none')}]`}</Fragment>; // wiki pages have no pictures yet
       case 'link': return <a key={i} href={s.href} target="_blank" rel="noopener noreferrer">{s.text}</a>;
       case 'wiki': return exists(s.slug)
         ? <AppLink key={i} to={`${base}p/${s.slug}`}>{s.text}</AppLink>

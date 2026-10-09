@@ -1,3 +1,4 @@
+import { eraseImagesOf } from './images';
 import { removeImportFiles } from './imports';
 import { forgetEditor } from './wiki';
 import { promises as fs } from 'node:fs';
@@ -45,6 +46,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
       await q.query(`UPDATE posts SET deleted_at = now(), deleted_by = 'author', subject = '', body = '' WHERE author_id = $1 AND deleted_at IS NULL`, [userId]);
       await q.query(`DELETE FROM post_revisions WHERE post_id IN (SELECT id FROM posts WHERE author_id = $1)`, [userId]);
     }
+    if (opts.posts === 'erase') await eraseImagesOf(q, deps, userId);
     await q.query(`UPDATE posts SET author_id = NULL WHERE author_id = $1`, [userId]);
     // Wiki revisions follow the same choice (wiki.ts).
     await forgetEditor(q, userId, opts.posts === 'erase');

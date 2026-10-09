@@ -27,7 +27,7 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 const profile: Exporter = {
   id: 'profile',
-  tables: ['users', 'oneliners', 'polls', 'poll_options', 'poll_votes', 'bulletin_seen', 'handle_history', 'watches', 'thread_follows', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes', 'applications'],
+  tables: ['users', 'images', 'oneliners', 'polls', 'poll_options', 'poll_votes', 'bulletin_seen', 'handle_history', 'watches', 'thread_follows', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes', 'applications'],
   async run({ deps, user, add }) {
     const q = deps.db;
     const [names, domains, rings, boards, watching, following, ops, history] = await Promise.all([
@@ -70,6 +70,12 @@ const profile: Exporter = {
       q.query<{ question: string; label: string; voted_at: Date }>(`SELECT p.question, o.label, v.voted_at FROM poll_votes v JOIN polls p ON p.id = v.poll_id JOIN poll_options o ON o.id = v.option_id WHERE v.user_id = $1 ORDER BY v.voted_at`, [user.id]),
       q.query<{ id: string; question: string; created_at: Date; closes_at: Date | null; post_id: string | null }>(`SELECT id, question, created_at, closes_at, post_id FROM polls WHERE created_by = $1 ORDER BY created_at`, [user.id]),
     ]);
+    // Pictures they put in posts and mail, with where each was used.
+    const pics = await q.query<{ id: string; alt: string; created_at: Date; board: string | null; post_id: string | null; thread_id: string | null }>(
+      `SELECT i.id, i.alt, i.created_at, b.slug AS board, i.post_id, m.thread_id FROM images i LEFT JOIN posts p ON p.id = i.post_id LEFT JOIN boards b ON b.id = p.board_id
+         LEFT JOIN mail_messages m ON m.id = i.mail_message_id WHERE i.owner_id = $1 ORDER BY i.created_at`, [user.id]);
+    for (const x of pics.rows) { try { add(`images/${x.id}.webp`, await fs.readFile(join(deps.filesDir, 'images', `${x.id}.webp`))); } catch { /* the file is gone */ } }
+    if (pics.rows.length) add('images/images.json', json(pics.rows.map((x) => ({ id: x.id, file: `${x.id}.webp`, alt: x.alt, at: x.created_at.toISOString(), used_in: x.post_id ? { board: x.board, post: x.post_id } : x.thread_id ? { mail_conversation: x.thread_id } : null }))));
     add('classics.json', json({
       oneliners: lines.rows.map((l) => ({ text: l.body, at: l.created_at.toISOString(), hidden_by_moderator: l.hidden_at !== null })),
       poll_votes: votes.rows.map((x) => ({ poll: x.question, choice: x.label, at: x.voted_at.toISOString() })),

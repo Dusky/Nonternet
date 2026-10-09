@@ -1,3 +1,4 @@
+import { describeImages } from '@app/shared';
 import { createHash } from 'node:crypto';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
@@ -29,7 +30,7 @@ function entries(deps: AppDeps, rows: Row[]): Entry[] {
     author: r.handle,
     published: r.posted_at,
     updated: r.edited_at ?? r.posted_at,
-    content: r.body,
+    content: describeImages(r.body, deps.publicUrl),
   }));
 }
 

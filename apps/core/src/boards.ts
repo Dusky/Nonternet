@@ -1,5 +1,6 @@
 import { MAX_PINNED_THREADS, NOTIFICATION_KINDS, POST_EDIT_WINDOW_MINUTES, REACTIONS, type BoardSummary, type NotificationKind, type BoardVisibility, type PostEdit, type PostRevisionView, type PostView, type ReactionName, type ThreadFilter, type ThreadSort, type ThreadSummary } from '@app/shared';
 import { audit } from './audit';
+import { attachImages, removeFiles } from './images';
 import { newId } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
 import type { AppDeps } from './deps';
@@ -414,6 +415,7 @@ export async function createPost(
       `INSERT INTO posts (id, board_id, author_id, thread_root_id, reply_to_id, subject, body) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING seq`,
       [id, b.id, v.userId, rootId, replyTo, subject, body]);
     const seq = ins.rows[0]!.seq;
+    await attachImages(q, v.userId, { post: id }, body);
     if (input.poll) {
       const pollId = newId('pl');
       await q.query(`INSERT INTO polls (id, question, created_by, closes_at, post_id) VALUES ($1, $2, $3, CASE WHEN $4::int IS NULL THEN NULL ELSE now() + make_interval(days => $4::int) END, $5)`,
@@ -486,6 +488,7 @@ const gone = () => new ApiError(404, 'not_found', 'No such post.');
 export async function editPost(deps: AppDeps, v: SessionUser, postId: string, input: PostEdit, ctx: Ctx): Promise<PostView> {
   const body = normalizeBody(input.body);
   let where: { slug: string; thread: string; visibility: string; boardId: string } | null = null as { slug: string; thread: string; visibility: string; boardId: string } | null;
+  let dropped: string[] = [];
   await deps.db.tx(async (q) => {
     const p = await q.query<{ id: string; board_id: string; author_id: string | null; thread_root_id: string | null; subject: string; body: string; posted_at: Date; deleted_at: Date | null; hidden_at: Date | null; slug: string; root_locked: Date | null; past_window: boolean }>(
       `SELECT p.id, p.board_id, p.author_id, p.thread_root_id, p.subject, p.body, p.posted_at, p.deleted_at, p.hidden_at, b.slug, r.locked_at AS root_locked,
@@ -515,11 +518,13 @@ export async function editPost(deps: AppDeps, v: SessionUser, postId: string, in
     await q.query(`INSERT INTO post_revisions (id, post_id, editor_id, subject, body, reason, edited_at) VALUES ($1, $2, $3, $4, $5, $6, now())`,
       [newId('pr'), postId, v.userId, post.subject, post.body, mine ? null : reason]);
     await q.query(`UPDATE posts SET subject = $2, body = $3, edited_at = now() WHERE id = $1`, [postId, subject, body]);
+    dropped = await attachImages(q, post.author_id ?? v.userId, { post: postId }, body);
     if (!mine) {
       await audit(q, { actorId: v.userId, actorKind: 'user', action: 'post.edited_by_moderator', targetType: 'post', targetId: postId, after: { reason }, origin: 'web', ipHash: ctx.ipHash });
     }
     where = { slug: post.slug, thread: post.thread_root_id ?? post.id, visibility: b.visibility, boardId: post.board_id };
   });
+  await removeFiles(deps, dropped);
   await tellTabs(deps, where, []);
   const r = await deps.db.query<PostRow>(`SELECT ${POST_COLUMNS} FROM ${POST_FROM} WHERE p.id = $1`, [postId]);
   return toPostView(r.rows[0]!, true);

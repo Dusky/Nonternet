@@ -1,4 +1,4 @@
-import type { MailThreadSummary, MailThreadView } from '@app/shared';
+import { describeImages, type MailThreadSummary, type MailThreadView } from '@app/shared';
 import { editMessage } from '../editor';
 import type { Session } from '../session';
 import { page } from './pager';
@@ -38,7 +38,7 @@ async function conversation(s: Session, id: string): Promise<void> {
     for (const m of th.messages) {
       const name = m.author.handle ?? 'a deleted account';
       if (m.kind !== 'message') { lines.push(dim(m.kind === 'renamed' ? `${name} renamed this conversation to ${m.body} · ${when(m.at)}` : `${name} ${m.kind === 'joined' ? 'joined' : 'left'} · ${when(m.at)}`), ''); continue; }
-      lines.push(`${bold(name)} ${dim(when(m.at))}`, ...(m.deleted ? [dim('Message deleted.')] : wrap(m.body, w)), '');
+      lines.push(`${bold(name)} ${dim(when(m.at))}`, ...(m.deleted ? [dim('Message deleted.')] : wrap(describeImages(m.body, s.ctx.siteUrl), w)), '');
     }
     if (th.left) lines.push(dim('You left this conversation.'));
     await page(s, lines);

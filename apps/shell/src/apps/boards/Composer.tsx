@@ -69,7 +69,7 @@ export function Composer({ slug, replyTo, quote, onPosted, onCancel }: Props) {
       {replyTo && <p className="muted">{t('boards.replyingTo', { name })}</p>}
       <TextField label={t('boards.compose.subject')} hint={replyTo ? undefined : t('boards.compose.subjectHint')} value={subject} onChange={setSubject}
         maxLength={SUBJECT_MAX} required={!replyTo} />
-      <Editor id="compose-body" label={t('boards.compose.body')} mono rows={8} mentions required maxLength={BODY_MAX} draftKey={draftKey} value={body}
+      <Editor id="compose-body" label={t('boards.compose.body')} mono rows={8} mentions pictures required maxLength={BODY_MAX} draftKey={draftKey} value={body}
         onChange={(v) => { setBody(v); setPreview(null); }} onSubmit={() => { if (body.trim() && !send.isPending) { setError(null); send.mutate(); } }}>
         {replyTo?.body && (
           <button type="button" className="link" onClick={() => setBody((b) => quoteReply(name, replyTo.body!) + b)}>{t('boards.compose.quote')}</button>
