@@ -1307,3 +1307,9 @@ div.post-body.rich-text { white-space: normal; }
   .taskbar-windows .btn.is-nudged { animation: nudge .5s ease-in-out 3; }
   @keyframes nudge { 50% { transform: translateY(-3px); } }
 }
+
+/* Boards depth (docs/23, E3a). */
+.thread-filters { gap: var(--space-4); }
+.thread-filters label { display: inline-flex; align-items: center; gap: var(--space-1); }
+.board-rules { margin: var(--space-2) 0; }
+.board-rules summary { cursor: pointer; font-weight: 600; }

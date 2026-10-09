@@ -29,6 +29,7 @@ export const boardUpdateSchema = z
   .object({
     name: z.string().trim().min(2).max(60),
     description: z.string().trim().max(500),
+    rules: z.string().trim().max(2000),
     visibility: z.enum(CREATABLE_VISIBILITIES),
     archived: z.boolean(),
     // Admins only.
@@ -54,6 +55,7 @@ export const categoryCreateSchema = z.object({ name: z.string().trim().min(2).ma
 
 export interface BoardSummary {
   id: string; slug: string; name: string; description: string; visibility: BoardVisibility;
+  rules: string;                                 // plain text shown above the threads (E3a)
   category: { id: string; name: string } | null;
   ring: { slug: string; name: string } | null;   // set on a ring's board
   owner: { id: string; handle: string };
@@ -94,7 +96,7 @@ export interface PostView {
 
 export interface ThreadSummary {
   id: string; subject: string; author: PostView['author']; posted_at: string;
-  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; locked: boolean; pinned: boolean; state: PostView['state'];
+  reply_count: number; last_post_at: string; last_seq: number; unread: boolean; following: boolean; locked: boolean; pinned: boolean; state: PostView['state'];
 }
 
 export interface PostPreview {
@@ -121,6 +123,12 @@ export interface NotificationView {
   link: { app: 'boards' | 'mail' | 'rings'; to: string };
   actor: { id: string; handle: string; display_name: string | null };
 }
+
+// Thread list order and filters (E3a).
+export const THREAD_SORTS = ['activity', 'newest', 'replies'] as const;
+export const THREAD_FILTERS = ['all', 'unanswered', 'unread'] as const;
+export type ThreadSort = (typeof THREAD_SORTS)[number];
+export type ThreadFilter = (typeof THREAD_FILTERS)[number];
 
 export const notificationsReadSchema = z.union([
   z.object({ ids: z.array(z.string().regex(/^n_[0-9A-Z]{26}$/)).min(1).max(200) }),

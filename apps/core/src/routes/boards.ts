@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { notificationsReadSchema, boardCreateSchema, postEditSchema, reactionSchema, boardUpdateSchema, categoryCreateSchema, memberAddSchema, postCreateSchema, readPointerSchema, slugSchema } from '@app/shared';
+import { THREAD_FILTERS, THREAD_SORTS, notificationsReadSchema, boardCreateSchema, postEditSchema, reactionSchema, boardUpdateSchema, categoryCreateSchema, memberAddSchema, postCreateSchema, readPointerSchema, slugSchema } from '@app/shared';
 import { z } from 'zod';
 import * as boards from '../boards';
 import * as notifications from '../notifications';
@@ -29,7 +29,7 @@ export function boardRoutes(app: FastifyInstance, deps: AppDeps): void {
     boards.updateBoard(deps, requireUser(req), slugParam.parse(req.params).slug, boardUpdateSchema.parse(req.body), ctxOf(deps, req)));
 
   app.get('/api/v1/boards/:slug/threads', async (req) => {
-    const q = z.object({ before: cursor, limit }).parse(req.query);
+    const q = z.object({ before: cursor, limit, sort: z.enum(THREAD_SORTS).optional(), filter: z.enum(THREAD_FILTERS).optional() }).parse(req.query);
     return boards.listThreads(deps, viewer(req), slugParam.parse(req.params).slug, q);
   });
 
@@ -89,6 +89,17 @@ export function boardRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.put('/api/v1/boards/:slug/read-pointer', async (req, reply) => {
     await boards.setReadPointer(deps, requireUser(req), slugParam.parse(req.params).slug, readPointerSchema.parse(req.body));
+    return reply.code(204).send();
+  });
+
+  app.put('/api/v1/boards/:slug/threads/:id/follow', async (req, reply) => {
+    const p = threadParams.parse(req.params);
+    await boards.setFollowing(deps, requireUser(req), p.slug, p.id, true);
+    return reply.code(204).send();
+  });
+  app.delete('/api/v1/boards/:slug/threads/:id/follow', async (req, reply) => {
+    const p = threadParams.parse(req.params);
+    await boards.setFollowing(deps, requireUser(req), p.slug, p.id, false);
     return reply.code(204).send();
   });
 

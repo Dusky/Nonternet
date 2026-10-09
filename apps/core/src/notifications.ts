@@ -11,7 +11,7 @@ import type { SessionUser } from './accounts';
 // first: a reply, then a mention, then the board being watched. Nobody is told about their own
 // post, and nobody is told about a board they cannot read.
 export async function notifyForPost(q: Queryable, post: {
-  id: string; boardId: string; visibility: string; authorId: string; body: string; isThread: boolean; replyToAuthorId: string | null;
+  id: string; boardId: string; visibility: string; authorId: string; body: string; isThread: boolean; replyToAuthorId: string | null; threadId?: string | null;
 }): Promise<string[]> {
   const chosen = new Map<string, NotificationKind>();
   if (post.replyToAuthorId) chosen.set(post.replyToAuthorId, 'reply');
@@ -27,6 +27,11 @@ export async function notifyForPost(q: Queryable, post: {
   if (post.isThread) {
     const watchers = await q.query<{ user_id: string }>(`SELECT user_id FROM watches WHERE board_id = $1`, [post.boardId]);
     for (const w of watchers.rows) if (!chosen.has(w.user_id)) chosen.set(w.user_id, 'watch');
+  }
+  // People following the thread hear about its replies (as replies, so their Settings choice for those applies).
+  if (post.threadId) {
+    const followers = await q.query<{ user_id: string }>(`SELECT user_id FROM thread_follows WHERE thread_id = $1`, [post.threadId]);
+    for (const f of followers.rows) if (!chosen.has(f.user_id)) chosen.set(f.user_id, 'reply');
   }
   chosen.delete(post.authorId);
   if (chosen.size === 0) return [];

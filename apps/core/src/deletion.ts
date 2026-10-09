@@ -76,6 +76,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     // Boards they own are archived, so they stay readable but nobody has to run them.
     await q.query(`UPDATE boards SET archived_at = COALESCE(archived_at, now()) WHERE owner_id = $1 AND ring_id IS NULL`, [userId]);
     await q.query(`DELETE FROM watches WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM thread_follows WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM activity_days WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM ssh_keys WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM webauthn_credentials WHERE user_id = $1`, [userId]);

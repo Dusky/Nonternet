@@ -27,15 +27,16 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 const profile: Exporter = {
   id: 'profile',
-  tables: ['users', 'oneliners', 'polls', 'poll_options', 'poll_votes', 'bulletin_seen', 'handle_history', 'watches', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes', 'applications'],
+  tables: ['users', 'oneliners', 'polls', 'poll_options', 'poll_votes', 'bulletin_seen', 'handle_history', 'watches', 'thread_follows', 'board_members', 'ring_members', 'custom_domains', 'scoped_roles', 'notification_prefs', 'board_notification_prefs', 'mail_mutes', 'applications'],
   async run({ deps, user, add }) {
     const q = deps.db;
-    const [names, domains, rings, boards, watching, ops, history] = await Promise.all([
+    const [names, domains, rings, boards, watching, following, ops, history] = await Promise.all([
       q.query<{ handle: string; changed_at: Date }>(`SELECT handle, changed_at FROM handle_history WHERE user_id = $1 ORDER BY id`, [user.id]),
       q.query<{ domain: string; status: string; verified_at: Date | null }>(`SELECT domain, status, verified_at FROM custom_domains WHERE user_id = $1 ORDER BY created_at`, [user.id]),
       q.query<{ slug: string; name: string; status: string; joined_at: Date }>(`SELECT r.slug, r.name, m.status, m.joined_at FROM ring_members m JOIN rings r ON r.id = m.ring_id WHERE m.user_id = $1 ORDER BY r.slug`, [user.id]),
       q.query<{ slug: string }>(`SELECT b.slug FROM board_members m JOIN boards b ON b.id = m.board_id WHERE m.user_id = $1 ORDER BY b.slug`, [user.id]),
       q.query<{ slug: string }>(`SELECT b.slug FROM watches w JOIN boards b ON b.id = w.board_id WHERE w.user_id = $1 ORDER BY b.slug`, [user.id]),
+      q.query<{ slug: string; thread_id: string }>(`SELECT b.slug, f.thread_id FROM thread_follows f JOIN posts t ON t.id = f.thread_id JOIN boards b ON b.id = t.board_id WHERE f.user_id = $1 ORDER BY f.created_at`, [user.id]),
       q.query<{ scope_type: string; scope_id: string; created_at: Date }>(`SELECT scope_type, scope_id, created_at FROM scoped_roles WHERE user_id = $1 ORDER BY created_at`, [user.id]),
       q.query<{ created_at: Date; action: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null }>(
         `SELECT created_at, action, before, after FROM audit_log WHERE target_type = 'user' AND target_id = $1 AND action IN ('user.role_changed', 'user.ops_changed', 'user.renamed') ORDER BY id`, [user.id]),
@@ -82,7 +83,7 @@ const profile: Exporter = {
       role: user.role, theme: user.theme, theme_variant: user.theme_variant, previous_handles: names.rows.map((n) => ({ handle: n.handle, until: n.changed_at.toISOString() })),
       custom_domains: domains.rows.map((d) => ({ domain: d.domain, status: d.status, verified_at: iso(d.verified_at) })),
       rings: rings.rows.map((r) => ({ slug: r.slug, name: r.name, status: r.status, joined_at: r.joined_at.toISOString() })),
-      private_board_memberships: boards.rows.map((b) => b.slug), watching_boards: watching.rows.map((b) => b.slug),
+      private_board_memberships: boards.rows.map((b) => b.slug), watching_boards: watching.rows.map((b) => b.slug), followed_threads: following.rows.map((f) => ({ board: f.slug, thread: f.thread_id })),
       ops: ops.rows.map((o) => ({ scope: `${o.scope_type}:${o.scope_id}`, since: o.created_at.toISOString() })),
       // Role changes are kept without the admin's stated reason, which is an internal note.
       role_history: history.rows.map((h) => ({ at: h.created_at.toISOString(), action: h.action, before: h.before, after: h.after ? Object.fromEntries(Object.entries(h.after).filter(([k]) => k !== 'reason')) : null })),

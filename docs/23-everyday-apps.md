@@ -48,11 +48,16 @@ same formatting.
   Not yet: badges for wiki, files and the MUD, and a switch to hide badges.
 - Everything a notification links to is checked against what the person can still see.
 
-### E3 — Boards depth
+### E3 — Boards depth (E3a built 2026-10-09: follow, sort/filter, rules; E3b polls still to do)
 - Follow a thread (notifications for replies), separate from watching a board.
 - Thread lists: sort by latest activity, newest, most replies; an "unanswered" view; a "since your last visit" marker.
 - Polls inside a thread (reuse the voting booth's tables): one question, up to 10 options, closes on a date.
 - Board pages: rules text and a short description shown above the threads.
+- Built (E3a): following a thread (writing in a thread follows it; replies come as ordinary "reply" notifications, so
+  the Settings choice and the Boards badge cover them), sort by latest activity / newest / most replies, filters for
+  "no replies yet" and "unread" (remembered per device), and board rules edited in board settings and audited.
+  Follows are in the export and cleared on account deletion. Still to do from this list: the "since your last visit"
+  marker and polls (E3b).
 
 ### E4 — Mail depth
 - Archive and star per person (not shared with the others in the conversation); an Archive view; unread filter.

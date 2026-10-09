@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FeedLink } from '../../components/FeedLink';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { BoardSummary, ThreadSummary } from '@app/shared';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { THREAD_FILTERS, THREAD_SORTS, type BoardSummary, type ThreadFilter, type ThreadSort, type ThreadSummary } from '@app/shared';
+import { RichText } from '../../components/RichText';
 import { api } from '../../api';
 import { PersonLink } from '../people/PersonLink';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime } from '../../components/ui';
@@ -121,6 +122,7 @@ function BoardList() {
                   {b.unread ? <span className="badge badge-accent">{t('boards.unread', { count: b.unread })}</span> : null}
                 </div>
                 {b.description && <p>{b.description}</p>}
+      {b.rules && <details className="board-rules"><summary>{t('boards.rules')}</summary><RichText body={b.rules} /></details>}
                 <p className="row-meta">{t('boards.threads', { count: b.thread_count })}{b.last_post_at ? <> · <RelativeTime iso={b.last_post_at} /></> : null}</p>
               </li>
             ))}
@@ -140,9 +142,21 @@ function BoardPage({ slug }: { slug: string }) {
   const qc = useQueryClient();
   const root = useRef<HTMLDivElement>(null);
   const board = useBoard(slug);
+  // The order and filter are remembered on this device.
+  const [sort, setSortState] = useState<ThreadSort>(() => stored<ThreadSort>('boards.sort', THREAD_SORTS, 'activity'));
+  const [filter, setFilterState] = useState<ThreadFilter>(() => stored<ThreadFilter>('boards.filter', THREAD_FILTERS, 'all'));
+  const setSort = (v: ThreadSort) => { setSortState(v); keep('boards.sort', v); };
+  const setFilter = (v: ThreadFilter) => { setFilterState(v); keep('boards.filter', v); };
   const threads = useInfiniteQuery({
-    queryKey: ['threads', slug, me?.id ?? null],
-    queryFn: ({ pageParam }) => api.get<{ threads: ThreadSummary[]; next: number | null }>(`/boards/${slug}/threads${pageParam ? `?before=${pageParam}` : ''}`),
+    queryKey: ['threads', slug, me?.id ?? null, sort, filter],
+    placeholderData: keepPreviousData,
+    queryFn: ({ pageParam }) => {
+      const qs = new URLSearchParams();
+      if (pageParam !== undefined) qs.set('before', String(pageParam));
+      if (sort !== 'activity') qs.set('sort', sort);
+      if (filter !== 'all') qs.set('filter', filter);
+      return api.get<{ threads: ThreadSummary[]; next: number | null }>(`/boards/${slug}/threads${qs.size ? `?${qs}` : ''}`);
+    },
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (last) => last.next ?? undefined,
   });
@@ -177,7 +191,7 @@ function BoardPage({ slug }: { slug: string }) {
   const toggleWatch = () => { if (coll && liveBoard) report(coll.update(slug, (d) => { d.watching = !watching; })); };
   const markRead = () => {
     if (!coll || !liveBoard) return;
-    qc.setQueryData<{ pages: { threads: ThreadSummary[]; next: number | null }[]; pageParams: unknown[] }>(['threads', slug, me?.id ?? null], (d) => d && { ...d, pages: d.pages.map((pg) => ({ ...pg, threads: pg.threads.map((th) => ({ ...th, unread: false })) })) });
+    qc.setQueriesData<{ pages: { threads: ThreadSummary[]; next: number | null }[]; pageParams: unknown[] }>({ queryKey: ['threads', slug, me?.id ?? null] }, (d) => d && { ...d, pages: d.pages.map((pg) => ({ ...pg, threads: pg.threads.map((th) => ({ ...th, unread: false })) })) });
     report(coll.update(slug, (d) => { d.unread = 0; }));
   };
   const nextUnread = () => { const n = list.find((x) => x.unread); if (n) nav.go(`${slug}/t/${n.id}`); };
@@ -207,6 +221,10 @@ function BoardPage({ slug }: { slug: string }) {
         <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
         {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
       </div>
+      <div className="toolbar thread-filters">
+        <label>{t('boards.sort.label')} <select value={sort} onChange={(e) => setSort(e.target.value as ThreadSort)}>{THREAD_SORTS.map((s) => <option key={s} value={s}>{t(`boards.sort.${s}`)}</option>)}</select></label>
+        {me && <label>{t('boards.filter.label')} <select value={filter} onChange={(e) => setFilter(e.target.value as ThreadFilter)}>{THREAD_FILTERS.map((f) => <option key={f} value={f}>{t(`boards.filter.${f}`)}</option>)}</select></label>}
+      </div>
       {!b.can_post && <p className="muted">{postNote(t, b, Boolean(me))}</p>}
       {threads.isError && <Alert kind="error" retry={() => void threads.refetch()}>{errorText(threads.error)}</Alert>}
       {threads.isSuccess && list.length === 0 && <EmptyState>{t('boards.noThreads')}</EmptyState>}
@@ -218,6 +236,7 @@ function BoardPage({ slug }: { slug: string }) {
                 <AppLink to={`${slug}/t/${th.id}`} data-nav className="thread-link" prefetch={() => void qc.prefetchInfiniteQuery(threadQuery(slug, th.id, me?.id ?? null))}><strong>{th.subject || '…'}</strong></AppLink>
                 {th.pinned && <>{' '}<span className="badge sticker">{t('pin.badge')}</span></>}
                 {th.locked && <>{' '}<span className="badge">{t('boards.badge.locked')}</span></>}
+                {th.following && <>{' '}<span className="badge">{t('boards.badge.following')}</span></>}
               </span>
               {th.unread && <span className="badge badge-accent">{t('boards.newBadge')}</span>}
             </div>
@@ -271,4 +290,12 @@ function SettingsPage({ slug }: { slug: string }) {
   if (board.isError) return <Alert kind="error" retry={() => void board.refetch()}>{errorText(board.error)}</Alert>;
   if (!board.data) return <Loading />;
   return <BoardSettings board={board.data} key={board.data.id + String(board.dataUpdatedAt)} />;
+}
+
+// A choice kept on this device, only if it is one of the known values.
+function stored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try { const v = localStorage.getItem(key); return allowed.includes(v as T) ? (v as T) : fallback; } catch { return fallback; }
+}
+function keep(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* a convenience */ }
 }

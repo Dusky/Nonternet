@@ -6,6 +6,7 @@ import type { BoardSummary, PostView, ThreadSummary } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, BackLink, Loading, RelativeTime, useCopy } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
+import { toast } from '../../components/feedback';
 import { usePrefs } from '../../devicePrefs';
 import { useAppNav, useSubtitle } from '../../nav';
 import { Composer } from './Composer';
@@ -15,7 +16,7 @@ import { PostModTools, ReportPost } from './ModTools';
 import { RichText } from '../../components/RichText';
 import { CharacterBadge, PersonLink } from '../people/PersonLink';
 
-interface ThreadPage { board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }
+interface ThreadPage { board: BoardSummary; locked: boolean; following: boolean; posts: PostView[]; next: number | null }
 
 // One thread's pages: shared by the thread screen and the links that prefetch it.
 export const threadQuery = (slug: string, id: string, meId: string | null) => infiniteQueryOptions({
@@ -109,6 +110,20 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [posts, me, slug, qc, q.hasNextPage]);
 
+  // Following changes the button at once; a refusal puts it back.
+  const following = q.data?.pages[0]?.following ?? false;
+  const follow = useMutation({
+    mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/threads/${id}/follow`, {}) : api.del(`/boards/${slug}/threads/${id}/follow`)),
+    onMutate: async (on) => {
+      const key = threadQuery(slug, id, me?.id ?? null).queryKey;
+      await qc.cancelQueries({ queryKey: key });
+      const before = qc.getQueryData(key);
+      qc.setQueryData<{ pages: ThreadPage[]; pageParams: unknown[] }>(key, (d) => d && { ...d, pages: d.pages.map((pg, i) => (i === 0 ? { ...pg, following: on } : pg)) });
+      return { key, before };
+    },
+    onError: (e, _on, c) => { if (c) qc.setQueryData(c.key, c.before); toast(errorText(e), 'error'); },
+    onSettled: () => { void qc.invalidateQueries({ queryKey: ['thread', slug, id] }); void qc.invalidateQueries({ queryKey: ['threads', slug] }); },
+  });
   const pin = useMutation({
     mutationFn: (on: boolean) => (on ? api.put(`/boards/${slug}/threads/${id}/pin`, {}) : api.del(`/boards/${slug}/threads/${id}/pin`)),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['thread', slug] }); void qc.invalidateQueries({ queryKey: ['threads', slug] }); },
@@ -156,6 +171,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
       <div className="toolbar" role="group" aria-label={t('boards.view.label')}>
         <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
         <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>
+        {me && me.role !== 'guest' && <button type="button" className="btn btn-quiet" aria-pressed={following} onClick={() => follow.mutate(!following)}>{following ? t('boards.unfollow') : t('boards.follow')}</button>}
         {board.can_moderate && posts[0] && <button type="button" className="btn btn-quiet" disabled={pin.isPending} onClick={() => pin.mutate(!posts[0]!.pinned)}>{posts[0].pinned ? t('pin.unpin') : t('pin.pin')}</button>}
         {board.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}/threads/${id}.atom`} title={subject} />}
         {me && <button type="button" className="btn btn-quiet" onClick={goNextUnread} disabled={!unreadThreads.data?.threads.some((x) => x.unread && x.id !== id)}>{t('boards.nextUnread')}</button>}

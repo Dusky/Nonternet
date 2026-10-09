@@ -56,6 +56,7 @@ export function BoardSettings({ board }: { board: BoardSummary }) {
   const qc = useQueryClient();
   const [name, setName] = useState(board.name);
   const [description, setDescription] = useState(board.description);
+  const [rules, setRules] = useState(board.rules);
   const [visibility, setVisibility] = useState(board.visibility === 'ring' ? 'public' : board.visibility);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -71,9 +72,10 @@ export function BoardSettings({ board }: { board: BoardSummary }) {
     <>
       <BackLink to={board.slug}>{t('boards.back', { name: board.name })}</BackLink>
       <h2>{t('boards.settings.title', { name: board.name })}</h2>
-      <form className="panel" onSubmit={(e) => { e.preventDefault(); patch.mutate({ name, description, visibility }); }}>
+      <form className="panel" onSubmit={(e) => { e.preventDefault(); patch.mutate({ name, description, rules, visibility }); }}>
         <TextField label={t('boards.form.name')} value={name} onChange={setName} maxLength={60} required />
         <TextField label={t('boards.form.description')} value={description} onChange={setDescription} maxLength={500} multiline />
+        <TextField label={t('boards.form.rules')} value={rules} onChange={setRules} maxLength={2000} multiline />
         <VisibilityField id="set-vis" value={visibility} onChange={(v) => setVisibility(v as typeof visibility)} />
         {error && <Alert kind="error">{error}</Alert>}
         <button className="btn btn-primary" type="submit" disabled={patch.isPending}>{t('common.save')}</button>

@@ -1,4 +1,4 @@
-import { MAX_PINNED_THREADS, NOTIFICATION_KINDS, POST_EDIT_WINDOW_MINUTES, REACTIONS, type BoardSummary, type NotificationKind, type BoardVisibility, type PostEdit, type PostRevisionView, type PostView, type ReactionName, type ThreadSummary } from '@app/shared';
+import { MAX_PINNED_THREADS, NOTIFICATION_KINDS, POST_EDIT_WINDOW_MINUTES, REACTIONS, type BoardSummary, type NotificationKind, type BoardVisibility, type PostEdit, type PostRevisionView, type PostView, type ReactionName, type ThreadFilter, type ThreadSort, type ThreadSummary } from '@app/shared';
 import { audit } from './audit';
 import { newId } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
@@ -37,14 +37,14 @@ export const canModerate = (v: Viewer, b: { id: string; owner_id: string; ring_i
   Boolean(v && (v.role === 'admin' || v.userId === b.owner_id || v.ops.includes(`board:${b.id}`) || (b.ring_id && v.ops.includes(`ring:${b.ring_id}`))));
 
 export interface BoardRow {
-  id: string; slug: string; name: string; description: string; visibility: BoardVisibility; owner_id: string; owner_handle: string;
+  id: string; slug: string; name: string; description: string; rules: string; visibility: BoardVisibility; owner_id: string; owner_handle: string;
   ring_id: string | null; ring_slug: string | null; ring_name: string | null; ring_member: boolean;
   category_id: string | null; category_name: string | null; archived_at: Date | null; hidden_at: Date | null;
   thread_count: string; post_count: string; last_post_at: Date | null; unread: string | null; watching: boolean; member: boolean;
 }
 
 const SUMMARY_SQL = `
-  SELECT b.id, b.slug, b.name, b.description, b.visibility, b.owner_id, u.handle AS owner_handle,
+  SELECT b.id, b.slug, b.name, b.description, b.rules, b.visibility, b.owner_id, u.handle AS owner_handle,
     b.ring_id, rg.slug AS ring_slug, rg.name AS ring_name,
     EXISTS (SELECT 1 FROM ring_members rm WHERE rm.ring_id = b.ring_id AND rm.user_id = $1 AND rm.status = 'member') AS ring_member,
     b.category_id, c.name AS category_name, b.archived_at, b.hidden_at,
@@ -67,7 +67,7 @@ export function canPost(v: Viewer, r: BoardRow): boolean {
 
 function toSummary(v: Viewer, r: BoardRow): BoardSummary {
   return {
-    id: r.id, slug: r.slug, name: r.name, description: r.description, visibility: r.visibility,
+    id: r.id, slug: r.slug, name: r.name, description: r.description, rules: r.rules, visibility: r.visibility,
     category: r.category_id ? { id: r.category_id, name: r.category_name! } : null,
     ring: r.ring_id ? { slug: r.ring_slug!, name: r.ring_name! } : null,
     owner: { id: r.owner_id, handle: r.owner_handle },
@@ -133,7 +133,7 @@ export async function createBoard(
 
 export async function updateBoard(
   deps: AppDeps, v: SessionUser, slug: string,
-  patch: { name?: string; description?: string; visibility?: 'public' | 'members' | 'private'; archived?: boolean; category_id?: string | null }, ctx: Ctx,
+  patch: { name?: string; description?: string; rules?: string; visibility?: 'public' | 'members' | 'private'; archived?: boolean; category_id?: string | null }, ctx: Ctx,
 ): Promise<BoardSummary> {
   await deps.db.tx(async (q) => {
     const b = await loadBoard(q, slug, v);
@@ -145,15 +145,15 @@ export async function updateBoard(
       if (c.rowCount === 0) throw new ApiError(404, 'not_found', 'No such category.');
     }
     await q.query(`SELECT 1 FROM boards WHERE id = $1 FOR UPDATE`, [b.id]);
-    const before = { name: b.name, description: b.description, visibility: b.visibility, archived: b.archived_at !== null, category_id: b.category_id };
+    const before = { name: b.name, description: b.description, rules: b.rules, visibility: b.visibility, archived: b.archived_at !== null, category_id: b.category_id };
     const after = {
-      name: patch.name ?? before.name, description: patch.description ?? before.description, visibility: patch.visibility ?? before.visibility,
+      name: patch.name ?? before.name, description: patch.description ?? before.description, rules: patch.rules ?? before.rules, visibility: patch.visibility ?? before.visibility,
       archived: patch.archived ?? before.archived, category_id: patch.category_id !== undefined ? patch.category_id : before.category_id,
     };
     await q.query(
-      `UPDATE boards SET name = $2, description = $3, visibility = $4, category_id = $5,
+      `UPDATE boards SET name = $2, description = $3, visibility = $4, category_id = $5, rules = $7,
          archived_at = CASE WHEN $6::boolean THEN COALESCE(archived_at, now()) ELSE NULL END WHERE id = $1`,
-      [b.id, after.name, after.description, after.visibility, after.category_id, after.archived]);
+      [b.id, after.name, after.description, after.visibility, after.category_id, after.archived, after.rules]);
     // Going private must not lock the owner out of their own board.
     if (after.visibility === 'private') {
       await q.query(`INSERT INTO board_members (board_id, user_id, added_by) VALUES ($1, $2, $2) ON CONFLICT DO NOTHING`, [b.id, b.owner_id]);
@@ -223,6 +223,16 @@ export async function setWatching(deps: AppDeps, v: SessionUser, slug: string, o
   else await deps.db.query(`DELETE FROM watches WHERE user_id = $1 AND board_id = $2`, [v.userId, b.id]);
 }
 
+// Following one thread (E3a): replies to it reach you as notifications, without watching the whole board.
+export async function setFollowing(deps: AppDeps, v: SessionUser, slug: string, threadId: string, on: boolean): Promise<void> {
+  const b = await loadBoard(deps.db, slug, v);
+  if (!isMember(v)) throw new ApiError(403, 'forbidden', 'Confirm your email address to follow threads.');
+  const root = await deps.db.query(`SELECT 1 FROM posts WHERE id = $1 AND board_id = $2 AND thread_root_id IS NULL AND deleted_at IS NULL AND (hidden_at IS NULL OR $3::boolean)`, [threadId, b.id, canModerate(v, b)]);
+  if (root.rowCount === 0) throw new ApiError(404, 'not_found', 'No such thread.');
+  if (on) await deps.db.query(`INSERT INTO thread_follows (user_id, thread_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [v.userId, threadId]);
+  else await deps.db.query(`DELETE FROM thread_follows WHERE user_id = $1 AND thread_id = $2`, [v.userId, threadId]);
+}
+
 // The pointer only moves forward, so reading an old thread never marks newer posts as unread.
 export async function setReadPointer(deps: AppDeps, v: SessionUser, slug: string, target: { post_id: string } | { all: true }): Promise<void> {
   const b = await loadBoard(deps.db, slug, v);
@@ -270,32 +280,47 @@ function toPostView(r: PostRow, mod: boolean): PostView {
   };
 }
 
-export async function listThreads(deps: AppDeps, v: Viewer, slug: string, opts: { before?: number; limit?: number }): Promise<{ threads: ThreadSummary[]; next: number | null }> {
+export async function listThreads(
+  deps: AppDeps, v: Viewer, slug: string, opts: { before?: number; limit?: number; sort?: ThreadSort; filter?: ThreadFilter },
+): Promise<{ threads: ThreadSummary[]; next: number | null }> {
   const b = await loadBoard(deps.db, slug, v);
   const mod = canModerate(v, b);
   const limit = Math.min(opts.limit ?? 30, 100);
-  type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean };
-  const select = (where: string, order: string, extra: unknown[]) => deps.db.query<Row>(
+  const sort = opts.sort ?? 'activity';
+  const filter = opts.filter ?? 'all';
+  type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean; following: boolean };
+  const UNREAD = `EXISTS (SELECT 1 FROM posts x
+         WHERE (x.id = p.id OR x.thread_root_id = p.id) AND x.deleted_at IS NULL AND x.hidden_at IS NULL AND x.author_id IS DISTINCT FROM $2
+           AND x.seq > COALESCE((SELECT s.last_read_seq FROM read_state s WHERE s.user_id = $2 AND s.board_id = p.board_id), 0))`;
+  const filterSql = filter === 'unanswered' ? 'AND p.reply_count = 0' : filter === 'unread' ? `AND $2::text IS NOT NULL AND ${UNREAD}` : '';
+  const select = (where: string, order: string, extra: unknown[], paging = '') => deps.db.query<Row>(
     `SELECT ${POST_COLUMNS}, p.reply_count, p.last_seq,
        (SELECT max(x.posted_at) FROM posts x WHERE x.id = p.id OR x.thread_root_id = p.id) AS last_at,
-       CASE WHEN $2::text IS NULL THEN false ELSE EXISTS (SELECT 1 FROM posts x
-         WHERE (x.id = p.id OR x.thread_root_id = p.id) AND x.deleted_at IS NULL AND x.hidden_at IS NULL AND x.author_id IS DISTINCT FROM $2
-           AND x.seq > COALESCE((SELECT s.last_read_seq FROM read_state s WHERE s.user_id = $2 AND s.board_id = p.board_id), 0)) END AS unread
+       CASE WHEN $2::text IS NULL THEN false ELSE ${UNREAD} END AS unread,
+       EXISTS (SELECT 1 FROM thread_follows f WHERE f.user_id = $2 AND f.thread_id = p.id) AS following
      FROM ${POST_FROM}
-     WHERE p.board_id = $1 AND p.thread_root_id IS NULL AND ${where}
+     WHERE p.board_id = $1 AND p.thread_root_id IS NULL AND ${where} ${filterSql}
        AND (p.hidden_at IS NULL OR $3::boolean) -- hidden threads are listed for moderators only
-     ORDER BY ${order} LIMIT $4`,
+     ORDER BY ${order} ${paging} LIMIT $4`,
     [b.id, v?.userId ?? null, mod, ...extra]);
-  // Pinned threads head the first page only; the rest go by the latest activity, a page at a time.
-  const pinned = opts.before === undefined ? await select('p.pinned_at IS NOT NULL', 'p.pinned_at DESC', [MAX_PINNED_THREADS]) : { rows: [] as Row[] };
-  const r = await select('p.pinned_at IS NULL AND ($5::bigint IS NULL OR p.last_seq < $5)', 'p.last_seq DESC', [limit + 1, opts.before ?? null]);
+  // Pinned threads head the first page of the default view; the rest go in the chosen order, a page at a time.
+  // The cursor is a position in that order: the activity or creation number, or an offset for "most replies".
+  const head = opts.before === undefined && sort === 'activity' && filter === 'all'
+    ? await select('p.pinned_at IS NOT NULL', 'p.pinned_at DESC', [MAX_PINNED_THREADS]) : { rows: [] as Row[] };
+  const pinnedOut = sort === 'activity' && filter === 'all' ? 'p.pinned_at IS NULL' : 'TRUE';
+  const r = sort === 'replies'
+    ? await select(pinnedOut, 'p.reply_count DESC, p.seq DESC', [limit + 1], `OFFSET ${Math.max(0, Math.floor(opts.before ?? 0))}`)
+    : await select(`${pinnedOut} AND ($5::bigint IS NULL OR ${sort === 'newest' ? 'p.seq' : 'p.last_seq'} < $5)`, sort === 'newest' ? 'p.seq DESC' : 'p.last_seq DESC', [limit + 1, opts.before ?? null]);
   const page = r.rows.slice(0, limit);
-  const threads = [...pinned.rows, ...page].map((row): ThreadSummary => {
+  const threads = [...head.rows, ...page].map((row): ThreadSummary => {
     const post = toPostView(row, mod);
     return { id: row.id, subject: post.subject, author: post.author, posted_at: post.posted_at, reply_count: row.reply_count,
-      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, locked: row.locked_at !== null, pinned: row.pinned_at !== null, state: post.state };
+      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, following: row.following,
+      locked: row.locked_at !== null, pinned: row.pinned_at !== null, state: post.state };
   });
-  return { threads, next: r.rows.length > limit ? Number(page[page.length - 1]!.last_seq) : null };
+  const last = page[page.length - 1];
+  const next = r.rows.length > limit && last ? (sort === 'replies' ? Math.floor(opts.before ?? 0) + limit : Number(sort === 'newest' ? last.seq : last.last_seq)) : null;
+  return { threads, next };
 }
 
 // New posts on a board in the order they were written, from the viewer's read pointer on (or `after`), for
@@ -315,7 +340,7 @@ export async function newPosts(deps: AppDeps, v: SessionUser, slug: string, opts
   return { last_read_seq: pointer, posts: page.map((row) => ({ ...toPostView(row, false), thread_subject: row.thread_subject })), next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
 }
 
-export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; posts: PostView[]; next: number | null }> {
+export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; following: boolean; posts: PostView[]; next: number | null }> {
   const b = await loadBoard(deps.db, slug, v);
   const mod = canModerate(v, b);
   const root = await deps.db.query<{ hidden_at: Date | null; locked_at: Date | null }>(`SELECT hidden_at, locked_at FROM posts WHERE id = $1 AND board_id = $2 AND thread_root_id IS NULL`, [threadId, b.id]);
@@ -328,7 +353,8 @@ export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId
   const page = r.rows.slice(0, limit);
   const posts = page.map((row) => toPostView(row, mod));
   await attachReactions(deps, v, posts);
-  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, posts, next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
+  const following = v ? (await deps.db.query(`SELECT 1 FROM thread_follows WHERE user_id = $1 AND thread_id = $2`, [v.userId, threadId])).rowCount === 1 : false;
+  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, following, posts, next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
 }
 
 // Reactions on the posts shown (not on ones that are deleted, removed or hidden): counts in a fixed order, and
@@ -388,7 +414,9 @@ export async function createPost(
     if (rootId) await q.query(`UPDATE posts SET reply_count = reply_count + 1, last_seq = $2 WHERE id = $1`, [rootId, seq]);
     else await q.query(`UPDATE posts SET last_seq = $2 WHERE id = $1`, [id, seq]);
     await emit(q, 'post.created', { post_id: id, board_id: b.id, thread_id: rootId ?? id, author_id: v.userId, visibility: b.visibility });
-    notified = await notifyForPost(q, { id, boardId: b.id, visibility: b.visibility, authorId: v.userId, body, isThread: rootId === null, replyToAuthorId: replyToAuthor });
+    // Writing in a thread follows it, so its replies come to you.
+    await q.query(`INSERT INTO thread_follows (user_id, thread_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [v.userId, rootId ?? id]);
+    notified = await notifyForPost(q, { id, boardId: b.id, visibility: b.visibility, authorId: v.userId, body, isThread: rootId === null, replyToAuthorId: replyToAuthor, threadId: rootId });
     if (notified.length) await pushForPost(deps, q, { id, thread: rootId ?? id, slug: b.slug, board: b.name, author: v.handle });
     placed = { boardId: b.id, slug: b.slug, visibility: b.visibility, thread: rootId ?? id };
   });
