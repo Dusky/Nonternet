@@ -131,6 +131,61 @@ test.describe('chat', () => {
     await other.close();
   });
 
+  test('a half-written line stays with its conversation, a private chat can be started, and a word can be found', async ({ page, browser }) => {
+    const a = await makeUser(page, { handle: uniq('ann') });
+    await signIn(page, a.handle, PASSWORD);
+    await page.goto('/chat');
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    const box = () => page.getByRole('textbox', { name: /^Message / });
+    await page.getByLabel('Message #lobby').fill('half written for the lobby');
+    await page.getByRole('button', { name: '#help' }).click();
+    await expect(page.getByLabel('Message #help')).toHaveValue('');
+    await page.getByRole('button', { name: '#lobby' }).click();
+    await expect(page.getByLabel('Message #lobby')).toHaveValue('half written for the lobby');
+    await page.getByLabel('Message #lobby').fill('');
+
+    // Start a private chat by name: it shows in its own group.
+    const other = await browser.newContext();
+    const page2 = await other.newPage();
+    const b = await makeUser(page2, { handle: uniq('bob') });
+    await signIn(page2, b.handle, PASSWORD);
+    await page.getByLabel('Start a private chat').fill(b.handle);
+    await page.getByRole('button', { name: 'Open', exact: true }).click();
+    await expect(page.getByRole('list', { name: 'Private chats' }).getByRole('button', { name: b.handle })).toBeVisible();
+    await expect(box()).toBeVisible();
+
+    // Find a word in the lobby.
+    const word = uniq('needle');
+    await page.getByRole('button', { name: '#lobby' }).click();
+    await page.getByLabel('Message #lobby').fill(`one ${word} in the haystack`);
+    await page.getByLabel('Message #lobby').press('Enter');
+    await page.getByLabel('Message #lobby').fill('and another line');
+    await page.getByLabel('Message #lobby').press('Enter');
+    await page.getByRole('button', { name: 'Find', exact: true }).click();
+    await page.getByRole('searchbox', { name: 'Find in this conversation' }).fill(word);
+    await expect(page.getByText('1 of 1')).toBeVisible();
+    await expect(log(page, '#lobby').locator('.is-found')).toHaveCount(1);
+    await scan(page, 'the Chat app with a search open');
+    await other.close();
+  });
+
+  test('a trusted person starts a channel, and its operator can change the topic', async ({ page }) => {
+    const a = await makeUser(page, { handle: uniq('ann') });
+    const { setRole } = await import('../support/helpers');
+    await setRole(a.handle, 'trusted');
+    await signIn(page, a.handle, PASSWORD);
+    await page.goto('/chat');
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    const name = uniq('room').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 24);
+    await page.getByLabel('Start a channel').fill(name);
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 2, name: `#${name}` })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Edit topic' }).click();
+    await page.getByLabel('Topic', { exact: true }).fill('Plain talk only');
+    await page.getByRole('button', { name: 'Set topic' }).click();
+    await expect(page.locator('.chat-topic')).toHaveText('Plain talk only', { timeout: 10_000 });
+  });
+
   test('joins another channel, and says plainly when a command is not known', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);

@@ -83,3 +83,17 @@ export function foldPresence<T extends { kind: string; nick: string }>(messages:
   flush();
   return out;
 }
+
+// Find a word in the lines that are loaded: the ids of the lines whose text or nick contains it, oldest first.
+export function findLines(messages: { id: string; kind: string; nick: string; text: string }[], term: string): string[] {
+  const q = term.trim().toLowerCase();
+  if (!q) return [];
+  return messages.filter((m) => ['message', 'action', 'notice', 'topic'].includes(m.kind) && (m.text.toLowerCase().includes(q) || m.nick.toLowerCase().includes(q))).map((m) => m.id);
+}
+
+// Which conversation list a buffer goes in, and the order inside it: mentions first, then unread, then by name.
+export function groupBuffers<T extends { name: string; kind: string; unread: number; mentioned: boolean }>(list: T[]): { channels: T[]; queries: T[] } {
+  const rank = (b: T) => (b.kind === 'server' ? -1 : b.mentioned ? 0 : b.unread > 0 ? 1 : 2);
+  const order = (a: T, b: T) => rank(a) - rank(b) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  return { channels: list.filter((b) => b.kind !== 'query').sort(order), queries: list.filter((b) => b.kind === 'query').sort(order) };
+}

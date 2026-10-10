@@ -77,6 +77,9 @@ Added in the polish phase (P4, 2026-10-02):
 - **Commands** added: `/ignore`, `/unignore`, `/notice`, `/kick`, `/op`, `/deop`, `/voice`, `/devoice` (the server decides who may). Tab finishes nicks, `#channels` and `/commands`.
 - **Pasting several lines** asks first, then sends each line on its own, spaced out (at most 10; more is pointed at a board or file).
 - mIRC background colours are drawn too, mixed toward the theme's background.
+Added in the everyday-apps pass (E7, 2026-10-10): a draft per conversation (kept on the device), channels and private chats in two groups with
+mentions and unread first, "Start a private chat", "Start a channel" for trusted people and admins (the `POST /irc/channels` route), "Edit topic" for
+channel operators, and "Find in this conversation" over the lines loaded in the window (Ergo has no history search; "Load older" pages further back).
 The site's status line and away flag are **not** shown on IRC, and that is decided, not pending. VERIFIED against Ergo 2.19.1's source (`irc/handlers.go`,
 `awayHandler`): `AWAY` takes only a message and changes the sending connection's own state; the operator commands are `SAJOIN`, `SANICK` and `SAMODE`, and
 NickServ has no away command beyond a person's own `auto-away` setting. So showing it on IRC would mean the sync bot holding a connection per person, which it

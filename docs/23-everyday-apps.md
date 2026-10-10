@@ -104,7 +104,7 @@ same formatting.
   account when "erase my posts" is chosen. The BBS, QWK packets, Gopher, Gemini and feeds show `[picture: description]` and
   the address. Wiki pages do not take pictures yet.
 
-### E7 — Chat check-up
+### E7 — Chat check-up (reviewed and passed 2026-10-10)
 Review the web chat window against the other apps (channel list and joining, topics, the people list, search in
 history), then plan its pass here.
 
@@ -112,3 +112,14 @@ history), then plan its pass here.
 - New user content is in the export, import where it applies, and account deletion.
 - Moderation actions are audited; a person's own reading, starring and archiving are not.
 - Interface text follows the writing rule in `10`.
+
+### E7 review and pass (2026-10-10)
+Reviewed the Chat window against the other apps. Kept as is: unread and mention badges, the "new messages" line, history on open and on
+scroll-up, away dimming, the person menu, ignore and highlight words, per-channel mute, Tab completion, the paste guard and alerts.
+Found and fixed: the message box was shared by every conversation (a half-written line could go to the wrong place and nothing
+survived a reload); channels and private chats were one flat list; there was no way to find a word; trusted people could not start a
+channel from the web (the route existed; only the admin console used it) and channel operators could only set a topic with `/topic`.
+Built: a draft per conversation (kept on the device, cleared when sent), "Channels" and "Private chats" groups with mentions and unread
+first, "Start a private chat" by handle, "Start a channel" for trusted people and admins, "Edit topic" for channel operators, and
+"Find in this conversation" (over the lines loaded here, with next, previous and "Load older", because Ergo cannot search history).
+Not done: push for direct messages and mentions (still listed in docs/10), and showing pictures in chat.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeNick, completeWord, dayKey, dayLabel, nickColour, splitPaste, typingNow, foldPresence } from './helpers';
+import { findLines, groupBuffers, completeNick, completeWord, dayKey, dayLabel, nickColour, splitPaste, typingNow, foldPresence } from './helpers';
 
 const nicks = ['alice', 'Alma', 'bob'];
 
@@ -75,5 +75,25 @@ describe('folding comings and goings', () => {
     const m = (kind: string, nick: string) => ({ kind, nick });
     const log = [m('join', 'tansy'), m('quit', 'tansy'), m('join', 'tansy'), m('join', 'ada'), m('join', 'tansy'), m('message', 'ada'), m('part', 'ada'), m('join', 'ada')];
     expect(foldPresence(log)).toEqual([m('join', 'ada'), m('join', 'tansy'), m('message', 'ada'), m('join', 'ada')]);
+  });
+});
+
+describe('finding words in what is loaded', () => {
+  const msgs = [
+    { id: 'a', kind: 'message', nick: 'ann', text: 'Hello there' },
+    { id: 'b', kind: 'join', nick: 'bob', text: '' },
+    { id: 'c', kind: 'message', nick: 'bob', text: 'say HELLO back' },
+    { id: 'd', kind: 'action', nick: 'hello-bot', text: 'waves' },
+  ];
+  it('matches text and nicks, ignoring case, skipping joins and parts', () => {
+    expect(findLines(msgs, 'hello')).toEqual(['a', 'c', 'd']);
+    expect(findLines(msgs, '  ')).toEqual([]);
+    expect(findLines(msgs, 'nothing')).toEqual([]);
+  });
+  it('groups channels and private chats, mentions then unread then name', () => {
+    const b = (name: string, kind: string, unread = 0, mentioned = false) => ({ name, kind, unread, mentioned });
+    const g = groupBuffers([b('#b', 'channel'), b('#a', 'channel', 2), b('zed', 'query', 1), b('amy', 'query', 3, true), b('*', 'server'), b('#c', 'channel', 1, true)]);
+    expect(g.channels.map((x) => x.name)).toEqual(['*', '#c', '#a', '#b']);
+    expect(g.queries.map((x) => x.name)).toEqual(['amy', 'zed']);
   });
 });
