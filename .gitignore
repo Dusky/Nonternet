@@ -12,3 +12,8 @@ data/
 deploy/ops/
 packs/build/
 __pycache__/
+
+# What ./sitectl install writes on a server (docs/19)
+deploy/install/
+deploy/site.yaml
+deploy/backups/

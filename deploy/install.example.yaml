@@ -1,0 +1,42 @@
+# Answers for ./sitectl install --answers install.example.yaml (docs/19). Copy it, fill it in, keep it private:
+# it can hold your mail password and backup storage keys. The site's own secrets are made by the installer.
+profile: web-chat            # web | web-chat | everything | custom
+site:
+  name: My Site
+  short_name: mysite
+  domain: example.net
+  homes_domain: example-homes.net   # a separate domain, with a wildcard DNS record *.example-homes.net
+# services:                  # only read when profile is custom
+#   irc: true
+#   bbs: false
+#   mud: false
+#   gopher: false
+#   finger: false
+#   gemini: false
+signup:
+  mode: invite               # open | invite | application
+  minimum_age: 16
+limits:
+  homepage_quota_mb: 50
+  file_quota_mb: 250
+  file_max_mb: 25
+mail:
+  smtp_url: smtp://user:password@smtp.example-mail.net:587
+  from: no-reply@example.net
+admin:
+  via: web                   # web: a one-off link makes the first admin | cli: sitectl asks for it in the terminal
+backups:
+  to: local                  # local | rsync | s3
+  # rsync_target: backup@other-host:/srv/backups
+  # s3: { endpoint: https://s3.example-storage.net, bucket: my-site-backups, region: auto, access_key_id: ..., secret_access_key: ... }
+  keep_days: 30
+  hour: 3
+extras:
+  agent: true                # updates and restarts from the admin console
+  wiki_starter: true
+  demo: false                # made-up people and posts: staging only
+  firewall: false            # ufw with only this site's ports (and SSH)
+  unattended_upgrades: false
+  fail2ban: false
+ports:
+  bbs_ssh_public: 2222

@@ -63,7 +63,7 @@ describe('placeholder name', () => {
   }, 30_000); // reads every source and built file: a cold disk cache can take longer than vitest's 5 seconds
 
   it('does not appear in built output', () => {
-    const builds = ['apps/shell/dist', 'apps/core/dist'].map((d) => join(root, d)).filter(existsSync);
+    const builds = ['apps/shell/dist', 'apps/core/dist', 'apps/installer/dist'].map((d) => join(root, d)).filter(existsSync);
     // CI builds first and sets REQUIRE_BUILD so a missing build can't pass silently.
     if (process.env.REQUIRE_BUILD) expect(builds.length).toBe(2);
     expect(offenders(builds.flatMap((d) => [...walk(d)]))).toEqual([]);

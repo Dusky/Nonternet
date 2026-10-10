@@ -1,0 +1,24 @@
+{
+  "name": "@app/installer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.tsx --bundle --platform=node --target=node22 --format=esm --outfile=dist/install.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --external:react-devtools-core",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/install.mjs"
+  },
+  "dependencies": {
+    "@app/shared": "workspace:*",
+    "diff": "^9.0.0",
+    "ink": "7.1.1",
+    "react": "^19.3.0",
+    "yaml": "^2.5.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "esbuild": "^0.25.12",
+    "ink-testing-library": "4.0.0"
+  }
+}
