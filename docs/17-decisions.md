@@ -169,3 +169,10 @@
 
 ## Change process
 Update this file and the affected doc in the same commit when anything here changes.
+
+### 2026-10-10 — The installer's web finish: a one-off setup link
+The first admin can be made from the browser, but only with a setup token the installer writes into `.env` and prints as a link
+(`/setup?token=…`). Without a token the page is closed (admins are made with `sitectl create-admin`), and as soon as any admin exists
+setup is closed for good, whatever the token. This avoids the classic "whoever visits first owns the site" race of open web
+installers. The token is compared in constant time, the step takes a database lock so two people can't both become the first admin,
+and it is audited as `site.setup_finished`.

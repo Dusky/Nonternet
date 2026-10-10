@@ -18,6 +18,7 @@ import { Landing } from './pages/Landing';
 
 // The front door (Landing, Login) loads with the page; the rest are fetched when someone goes there, so a visitor's first load stays small.
 const SignupPage = lazy(() => import('./pages/Signup').then((m) => ({ default: m.SignupPage })));
+const SetupPage = lazy(() => import('./pages/Setup').then((m) => ({ default: m.SetupPage })));
 const LegalPageRoute = lazy(() => import('./pages/Legal').then((m) => ({ default: m.LegalPageRoute })));
 const ForgotPasswordPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.ResetPasswordPage })));
@@ -144,6 +145,7 @@ export function App() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/confirm-email" element={<ConfirmEmailPage />} />
       <Route path="/setup-2fa" element={<Setup2faRoute />} />
+      <Route path="/setup" element={<SetupPage />} />
       <Route path="/guestbook-sign" element={<RequireUser>{() => <GuestbookSignPage />}</RequireUser>} />
       <Route path="/report/homepage/:handle" element={<RequireUser>{() => <ReportHomepagePage />}</RequireUser>} />
       {APPS.map((app) => <Route key={app.id} path={`${app.path}/*`} element={<AppRoute app={app} />} />)}

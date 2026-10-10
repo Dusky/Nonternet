@@ -26,6 +26,8 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['POST', /^\/api\/v1\/homes\/:handle\/guestbook$/, 'guestbooks take signatures from visitors'],
   ['GET', /^\/api\/v1\/users\/:handle$/, 'public profiles'],
   ['GET', /^\/api\/v1\/files(\/areas\/:slug|\/:id(\/download)?)?$/, 'public file areas (docs/05)'],
+  ['GET', /^\/api\/v1\/setup$/, 'whether the installer\u2019s first-admin step is still open (docs/19)'],
+  ['POST', /^\/api\/v1\/setup$/, 'creating the first admin with the installer\u2019s one-off setup link (docs/19)'],
   ['GET', /^\/api\/v1\/images\/:id$/, 'pictures in posts on public boards; the route itself checks who may see each one (docs/23)'],
   ['GET', /^\/api\/v1\/search$/, 'searching public boards'],
   ['GET', /^\/ring\//, 'webring navigation for visitors of homepages'],

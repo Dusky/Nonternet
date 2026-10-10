@@ -75,6 +75,7 @@ export function depsFromEnv(env = process.env, log: (m: string) => void = consol
     homes: new HomeStore(resolve(env.HOMES_DIR ?? './data/homes')),
     oidcClients: resolveOidcClients(config.oidc.clients, env),
     tlsAskSecret: env.TLS_ASK_SECRET || undefined,
+    setupToken: env.SETUP_TOKEN && env.SETUP_TOKEN.length >= 24 ? env.SETUP_TOKEN : undefined,
     dnsTxt: (name) => dns.resolveTxt(name),
     irc: env.IRC_SECRET ? { secrets: ircSecrets(env.IRC_SECRET), host: env.IRC_HOST ?? 'ergo', port: Number(env.IRC_PORT ?? 6667), apiUrl: (env.IRC_API_URL ?? 'http://ergo:8089').replace(/\/$/, ''), historyDatabaseUrl: env.IRC_HISTORY_DATABASE_URL || undefined } : undefined,
     bbs: env.BBS_SECRET ? bbsSecrets(env.BBS_SECRET) : undefined,

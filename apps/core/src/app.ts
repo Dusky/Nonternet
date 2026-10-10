@@ -23,6 +23,7 @@ import { legalRoutes } from './routes/legal';
 import { ircRoutes } from './routes/irc';
 import { mudRoutes } from './routes/mud';
 import { imageRoutes } from './routes/images';
+import { setupRoutes } from './routes/setup';
 import { mailRoutes } from './routes/mail';
 import { vouchRoutes } from './routes/vouches';
 import { fileRoutes } from './routes/files';
@@ -131,6 +132,7 @@ export async function buildApp(deps: AppDeps) {
   mudRoutes(app, deps);
   mailRoutes(app, deps);
   imageRoutes(app, deps);
+  setupRoutes(app, deps);
   vouchRoutes(app, deps);
   fileRoutes(app, deps);
   consoleRoutes(app, deps);

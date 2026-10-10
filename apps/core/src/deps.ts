@@ -28,6 +28,7 @@ export interface AppDeps {
   appsUrl: (path: string) => string; // an address under the apps area of the homes origin
   oidcClients: ResolvedOidcClient[]; // services allowed to sign users in (site config + env secrets)
   tlsAskSecret?: string;    // when set, Caddy's certificate question must carry it
+  setupToken?: string;      // from the installer: lets the first visitor with it create the first admin (setup.ts)
   dnsTxt: (name: string) => Promise<string[][]>; // TXT lookup, injectable so tests need no network
   irc?: IrcDeps;            // set when IRC_SECRET is; chat is off without it
   mud?: MudDeps;            // set when MUD_SECRET is; the MUD is off without it
