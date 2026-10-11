@@ -153,7 +153,7 @@ function FileRow({ f }: { f: FileView }) {
         <span className="muted">{formatBytes(f.size_bytes)}</span>{' '}
         {f.hidden && <span className="badge badge-warn">{t('files.hidden')}</span>}
       </p>
-      {preview && <img className="file-preview" src={f.download_url} alt={f.title || f.name} loading="lazy" />}
+      {preview && <img className="file-preview" src={`${f.download_url}?view=1`} alt={f.title || f.name} loading="lazy" />}
       {f.title && <p>{f.title}</p>}
       {f.description && <p className="muted file-description">{f.description}</p>}
       <p className="hint">

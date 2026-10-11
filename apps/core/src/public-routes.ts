@@ -44,5 +44,6 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
 export function isPublicRoute(method: string, url: string): boolean {
   if (url.startsWith('/internal/') || url === '/oidc' || url.startsWith('/oidc/') || url.startsWith('/widgets/') || url.startsWith('/api/v1/widgets/')) return true;
   if (method === 'OPTIONS') return true;
-  return PUBLIC_ROUTES.some(([m, re]) => m === method && re.test(url));
+  const as = method === 'HEAD' ? 'GET' : method; // HEAD is a GET without the body: public wherever the GET is
+  return PUBLIC_ROUTES.some(([m, re]) => m === as && re.test(url));
 }

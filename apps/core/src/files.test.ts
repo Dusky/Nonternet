@@ -59,6 +59,10 @@ describe.skipIf(!dbAvailable)('file areas', () => {
     expect(d.headers['x-content-type-options']).toBe('nosniff');
     expect(d.headers['content-security-policy']).toContain('sandbox');
     expect((await client(ctx.app).get(`/api/v1/files/${f.id}`)).body.downloads).toBe(1);
+    // A picture's preview and a HEAD request are not counted.
+    expect((await ctx.app.inject({ method: 'GET', url: `/api/v1/files/${f.id}/download?view=1` })).statusCode).toBe(200);
+    expect((await ctx.app.inject({ method: 'HEAD', url: `/api/v1/files/${f.id}/download` })).statusCode).toBe(200);
+    expect((await client(ctx.app).get(`/api/v1/files/${f.id}`)).body.downloads).toBe(1);
     const list = (await client(ctx.app).get('/api/v1/files/areas/games')).body;
     expect(list.area).toMatchObject({ slug: 'games', file_count: 1, can_upload: false });
     expect(list.files[0]).toMatchObject({ id: f.id, mine: false, download_url: `/api/v1/files/${f.id}/download` });

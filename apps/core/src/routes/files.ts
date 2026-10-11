@@ -25,7 +25,8 @@ export function fileRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   // Always a download, never shown in the browser: whatever was uploaded can't run as a page here (docs/15).
   app.get('/api/v1/files/:id/download', async (req, reply) => {
-    const f = await files.openForDownload(deps, viewer(req.session), fileId.parse(req.params).id);
+    const preview = (req.query as { view?: string } | undefined)?.view === '1';
+    const f = await files.openForDownload(deps, viewer(req.session), fileId.parse(req.params).id, { count: !preview && req.method !== 'HEAD' });
     return reply.type('application/octet-stream').header('content-disposition', contentDisposition(f.name)).header('content-length', f.size)
       .header('x-content-type-options', 'nosniff').header('content-security-policy', "default-src 'none'; sandbox").header('cache-control', 'private, no-cache')
       .header('etag', `"${f.sha256}"`).send(createReadStream(f.path));

@@ -136,9 +136,10 @@ export async function upload(deps: AppDeps, v: SessionUser, slug: string, input:
 }
 
 // For the download route: where the bytes are and what to call them. Counting happens here too.
-export async function openForDownload(deps: AppDeps, v: Viewer, id: string): Promise<{ path: string; name: string; size: number; sha256: string }> {
+export async function openForDownload(deps: AppDeps, v: Viewer, id: string, opts: { count?: boolean } = {}): Promise<{ path: string; name: string; size: number; sha256: string }> {
   const f = await loadFile(deps.db, v, id);
-  await deps.db.query(`UPDATE files SET downloads = downloads + 1 WHERE id = $1`, [id]);
+  // A picture's preview and a HEAD request aren't downloads.
+  if (opts.count !== false) await deps.db.query(`UPDATE files SET downloads = downloads + 1 WHERE id = $1`, [id]);
   return { path: join(deps.filesDir, f.id), name: f.name, size: Number(f.size_bytes), sha256: f.sha256 };
 }
 
