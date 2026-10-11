@@ -67,3 +67,37 @@ test('a ring request reaches the founder, and the choices for the new kinds are 
     await expect(page.getByLabel(label, { exact: false })).toBeVisible();
   }
 });
+
+test('filter tabs, a day heading, replies to one thread folded into one line, and mark unread', async ({ page, browser }) => {
+  const me = await makeUser(page);
+  await setRole(me.handle, 'trusted');
+  await signIn(page, me.handle, PASSWORD);
+  const slug = uniq('nf').toLowerCase();
+  await page.request.post('/api/v1/boards', { data: { slug, name: `Notes ${slug}`, visibility: 'public' }, headers: h });
+  const t = await (await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'Ask me', body: 'anything' }, headers: h })).json();
+  const threadId = t.post?.id ?? t.id;
+  for (const name of ['nfa', 'nfb']) {
+    const ctx = await browser.newContext({ baseURL: BASE_URL });
+    const p = await ctx.newPage();
+    const u = await makeUser(p, { handle: uniq(name) });
+    await signIn(p, u.handle, PASSWORD);
+    await p.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `from ${u.handle}`, reply_to: threadId }, headers: h });
+    if (name === 'nfb') await p.request.post('/api/v1/mail', { data: { to: [me.handle], subject: 'Hello there', body: 'hi' }, headers: h });
+    await ctx.close();
+  }
+  await page.goto('/notifications');
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByText(/and 1 other replied to you/)).toBeVisible();
+  await page.getByRole('button', { name: 'Mail', exact: true }).click();
+  await expect(page.getByText(/replied to you/)).toHaveCount(0);
+  await expect(page.getByText('Hello there')).toBeVisible();
+  const markRead = page.getByRole('button', { name: /^Mark read:/ });
+  await markRead.click();
+  await page.getByRole('button', { name: 'Unread', exact: true }).click();
+  await expect(page.getByText('Hello there')).toHaveCount(0);
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  await page.getByRole('button', { name: /^Mark unread:/ }).first().click();
+  await page.getByRole('button', { name: 'Unread', exact: true }).click();
+  await expect(page.getByText('Hello there')).toBeVisible();
+  await scan(page, 'notifications with filters');
+});

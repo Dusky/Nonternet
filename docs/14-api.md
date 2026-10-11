@@ -198,3 +198,5 @@ All routes need a session and act on the caller only.
 - `POST /api/v1/me/wallpaper/from-url {url}` (10 an hour). Errors: `fetch_refused` for an inside address, a failed
   fetch or too many redirects; `too_big`; `bad_image`.
 - `GET /api/v1/me/wallpaper/image` (private, cached by version) and `DELETE /api/v1/me/wallpaper/image`.
+
+Notifications (2026-10-11): `GET /notifications?filter=all|unread|boards|mail|rings|memos` · `POST /notifications/unread {ids}`.

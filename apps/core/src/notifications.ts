@@ -1,4 +1,4 @@
-import { NOTIFICATION_PREF, type NotificationCounts, type NotificationKind, type NotificationView } from '@app/shared';
+import { NOTIFICATION_FILTER_KINDS, NOTIFICATION_PREF, type NotificationCounts, type NotificationFilter, type NotificationKind, type NotificationView } from '@app/shared';
 import { newId } from './crypto';
 import type { Queryable } from './db';
 import type { AppDeps } from './deps';
@@ -137,8 +137,10 @@ function linkOf(x: Row): NotificationView['link'] {
   return { app: 'boards', to: `${x.slug}/t/${x.thread_id}` };
 }
 
-export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { before?: string; limit?: number }): Promise<{ notifications: NotificationView[]; unread: number; next: string | null }> {
+export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { before?: string; limit?: number; filter?: NotificationFilter }): Promise<{ notifications: NotificationView[]; unread: number; next: string | null }> {
   const limit = Math.min(opts.limit ?? 30, 100);
+  const f = opts.filter ?? 'all';
+  const kinds = f === 'all' || f === 'unread' ? null : [...NOTIFICATION_FILTER_KINDS[f]];
   const r = await deps.db.query<Row>(
     `SELECT n.id, n.kind, n.created_at, n.read_at, n.count, n.ref, b.slug, b.name AS board_name, p.id AS post_id,
             COALESCE(p.thread_root_id, p.id) AS thread_id,
@@ -148,8 +150,9 @@ export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { b
      ${FROM}
      WHERE n.user_id = $1 AND ${VISIBLE}
        AND ($2::text IS NULL OR (n.created_at, n.id) < (SELECT created_at, id FROM notifications WHERE id = $2 AND user_id = $1))
+       AND ($4::text[] IS NULL OR n.kind = ANY($4)) AND (NOT $5::boolean OR n.read_at IS NULL)
      ORDER BY n.created_at DESC, n.id DESC LIMIT $3`,
-    [v.userId, opts.before ?? null, limit + 1]);
+    [v.userId, opts.before ?? null, limit + 1, kinds, f === 'unread']);
   const page = r.rows.slice(0, limit);
   return {
     notifications: page.map((x) => ({
@@ -179,6 +182,12 @@ export async function unreadCounts(deps: AppDeps, v: SessionUser): Promise<Notif
   };
   if (v.role === 'admin') out.by_app.admin = Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM reports WHERE status = 'open'`)).rows[0]!.n);
   return out;
+}
+
+// Back to unread, for something to come back to later.
+export async function markUnread(deps: AppDeps, v: SessionUser, ids: string[]): Promise<void> {
+  const r = await deps.db.query(`UPDATE notifications SET read_at = NULL WHERE user_id = $1 AND id = ANY($2)`, [v.userId, ids]);
+  if (r.rowCount === 0) throw new ApiError(404, 'not_found', 'No such notification.');
 }
 
 export async function markRead(deps: AppDeps, v: SessionUser, target: { ids: string[] } | { all: true } | { kinds: NotificationKind[] }): Promise<void> {

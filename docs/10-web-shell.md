@@ -141,6 +141,9 @@ plain, a "what's new" home, and the full landing page. No new themes.
   new posts, who's online, a "getting started" list worked out from what the person has already done
   (bio, homepage, watching a board, two-factor; confirming email for guests), dismissable, and links
   to their homepage. Empty sections are left out.
+- **Notifications** (2026-10-11): tabs for All, Unread, Boards, Mail, Rings and Memos; the list is cut into days; replies
+  to one thread next to each other fold into one line ("Ada and 2 others replied to you"); each row can be marked read
+  or unread. Someone you blocked can't notify you at all.
 - **Who's online** is now shown: the home panel, the taskbar count, and the People app's start page.
 - **Phones**: a tab bar along the bottom (Home, Boards, Mail, Notifications, Me) with unread counts.
 - **Landing page**: site name, tagline, people online (a number only), recent threads on public

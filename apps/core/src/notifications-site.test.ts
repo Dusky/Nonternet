@@ -190,4 +190,24 @@ describe.skipIf(!dbAvailable)('site-wide notifications', () => {
       expect((await unread('carol')).some((n) => n.actor.handle === 'bob')).toBe(true);
     });
   });
+  describe('filters', () => {
+    it('lists only unread ones or one part of the site, and a read one can be marked unread again', async () => {
+      await p('alice').c.post('/api/v1/notifications/read', { all: true });
+      await p('bob').c.post('/api/v1/mail', { to: ['alice'], subject: 'Filter me', body: 'hi' });
+      const t = (await p('alice').c.post('/api/v1/boards/lounge/posts', { subject: 'Alice asks', body: 'q' })).body as { id: string };
+      await p('bob').c.post('/api/v1/boards/lounge/posts', { body: 'answer', reply_to: t.id });
+      const kinds = async (filter: string) => ((await p('alice').c.get(`/api/v1/notifications?filter=${filter}`)).body.notifications as N[]).map((n) => n.kind);
+      const mailOnly = await kinds('mail');
+      expect(mailOnly.length > 0 && mailOnly.every((k) => k === 'mail')).toBe(true);
+      expect((await kinds('boards')).every((k) => ['reply', 'mention', 'watch', 'reaction'].includes(k))).toBe(true);
+      expect((await kinds('rings')).every((k) => k.startsWith('ring_'))).toBe(true);
+      expect((await kinds('unread')).sort()).toEqual(['mail', 'reply']);
+      const reply = ((await p('alice').c.get('/api/v1/notifications?filter=boards')).body.notifications as N[])[0]!;
+      await p('alice').c.post('/api/v1/notifications/read', { ids: [reply.id] });
+      expect(await kinds('unread')).toEqual(['mail']);
+      expect((await p('alice').c.post('/api/v1/notifications/unread', { ids: [reply.id] })).status).toBe(204);
+      expect((await kinds('unread')).sort()).toEqual(['mail', 'reply']);
+      expect((await p('alice').c.get('/api/v1/notifications?filter=nonsense')).status).toBe(400);
+    });
+  });
 });

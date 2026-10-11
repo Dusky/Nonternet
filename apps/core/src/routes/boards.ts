@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { THREAD_FILTERS, THREAD_SORTS, notificationsReadSchema, boardCreateSchema, postEditSchema, reactionSchema, boardUpdateSchema, categoryCreateSchema, memberAddSchema, postCreateSchema, readPointerSchema, slugSchema } from '@app/shared';
+import { NOTIFICATION_FILTERS, THREAD_FILTERS, THREAD_SORTS, notificationsReadSchema, boardCreateSchema, postEditSchema, reactionSchema, boardUpdateSchema, categoryCreateSchema, memberAddSchema, postCreateSchema, readPointerSchema, slugSchema } from '@app/shared';
 import { z } from 'zod';
 import * as boards from '../boards';
 import * as notifications from '../notifications';
@@ -135,7 +135,11 @@ export function boardRoutes(app: FastifyInstance, deps: AppDeps): void {
     reply.code(201).send(await boards.createCategory(deps, requireAdmin(req), categoryCreateSchema.parse(req.body).name, ctxOf(deps, req))));
 
   app.get('/api/v1/notifications', async (req) =>
-    notifications.listNotifications(deps, requireUser(req), z.object({ before: z.string().regex(/^n_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(100).optional() }).parse(req.query)));
+    notifications.listNotifications(deps, requireUser(req), z.object({ before: z.string().regex(/^n_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(100).optional(), filter: z.enum(NOTIFICATION_FILTERS).optional() }).parse(req.query)));
+  app.post('/api/v1/notifications/unread', async (req, reply) => {
+    await notifications.markUnread(deps, requireUser(req), z.object({ ids: z.array(z.string().regex(/^n_[0-9A-Z]{26}$/)).min(1).max(200) }).parse(req.body).ids);
+    return reply.code(204).send();
+  });
   app.get('/api/v1/notifications/count', async (req) => notifications.unreadCounts(deps, requireUser(req)));
   app.post('/api/v1/notifications/read', async (req, reply) => {
     await notifications.markRead(deps, requireUser(req), notificationsReadSchema.parse(req.body));

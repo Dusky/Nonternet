@@ -113,6 +113,12 @@ export interface PostPreview {
 // What makes a notification (docs/23, E2). The first three come from board posts, the push kinds are in push.ts.
 export const NOTIFICATION_KINDS = ['reply', 'mention', 'watch'] as const;
 export const SITE_NOTIFICATION_KINDS = ['mail', 'reaction', 'ring_invite', 'ring_request', 'ring_joined', 'memo_reply', 'memo_reaction'] as const;
+// The tabs on the Notifications page: unread ones, or one part of the site.
+export const NOTIFICATION_FILTERS = ['all', 'unread', 'boards', 'mail', 'rings', 'memos'] as const;
+export type NotificationFilter = (typeof NOTIFICATION_FILTERS)[number];
+export const NOTIFICATION_FILTER_KINDS: Record<Exclude<NotificationFilter, 'all' | 'unread'>, readonly string[]> = {
+  boards: ['reply', 'mention', 'watch', 'reaction'], mail: ['mail'], rings: ['ring_invite', 'ring_request', 'ring_joined'], memos: ['memo_reply', 'memo_reaction'],
+};
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number] | (typeof SITE_NOTIFICATION_KINDS)[number];
 
 // Each kind belongs to one of the choices in Settings (PREF_KINDS in profile.ts).
