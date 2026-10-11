@@ -56,13 +56,37 @@ function Chat() {
   const [find, setFind] = useState<string | null>(null); // null: the search bar is closed
   useEffect(() => { setFind(null); }, [active]);
   const groups = groupBuffers(list);
+  // While the connection comes back, the boxes stay where they are (greyed), so nothing jumps and a draft isn't lost.
+  const online = status === 'connected';
+  const shown = status === 'connected' || status === 'reconnecting';
+  // In the order the list shows them, for Alt+Up/Down and Alt+1..9.
+  const order = [...groups.channels, ...groups.queries];
+  const go = (b: Buffer | undefined) => {
+    if (!b) return;
+    select(b.name);
+    // A fine pointer (not a phone) gets the cursor in the message box, ready to type.
+    if (window.matchMedia?.('(pointer: fine)').matches) requestAnimationFrame(() => document.getElementById('chat-input')?.focus());
+  };
+  const onKeys = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      const at = order.findIndex((b) => b.name.toLowerCase() === active);
+      go(order[(at + (e.key === 'ArrowDown' ? 1 : -1) + order.length) % order.length]);
+    } else if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-9]$/.test(e.code)) {
+      e.preventDefault();
+      go(order[Number(e.code.slice(5)) - 1]);
+    } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f' && buf && buf.kind !== 'server') {
+      e.preventDefault();
+      setFind((f) => f ?? '');
+    }
+  };
   const row = (b: Buffer) => {
     const label = b.kind === 'server' ? t('chat.server') : b.name;
     const isMuted = muted.has(b.name.toLowerCase());
     return (
       <li key={b.name}>
         <button type="button" className={`chat-buf${b.name.toLowerCase() === active ? ' is-active' : ''}${b.mentioned ? ' is-mention' : ''}`}
-          aria-current={b.name.toLowerCase() === active ? 'page' : undefined} onClick={() => select(b.name)}>
+          aria-current={b.name.toLowerCase() === active ? 'page' : undefined} onClick={() => go(b)}>
           <span>{label}</span>
           {b.unread > 0 && (!isMuted || b.mentioned) && <span className="badge">{b.mentioned ? t('chat.mention', { count: b.unread }) : t('chat.unread', { count: b.unread })}</span>}
         </button>
@@ -70,7 +94,7 @@ function Chat() {
     );
   };
   return (
-    <div className="chat-grid">
+    <div className="chat-grid" onKeyDown={onKeys}>
       <nav className="chat-buffers" aria-label={t('chat.channels')}>
         <ul className="plain" aria-label={t('chat.channels')}>{groups.channels.map(row)}</ul>
         {groups.queries.length > 0 && (
@@ -79,13 +103,13 @@ function Chat() {
             <ul className="plain" aria-label={t('chat.privateChats')}>{groups.queries.map(row)}</ul>
           </>
         )}
-        {status === 'connected' && <JoinBox />}
+        {shown && <JoinBox disabled={!online} />}
       </nav>
       <section className="chat-main" aria-label={buf?.kind === 'server' ? t('chat.server') : buf?.name ?? t('chat.server')}>
         {buf && buf.kind !== 'server' && <BufferHeader buf={buf} showUsers={showUsers} onToggleUsers={() => setShowUsers(!showUsers)} finding={find !== null} onToggleFind={() => setFind(find === null ? '' : null)} />}
         {buf && find !== null && buf.kind !== 'server' && <FindBar buf={buf} term={find} onTerm={setFind} onClose={() => setFind(null)} />}
         {buf && <Log buf={buf} find={find ?? ''} />}
-        {status === 'connected' && <Composer target={buf} />}
+        {shown && <Composer target={buf} disabled={!online} />}
       </section>
       {buf?.kind === 'channel' && (
         <aside className={`chat-users${showUsers ? ' is-open' : ''}`} aria-label={t('chat.people', { count: buf.users.size })}>
@@ -254,7 +278,7 @@ function Seg({ s }: { s: Segment }) {
   return cls ? <span className={cls}>{s.text}</span> : <>{s.text}</>;
 }
 
-function Composer({ target }: { target: Buffer | undefined }) {
+function Composer({ target, disabled }: { target: Buffer | undefined; disabled: boolean }) {
   const t = useT();
   const send = useChat((s) => s.send);
   const me = useChat((s) => s.nick);
@@ -283,7 +307,7 @@ function Composer({ target }: { target: Buffer | undefined }) {
   const comp = useRef<Completion | null>(null);
   const history = useRef<string[]>([]);
   const pos = useRef(-1);
-  const submit = (e: FormEvent) => { e.preventDefault(); if (!text.trim()) return; send(text); doneTyping(); history.current.unshift(text); pos.current = -1; setText(''); if (meId && place) clearDraft(meId, place); };
+  const submit = (e: FormEvent) => { e.preventDefault(); if (disabled || !text.trim()) return; send(text); doneTyping(); history.current.unshift(text); pos.current = -1; setText(''); if (meId && place) clearDraft(meId, place); };
   // Pasting several lines asks first, then sends them one by one (a few at most), instead of squashing them into one.
   const onPaste = (e: ClipboardEvent<HTMLInputElement>) => {
     const lines = splitPaste(e.clipboardData.getData('text'));
@@ -318,13 +342,13 @@ function Composer({ target }: { target: Buffer | undefined }) {
   return (
     <form className="chat-compose" onSubmit={submit}>
       <label htmlFor="chat-input" className="sr-only">{label}</label>
-      <input id="chat-input" ref={input} value={text} onPaste={onPaste} onChange={(e) => { setText(e.target.value); if (e.target.value && !e.target.value.startsWith('/')) typing(); else if (!e.target.value) doneTyping(); }} onKeyDown={keys} placeholder={label} maxLength={400} autoComplete="off" spellCheck />
-      <button className="btn btn-primary" type="submit">{t('chat.send')}</button>
+      <input id="chat-input" ref={input} value={text} onPaste={onPaste} onChange={(e) => { setText(e.target.value); if (e.target.value && !e.target.value.startsWith('/')) typing(); else if (!e.target.value) doneTyping(); }} onKeyDown={keys} placeholder={label} maxLength={400} autoComplete="off" spellCheck aria-disabled={disabled || undefined} />
+      <button className="btn btn-primary" type="submit" disabled={disabled}>{t('chat.send')}</button>
     </form>
   );
 }
 
-function JoinBox() {
+function JoinBox({ disabled }: { disabled: boolean }) {
   const t = useT();
   const join = useChat((s) => s.join);
   const openQuery = useChat((s) => s.openQuery);
@@ -343,7 +367,7 @@ function JoinBox() {
   const joined = useChat((s) => s.buffers);
   const more = (q.data?.channels ?? []).filter((c) => !joined.get(c.name)?.joined);
   return (
-    <div className="chat-join">
+    <div className="chat-join"><fieldset className="bare-fieldset" disabled={disabled}>
       <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) { join(name); setName(''); } }}>
         <label htmlFor="chat-join">{t('chat.join')}</label>
         <div className="row"><input id="chat-join" value={name} onChange={(e) => setName(e.target.value)} placeholder="#channel" autoComplete="off" /><button className="btn" type="submit">{t('chat.joinButton')}</button></div>
@@ -373,7 +397,7 @@ function JoinBox() {
           </ul>
         </>
       )}
-    </div>
+    </fieldset></div>
   );
 }
 

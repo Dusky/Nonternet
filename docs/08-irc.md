@@ -90,6 +90,16 @@ The site's status line and away flag are **not** shown on IRC, and that is decid
 NickServ has no away command beyond a person's own `auto-away` setting. So showing it on IRC would mean the sync bot holding a connection per person, which it
 deliberately does not. People set `/away` in the Chat app itself, which does reach IRC.
 
+### Joining, reconnecting and keys (2026-10-11)
+- A channel opens once the server lets you in. A refused join (invite-only, banned, full, needs a password, too many
+  channels) says so in words in the conversation you are in, and leaves no empty tab behind.
+- While the connection comes back, the message box and the join box stay where they are, greyed out, so nothing jumps and a
+  half-written line is kept.
+- Alt+Up and Alt+Down move through the list (Server messages, channels, then private chats, as shown), Alt+1 to Alt+9 jump
+  by place, and Ctrl+F (Cmd+F) opens Find. Choosing a conversation puts the cursor in its message box, except on phones.
+- `/mode` works as in other clients (`/mode +i` in the open channel, or `/mode #channel +i`), and mode changes show as a
+  line in the channel ("Mode change by ada: +i").
+
 ## History
 **Decided (Q9, 2026-09-30):** kept for `irc.history_days` (default 30) in Ergo's persistent history, in its own
 Postgres database (`ergo_history`, made by `cli irc-config` if missing; `IRC_HISTORY_DATABASE_URL` for both

@@ -235,6 +235,44 @@ test.describe('chat', () => {
     await expect(channels.getByRole('button', { name: '#help' })).toBeVisible(); // back in the site list
   });
 
+  test('a refused join says why and leaves you where you were; Alt+arrows and Alt+number switch, Ctrl+F finds', async ({ page, browser }) => {
+    const a = await makeUser(page);
+    const b = await makeUser(page);
+    const room = `#${uniq('closed')}`;
+    // The first person makes a channel and closes it to people without an invite.
+    const ap = await (await browser.newContext()).newPage();
+    await signIn(ap, a.handle, PASSWORD);
+    await ap.goto('/chat');
+    await expect(ap.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    await ap.getByLabel('Join a channel').fill(room);
+    await ap.getByLabel('Join a channel').press('Enter');
+    await expect(ap.getByRole('heading', { level: 2, name: room })).toBeVisible();
+    await ap.getByLabel(`Message ${room}`).fill(`/mode ${room} +i`);
+    await ap.getByLabel(`Message ${room}`).press('Enter');
+    await expect(log(ap, room).getByText(`Mode change by ${a.handle}: +i`)).toBeVisible();
+
+    await signIn(page, b.handle, PASSWORD);
+    await page.goto('/chat');
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    await page.getByLabel('Join a channel').fill(room);
+    await page.getByLabel('Join a channel').press('Enter');
+    await expect(log(page, '#lobby').getByText(`Could not join ${room}: it is invite-only.`)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible(); // no empty tab for it
+    await expect(page.getByRole('navigation', { name: 'Channels' }).getByRole('button', { name: room, exact: true })).toHaveCount(0);
+
+    // Keys: into #help and back, by arrow and by number.
+    await page.getByLabel('Join a channel').fill('#help');
+    await page.getByLabel('Join a channel').press('Enter');
+    await expect(page.getByRole('heading', { level: 2, name: '#help' })).toBeVisible();
+    await page.getByLabel('Message #help').press('Alt+ArrowDown'); // the list: Server messages, #help, #lobby
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible();
+    await page.getByLabel('Message #lobby').press('Alt+Digit2');
+    await expect(page.getByRole('heading', { level: 2, name: '#help' })).toBeVisible();
+    await page.getByLabel('Message #help').press('ControlOrMeta+f');
+    await expect(page.getByRole('searchbox', { name: 'Find in this conversation' })).toBeFocused();
+    await ap.context().close();
+  });
+
   test('an open channel comes back after a reload; /topic with no text shows it; /msg to a channel says it there', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);

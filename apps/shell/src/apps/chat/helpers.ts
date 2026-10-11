@@ -26,7 +26,7 @@ export function completeWord(text: string, caret: number, words: string[], prev:
   return insertAt(text, caret - word.length, caret, matches, 0, ' ');
 }
 
-export const COMMANDS = ['away', 'help', 'ignore', 'join', 'kick', 'me', 'msg', 'notice', 'op', 'deop', 'part', 'presence', 'query', 'topic', 'unignore', 'voice', 'devoice', 'whois'];
+export const COMMANDS = ['away', 'help', 'ignore', 'join', 'kick', 'me', 'mode', 'msg', 'notice', 'op', 'deop', 'part', 'presence', 'query', 'topic', 'unignore', 'voice', 'devoice', 'whois'];
 
 // A colour for each nick, the same every time, from the theme's readable colours (docs/10).
 export function nickColour(nick: string): string {

@@ -43,6 +43,12 @@ let users = 0;
 let seq = 0;
 let lastTyping = 0;
 const leaving = new Set<string>(); // channels closed here; the server's PART must not bring them back
+const joining = new Set<string>(); // channels asked for here and not yet joined: they open when the server says yes
+// Why the server refused a join (the IRC library's names for the numerics), in plain words.
+const JOIN_ERRORS: Record<string, StringKey> = {
+  invite_only_channel: 'chat.note.joinInvite', banned_from_channel: 'chat.note.joinBanned', channel_is_full: 'chat.note.joinFull',
+  bad_channel_key: 'chat.note.joinKey', too_many_channels: 'chat.note.joinTooMany',
+};
 const key = (name: string) => name.toLowerCase();
 const isChannel = (name: string) => /^[#&]/.test(name);
 
@@ -168,7 +174,8 @@ export const useChat = create<ChatState>((set, get) => {
         if (key(e.nick) === key(get().nick)) {
           update(e.channel, (b) => ({ ...b, joined: true }), 'channel');
           remember(e.channel, true); // so a reload or a dropped connection comes back to it
-          if (get().active === SERVER) set({ active: key(e.channel) });
+          // A channel you asked for opens once the server lets you in (a refused join leaves you where you were).
+          if (joining.delete(key(e.channel)) || get().active === SERVER) get().select(e.channel);
           c.raw(`CHATHISTORY LATEST ${e.channel} * 100`);
         } else {
           update(e.channel, (b) => { const u = new Map(b.users); u.set(e.nick, ''); return { ...b, users: u }; });
@@ -207,6 +214,10 @@ export const useChat = create<ChatState>((set, get) => {
       c.on('userlist', (e: any) => update(e.channel, (b) => ({ ...b, users: new Map(e.users.map((u: { nick: string; modes: string[] }) => [u.nick, prefixOf(u.modes)])) })));
       c.on('mode', (e: any) => {
         if (!isChannel(e.target)) return;
+        if (!inHistory(e) && e.nick) {
+          const list = (e.modes as { mode: string; param?: string }[]).map((m) => (m.param ? `${m.mode} ${m.param}` : m.mode)).join(' ');
+          note('chat.note.mode', 'info', e.target, `${e.nick}: ${list}`);
+        }
         update(e.target, (b) => {
           const u = new Map(b.users);
           for (const m of e.modes as { mode: string; param?: string }[]) {
@@ -252,9 +263,17 @@ export const useChat = create<ChatState>((set, get) => {
       c.on('privmsg', onMessage);
       c.on('action', onMessage);
       c.on('notice', onMessage);
-      c.on('irc error', (e: any) => (e.reason ? info(e.reason, 'error') : note('chat.note.error', 'error')));
+      c.on('irc error', (e: any) => {
+        // A join that was refused says why, in words, where you are.
+        if (e.channel && joining.delete(key(e.channel))) {
+          const why = JOIN_ERRORS[e.error as string];
+          return why ? note(why, 'error', get().active, e.channel) : info(`${e.channel}: ${e.reason ?? ''}`.trim(), 'error');
+        }
+        return e.reason ? info(e.reason, 'error') : note('chat.note.error', 'error');
+      });
       c.on('close', () => {
         client = null;
+        joining.clear();
         set((s) => ({ status: s.status === 'error' ? 'error' : 'closed', buffers: new Map([...s.buffers].map(([k, b]) => [k, { ...b, joined: false, users: new Map() }])) }));
         if (users > 0 && get().status !== 'error') scheduleRetry(); // dropped, not closed by us: come back
       });
@@ -345,8 +364,9 @@ export const useChat = create<ChatState>((set, get) => {
     join(name) {
       const ch = name.trim().startsWith('#') ? name.trim() : `#${name.trim()}`;
       if (!client || !/^#[^\s,]{1,63}$/.test(ch)) return note('chat.note.badChannel', 'error');
+      if (get().buffers.get(key(ch))?.joined) return get().select(ch); // already there
+      joining.add(key(ch));
       client.join(ch);
-      set({ active: key(ch) });
     },
 
     part(name) {
@@ -434,6 +454,12 @@ export const useChat = create<ChatState>((set, get) => {
             if (!target || !isChannel(target) || !who) return note('chat.note.msgWho', 'error');
             const mode = { op: '+o', deop: '-o', voice: '+v', devoice: '-v' }[cmd.toLowerCase() as 'op'];
             client.raw('MODE', target, mode, who); return;
+          }
+          // Channel modes, as in any client: /mode #channel +i, or /mode +i for the open channel.
+          case 'mode': {
+            if (!rest.length) return note('chat.note.msgWho', 'error');
+            if (isChannel(rest[0]!) || !target || !isChannel(target)) client.raw('MODE', ...rest); else client.raw('MODE', target, ...rest);
+            return;
           }
           default: return note('chat.note.unknown', 'error');
         }
