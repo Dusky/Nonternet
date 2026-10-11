@@ -52,7 +52,8 @@ function Directory() {
           )}
           <label htmlFor="hp-sort">{t('homepages.sort')}</label>
           <select id="hp-sort" value={sort} onChange={(e) => setSort(e.target.value as 'recent' | 'name')}>
-            <option value="recent">{t('homepages.sort.recent')}</option>
+            {/* With "New this week" on, the pages come newest first, so the label says so. */}
+            <option value="recent">{fresh ? t('homepages.sort.newest') : t('homepages.sort.recent')}</option>
             <option value="name">{t('homepages.sort.name')}</option>
           </select>
         </div>

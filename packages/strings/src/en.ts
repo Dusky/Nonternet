@@ -789,6 +789,7 @@ export const en = {
   'homepages.random': 'Take me to a random page',
   'homepages.sort': 'Sort by',
   'homepages.sort.recent': 'Recently updated',
+  'homepages.sort.newest': 'Newest first',
   'homepages.sort.name': 'Name',
   'homepages.none': 'No homepages match.',
   'homepages.visit': 'Visit {name}',
