@@ -20,12 +20,13 @@ import * as files from './files';
 import { addKey } from './bbs/service';
 import { cleanPath } from './homes/files';
 import { importBookmarks } from './bookmarks';
+import { importMemos } from './memos';
 
 // Bringing back an export (docs/12). Only what is yours alone comes back: your profile and settings, your
 // avatar, your homepage, your files and your SSH keys. Posts, mail, guestbooks, rings and the rest involve
 // other people or the site's own records, so they stay in the archive and the preview says why.
 
-export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys', 'clients', 'apps', 'bookmarks'] as const;
+export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys', 'clients', 'apps', 'bookmarks', 'memos'] as const;
 export type ImportPart = (typeof IMPORT_PARTS)[number];
 const SKIPPED = [
   ['posts', 'posts/posts.json'], ['mail', 'mail/conversations.json'], ['guestbook', 'guestbook.json'], ['rings', 'rings/'], ['boards', 'boards/'],
@@ -153,6 +154,10 @@ async function plan(deps: AppDeps, v: SessionUser, a: Archive): Promise<{ parts:
       try { if (have.has(bookmarkKey(String((m as { url?: unknown }).url)))) codes.push('exists'); } catch { codes.push('invalid'); }
     }
     parts.push({ part: 'bookmarks', count: marks.length, issues: tally(codes) });
+  }
+  const notes = json<unknown[]>(a, 'memos.json');
+  if (Array.isArray(notes) && notes.length) {
+    parts.push({ part: 'memos', count: notes.length, issues: tally(notes.filter((m) => (m as { reply_to?: unknown }).reply_to).map(() => 'memo_reply')) });
   }
   const skipped: { kind: string; count: number }[] = [];
   for (const [kind, path] of SKIPPED) {
@@ -288,6 +293,7 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
   });
 
   await run('apps', async () => importAppData(deps, v, appInstallsOf(a), appDocsOf(a)));
+  await run('memos', async () => importMemos(deps, v, json<unknown[]>(a, 'memos.json') ?? []));
   await run('bookmarks', async () => importBookmarks(deps, v, json<unknown[]>(a, 'bookmarks.json') ?? []));
 
   await deps.db.tx(async (q) => {

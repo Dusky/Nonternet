@@ -9,6 +9,7 @@ import { getClientSettings } from '../client-settings';
 import { exportAppData } from '../apps';
 import { mudExport } from '../mud/sync';
 import { exportBookmarks } from '../bookmarks';
+import { exportMemos } from '../memos';
 
 // Ownership is a feature (docs/12, CLAUDE.md): everything a person makes is in their export. Every
 // table is either handled by an exporter below or listed in EXEMPT with the reason it is not the
@@ -349,7 +350,17 @@ const bookmarksExporter: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices, wikiExporter, bookmarksExporter];
+// Memos (docs/22): every memo, whatever its sharing, with its tags and the replies the person wrote.
+const memosExporter: Exporter = {
+  id: 'memos',
+  tables: ['memos', 'memo_tags'],
+  async run({ deps, user, add }) {
+    const list = await exportMemos(deps.db, user.id);
+    if (list.length) add('memos.json', json(list));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices, wikiExporter, bookmarksExporter, memosExporter];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.

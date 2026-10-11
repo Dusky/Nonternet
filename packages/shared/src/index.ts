@@ -20,3 +20,4 @@ export * from './wiki';
 export * from './wallpaper';
 export * from './images';
 export * from './bookmarks';
+export * from './memos';

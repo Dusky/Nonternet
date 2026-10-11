@@ -63,6 +63,8 @@ posts (id text pk,                             -- p_…
        edited_at timestamptz null, hidden_at timestamptz null, deleted_at timestamptz null)
 watches (user_id, board_id)
 images (id, owner_id, post_id, mail_message_id, alt, width, height, bytes, hidden_at)   -- E6; bytes in <files dir>/images/<id>.webp
+memos (id, user_id, body, visibility, ring_id, pinned, reply_to, body_tsv, created_at, edited_at, hidden_at, hidden_reason)   -- docs/22
+memo_tags (memo_id, tag)
 bookmarks (id, user_id, url, url_key, title, description, tags[], pinned, visibility, ring_id, favicon, checked_at, link_ok, hidden_at, search)   -- docs/21
 users.pronouns, users.location, users.links (jsonb)   -- E5; optional profile fields
 mail_participants.archived_at, .starred_at            -- E4; one person's own view

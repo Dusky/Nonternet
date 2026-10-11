@@ -61,6 +61,16 @@ hidden_reason, deleted_at)` and `memo_tags(memo_id, tag)`. Limits: 2,000 charact
 person.
 
 ## Phases
-- [ ] **M1:** core: tables, routes, search, tags, limits, export, import, deletion, tests (private everywhere).
+- [x] **M1:** core: tables, routes, search, tags, limits, export, import, deletion, tests (private everywhere).
+
+  As built:
+  - Migration **0052** (bookmarks took 0044's slot), tables `memos` and `memo_tags`. Sharing, reactions and the report kind
+    come in 0053 with M3.
+  - `#tags` are read from the text (2 to 20 lowercase letters, digits and hyphens; up to five; none inside addresses, code
+    or entities) and re-read on every edit. "Edited" is set only when the text really changes.
+  - The list shows pinned memos first on the first page, then newest first by cursor. It searches the text and filters by tag.
+  - Import brings every memo back **private**, keeping when it was written; replies to other people's memos can't come back.
+  - Routes: `GET /memos` (`q`, `tag`, `pinned`, `before`, `limit`), `GET /memos/hub`, `GET /memos/tags`, `POST /memos`
+    (60 an hour), `GET|PATCH|DELETE /memos/:id`.
 - [ ] **M2:** the Memos app and the home panel box, e2e.
 - [ ] **M3:** public and ring memos, replies, reactions, feeds, profile, reports and hiding, audit; newest public memos under the plan in finger, Gemini and the profile.

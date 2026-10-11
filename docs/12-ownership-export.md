@@ -134,6 +134,8 @@ Ring banners go in the export of the people who run the ring (`rings/<slug>/bann
 
 `bookmarks.json` (`21`) holds every bookmark, whatever its sharing: the address, title, description, tags, pin, sharing, ring and when it was saved. Icons are left out. Import brings them back private, keeps the dates they were saved, skips addresses already saved, and fetches nothing. Account deletion removes them.
 
+`memos.json` (`22`) holds every memo, whatever its sharing: the text, tags, pin, sharing, ring, the memo it replies to, and when it was written and last edited. Import brings them back private, keeping the dates. Account deletion removes them.
+
 ## Wallpaper (2026-10-05, docs/10)
 `settings.json` has `wallpaper: {choice, fit, source_url}`, and `wallpaper.webp` holds the person's own picture if they
 have one. Import puts both back, as part of "settings". Deleting the account removes the picture.
