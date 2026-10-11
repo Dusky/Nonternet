@@ -406,6 +406,9 @@ The Bookmarks app (`apps/shell/src/apps/bookmarks/`, signed in only) is describe
 - Pin, Edit (in place) and Remove (act-now with Undo) on each row.
 - A bookmarklet under "Save links from any page".
 
+The app also has "Check link" on each row (with a "Not answering" filter) and "Import bookmarks from a file". The installed site
+appears in a phone's Share menu: sharing a page opens the add form with it filled in.
+
 The home panel shows a Bookmarks section, and the palette offers "Save a link". Pasting an address into the palette offers to save
 that address.
 

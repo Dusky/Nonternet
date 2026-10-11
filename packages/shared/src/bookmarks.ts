@@ -42,6 +42,7 @@ export const bookmarkListQuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
   tag: z.string().trim().toLowerCase().max(20).optional(),
   pinned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+  broken: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),   // links that did not answer when last checked
   before: z.string().max(80).optional(),         // the `next` cursor from the last page
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
@@ -61,6 +62,18 @@ export interface SharedBookmarkView {
   can_hide: boolean;                           // admins, and the ring's ops for a ring bookmark
 }
 export interface SharedBookmarkPage { bookmarks: SharedBookmarkView[]; next: string | null }
+// What importing a browser bookmarks file did.
+export interface BookmarkImportResult { added: number; existing: number; invalid: number; too_many: number }
+
+// A shared link or the text a phone's Share menu sends: the page's address is often inside `text`, after the title.
+export function sharedAddress(input: { url?: string | null; text?: string | null; title?: string | null }): { url: string; title: string } {
+  const url = (input.url ?? '').trim();
+  const text = (input.text ?? '').trim();
+  const found = url || /https?:\/\/[^\s<>"']+/i.exec(text)?.[0] || '';
+  const rest = text.replace(found, '').replace(/\s+/g, ' ').trim();
+  return { url: found, title: (input.title ?? '').trim() || (url ? '' : rest) };
+}
+
 export interface BookmarkPage { bookmarks: BookmarkView[]; next: string | null; total: number }
 
 // The parts of an address that only say where someone came from. Dropped when comparing addresses for duplicates;

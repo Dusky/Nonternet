@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { bookmarkCreateSchema, bookmarkUpdateSchema, bookmarkletSource, type BookmarkPage, type BookmarkView, type BookmarkVisibility } from '@app/shared';
+import { bookmarkCreateSchema, bookmarkUpdateSchema, bookmarkletSource, sharedAddress, type BookmarkImportResult, type BookmarkPage, type BookmarkView, type BookmarkVisibility } from '@app/shared';
 import { api, ApiError } from '../../api';
 import { Alert, EmptyState, Loading, RelativeTime, TextField } from '../../components/ui';
 import { Icon } from '../../components/Icon';
@@ -19,7 +19,8 @@ export const iconUrl = (b: BookmarkView) => `/api/v1/bookmarks/${b.id}/icon?v=${
 function prefill(path: string): { url: string; title: string } {
   const q = path.includes('?') ? path.slice(path.indexOf('?')) : typeof window !== 'undefined' ? window.location.search : '';
   const p = new URLSearchParams(q);
-  return { url: p.get('url') ?? p.get('text') ?? '', title: p.get('title') ?? '' };
+  // The phone's Share menu often puts the address inside `text`, after the title.
+  return sharedAddress({ url: p.get('url'), text: p.get('text'), title: p.get('title') });
 }
 
 export default function BookmarksApp() {
@@ -36,9 +37,10 @@ function ListScreen() {
   const [q, setQ] = useState('');
   const [tag, setTag] = useState('');
   const [pinnedOnly, setPinnedOnly] = useState(false);
+  const [brokenOnly, setBrokenOnly] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [gone, setGone] = useState<Set<string>>(new Set());
-  const params = new URLSearchParams({ ...(q.trim() ? { q: q.trim() } : {}), ...(tag ? { tag } : {}), ...(pinnedOnly ? { pinned: 'true' } : {}) }).toString();
+  const params = new URLSearchParams({ ...(q.trim() ? { q: q.trim() } : {}), ...(tag ? { tag } : {}), ...(pinnedOnly ? { pinned: 'true' } : {}), ...(brokenOnly ? { broken: 'true' } : {}) }).toString();
   const key = [...LIST, params];
   const list = useInfiniteQuery({
     queryKey: key,
@@ -61,6 +63,14 @@ function ListScreen() {
     onError: (_e, _b, c) => qc.setQueryData(key, c?.before),
     onSettled: () => void refresh(),
   });
+  // "Check link": the page is asked once, now; the answer is kept and shown on the row.
+  const check = useMutation({
+    mutationFn: (b: BookmarkView) => api.post<BookmarkView>(`/bookmarks/${b.id}/check`),
+    onSuccess: (b) => {
+      qc.setQueryData<InfiniteData<BookmarkPage>>(key, (d) => d && { ...d, pages: d.pages.map((p) => ({ ...p, bookmarks: p.bookmarks.map((x) => (x.id === b.id ? b : x)) })) });
+      void qc.invalidateQueries({ queryKey: ['bookmarks'] });
+    },
+  });
   const remove = (b: BookmarkView) => {
     setGone((s) => new Set(s).add(b.id));
     undoable(t('bookmarks.removed', { title: b.title }), () => api.del(`/bookmarks/${b.id}`).then(refresh), {
@@ -70,7 +80,7 @@ function ListScreen() {
   };
   const items = (list.data?.pages.flatMap((p) => p.bookmarks) ?? []).filter((b) => !gone.has(b.id));
   const total = list.data?.pages[0]?.total ?? 0;
-  const filtered = Boolean(q.trim() || tag || pinnedOnly);
+  const filtered = Boolean(q.trim() || tag || pinnedOnly || brokenOnly);
 
   return (
     <>
@@ -87,6 +97,7 @@ function ListScreen() {
           </div>
         )}
         <label className="check"><input type="checkbox" checked={pinnedOnly} onChange={(e) => setPinnedOnly(e.target.checked)} /> {t('bookmarks.pinnedOnly')}</label>
+        <label className="check"><input type="checkbox" checked={brokenOnly} onChange={(e) => setBrokenOnly(e.target.checked)} /> {t('bookmarks.brokenOnly')}</label>
       </div>
       {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
       {list.isPending && <Loading rows={4} />}
@@ -107,6 +118,7 @@ function ListScreen() {
                       {b.visibility === 'public' && <>{' '}<span className="badge">{t('bookmarks.badge.public')}</span></>}
                       {b.visibility === 'ring' && b.ring && <>{' '}<span className="badge">{t('bookmarks.badge.ring', { name: b.ring.name })}</span></>}
                     </span>
+                    {b.checked_at && <p className={b.link_ok ? 'row-meta' : 'field-error'}>{b.link_ok ? t('bookmarks.check.ok') : t('bookmarks.check.bad')} · <RelativeTime iso={b.checked_at} /></p>}
                     {b.hidden && <p className="field-error">{t('bookmarks.hiddenBy', { reason: b.hidden.reason })}</p>}
                     {b.description && <p className="bookmark-desc">{b.description}</p>}
                     {b.tags.length > 0 && (
@@ -119,6 +131,9 @@ function ListScreen() {
                     <button type="button" className="btn btn-quiet btn-small" aria-pressed={b.pinned} aria-label={`${b.pinned ? t('bookmarks.unpin') : t('bookmarks.pin')}: ${b.title}`} onClick={() => pin.mutate(b)}>
                       {b.pinned ? t('bookmarks.unpin') : t('bookmarks.pin')}
                     </button>
+                    <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('bookmarks.check')}: ${b.title}`} disabled={check.isPending && check.variables?.id === b.id} onClick={() => check.mutate(b)}>
+                      {check.isPending && check.variables?.id === b.id ? t('bookmarks.checking') : t('bookmarks.check')}
+                    </button>
                     <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('bookmarks.edit')}: ${b.title}`} onClick={() => setEditing(b.id)}>{t('bookmarks.edit')}</button>
                     <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('bookmarks.remove')}: ${b.title}`} onClick={() => remove(b)}>{t('bookmarks.remove')}</button>
                   </div>
@@ -128,6 +143,7 @@ function ListScreen() {
         ))}
       </ul>
       {list.hasNextPage && <button type="button" className="btn" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>{t('bookmarks.more')}</button>}
+      <ImportFile />
       <Bookmarklet />
     </>
   );
@@ -306,6 +322,37 @@ function Bookmarklet() {
       <p>{t('bookmarks.bookmarklet.how')}</p>
       {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
       <p><a ref={ref} className="btn" onClick={(e) => e.preventDefault()} draggable>{t('bookmarks.bookmarklet.link')}</a></p>
+    </details>
+  );
+}
+
+// Bring in a bookmarks file from a browser or Linkding (an HTML export). Everything comes in private.
+function ImportFile() {
+  const t = useT();
+  const qc = useQueryClient();
+  const [result, setResult] = useState<BookmarkImportResult | null>(null);
+  const send = useMutation({
+    mutationFn: (file: File) => api.upload<BookmarkImportResult>('/bookmarks/import', file, 'POST'),
+    onSuccess: (r) => { setResult(r); void qc.invalidateQueries({ queryKey: ['bookmarks'] }); },
+  });
+  return (
+    <details className="bookmarklet">
+      <summary>{t('bookmarks.import.title')}</summary>
+      <p>{t('bookmarks.import.how')}</p>
+      <div className="field">
+        <label htmlFor="bm-import">{t('bookmarks.import.file')}</label>
+        <input id="bm-import" type="file" accept=".html,.htm,text/html" disabled={send.isPending}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) { setResult(null); send.mutate(f); } e.target.value = ''; }} />
+      </div>
+      {send.isPending && <p role="status">{t('bookmarks.import.working')}</p>}
+      {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
+      {result && (
+        <p role="status">
+          {t('bookmarks.import.done', { added: result.added, existing: result.existing })}
+          {result.invalid > 0 && ` ${t('bookmarks.import.invalid', { count: result.invalid })}`}
+          {result.too_many > 0 && ` ${t('bookmarks.import.tooMany', { count: result.too_many })}`}
+        </p>
+      )}
     </details>
   );
 }

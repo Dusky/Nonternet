@@ -5,6 +5,7 @@ import { ctxOf, requireUser } from '../http';
 import { viewerOf } from '../boards';
 import type { AppDeps } from '../deps';
 import * as bookmarks from '../bookmarks';
+import { IMPORT_MAX_BYTES, importFile } from '../bookmarks-import';
 
 const id = z.object({ id: z.string().regex(/^bm_[0-9A-Z]{26}$/, 'not a bookmark ID') });
 
@@ -18,6 +19,13 @@ export function bookmarkRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/bookmarks', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req, reply) => {
     const r = await bookmarks.addBookmark(deps, requireUser(req), bookmarkCreateSchema.parse(req.body));
     return reply.code(r.existing ? 200 : 201).send(r);
+  });
+  app.post('/api/v1/bookmarks/:id/check', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) => bookmarks.checkBookmark(deps, requireUser(req), id.parse(req.params).id));
+  // A bookmarks file from a browser or Linkding: the raw bytes, as for pictures.
+  app.register(async (scope) => {
+    scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: IMPORT_MAX_BYTES + 1 }, (_req, body, done) => done(null, body));
+    scope.post('/api/v1/bookmarks/import', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req) =>
+      importFile(deps, requireUser(req), Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)));
   });
   app.get('/api/v1/bookmarks/:id', async (req) => bookmarks.getBookmark(deps, requireUser(req), id.parse(req.params).id));
   app.patch('/api/v1/bookmarks/:id', async (req) => bookmarks.updateBookmark(deps, requireUser(req), id.parse(req.params).id, bookmarkUpdateSchema.parse(req.body)));

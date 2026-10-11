@@ -11,6 +11,8 @@ export function webManifest(config: SiteConfig) {
     short_name: name.length <= 12 ? name : config.site.short_name,
     start_url: '/',
     scope: '/',
+    // The phone's Share menu: sharing a page opens the bookmark form with it filled in. Nothing is saved until Save is pressed.
+    share_target: { action: '/bookmarks/add', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
     display: 'standalone',
     background_color: MARK_COLOURS.bg,
     theme_color: MARK_COLOURS.accent,

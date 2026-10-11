@@ -221,6 +221,7 @@ export async function updateBookmark(deps: AppDeps, v: SessionUser, id: string, 
     const clash = await deps.db.query(`SELECT 1 FROM bookmarks WHERE user_id = $1 AND url_key = $2 AND id <> $3`, [v.userId, key, id]);
     if (clash.rowCount) throw new ApiError(409, 'duplicate', 'You already have a bookmark for that address.');
     set('url', input.url); set('url_key', key);
+    sets.push('link_ok = NULL', 'checked_at = NULL');   // a new address has not been checked
   }
   if (input.title !== undefined) set('title', input.title);
   if (input.description !== undefined) set('description', input.description);
@@ -249,6 +250,7 @@ export async function listBookmarks(deps: AppDeps, v: SessionUser, query: z.infe
   const add = (sql: string, val: unknown) => { params.push(val); where.push(sql.replace('?', `$${params.length}`)); };
   if (query.tag) add('? = ANY(b.tags)', query.tag);
   if (query.pinned !== undefined) add('b.pinned = ?', query.pinned);
+  if (query.broken) where.push('b.link_ok = false');
   if (query.q) add(`b.search @@ websearch_to_tsquery('simple', ?)`, query.q);
   const total = Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM bookmarks b WHERE ${where.join(' AND ')}`, params)).rows[0]!.n);
   if (query.before) {
@@ -260,6 +262,17 @@ export async function listBookmarks(deps: AppDeps, v: SessionUser, query: z.infe
   const rows = r.rows.slice(0, query.limit);
   const last = rows.at(-1);
   return { bookmarks: rows.map(toView), next: r.rows.length > query.limit && last ? `${last.created_at.toISOString()}|${last.id}` : null, total };
+}
+
+// "Check this link" (docs/21): on request only, never automatic. Any answer (after redirects) counts as answering; a refusal,
+// an error status, a timeout or an address that leads inside counts as not answering.
+export async function checkBookmark(deps: AppDeps, v: SessionUser, id: string): Promise<BookmarkView> {
+  const r = await deps.db.query<{ url: string }>(`SELECT url FROM bookmarks WHERE id = $1 AND user_id = $2`, [id, v.userId]);
+  if (!r.rows[0]) throw notFound();
+  let ok = true;
+  try { await safeFetch(r.rows[0].url, { maxBytes: 16 * 1024, truncate: true, accept: '*/*', allowPrivate: deps.allowPrivateFetch, timeoutMs: 8000 }); } catch { ok = false; }
+  await deps.db.query(`UPDATE bookmarks SET link_ok = $3, checked_at = now() WHERE id = $1 AND user_id = $2`, [id, v.userId, ok]);
+  return getBookmark(deps, v, id);
 }
 
 // The home panel's section (docs/21): pinned ones first, then the newest.

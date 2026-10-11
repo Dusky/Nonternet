@@ -191,3 +191,9 @@ Off-site copies run through `sitectl backup-copy` (rsync, or rclone for S3). Not
 daemon: building the installer image and a real `sitectl install`. sitectl's side is tested with stand-ins for docker and crontab
 (`tests/sitectl-install.test.ts`).
 
+### 2026-10-11 — Bookmark import reads HTML only; Linkwarden JSON stays open
+Linkding exports and imports Netscape bookmark HTML, the format browsers use (checked by search 2026-10-11), so one HTML importer
+covers browsers and Linkding. Linkwarden's JSON export could not be verified, so by the rule "VERIFY before relying" it is not read.
+OPEN: add it once there is a real export file to check against. Importing never fetches pages and everything arrives private.
+Link checking is on request only (a button per bookmark), never a background job.
+

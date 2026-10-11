@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { bookmarkKey, bookmarkletSource } from '@app/shared';
+import { bookmarkKey, bookmarkletSource, sharedAddress } from '@app/shared';
+import { parseNetscape } from './bookmarks-import';
 import { client, createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser, TEST_PASSWORD } from './test/harness';
 import { importBookmarks, plainText, pngFromIco, readPage } from './bookmarks';
 import { processNext } from './exports/service';
@@ -48,6 +49,39 @@ describe('reading a page for a bookmark', () => {
     head[6] = 32; head[7] = 32; head.writeUInt32LE(png.length, 14); head.writeUInt32LE(22, 18);
     expect(pngFromIco(Buffer.concat([head, png]))?.equals(png)).toBe(true);
     expect(pngFromIco(Buffer.from('not an icon'))).toBeNull();
+  });
+});
+
+describe('importing a browser bookmarks file', () => {
+  const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+  <DT><H3 ADD_DATE="1700000000">Cooking</H3>
+  <DL><p>
+    <DT><A HREF="https://example.com/soup?utm_source=x" ADD_DATE="1700000100" TAGS="food,Soup Recipes">Lentil &amp; <b>spice</b> soup</A>
+    <DD>A winter <i>staple</i>.
+    <DT><A HREF='https://example.com/bread' ADD_DATE=1700000200>Bread</A>
+    <DT><A HREF="javascript:alert(1)">Not a link</A>
+    <DT><A HREF="https://me:pw@example.com/">Has a password</A>
+  </DL><p>
+  <DT><A HREF="http://example.org/top">Outside the folder</A>
+</DL><p>`;
+  it('reads links with their titles, descriptions, tags, folder and date, and drops unsafe addresses', () => {
+    const list = parseNetscape(file);
+    expect(list.map((b) => b.url)).toEqual(['https://example.com/soup?utm_source=x', 'https://example.com/bread', 'http://example.org/top']);
+    expect(list[0]).toMatchObject({ title: 'Lentil & spice soup', description: 'A winter staple.', tags: ['food', 'soup-recipes', 'cooking'] });
+    expect(list[0]!.created_at?.toISOString()).toBe('2023-11-14T22:15:00.000Z');
+    expect(list[1]).toMatchObject({ title: 'Bread', description: '', tags: ['cooking'] });
+    expect(list[2]!.tags).toEqual([]); // the folder is closed by then
+  });
+  it('gives up what it can from broken or hostile files', () => {
+    expect(parseNetscape('')).toEqual([]);
+    expect(parseNetscape('<A HREF="https://a.example/x">one<A HREF="https://a.example/y">two')).toHaveLength(2);
+    expect(parseNetscape(`<A HREF="https://a.example/z"><script>alert(1)</script>Safe`)[0]!.title).toBe('alert(1) Safe');
+  });
+  it('finds the address in what a phone\'s Share menu sends', () => {
+    expect(sharedAddress({ url: 'https://a.example/p', title: 'T' })).toEqual({ url: 'https://a.example/p', title: 'T' });
+    expect(sharedAddress({ text: 'Great read https://a.example/p?x=1 thanks' })).toEqual({ url: 'https://a.example/p?x=1', title: 'Great read thanks' });
+    expect(sharedAddress({ text: 'no address here' })).toEqual({ url: '', title: 'no address here' });
   });
 });
 
@@ -150,6 +184,57 @@ describe.skipIf(!dbAvailable)('bookmarks', () => {
     expect(new Set([...p1.bookmarks, ...p2.bookmarks].map((b: { id: string }) => b.id)).size).toBe(6);
     expect((await c.delete(`/api/v1/bookmarks/${ids[0]}`)).status).toBe(204);
     expect((await c.get('/api/v1/bookmarks')).body.total).toBe(5);
+  });
+
+  it('checks a link on request: answering, not answering, and an edited address starts over', async () => {
+    const c = await loginAs(ctx, (await makeUser(ctx)).handle);
+    const good = (await c.post('/api/v1/bookmarks', { url: `${base}/article/check`, title: 'Good', description: '' })).body.bookmark;
+    const bad = (await c.post('/api/v1/bookmarks', { url: `${base}/gone`, title: 'Gone', description: '' })).body.bookmark;
+    const dead = (await c.post('/api/v1/bookmarks', { url: 'https://nowhere.invalid/x', title: 'Dead', description: '' })).body.bookmark;
+    expect(good).toMatchObject({ link_ok: null, checked_at: null });
+    expect((await c.post(`/api/v1/bookmarks/${good.id}/check`)).body).toMatchObject({ link_ok: true });
+    expect((await c.post(`/api/v1/bookmarks/${bad.id}/check`)).body).toMatchObject({ link_ok: false });
+    const checked = (await c.post(`/api/v1/bookmarks/${dead.id}/check`)).body;
+    expect(checked.link_ok).toBe(false);
+    expect(Date.parse(checked.checked_at)).toBeGreaterThan(Date.now() - 60_000);
+    expect((await c.get('/api/v1/bookmarks?broken=true')).body.bookmarks.map((b: { id: string }) => b.id).sort()).toEqual([bad.id, dead.id].sort());
+    expect((await c.patch(`/api/v1/bookmarks/${bad.id}`, { url: `${base}/article/fixed` })).body).toMatchObject({ link_ok: null, checked_at: null });
+    const other = await loginAs(ctx, (await makeUser(ctx)).handle);
+    expect((await other.post(`/api/v1/bookmarks/${good.id}/check`)).status).toBe(404);
+  });
+
+  it('refuses to check an address that leads inside the server', async () => {
+    ctx.deps.allowPrivateFetch = false;
+    try {
+      const c = await loginAs(ctx, (await makeUser(ctx)).handle);
+      const b = (await c.post('/api/v1/bookmarks', { url: `${base}/article/private`, title: 'Inside', description: '' })).body.bookmark;
+      expect((await c.post(`/api/v1/bookmarks/${b.id}/check`)).body.link_ok).toBe(false);
+    } finally { ctx.deps.allowPrivateFetch = true; }
+  });
+
+  it('imports a browser bookmarks file as private bookmarks, skipping ones already saved', async () => {
+    const c = await loginAs(ctx, (await makeUser(ctx)).handle);
+    await c.post('/api/v1/bookmarks', { url: 'https://example.com/have', title: 'Have', description: '' });
+    const html = `<DL><DT><H3>Reading</H3><DL>
+      <DT><A HREF="https://example.com/have#x" ADD_DATE="1700000000">Have it</A>
+      <DT><A HREF="https://example.com/new1" ADD_DATE="1700000100" TAGS="a-tag">New one</A><DD>Why it matters
+      <DT><A HREF="https://example.com/new2">New two</A></DL></DL>`;
+    const post = (body: string | Buffer) => ctx.app.inject({ method: 'POST', url: '/api/v1/bookmarks/import', payload: body, headers: { origin: 'https://example.test', cookie: `sid=${c.sid}`, 'content-type': 'text/html' } });
+    const r = await post(html);
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual({ added: 2, existing: 1, invalid: 0, too_many: 0 });
+    const list = (await c.get('/api/v1/bookmarks')).body.bookmarks;
+    const one = list.find((b: { title: string }) => b.title === 'New one');
+    expect(one).toMatchObject({ description: 'Why it matters', tags: ['a-tag', 'reading'], visibility: 'private' });
+    expect(one.created_at).toBe('2023-11-14T22:15:00.000Z');
+    expect((await post('nothing here')).statusCode).toBe(400);
+    expect((await post(Buffer.alloc(0))).statusCode).toBe(400);
+    expect((await post(Buffer.alloc(5 * 1024 * 1024 + 2, 'a'))).statusCode).toBe(413);
+  });
+
+  it('has the Share menu target in the app manifest', async () => {
+    const m = (await ctx.app.inject({ method: 'GET', url: '/api/v1/site/manifest.webmanifest' })).json();
+    expect(m.share_target).toEqual({ action: '/bookmarks/add', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } });
   });
 
   it('is in the export, comes back private on import, and goes with the account', async () => {

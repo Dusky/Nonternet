@@ -44,7 +44,7 @@ Apps (`10`) are for a person's own data only.
 - **Share target:** the web app manifest (`site/manifest.webmanifest`) declares a `share_target`, so the installed site
   appears in the phone's Share menu and opens the same form.
 - **Import:** the usual browser bookmarks HTML file, and a Linkding/Linkwarden JSON export if the format is stable
-  (VERIFY before relying on it). **Export** is required (below).
+  (VERIFIED 2026-10-11 for Linkding: it exports the same HTML as browsers; Linkwarden's JSON is still unchecked and not built). **Export** is required (below).
 - A browser extension is out of scope for now.
 
 ## Ownership, export, deletion
@@ -118,7 +118,18 @@ adds a minute (the fetch is the costly part), 10,000 bookmarks per person.
     - `POST /bookmarks/:id/hide|restore {reason}`;
     - the feed at `/feeds/people/{handle}/bookmarks.atom`.
   - A shared bookmark's icon is served to anyone who may see the bookmark; a private one's only to its owner.
-- [ ] **B4:** share target, import of browser files, link checking.
+- [x] **B4:** share target, import of browser files, link checking.
+
+  As built:
+  - **Share target.** The manifest has `share_target` (GET to `/bookmarks/add`). The add form fills itself in and saves only
+    on Save. Phones often send the address inside the shared text; the form pulls it out and uses the rest as the title.
+  - **Import.** "Import bookmarks from a file" takes the HTML export that browsers and Linkding write (Netscape format).
+    Up to 5 MB, 5 imports an hour. Titles, descriptions, `TAGS`, the nearest folder name as a tag, and `ADD_DATE` are used.
+    Everything comes in private, nothing is fetched, addresses already saved are skipped, and non-http addresses are dropped.
+  - **Check link.** A button on each row asks the page once and keeps whether it answered and when. It is never automatic,
+    and a "Not answering" filter finds the ones that didn't. An address that leads inside the server counts as not
+    answering. Editing the address clears the result.
+  - **Not built:** Linkwarden's JSON export. Its format could not be verified (17), so nothing reads it yet.
 
 ## Left open
 - Page copies or archives (text-only readable copies first), and a browser extension. Not decided.

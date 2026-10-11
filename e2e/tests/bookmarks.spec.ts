@@ -155,3 +155,36 @@ test('sharing into a ring shows the link on the ring page', async ({ page }) => 
   await expect(page.getByRole('region', { name: 'Shared links' }).getByRole('link', { name: 'Ring find' })).toBeVisible();
   await axe(page);
 });
+
+test('import a browser bookmarks file, and check a link', async ({ page }) => {
+  const me = await makeUser(page);
+  await signIn(page, me.handle, PASSWORD);
+  await page.goto('/bookmarks');
+  await page.getByText('Import bookmarks from a file').click();
+  const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>Reading</H3><DL><p>
+    <DT><A HREF="https://nowhere.invalid/a" ADD_DATE="1700000000" TAGS="longform">First piece</A><DD>Worth the time
+    <DT><A HREF="https://nowhere.invalid/b">Second piece</A>
+    <DT><A HREF="javascript:alert(1)">Not a link</A></DL></DL>`;
+  await page.getByLabel('Bookmarks file').setInputFiles({ name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(html) });
+  await expect(page.getByText('Added 2. 0 already here.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'First piece' })).toBeVisible();
+  await expect(page.getByText('Worth the time')).toBeVisible();
+  await axe(page);
+
+  // The pages are not reachable, so checking says so, and the filter finds them.
+  await page.getByRole('button', { name: 'Check link: First piece' }).click();
+  await expect(page.getByText('The page did not answer').first()).toBeVisible();
+  await page.getByLabel('Not answering').check();
+  await expect(page.getByRole('link', { name: 'First piece' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Second piece' })).toHaveCount(0);
+});
+
+test('the Share menu\'s text is split into address and title on the add form', async ({ page }) => {
+  const me = await makeUser(page);
+  await signIn(page, me.handle, PASSWORD);
+  await page.goto(`/bookmarks/add?text=${encodeURIComponent('A good read https://nowhere.invalid/shared-text')}`);
+  await expect(page.getByLabel('Address')).toHaveValue('https://nowhere.invalid/shared-text');
+  await expect(page.getByLabel('Title')).toHaveValue('A good read');
+  const manifest = await (await page.request.get('/api/v1/site/manifest.webmanifest')).json();
+  expect(manifest.share_target.action).toBe('/bookmarks/add');
+});
