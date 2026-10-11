@@ -1542,7 +1542,7 @@ export const en = {
   'chat.note.presence': 'Done. That choice is kept on this device.',
   'chat.note.presenceUsage': 'Use /presence on, /presence off or /presence default.',
   'chat.note.unknown': 'Unknown command. Type /help to see them.',
-  'chat.note.help': 'Commands: /join #channel, /part, /presence on|off|default (joins and leaves in this channel), /me action, /msg nick message, /notice nick message, /whois nick, /away reason (just /away to come back), /topic text, /ignore nick, /unignore nick. Channel operators: /kick, /op, /deop, /voice, /devoice. Press Tab to finish a nick, a #channel or a /command.',
+  'chat.note.help': 'Commands: /join #channel, /part, /presence on, off or default (joins and leaves in this channel), /me action, /msg nick message, /notice nick message, /whois nick, /away reason (just /away to come back), /topic text, /ignore nick, /unignore nick. Channel operators: /kick, /op, /deop, /voice, /devoice. Press Tab to finish a nick, a #channel or a /command.',
   'chat.note.ignored': 'Ignored. You won\'t see their messages. Type /unignore and their nick to undo it.',
   'chat.note.unignored': 'You will see their messages again.',
   'chat.note.ignoreNone': 'You are not ignoring anyone.',

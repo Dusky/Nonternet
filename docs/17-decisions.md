@@ -235,3 +235,17 @@ their own tab, no badge for mentions while Chat was closed). Those stay as they 
 Joins, leaves, quits and nick changes now follow the Settings switch by default, and each channel can show or hide
 them from its Channel options menu or with `/presence on|off|default`, as HexChat does. The choice is a device
 preference like mute (`chat:presence:<nick>`), so it is not in the export.
+
+### 2026-10-11 — Bug sweep from the checked app reviews
+Seventeen app reviews were read against the code; items that were normal for that kind of app (IRC, MUD clients) or
+worked as designed were set aside, and the confirmed bugs were fixed, one commit per app, each with a test:
+Notifications (right-click "Mark these read" on its icon), MUD (a failed load could save defaults over saved rules; a typed
+`$5` was erased), Chat (open channels and incoming private chats remembered per person; history replay no longer changes
+who is here; `/topic` with no text shows it; `/msg #channel`; retry on 429/5xx; a paste keeps its target), Wiki (a
+taken-down page name, or two people starting one page, gives a 409 not a 500), Mail ("with" leaves you out; the 10th
+person can be added), Rings (leaving, removal and bans also end the op role, audited), Boards (a half-written reply
+survives a new post), Memos (a ring memo's text can be edited after the ring is archived), Bookmarks (a duplicate save
+offers to edit the one you have), Files (previews and HEAD don't count as downloads; HEAD is public wherever GET is),
+Studio (text typed during a save stays unsaved), Settings (import result wording for apps, memos, bookmarks), Add apps
+(toasts need `notify`; Todo declares it; re-asking existing installs stays with Q18), Admin (console keeps focus),
+Terminal (long pastes sent in pieces), People (Away shown without a status), Homepages ("Newest first" label).
