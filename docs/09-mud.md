@@ -61,6 +61,14 @@ Owners' choices: **rules, no code**, and the rules **kept on the account** (`cli
   captured-line windows as tabs with unread counts. It can be hidden, and on a narrow screen it goes under the log.
 - **Options**: separator, speedwalk, echo, number pad, side panel, screen reader mode (Evennia's own `client_options`), text size.
 - **Share**: rules saved as a JSON file (history left out) and brought back in, either added to yours or replacing them.
+  Since 2026-10-11, triggers and timers from a file arrive switched off, and the screen lists what they would send before
+  you add them. Patterns that could take very long on some lines (a repeated group that repeats, like `(a+)+`, an
+  alternation that repeats, a backreference, or over 200 characters) are refused by the editor and never run, and a
+  regex is matched on at most the first 2,000 characters of a line.
+- **First run (2026-10-11)**: until you are playing a character, a card above the log offers "Make a character" (sends
+  `charcreate`) and "List the commands", and names the tower; the tower drawing and tip line show only then. New players
+  start with four buttons of their own (Look, Inventory, Help, Tower → `season`), editable like any others. On a narrow
+  window, where the side panel sits below the log, the exits and health show in a strip just above the input.
 - Not built, compared with Mudlet: Lua scripting (decided: rules only), a full mapper that you edit by hand, multiple profiles per
   account, sound packs and MSP, and multi-session tabs.
 - Tests: `engine.test.ts`, `markup.test.ts`, `log.test.ts` in the shell; e2e `mud.spec.ts` (gauges, map, exits, alias, trigger, button,

@@ -39,12 +39,19 @@ export type MudTimer = z.infer<typeof mudTimerSchema>;
 export type MudKey = z.infer<typeof mudKeySchema>;
 export type MudButton = z.infer<typeof mudButtonSchema>;
 
+// What a new player starts with under the log, so a phone can play without typing everything. They are the person's
+// own from the start: rename, change or remove them in the editor (game commands, so not translated).
+export const DEFAULT_MUD_BUTTONS: MudButton[] = [
+  { id: 'look', label: 'Look', send: 'look' }, { id: 'inv', label: 'Inventory', send: 'inventory' },
+  { id: 'help', label: 'Help', send: 'help' }, { id: 'tower', label: 'Tower', send: 'season' },
+];
+
 export const mudClientSchema = z.object({
   aliases: z.array(mudAliasSchema).max(200).default([]),
   triggers: z.array(mudTriggerSchema).max(200).default([]),
   timers: z.array(mudTimerSchema).max(20).default([]),
   keys: z.array(mudKeySchema).max(100).default([]),
-  buttons: z.array(mudButtonSchema).max(24).default([]),
+  buttons: z.array(mudButtonSchema).max(24).default(() => DEFAULT_MUD_BUTTONS.map((b) => ({ ...b }))),
   variables: z.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,30}$/), z.string().max(200)).prefault({}),
   history: z.array(z.string().max(500)).max(200).default([]), // recent commands, newest first
   options: z.object({

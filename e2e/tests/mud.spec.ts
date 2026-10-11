@@ -55,6 +55,31 @@ test.describe('the MUD', () => {
     await expect(page.getByRole('heading', { name: 'Client rules' }).first()).toBeVisible();
   });
 
+  test('rules from someone else arrive switched off, with what they would send, and a pattern that could hang is refused', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/mud');
+    await expect(world(page).getByText('You have no character yet.', { exact: false })).toBeVisible({ timeout: 20_000 });
+    await tool(page, 'Client rules');
+    const ed = page.getByRole('region', { name: 'Client rules' });
+    await ed.getByRole('tab', { name: 'Share' }).click();
+    const file = { triggers: [{ id: 'a1', pattern: 'gold', match: 'contains', actions: [{ type: 'send', text: 'drop all' }], enabled: true }], timers: [{ id: 't1', every: 60, send: 'say hi', enabled: true }] };
+    await ed.getByLabel('Or paste the rules here').fill(JSON.stringify(file));
+    await ed.getByRole('button', { name: 'Bring them in' }).click();
+    await expect(ed.getByText('1 trigger, 1 timer arrive switched off')).toBeVisible();
+    await expect(ed.locator('.mud-import-sends')).toContainText('drop all');
+    await expect(ed.locator('.mud-import-sends')).toContainText('say hi');
+    await ed.getByRole('button', { name: 'Add to mine' }).click();
+    await ed.getByRole('tab', { name: 'Triggers' }).click();
+    await expect(ed.getByRole('listitem').filter({ hasText: 'gold' }).getByRole('switch')).not.toBeChecked();
+    // A pattern that could take very long on some lines is not accepted.
+    await ed.getByRole('button', { name: 'Add one' }).click();
+    await ed.getByLabel('How it matches').selectOption('regex');
+    await ed.getByLabel('When a line').fill('(a+)+$');
+    await ed.getByRole('button', { name: 'Save' }).click();
+    await expect(ed.getByText(/could take too long/)).toBeVisible();
+  });
+
   for (const theme of ['webring', 'terminal']) {
     test(`a new player rolls a character and walks into town (${theme})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
@@ -62,7 +87,10 @@ test.describe('the MUD', () => {
       await signIn(page, u.handle, PASSWORD);
       await page.goto('/mud');
       await expect(world(page).getByText('You have no character yet.', { exact: false })).toBeVisible({ timeout: 20_000 });
-      await type(page, 'charcreate');
+      // The first-run card: a button makes the character, and it names the tower.
+      const first = page.getByRole('region', { name: 'Welcome. First, a character.' });
+      await expect(first).toContainText('tower');
+      await first.getByRole('button', { name: 'Make a character' }).click();
       await expect(world(page).getByText('Accept and create character').last()).toBeVisible();
       await type(page, '3');
       const ready = world(page).getByText(/ is ready\./);
@@ -70,6 +98,10 @@ test.describe('the MUD', () => {
       const name = /^(\S+) is ready\./.exec((await ready.textContent()) ?? '')![1]!;
       await type(page, `ic ${name}`);
       await expect(world(page).getByText('Town square').last()).toBeVisible();
+      await expect(first).toHaveCount(0); // gone once you are in the world
+      // Buttons a new player starts with, so a phone needn't type everything.
+      await page.getByRole('group', { name: 'Your buttons' }).getByRole('button', { name: 'Tower' }).click();
+      await expect(world(page).locator('.mud-you').filter({ hasText: /^> season$/ }).first()).toBeVisible();
       await expect(world(page).locator('.mud-out').last()).not.toContainText('[1m'); // colour codes are drawn, not printed
       await type(page, 'attack me');
       await expect(world(page).getByText(/not allowed here/i).last()).toBeVisible(); // no fighting in town
@@ -122,7 +154,7 @@ test.describe('the MUD', () => {
 
     await ed.getByRole('tab', { name: 'Buttons' }).click();
     await ed.getByRole('button', { name: 'Add one' }).click();
-    await ed.getByLabel('Label').fill('Look');
+    await ed.getByLabel('Label').fill('Glance');
     await ed.getByLabel('Send', { exact: true }).fill('look');
     await ed.getByRole('button', { name: 'Save' }).click();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
@@ -131,7 +163,7 @@ test.describe('the MUD', () => {
     await expect(world(page).getByText('ww  → west; look')).toBeVisible();
     await expect(world(page).locator('.mud-hl-green').filter({ hasText: 'Town square' }).first()).toBeVisible();
     await expect(side.getByRole('log', { name: 'Places' }).getByText('Town square').first()).toBeVisible();
-    await page.getByRole('group', { name: 'Your buttons' }).getByRole('button', { name: 'Look' }).click();
+    await page.getByRole('group', { name: 'Your buttons' }).getByRole('button', { name: 'Glance' }).click();
     await expect(world(page).locator('.mud-you').filter({ hasText: /^> look$/ }).first()).toBeVisible();
 
     // Speedwalk, and the history comes back after a reload (it is on the account).

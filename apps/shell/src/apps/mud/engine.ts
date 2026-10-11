@@ -8,12 +8,21 @@ const MAX_DEPTH = 8; // an alias may use another alias, this deep
 
 // ---------------------------------------------------------------- matching
 
+// A pattern that could take very long on some lines (a repeated group that itself repeats, like (a+)+, or a
+// backreference) is refused rather than run on every line the game sends: one such rule could freeze the tab.
+export function riskyRegex(pattern: string): boolean {
+  if (pattern.length > 200) return true;
+  if (/\\[1-9]|\\k</.test(pattern)) return true; // backreferences
+  // A group with + * or | inside, itself followed by + * or {n,}.
+  return /\((?:[^()\\]|\\.)*[+*|](?:[^()\\]|\\.)*\)(?:[+*]|\{\d*,)/.test(pattern);
+}
+
 const regexCache = new Map<string, RegExp | null>();
 function compile(pattern: string, flags = 'i'): RegExp | null {
   const k = `${flags}/${pattern}`;
   if (!regexCache.has(k)) {
     let re: RegExp | null = null;
-    try { re = new RegExp(pattern, flags); } catch { re = null; }
+    try { re = riskyRegex(pattern) ? null : new RegExp(pattern, flags); } catch { re = null; }
     if (regexCache.size > 500) regexCache.clear();
     regexCache.set(k, re);
   }
@@ -37,7 +46,7 @@ export function match(kind: 'contains' | 'start' | 'exact' | 'regex', pattern: s
     }
     case 'regex': {
       const re = compile(pattern);
-      const m = re ? re.exec(text) : null;
+      const m = re ? re.exec(text.length > 2000 ? text.slice(0, 2000) : text) : null; // a very long line is matched on its start
       return m ? m.map((x) => x ?? '') : null;
     }
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mudClientSchema, type MudTrigger } from '@app/shared';
-import { expand, fill, keyName, match, runTriggers, speedwalk, splitCommands } from './engine';
+import { expand, fill, keyName, match, riskyRegex, runTriggers, speedwalk, splitCommands, validRegex } from './engine';
 
 const base = mudClientSchema.parse({});
 const trig = (t: Partial<MudTrigger> & Pick<MudTrigger, 'pattern' | 'actions'>): MudTrigger => ({ id: 'x', match: 'contains', group: '', enabled: true, ...t });
@@ -87,5 +87,14 @@ describe('keyName', () => {
     expect(k({ key: 'a', code: 'KeyA' })).toBeNull();
     expect(k({ key: 'Enter', code: 'Enter' })).toBeNull();
     expect(k({ key: 'Control', code: 'ControlLeft', ctrlKey: true })).toBeNull();
+  });
+});
+
+describe('riskyRegex', () => {
+  it('refuses patterns that could take very long, and keeps ordinary ones', () => {
+    for (const p of ['(a+)+$', '(\\w*)*x', '(x+x+)+y', '(a|aa)+$', '(.*)\\1', 'x'.repeat(201)]) expect(riskyRegex(p), p).toBe(true);
+    for (const p of ['^You have (\\d+) gold', 'tells you: (.*)$', '(north|south)', '^\\[(\\w+)\\]']) expect(riskyRegex(p), p).toBe(false);
+    expect(validRegex('(a+)+$')).toBe(false);
+    expect(match('regex', '(a+)+$', `${'a'.repeat(40)}!`)).toBeNull(); // never run, so never stuck
   });
 });

@@ -15,6 +15,7 @@ const ClientEditor = lazy(() => import('./ClientEditor'));
 export default function MudApp() {
   const t = useT();
   const { status, error, connect, disconnect, settings } = useMud();
+  const inWorld = useMud((s) => s.vitals !== null); // vitals come once you play a character
   useEffect(() => { connect(); return () => disconnect(); }, [connect, disconnect]);
   const [help, setHelp] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -29,16 +30,33 @@ export default function MudApp() {
       {status === 'reconnecting' && <p className="hint" role="status">{t('mud.reconnecting')}</p>}
       <Toolbar finding={finding} onFind={() => setFinding(!finding)} panel={settings.options.panel ? panel : null} onPanel={() => setPanel(!panel)} editing={editing} onRules={() => setEditing(!editing)} />
       {editing && <Suspense fallback={<Loading />}><ClientEditor onClose={() => setEditing(false)} /></Suspense>}
+      {status === 'playing' && !inWorld && <FirstRun />}
       {status !== 'error' && (
         <div className={`mud-layout${showPanel ? ' has-panel' : ''}`}>
           <Screen finding={finding} onCloseFind={() => setFinding(false)} />
           {showPanel && <Side />}
         </div>
       )}
-      <div className="mud-tips"><pre className="mud-tower" aria-hidden="true">{TOWER}</pre><p className="hint">{t('mud.tips')}</p></div>
+      {!inWorld && <div className="mud-tips"><pre className="mud-tower" aria-hidden="true">{TOWER}</pre><p className="hint">{t('mud.tips')}</p></div>}
       <button type="button" className="link" aria-expanded={help} onClick={() => setHelp(!help)}>{t('mud.nativeTitle')}</button>
       {help && <NativeHelp />}
     </div>
+  );
+}
+
+// Before you are playing a character: what to do first, as buttons, and what the place is about.
+function FirstRun() {
+  const t = useT();
+  const sendRaw = useMud((s) => s.sendRaw);
+  return (
+    <section className="panel mud-first" aria-labelledby="mud-first-h">
+      <h2 id="mud-first-h">{t('mud.first.title')}</h2>
+      <p>{t('mud.first.body')}</p>
+      <div className="actions">
+        <button type="button" className="btn btn-primary" onClick={() => sendRaw('charcreate')}>{t('mud.first.make')}</button>
+        <button type="button" className="btn" onClick={() => sendRaw('help')}>{t('mud.first.help')}</button>
+      </div>
+    </section>
   );
 }
 
@@ -155,6 +173,7 @@ function Screen({ finding, onCloseFind }: { finding: boolean; onCloseFind: () =>
           <button type="button" className="btn btn-quiet mud-latest" tabIndex={-1} onClick={toBottom}>{t('chat.jump')}</button>
         </div>
       )}
+      <ExitStrip />
       <Buttons />
       <Command disabled={status !== 'playing'} />
     </section>
@@ -236,6 +255,21 @@ function Seg({ s, hl, mark }: { s: MudSeg; hl?: string; mark: string }) {
 }
 
 // ---------------------------------------------------------------- input
+
+// On a narrow window the side panel sits below the log, out of sight: the exits (and health) stay by the input.
+function ExitStrip() {
+  const t = useT();
+  const room = useMud((s) => s.room);
+  const vitals = useMud((s) => s.vitals);
+  const sendRaw = useMud((s) => s.sendRaw);
+  if (!room?.exits.length && !vitals) return null;
+  return (
+    <div className="mud-strip" role="group" aria-label={t('mud.exitsShort')}>
+      {vitals && <span className="mud-strip-hp">{t('mud.hp')} {t('mud.of', { value: vitals.hp, max: vitals.hp_max })}</span>}
+      {room?.exits.map((e) => <button key={`${e.name}-${e.to}`} type="button" className="btn btn-quiet btn-small" onClick={() => sendRaw(e.name)}>{e.name}</button>)}
+    </div>
+  );
+}
 
 function Buttons() {
   const { settings, send } = useMud();

@@ -425,8 +425,12 @@ function Share() {
     const r = mudClientSchema.safeParse(data);
     if (!r.success) return setMsg({ kind: 'error', text: t('mud.ed.importBad') });
     setMsg(null);
-    setPending(r.data);
+    // Rules from someone else arrive switched off where they act by themselves (triggers and timers), so nothing runs
+    // until you have looked at it.
+    setPending({ ...r.data, triggers: r.data.triggers.map((x) => ({ ...x, enabled: false })), timers: r.data.timers.map((x) => ({ ...x, enabled: false })) });
   };
+  const offCount = pending ? pending.triggers.length + pending.timers.length : 0;
+  const sends = pending ? [...new Set([...pending.triggers.flatMap((x) => x.actions.flatMap((a) => (a.type === 'send' ? [a.text] : []))), ...pending.timers.map((x) => x.send)])] : [];
   // Replace your rules with the file's, or add the file's to yours (each rule gets a new id; your variables win).
   const apply = (n: MudClient, replace: boolean) => {
     const merged: MudClient = replace ? { ...n, history: settings.history } : {
@@ -457,6 +461,9 @@ function Share() {
       {pending && (
         <div className="panel" role="group" aria-label={t('mud.ed.importAsk')}>
           <p>{t('mud.ed.importAsk')}</p>
+          {offCount > 0 && <p>{t('mud.ed.importOff', { text: [pending.triggers.length && t('mud.ed.countTriggers', { count: pending.triggers.length }), pending.timers.length && t('mud.ed.countTimers', { count: pending.timers.length })].filter(Boolean).join(', ') })}</p>}
+          {sends.length > 0 && <p>{t('mud.ed.importSends')}</p>}
+          {sends.length > 0 && <ul className="mud-import-sends">{sends.slice(0, 12).map((x) => <li key={x}><code>{x}</code></li>)}</ul>}
           <div className="toolbar">
             <button type="button" className="btn btn-primary" onClick={() => apply(pending, false)}>{t('mud.ed.importAdd')}</button>
             <button type="button" className="btn" onClick={() => apply(pending, true)}>{t('mud.ed.importReplace')}</button>
