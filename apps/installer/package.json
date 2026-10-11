@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/main.tsx --bundle --platform=node --target=node22 --format=esm --outfile=dist/install.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --external:react-devtools-core",
+    "build": "esbuild src/main.tsx --bundle --platform=node --target=node22 --format=esm --outfile=dist/install.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --alias:react-devtools-core=./src/devtools-stub.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/install.mjs"
   },

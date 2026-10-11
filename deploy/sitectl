@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # sitectl: running the site in production (docs/19). Run it from deploy/, on the server.
+#   ./sitectl install         the install wizard (or --answers file.yaml, --dry-run); run it again to change settings
 #   ./sitectl doctor          check the configuration, DNS, TLS, ports and health
+#   ./sitectl backup-copy     copy ./backups off the server (rsync or S3, as chosen in the installer)
 #   ./sitectl up              build and start (or update) everything
 #   ./sitectl backup          encrypted backup into ./backups (run nightly from cron)
 #   ./sitectl restore-test    prove the newest backup restores (run monthly)
@@ -174,8 +176,82 @@ UNIT
   say "The agent is running. The console's Updates page should show it within a few seconds."
 }
 
+# The installer (docs/19): a wizard in a container, so the host needs only Docker; then the steps that need the host.
+install() {
+  local args=() answers="" dry=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --answers) answers="${2:-}"; shift 2 ;;
+      --dry-run) dry=1; args+=(--dry-run); shift ;;
+      *) args+=("$1"); shift ;;
+    esac
+  done
+  if [ -n "$answers" ]; then
+    [ -f "$answers" ] || { say "No such answers file: $answers"; exit 2; }
+    # The container sees only this folder, so the answers file must be in it.
+    local abs; abs="$(cd "$(dirname "$answers")" && pwd)/$(basename "$answers")"
+    case "$abs" in "$PWD"/*) ;; *) say "Put the answers file in $PWD (the installer can only see this folder)."; exit 2 ;; esac
+    args+=(--answers "/deploy/${abs#"$PWD"/}")
+  fi
+  command -v docker >/dev/null || { say "Install Docker first: https://docs.docker.com/engine/install/"; exit 1; }
+  mkdir -p install
+  # A running site with an admin needs no setup link.
+  rm -f install/has-admin
+  if [ -f .env ] && "${COMPOSE[@]}" exec -T core node cli.cjs has-admin >/dev/null 2>&1; then : > install/has-admin; fi
+  say "Building the installer…"
+  docker build -q -f ../apps/installer/Dockerfile -t site-installer .. >/dev/null
+  local tty=(-i); [ -t 0 ] && [ -t 1 ] && tty=(-it)
+  docker run --rm "${tty[@]}" --network host --user "$(id -u):$(id -g)" \
+    -e HOST_DOCKER_VERSION="$(docker version --format '{{.Server.Version}}' 2>/dev/null || true)" \
+    -e HOST_COMPOSE_VERSION="$(docker compose version --short 2>/dev/null || true)" \
+    -e HOST_DEPLOY_DIR="$PWD" -v "$PWD:/deploy" site-installer "${args[@]}"
+  [ "$dry" = 1 ] && return 0
+  [ -f install/steps ] || { say "The installer wrote no steps, so there is nothing more to do."; return 0; }
+  local step h e
+  while read -r step; do
+    case "$step" in
+      host-setup) say "Setting up the host (firewall, updates). This needs sudo."; sudo bash install/host-setup.sh ;;
+      cron)
+        local cur; cur=$(crontab -l 2>/dev/null || true)
+        { if [ -n "$cur" ]; then printf '%s\n' "$cur" | sed '/^# >>> site install/,/^# <<< site install/d'; fi; echo '# >>> site install (managed by ./sitectl install)'; cat install/crontab; echo '# <<< site install'; } | crontab -
+        ok "cron jobs for backups, certificates and restore tests" ;;
+      up) "${COMPOSE[@]}" up -d --build --wait ;;
+      admin-cli)
+        read -rp "First admin's handle: " h </dev/tty; read -rp "First admin's email: " e </dev/tty
+        "${COMPOSE[@]}" exec core node cli.cjs create-admin --handle "$h" --email "$e"
+        : > install/has-admin ;;
+      wiki-starter)
+        if [ -n "${h:-}" ]; then "${COMPOSE[@]}" exec -T core node cli.cjs wiki-starter --as "$h"
+        else say "Once you are the admin, the empty wiki offers its starter pages."; fi ;;
+      agent) install_agent ;;
+      demo) "${COMPOSE[@]}" exec -T core node cli.cjs seed-demo ;;
+      doctor) doctor || warn "doctor found problems: fix them, then run ./sitectl doctor again" ;;
+    esac
+  done < install/steps
+  if [ -f install/setup-url ] && [ ! -f install/has-admin ]; then
+    say ""; say "Make the first admin in your browser (the link works once):"; say "  $(cat install/setup-url)"
+  fi
+}
+
+# Copy the backups off the server, as chosen in the installer: rsync over SSH, or S3-compatible storage through rclone.
+backup_copy() {
+  local target endpoint bucket
+  target=$(envval BACKUP_RSYNC_TARGET)
+  if [ -n "$target" ]; then rsync -a --delete backups/ "$target" && ok "copied to $target"; return; fi
+  endpoint=$(envval BACKUP_S3_ENDPOINT); bucket=$(envval BACKUP_S3_BUCKET)
+  [ -n "$endpoint" ] && [ -n "$bucket" ] || { say "No off-site copy is set up. Run ./sitectl install to choose one."; exit 2; }
+  docker run --rm -v "$PWD/backups:/data:ro" \
+    -e RCLONE_CONFIG_OFFSITE_TYPE=s3 -e RCLONE_CONFIG_OFFSITE_PROVIDER=Other \
+    -e RCLONE_CONFIG_OFFSITE_ENDPOINT="$endpoint" -e RCLONE_CONFIG_OFFSITE_REGION="$(envval BACKUP_S3_REGION)" \
+    -e RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID="$(envval BACKUP_S3_ACCESS_KEY_ID)" \
+    -e RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY="$(envval BACKUP_S3_SECRET_ACCESS_KEY)" \
+    rclone/rclone:1.68.2 sync /data "offsite:$bucket" && ok "copied to $bucket"
+}
+
 case "${1:-help}" in
   doctor) doctor ;;
+  install) shift; install "$@" ;;
+  backup-copy) backup_copy ;;
   up) "${COMPOSE[@]}" up -d --build --wait ;;
   backup) mkdir -p backups && "${COMPOSE[@]}" exec -T core node cli.cjs backup --dir /backups ;;
   restore-test) "${COMPOSE[@]}" exec -T core node cli.cjs restore-test --dir /backups ;;
@@ -191,5 +267,5 @@ case "${1:-help}" in
   create-admin) [ $# -eq 3 ] || { say "Usage: ./sitectl create-admin <handle> <email>"; exit 2; }; "${COMPOSE[@]}" exec core node cli.cjs create-admin --handle "$2" --email "$3" ;;
   logs) shift; "${COMPOSE[@]}" logs --tail 200 -f "$@" ;;
   ps) "${COMPOSE[@]}" ps ;;
-  *) sed -n '2,13p' "$SELF" | sed 's/^# \{0,1\}//' ;;
+  *) sed -n '2,15p' "$SELF" | sed 's/^# \{0,1\}//' ;;
 esac

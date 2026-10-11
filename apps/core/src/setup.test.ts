@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { hasAdmin } from './setup';
 import { client, createTestDb, dbAvailable, makeAdmin, makeApp } from './test/harness';
 
 // The installer's web finish (docs/19): the setup link makes the first admin, once.
@@ -11,6 +12,7 @@ describe.skipIf(!dbAvailable)('first-admin setup from the browser', () => {
   const body = (o: object = {}) => ({ token: TOKEN, handle: 'firstadmin', email: 'first@example.test', password: 'a good long password', ...o });
 
   it('is closed when the installer gave no token', async () => {
+    expect(await hasAdmin(ctx.deps)).toBe(false); // what `cli has-admin` reports to sitectl install
     const c = client(ctx.app);
     expect((await c.get('/api/v1/setup')).body).toEqual({ needed: false });
     expect((await c.post('/api/v1/setup', body())).status).toBe(410);
@@ -29,6 +31,7 @@ describe.skipIf(!dbAvailable)('first-admin setup from the browser', () => {
     expect(me.user ?? me).toMatchObject({ handle: 'firstadmin', role: 'admin' });
     const log = await ctx.deps.db.query(`SELECT 1 FROM audit_log WHERE action = 'site.setup_finished'`);
     expect(log.rowCount).toBe(1);
+    expect(await hasAdmin(ctx.deps)).toBe(true);
     // Closed for good: the same link does nothing now.
     expect((await client(ctx.app).get('/api/v1/setup')).body).toEqual({ needed: false });
     expect((await client(ctx.app).post('/api/v1/setup', body({ handle: 'second', email: 'second@example.test' }))).status).toBe(410);

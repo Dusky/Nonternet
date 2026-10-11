@@ -12,6 +12,7 @@ import { loadSiteConfig } from './config';
 import { seedDemo } from './demo';
 import { renderErgoConfig } from './irc/render';
 import { addStarterPages, adminByHandle } from './wiki-starter';
+import { hasAdmin } from './setup';
 import { ircSecrets } from './irc/secrets';
 
 // Run it before Ergo starts (the compose file does, in a one-shot service). With IRC_HISTORY_DATABASE_URL it
@@ -59,6 +60,7 @@ async function writeIrcConfig() {
 //   cli backup --dir <dir>                                 (encrypted database, homepage files and config; needs BACKUP_KEY)
 //   cli restore-test --dir <dir>                           (brings the newest backup back into a scratch database and checks it)
 //   cli seed-demo [--url http://127.0.0.1:3000]           (a small demo community to look at; not in production; core must be running)
+//   cli has-admin                                          (exit 0 when the site has an admin, 1 when not; for sitectl install)
 //   cli wiki-starter --as <admin handle>                 (adds the starter help pages to the site wiki; keeps pages already there)
 //   cli backup-key                                         (prints a new BACKUP_KEY)
 //   cli vapid-keys                                         (prints a new pair of push notification keys for .env)
@@ -93,6 +95,9 @@ async function main() {
       // A small community to look at (docs/19): needs a running core to talk to (--url, default http://127.0.0.1:3000).
       const r = await seedDemo(deps, arg('url') ?? 'http://127.0.0.1:3000');
       console.log(r.created.length ? `Made ${r.created.join(', ')}. Everyone signs in with the password "${r.password}".` : 'The demo people already exist; nothing was added.');
+    } else if (command === 'has-admin') {
+      // The same test that closes the web setup page.
+      process.exitCode = (await hasAdmin(deps)) ? 0 : 1;
     } else if (command === 'wiki-starter') {
       // The starter help pages for the site wiki (docs/20), credited to the admin named by --as. Pages already there are kept.
       const as = arg('as');
@@ -120,7 +125,7 @@ async function main() {
         if (!r.ok) process.exitCode = 1;
       }
     } else {
-      throw new Error('Usage: cli create-admin --handle <h> --email <e> | reset-totp --handle <h> | backup --dir <d> | restore-test --dir <d> | seed-demo | wiki-starter --as <admin> | backup-key');
+      throw new Error('Usage: cli create-admin --handle <h> --email <e> | reset-totp --handle <h> | backup --dir <d> | restore-test --dir <d> | seed-demo | has-admin | wiki-starter --as <admin> | backup-key');
     }
   } finally {
     await deps.db.end();

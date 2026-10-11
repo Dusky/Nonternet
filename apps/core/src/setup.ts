@@ -19,7 +19,7 @@ export const setupInputSchema = z.object({
   password: passwordSchema,
 });
 
-async function hasAdmin(deps: AppDeps): Promise<boolean> {
+export async function hasAdmin(deps: AppDeps): Promise<boolean> {
   return (await deps.db.query(`SELECT 1 FROM users WHERE role = 'admin' LIMIT 1`)).rowCount === 1;
 }
 

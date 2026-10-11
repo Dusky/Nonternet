@@ -176,3 +176,18 @@ The first admin can be made from the browser, but only with a setup token the in
 setup is closed for good, whatever the token. This avoids the classic "whoever visits first owns the site" race of open web
 installers. The token is compared in constant time, the step takes a database lock so two people can't both become the first admin,
 and it is audited as `site.setup_finished`.
+
+### 2026-10-11 — The installer: a terminal wizard in a container (PROPOSED)
+`./sitectl install` builds a small image (`apps/installer`) and runs a full-screen wizard (Ink) as the host user. The deploy folder is
+mounted and the host network is used, so the port and DNS checks see what the server sees. The wizard only writes files: `.env`,
+`site.yaml` (edited with comments kept), a crontab block, an optional host script, and a list of steps. sitectl then carries out
+those steps on the host. Root is needed only for the optional host script, run with sudo.
+Why this shape:
+- The server needs nothing installed but Docker.
+- The plan engine is plain code with unit tests, and the same plan serves the wizard, `--answers` files and `--dry-run`.
+- A re-run is safe: secrets that exist are kept, old files are saved first, and the setup link is not made again once an admin
+  exists (`cli has-admin`).
+Off-site copies run through `sitectl backup-copy` (rsync, or rclone for S3). Not run in the build environment, which has no Docker
+daemon: building the installer image and a real `sitectl install`. sitectl's side is tested with stand-ins for docker and crontab
+(`tests/sitectl-install.test.ts`).
+

@@ -192,6 +192,18 @@ A personal hub with saved links, shared as private, public or into a ring (`21`)
 A private-by-default microblog feed (`22`).
 - [ ] **M1:** core. [ ] **M2:** the app and the home panel box. [ ] **M3:** public and ring memos, replies, reactions, feeds, moderation.
 
+## Installer (2026-10-10, owners' choice) — BUILT
+`./sitectl install`: a wizard plus the web finish (`19`).
+- [x] **INS1:** the web finish. A one-off setup link makes the first admin.
+- [x] **INS2:** the plan engine:
+  - answers and profiles;
+  - secrets and config generation;
+  - server checks;
+  - `--answers`;
+  - `--dry-run`;
+  - safe re-runs.
+- [x] **INS3:** the full-screen wizard, `sitectl install` and `backup-copy`, the installer image, and the docs.
+
 ## Later phases (not scheduled)
 BBS file areas, doors, QWK/offline mail, FTN echomail (scope: Q13). Desktop "point" app; self-hosted nodes; hub-and-spoke federation with
 this site as hub.

@@ -14,7 +14,51 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
 - Open ports: 80 and 443 (web), 6697 (IRC over TLS), 23 and 2222 (BBS telnet and SSH), 4000 (MUD), 70 (Gopher), 79 (finger), 1965 (Gemini).
   Leave out any service you turn off in the site config.
 
-## First install
+## Installing with the wizard (2026-10-11)
+`./sitectl install` asks everything in a full-screen wizard and writes the files for you. It runs in a container, so the server
+needs nothing but Docker and git. Steps:
+1. `git clone` the repository on the server; `cd deploy`; `./sitectl install`.
+2. The wizard asks, in order:
+   - a **profile**: small community, web and chat, everything, or custom (pick services one by one);
+   - the site's name and domains;
+   - who may join (open, invite, application, closed) and limits;
+   - outgoing mail;
+   - how the first admin is made (in the browser, or on the command line now);
+   - where backups go (this server only, rsync over SSH, or S3-compatible storage);
+   - extras: firewall and automatic updates on the host, the console's update agent, the wiki's starter pages, a demo community.
+3. It **checks the server**: CPU, memory, disk, Docker and Compose versions, free ports, DNS for each name, and the mail
+   server. A failed check stops you unless you press F to go on anyway.
+4. It **shows what it will write**, file by file (D shows the differences), with secrets masked:
+   - `.env`, with every secret made fresh;
+   - `site.yaml`, edited from the example so its comments stay;
+   - `install/crontab`;
+   - `install/host-setup.sh`, if you chose the host extras.
+5. It shows `APP_SECRET_KEY` and `BACKUP_KEY` once and asks you to type "saved". Keep them away from the server.
+6. Then sitectl carries out the steps the installer wrote to `install/steps`:
+   - runs the host script with sudo;
+   - puts the cron jobs between `# >>> site install` markers in your crontab;
+   - `up`;
+   - makes the admin, if you chose the command line;
+   - installs the agent;
+   - adds the starter pages and the demo, if chosen;
+   - `doctor`.
+7. If you chose the browser for the first admin, it prints the setup link last. Open it, make your account, and setup closes
+   for good.
+
+**Running it again** changes settings. Your answers are kept in `install/answers.used.yaml` and fill in the wizard. Secrets
+that exist are never replaced. The old files are saved in `install/previous/<time>/` before anything is written. Once the site
+has an admin, no new setup link is made.
+
+**Without the wizard:**
+- `./sitectl install --answers my-answers.yaml` uses a file of answers instead of asking. Start from `install.example.yaml`.
+  The file must be inside `deploy/`, because that folder is all the installer can see.
+- `--dry-run` shows the plan and the differences and writes nothing.
+- `--skip-checks` and `--force` are for when you know better than the checks.
+
+**Off-site backups.** If you chose rsync or S3, cron runs `./sitectl backup-copy` an hour after each backup. It uses `rsync` to
+`BACKUP_RSYNC_TARGET`, or `rclone` (in a container) with the `BACKUP_S3_*` values in `.env`. The backups are already encrypted.
+
+## First install by hand
 1. `git clone` the repository on the server; `cd deploy`.
 2. `cp site.example.yaml site.yaml` and set the name, domains (the example's `homes_domain: homes.localhost` is for running
    locally only; `./sitectl doctor` fails until it matches `HOMES_DOMAIN`) and which services are on. Point
@@ -45,7 +89,7 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
 | nightly | encrypted backup into `deploy/backups` (database, MUD world, chat history, homepages, file areas, config) | `./sitectl backup` |
 | weekly | Ergo (and Gemini, when it uses the site's certificate) pick up renewed certificates | `./sitectl tls-reload` (`irc-reload` still works) |
 | monthly | prove the newest backup restores; the result shows in the console's Backups page | `./sitectl restore-test` |
-| after each backup | copy `deploy/backups` off the server (rsync, object storage); it is encrypted | your tool |
+| after each backup | copy `deploy/backups` off the server (rsync, object storage); it is encrypted | `./sitectl backup-copy` (set up by the installer), or your own tool |
 
 Example crontab (as the user that runs Docker):
 ```

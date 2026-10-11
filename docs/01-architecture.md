@@ -53,7 +53,8 @@ repo/
 ├── CLAUDE.md  README.md  docs/
 ├── apps/
 │   ├── core/            # API, OIDC, workers
-│   └── shell/           # web UI incl. admin console
+│   ├── shell/           # web UI incl. admin console
+│   └── installer/       # the install wizard and its plan engine, run by `sitectl install` in a container (docs/19)
 ├── packages/
 │   ├── shared/          # zod schemas, enums (roles, states), vocabulary strings
 │   ├── strings/         # all UI copy; name/domain interpolated from config

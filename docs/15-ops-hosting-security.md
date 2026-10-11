@@ -91,13 +91,22 @@ plus a tar of the homes directory, a tar of the file-area uploads (`FILES_DIR`, 
 with a manifest of hashes and row counts. The restore test decrypts the newest backup into a scratch database and compares
 counts, then records the result in `backup_runs`. The console warns when there is no good backup for 26 hours or no passing
 restore test for 35 days. A brand-new site is given time first: until its first account is 2 days old (backup) or 14 days old (restore test)
-the console says "None yet" instead of warning (PROPOSED, `17`); a failed restore test is never excused. Copying `/backups` off-site is the operator's job (rsync/rclone). `APP_SECRET_KEY` and `BACKUP_KEY`
+the console says "None yet" instead of warning (PROPOSED, `17`); a failed restore test is never excused. Copying `/backups` off-site is the operator's job; `sitectl backup-copy` does it with rsync or rclone when it is set up in the installer (`19`). `APP_SECRET_KEY` and `BACKUP_KEY`
 are deliberately not in the backups: store them separately. The core image includes `pg_dump` and `tar`.
 There is no "run backup now" button; backups are run on the host.
 
 ## Upgrades
 Pinned versions of Ergo and the MUD engine; integration suite must pass before bumping.
 `sitectl upgrade`: backup → pull → migrate → health check → rollback instructions on failure.
+
+## The installer (2026-10-11, `19`)
+- The installer container runs as the host user, not root, with only `deploy/` mounted. It uses the host network so its port and
+  DNS checks are honest.
+- Root is used only for the optional host script (firewall, automatic security updates, fail2ban), and only through sudo, after
+  the script was shown in the plan.
+- `.env` is written with mode 600. Secrets are masked in every diff and dry run. `APP_SECRET_KEY` and `BACKUP_KEY` are shown once.
+- The setup link carries a random token of at least 24 characters (`SETUP_TOKEN`), compared in constant time. It stops working
+  once any admin exists.
 
 ## Security checklist
 - Homepages on a separate origin; shell cookies host-only, Secure, HttpOnly, SameSite=Lax.
