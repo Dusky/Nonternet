@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import type { BoardSummary, Me } from '@app/shared';
+import type { BoardSummary, BookmarkView, Me } from '@app/shared';
 import { api } from '../api';
 import { Icon } from '../components/Icon';
 import { Alert, Avatar } from '../components/ui';
@@ -46,6 +46,7 @@ export function HomePanel({ me }: { me: Me }) {
   const home = useQuery({ queryKey: ['homes', 'me'], queryFn: () => api.get<HomeSummary>('/homes/me'), staleTime: 60_000, retry: false }).data;
   // Signed up by application and not approved yet (docs/02): say so, rather than leave them wondering.
   const application = useQuery({ queryKey: ['me', 'application'], queryFn: () => api.get<{ application: { state: string } | null }>('/me/application'), enabled: !confirmed, staleTime: 60_000 }).data?.application;
+  const marks = useQuery({ queryKey: ['bookmarks', 'hub'], queryFn: () => api.get<{ pinned: BookmarkView[]; recent: BookmarkView[]; total: number }>('/bookmarks/hub'), enabled: confirmed, staleTime: 30_000 }).data;
   const [hideStart, setHideStart] = useState(dismissed);
 
   const go = (app: AppId, path = '') => {
@@ -98,6 +99,8 @@ export function HomePanel({ me }: { me: Me }) {
       {confirmed && <Oneliners />}
       {confirmed && site.services.mud && <TowerBoard limit={5} headingId="home-tower" />}
 
+      {marks && <HomeBookmarks marks={marks} open={(path) => go('bookmarks', path)} />}
+
       {withNew.length > 0 && (
         <section className="panel" aria-labelledby="home-new">
           <div className="panel-head">
@@ -138,6 +141,29 @@ export function HomePanel({ me }: { me: Me }) {
           {site.services.bbs && <>{' · '}<button type="button" className="link" onClick={() => go('terminal')}>{t('home.callBbs')}</button></>}
         </p>
       )}
+    </section>
+  );
+}
+
+// The personal hub (docs/21): pinned links first, then the newest. Set the site as the browser's home page to start here.
+function HomeBookmarks({ marks, open }: { marks: { pinned: BookmarkView[]; recent: BookmarkView[]; total: number }; open: (path?: string) => void }) {
+  const t = useT();
+  const link = (b: BookmarkView) => (
+    <a href={b.url} target="_blank" rel="noopener noreferrer" className="home-bookmark">
+      {b.has_icon ? <img src={`/api/v1/bookmarks/${b.id}/icon?v=${encodeURIComponent(b.updated_at)}`} alt="" width={16} height={16} loading="lazy" /> : <Icon name="link" size={16} />}
+      <span>{b.title}</span>
+    </a>
+  );
+  return (
+    <section className="panel" aria-labelledby="home-bookmarks">
+      <div className="panel-head">
+        <h3 id="home-bookmarks">{t('home.bookmarks.title')}</h3>
+        {marks.total > 0
+          ? <button type="button" className="btn btn-quiet btn-small" onClick={() => open()}>{t('home.bookmarks.all')}</button>
+          : <button type="button" className="btn btn-quiet btn-small" onClick={() => open('add')}>{t('home.bookmarks.first')}</button>}
+      </div>
+      {marks.pinned.length > 0 && <ul className="home-pins">{marks.pinned.map((b) => <li key={b.id}>{link(b)}</li>)}</ul>}
+      {marks.recent.length > 0 && <ul className="rows home-recent-marks">{marks.recent.map((b) => <li key={b.id}>{link(b)} <span className="row-meta">{b.host}</span></li>)}</ul>}
     </section>
   );
 }

@@ -181,10 +181,10 @@ Depth for boards, mail, notifications, profiles and directories (`23`).
 - [ ] **E6:** images in posts and mail (built). [ ] **E7:** chat check-up (built: drafts per conversation, grouped list, find, start a channel, edit topic).
 Bookmarks and memos fit after E1.
 
-## Bookmarks (2026-10-06, owners' choice) — PLANNED
+## Bookmarks (2026-10-06, owners' choice) — B1 and B2 BUILT
 A personal hub with saved links, shared as private, public or into a ring (`21`).
-- [ ] **B1:** core: table, routes, fetch of title and icon, search, export, import, deletion.
-- [ ] **B2:** the Bookmarks app and the home panel section, bookmarklet.
+- [x] **B1:** core: table, routes, fetch of title and icon, search, export, import, deletion.
+- [x] **B2:** the Bookmarks app and the home panel section, bookmarklet.
 - [ ] **B3:** sharing, reports and hiding.
 - [ ] **B4:** share target, browser file import, link checking.
 

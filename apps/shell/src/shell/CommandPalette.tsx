@@ -82,6 +82,12 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
       for (const r of rings) found.push(pick(`ring:${r.slug}`, r.name, t('palette.kind.ring'), 'rings', r.slug));
       for (const m of mail) if (m.subject.toLowerCase().includes(term)) found.push(pick(`mail:${m.id}`, m.subject, t('palette.kind.mail'), 'mail', m.id));
     }
+    // Saving a link: "save" finds it, and a pasted address offers to save that address.
+    if (me.role !== 'guest' && /^https?:\/\/\S+$/i.test(q.trim())) {
+      found.unshift({ key: 'bookmark:this', label: t('palette.saveThis', { url: q.trim() }), kind: t('app.bookmarks'), icon: <AppIcon id="bookmarks" size={20} />, run: () => go('bookmarks', `add?url=${encodeURIComponent(q.trim())}`) });
+    } else if (me.role !== 'guest' && term && defaultFilter(t('palette.saveLink'), term) > 0) {
+      found.push({ key: 'bookmark:add', label: t('palette.saveLink'), kind: t('app.bookmarks'), icon: <AppIcon id="bookmarks" size={20} />, run: () => go('bookmarks', 'add') });
+    }
     if (term && /^[a-z0-9_-]{2,40}$/i.test(term)) {
       found.push({ key: `person:${term}`, label: t('palette.person', { handle: term }), kind: t('palette.kind.person'), icon: <Icon name="user" size={20} />, run: () => go('people', term) });
     }

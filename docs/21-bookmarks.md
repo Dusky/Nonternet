@@ -85,7 +85,18 @@ adds a minute (the fetch is the costly part), 10,000 bookmarks per person.
   - tests.
 
   Until B3, only `private` is accepted. Import brings every bookmark back private and says so.
-- [ ] **B2:** the Bookmarks app and home panel section, add form, tags, pins, bookmarklet, palette entry, e2e.
+- [x] **B2:** the Bookmarks app and the home panel section:
+  - the add form, tags and pins;
+  - the bookmarklet;
+  - palette entries: "Save a link", and pasting an address offers to save it;
+  - e2e tests.
+
+  As built:
+  - The list has a "Save a link" box at the top, search, a tag filter and "Pinned only".
+  - Removing a bookmark is act-now with Undo.
+  - Editing happens in place.
+  - The add screen (`/bookmarks/add?url=&title=`) fills in its fields from the address, and saves only when Save is pressed.
+  - The home panel shows pinned bookmarks as buttons, then the eight newest.
 - [ ] **B3:** sharing: public on profiles and feed, ring sharing, reports and hiding, audit.
 - [ ] **B4:** share target, import of browser files, link checking.
 

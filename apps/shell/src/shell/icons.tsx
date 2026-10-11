@@ -17,6 +17,8 @@ const paths: Record<BuiltinAppId, string> = {
   admin: 'M12 3 5 6v5.5c0 4.3 2.8 7.6 7 9.5 4.2-1.9 7-5.2 7-9.5V6l-7-3Zm-1 12.2-3.2-3.2 1.4-1.4 1.8 1.8 4.2-4.2 1.4 1.4-5.6 5.6Z',
   // An open book.
   wiki: 'M3 5c3-1.3 6-1.3 8.5.3V20c-2.5-1.6-5.5-1.6-8.5-.3V5Zm18 0v14.7c-3-1.3-6-1.3-8.5.3V5.3C15 3.7 18 3.7 21 5ZM5 7.4v9.3c1.8-.4 3.6-.3 5 .3V8c-1.4-.7-3.2-.9-5-.6Zm9 .6v9c1.4-.6 3.2-.7 5-.3V7.4c-1.8-.3-3.6-.1-5 .6Z',
+  // A ribbon bookmark.
+  bookmarks: 'M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Zm1 2v12.3l5-3.2 5 3.2V5H7Z',
   addapps: 'M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm11 0h2v3h3v2h-3v3h-2v-3h-3v-2h3v-3Z',
 };
 // An added app brings its own icon: one SVG path from its manifest (checked to be only a path).
@@ -29,7 +31,7 @@ export function AppIcon({ id, size = 32 }: { id: AppId; size?: number }) {
 
 // Each app has its own sticker colour on the desktop and launcher, so they can be told apart at a glance.
 const stickers: Record<BuiltinAppId, 1 | 2 | 3 | 4 | 5> = {
-  boards: 1, wiki: 2, rings: 5, people: 4, mail: 3, files: 1, chat: 2, mud: 4, terminal: 1,
+  boards: 1, wiki: 2, bookmarks: 5, rings: 5, people: 4, mail: 3, files: 1, chat: 2, mud: 4, terminal: 1,
   homepages: 3, studio: 5, addapps: 4, notifications: 1, settings: 2, admin: 3,
 };
 const stickerOf = (id: AppId): number => (id.startsWith('app:') ? installedApp(id)?.sticker ?? 1 : stickers[id as BuiltinAppId]);

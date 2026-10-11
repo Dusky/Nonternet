@@ -1328,3 +1328,32 @@ div.post-body.rich-text { white-space: normal; }
 
 /* The installer's web finish (docs/19). */
 .setup-next { display: grid; gap: var(--space-2); padding-left: 1.4em; }
+
+/* Bookmarks (docs/21) */
+ul.tags { list-style: none; padding: 0; }
+button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fill-text); }
+.bookmark-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); margin-bottom: var(--space-3); }
+.bookmark-add .field { flex: 1 1 18rem; margin: 0; }
+.bookmarks-filters { flex-wrap: wrap; align-items: flex-end; gap: var(--space-2) var(--space-4); }
+.bookmarks-filters .field { margin: 0; }
+.bookmark-rows > li.bookmark { display: grid; grid-template-columns: 1.25rem 1fr auto; gap: var(--space-1) var(--space-3); align-items: start; }
+.bookmark-rows > li.bookmark:has(.bookmark-edit) { display: block; }
+.bookmark-icon { display: inline-flex; padding-top: .2rem; color: var(--muted); }
+.bookmark-icon img { border-radius: 3px; }
+.bookmark-main { min-width: 0; }
+.bookmark-title { font-weight: 650; overflow-wrap: anywhere; }
+.bookmark-main .row-meta { display: block; }
+.bookmark-desc { margin: var(--space-1) 0 0; color: var(--text); overflow-wrap: anywhere; }
+.bookmark-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
+.bookmark-edit { display: grid; gap: var(--space-2); max-width: 40rem; }
+.bookmark-edit .field { margin: 0; }
+.bookmarklet { margin-top: var(--space-5); }
+@media (max-width: 40rem) {
+  .bookmark-rows > li.bookmark { grid-template-columns: 1.25rem 1fr; }
+  .bookmark-actions { grid-column: 2; justify-content: flex-start; }
+}
+.home-pins { list-style: none; padding: 0; margin: 0 0 var(--space-2); display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.home-pins .home-bookmark { border: var(--control-line) solid var(--line); border-radius: var(--radius); padding: var(--space-1) var(--space-2); background: var(--surface); }
+.home-bookmark { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
+.home-bookmark span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-bookmark svg { color: var(--muted); flex: none; }
