@@ -4,7 +4,7 @@ import { strToU8, unzipSync, zipSync } from 'fflate';
 import iconv from 'iconv-lite';
 import type { AppDeps } from './deps';
 import type { Ctx, SessionUser } from './accounts';
-import { createPost, listBoards, setReadPointer } from './boards';
+import { createPost, listBoards, readUpTo, setReadPointer } from './boards';
 import { ApiError } from './errors';
 
 // QWK offline mail (docs/04, M8; PROPOSED format details, VERIFY with a real reader). A .QWK packet is a zip
@@ -184,7 +184,7 @@ export async function makePacket(deps: AppDeps, v: SessionUser): Promise<{ name:
       `SELECT p.id, p.seq, p.subject, p.body, p.posted_at, u.handle AS author, rp.seq AS ref_seq, ru.handle AS ref_author,
               (SELECT t.subject FROM posts t WHERE t.id = COALESCE(p.thread_root_id, p.id)) AS thread_subject
        FROM posts p LEFT JOIN users u ON u.id = p.author_id LEFT JOIN posts rp ON rp.id = p.reply_to_id LEFT JOIN users ru ON ru.id = rp.author_id
-       WHERE p.board_id = $1 AND p.seq > COALESCE((SELECT last_read_seq FROM read_state WHERE user_id = $2 AND board_id = $1), 0)
+       WHERE p.board_id = $1 AND p.seq > ${readUpTo('$2')}
          AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.author_id IS DISTINCT FROM $2
          AND NOT EXISTS (SELECT 1 FROM posts t WHERE t.id = p.thread_root_id AND t.hidden_at IS NOT NULL)
        ORDER BY p.seq LIMIT $3`, [c.board_id, v.userId, MAX_PACKET_MESSAGES - messages.length]);
@@ -194,7 +194,7 @@ export async function makePacket(deps: AppDeps, v: SessionUser): Promise<{ name:
     if (r.rows.length) upTo.set(c.slug, r.rows.at(-1)!.id);
   }
   const zip = buildPacket({ id, siteName: deps.config.site.name, sysop: 'Sysop', user: v.handle, now: new Date(deps.now()), conferences: confs.map((c) => ({ conf: c.conf, name: c.name })), messages });
-  for (const [slug, postId] of upTo) await setReadPointer(deps, v, slug, { post_id: postId });
+  for (const [slug, postId] of upTo) await setReadPointer(deps, v, slug, { through_post: postId }); // the packet carried everything up to here
   return { name: `${id}.QWK`, zip, count: messages.length };
 }
 

@@ -249,3 +249,11 @@ offers to edit the one you have), Files (previews and HEAD don't count as downlo
 Studio (text typed during a save stays unsaved), Settings (import result wording for apps, memos, bookmarks), Add apps
 (toasts need `notify`; Todo declares it; re-asking existing installs stays with Q18), Admin (console keeps focus),
 Terminal (long pastes sent in pieces), People (Away shown without a status), Homepages ("Newest first" label).
+
+### 2026-10-11 — Two review questions decided: per-thread reading, and blocks in notifications
+- **Boards read per thread.** One pointer per board meant opening the newest thread marked every older one read. Now
+  reading a thread moves a pointer for that thread (`thread_reads`); "mark all read" and an offline QWK packet still move
+  the board's pointer. A post is read at or below the later of the two. The BBS new-scan, QWK, unread counts and "New"
+  badges all use the same rule. Like the board pointer it is a reading position, so it is left out of the export.
+- **Blocks apply to notifications.** Someone you blocked can't notify you at all: replies, mentions, reactions, memo
+  replies and ring news, as well as mail. Their posts stay visible on boards.

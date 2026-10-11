@@ -395,6 +395,7 @@ export const EXEMPT: Record<string, string> = {
   oidc_keys: 'the site’s own signing keys',
   board_categories: 'site structure set by admins',
   read_state: 'a reading position, rebuilt by reading again',
+  thread_reads: 'a reading position, rebuilt by reading again',
   notifications: 'derived from other people’s activity',
   reports: 'moderation records kept by moderators',
   mod_actions: 'moderation records, public in each board’s mod log',

@@ -8,7 +8,7 @@ API, so a post from either side appears in the other immediately.
 - Board list grouped by category, with ring boards grouped under their rings; unread counts.
 - Thread view: threaded and flat; keyboard nav (j/k, n next unread, r reply).
 - Composer with **plain-text preview** showing exactly what terminal users will see (79-col wrap).
-- Read pointers per user and board, kept in core.
+- Read pointers per user and board, and per user and thread, kept in core.
 - Logged-out reading of public boards.
 - Search (Postgres full-text), notifications (replies, @mentions, watched boards).
 - Board creation for trusted users; board settings for owners and board ops.
@@ -66,7 +66,8 @@ for future federation (`12`).
 - Screens: board list (by category, unread counts), threads, thread (flat or threaded), composer
   with the server preview, new board, board settings (rename, visibility, archive, private members),
   search. Keys: j and k move, r replies, n jumps to the next unread thread.
-- Reading a thread moves your read pointer to the last post you loaded. "Mark all read" moves it to
+- Reading a thread moves that thread's read pointer to the last post you loaded (2026-10-11: per thread, so opening the
+  newest thread no longer marks older unread threads read). "Mark all read" moves it to
   the newest post in the board.
 - Replies quote with the author's initials (`ZC> `), wrapped to 79 columns.
 - Post text is shown as plain text (`white-space: pre-wrap`). Light markdown rendering is not built;

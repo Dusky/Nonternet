@@ -13,6 +13,12 @@ import { pushText, queuePush } from './push';
 import { normalizeBody, normalizeSubject, replySubject } from './text';
 import type { Ctx, SessionUser } from './accounts';
 
+// Where someone has read up to for one post's thread: the later of the board's pointer ("mark all read") and the
+// thread's own. `u` is the SQL for the person's id, `p` the posts alias.
+export const readUpTo = (u: string, p = 'p') => `GREATEST(
+  COALESCE((SELECT r.last_read_seq FROM read_state r WHERE r.user_id = ${u} AND r.board_id = ${p}.board_id), 0),
+  COALESCE((SELECT tr.last_read_seq FROM thread_reads tr WHERE tr.user_id = ${u} AND tr.thread_id = COALESCE(${p}.thread_root_id, ${p}.id)), 0))`;
+
 // Who is looking. Null means logged out, and also a limited session (an admin who has not set up
 // two-factor yet), which gets no more than a visitor would.
 export type Viewer = SessionUser | null;
@@ -54,7 +60,7 @@ const SUMMARY_SQL = `
     (SELECT max(p.posted_at) FROM posts p WHERE p.board_id = b.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS last_post_at,
     CASE WHEN $1::text IS NULL THEN NULL ELSE (SELECT count(*) FROM posts p
       WHERE p.board_id = b.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.author_id IS DISTINCT FROM $1
-        AND p.seq > COALESCE((SELECT r.last_read_seq FROM read_state r WHERE r.user_id = $1 AND r.board_id = b.id), 0)) END AS unread,
+        AND p.seq > ${readUpTo('$1')}) END AS unread,
     EXISTS (SELECT 1 FROM watches w WHERE w.user_id = $1 AND w.board_id = b.id) AS watching,
     EXISTS (SELECT 1 FROM board_members m WHERE m.user_id = $1 AND m.board_id = b.id) AS member
   FROM boards b JOIN users u ON u.id = b.owner_id LEFT JOIN board_categories c ON c.id = b.category_id LEFT JOIN rings rg ON rg.id = b.ring_id`;
@@ -234,22 +240,32 @@ export async function setFollowing(deps: AppDeps, v: SessionUser, slug: string, 
   else await deps.db.query(`DELETE FROM thread_follows WHERE user_id = $1 AND thread_id = $2`, [v.userId, threadId]);
 }
 
-// The pointer only moves forward, so reading an old thread never marks newer posts as unread.
-export async function setReadPointer(deps: AppDeps, v: SessionUser, slug: string, target: { post_id: string } | { all: true }): Promise<void> {
+// Pointers only move forward. Reading a post marks its thread read up to there; only "mark all read" moves the
+// board's pointer, so opening the newest thread leaves older unread threads unread.
+export async function setReadPointer(deps: AppDeps, v: SessionUser, slug: string, target: { post_id: string } | { all: true } | { through_post: string }): Promise<void> {
   const b = await loadBoard(deps.db, slug, v);
   let seq: string | null;
   if ('all' in target) {
     seq = (await deps.db.query<{ s: string | null }>(`SELECT max(seq) AS s FROM posts WHERE board_id = $1`, [b.id])).rows[0]!.s;
   } else {
-    const p = await deps.db.query<{ seq: string }>(`SELECT seq FROM posts WHERE id = $1 AND board_id = $2`, [target.post_id, b.id]);
+    const p = await deps.db.query<{ seq: string }>(`SELECT seq FROM posts WHERE id = $1 AND board_id = $2`, ['post_id' in target ? target.post_id : target.through_post, b.id]);
     if (!p.rows[0]) throw new ApiError(404, 'not_found', 'No such post on this board.');
     seq = p.rows[0].seq;
   }
   if (seq === null) return;
+  // "Everything up to here" (mark all read, or an offline packet that carried these posts) moves the board's pointer.
+  if (!('post_id' in target)) {
+    await deps.db.query(
+      `INSERT INTO read_state (user_id, board_id, last_read_seq) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, board_id) DO UPDATE SET last_read_seq = GREATEST(read_state.last_read_seq, EXCLUDED.last_read_seq), updated_at = now()`,
+      [v.userId, b.id, seq]);
+    await deps.db.query(`DELETE FROM thread_reads tr USING posts t WHERE tr.user_id = $1 AND tr.thread_id = t.id AND t.board_id = $2 AND tr.last_read_seq <= $3`, [v.userId, b.id, seq]);
+    return;
+  }
   await deps.db.query(
-    `INSERT INTO read_state (user_id, board_id, last_read_seq) VALUES ($1, $2, $3)
-     ON CONFLICT (user_id, board_id) DO UPDATE SET last_read_seq = GREATEST(read_state.last_read_seq, EXCLUDED.last_read_seq), updated_at = now()`,
-    [v.userId, b.id, seq]);
+    `INSERT INTO thread_reads (user_id, thread_id, last_read_seq) SELECT $1, COALESCE(p.thread_root_id, p.id), $3 FROM posts p WHERE p.id = $2
+     ON CONFLICT (user_id, thread_id) DO UPDATE SET last_read_seq = GREATEST(thread_reads.last_read_seq, EXCLUDED.last_read_seq), updated_at = now()`,
+    [v.userId, target.post_id, seq]);
 }
 
 // ---------------------------------------------------------------- posts
@@ -292,7 +308,7 @@ export async function listThreads(
   type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean; following: boolean; has_poll: boolean };
   const UNREAD = `EXISTS (SELECT 1 FROM posts x
          WHERE (x.id = p.id OR x.thread_root_id = p.id) AND x.deleted_at IS NULL AND x.hidden_at IS NULL AND x.author_id IS DISTINCT FROM $2
-           AND x.seq > COALESCE((SELECT s.last_read_seq FROM read_state s WHERE s.user_id = $2 AND s.board_id = p.board_id), 0))`;
+           AND x.seq > ${readUpTo('$2', 'x')})`;
   const filterSql = filter === 'unanswered' ? 'AND p.reply_count = 0' : filter === 'unread' ? `AND $2::text IS NOT NULL AND ${UNREAD}` : '';
   const select = (where: string, order: string, extra: unknown[], paging = '') => deps.db.query<Row>(
     `SELECT ${POST_COLUMNS}, p.reply_count, p.last_seq,
@@ -336,6 +352,7 @@ export async function newPosts(deps: AppDeps, v: SessionUser, slug: string, opts
   const r = await deps.db.query<PostRow & { thread_subject: string }>(
     `SELECT ${POST_COLUMNS}, (SELECT t.subject FROM posts t WHERE t.id = COALESCE(p.thread_root_id, p.id)) AS thread_subject FROM ${POST_FROM}
      WHERE p.board_id = $1 AND p.seq > $2 AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.author_id IS DISTINCT FROM $3
+       AND p.seq > ${readUpTo('$3')}
        AND NOT EXISTS (SELECT 1 FROM posts t WHERE t.id = p.thread_root_id AND t.hidden_at IS NOT NULL)
      ORDER BY p.seq LIMIT $4`, [b.id, from, v.userId, limit + 1]);
   const page = r.rows.slice(0, limit);

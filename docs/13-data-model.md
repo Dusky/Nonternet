@@ -78,7 +78,8 @@ posts also has locked_at (thread starts only) and deleted_by (author|moderator).
 notifications (id n_…, user_id, kind reply|mention|watch|mail|reaction|ring_invite|ring_request|ring_joined, post_id?, board_id?, actor_id, ref?, count, created_at, read_at;
   `ref` is the thing a mail, reaction or ring notification is about; while one is unread, more of the same add to `count` (0044))
                                                 -- unique per (user, post); migration 0007
-read_state (user_id, board_id, last_read_seq)   -- read pointers; source of unread counts
+read_state (user_id, board_id, last_read_seq)   -- board read pointers ("mark all read", QWK packets)
+thread_reads (user_id, thread_id, last_read_seq) -- per-thread pointers; a post is read at or below the later of the two
 ```
 As built (migration 0006): `posts.seq` is an identity column that gives every post a total order,
 so read pointers and thread order use `seq`, not the ULID (two ULIDs from the same millisecond can

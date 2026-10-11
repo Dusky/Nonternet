@@ -268,9 +268,12 @@ describe.skipIf(!dbAvailable)('boards', () => {
       const threads = async () => (await cc.get('/api/v1/boards/unread/threads')).body.threads as { id: string; unread: boolean }[];
       expect((await threads()).filter((t) => t.unread).map((t) => t.id).sort()).toEqual([p1.id, p2.id].sort());
 
+      // Reading the newest thread leaves the older one unread (a pointer per thread, not one per board).
       expect((await cc.put('/api/v1/boards/unread/read-pointer', { post_id: p2.id })).status).toBe(204);
-      expect(await unread()).toBe(0);
-      await cc.put('/api/v1/boards/unread/read-pointer', { post_id: p1.id }); // going back does nothing
+      expect(await unread()).toBe(1);
+      expect((await threads()).filter((t) => t.unread).map((t) => t.id)).toEqual([p1.id]);
+      expect((await cc.get('/api/v1/boards/unread/new')).body.posts.map((p: { id: string }) => p.id)).toEqual([p1.id]); // the new-scan too
+      await cc.put('/api/v1/boards/unread/read-pointer', { post_id: p1.id });
       expect(await unread()).toBe(0);
       const p4 = await post(bobC, 'new');
       expect(await unread()).toBe(1);
