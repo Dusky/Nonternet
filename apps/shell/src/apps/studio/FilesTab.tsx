@@ -206,8 +206,15 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
   const save = useCallback(async () => {
     setError(null);
     try {
-      await api.upload(`/homes/me/file?path=${encodeURIComponent(path)}`, latest.current);
-      saved.current = latest.current; setDirty(false); setRestored(false); if (me) clearDraft(me.id, draftKey); setStatus(t('studio.edit.saved')); setStamp(Date.now());
+      // What was sent is what's saved; anything typed while it was on its way stays unsaved (and in the draft).
+      const sent = latest.current;
+      await api.upload(`/homes/me/file?path=${encodeURIComponent(path)}`, sent);
+      saved.current = sent;
+      const still = latest.current !== sent;
+      setDirty(still); setRestored(false);
+      if (me && !still) clearDraft(me.id, draftKey);
+      if (!still) setStatus(t('studio.edit.saved'));
+      setStamp(Date.now());
     } catch (e) { setError(errorText(e)); }
   }, [path, t, me, draftKey]);
 

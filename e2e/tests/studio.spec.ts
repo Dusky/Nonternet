@@ -52,6 +52,32 @@ test.describe('homepage studio', () => {
     await live.close();
   });
 
+  test('typing while a save is on its way leaves the newer text marked unsaved', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.request.post('/api/v1/homes/me/template', { data: { template: 'blank' }, headers: h });
+    await page.goto('/studio');
+    await page.getByRole('button', { name: 'Edit index.html' }).click();
+    const editor = page.getByRole('textbox', { name: 'Editor for index.html' });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('<h1>First</h1>');
+    // Hold the save for a moment, and type more while it waits.
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    await page.route('**/api/v1/homes/me/file?path=index.html', async (route) => {
+      if (route.request().method() === 'PUT') await held;
+      await route.continue();
+    });
+    await page.keyboard.press('ControlOrMeta+s');
+    await page.keyboard.type('<p>more</p>');
+    release();
+    await expect(page.getByText('You have changes that are not saved.')).toBeVisible();
+    await page.unroute('**/api/v1/homes/me/file?path=index.html');
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect(page.getByText('Saved. The preview is up to date.')).toBeVisible();
+  });
+
   test('the preview shows what you type before you save it, the published page does not, and the editor points out mistakes', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
