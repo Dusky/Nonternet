@@ -17,7 +17,7 @@ import { PostModTools, ReportPost } from './ModTools';
 import { RichText } from '../../components/RichText';
 import { CharacterBadge, PersonLink } from '../people/PersonLink';
 
-interface ThreadPage { board: BoardSummary; locked: boolean; following: boolean; poll_id: string | null; posts: PostView[]; next: number | null }
+interface ThreadPage { board: BoardSummary; locked: boolean; following: boolean; poll_id: string | null; first_unread_id: string | null; posts: PostView[]; next: number | null }
 
 // One thread's pages: shared by the thread screen and the links that prefetch it.
 export const threadQuery = (slug: string, id: string, meId: string | null) => infiniteQueryOptions({
@@ -46,7 +46,7 @@ export function threadOrder(posts: PostView[]): { post: PostView; depth: number 
   return out;
 }
 
-export function ThreadView({ slug, id }: { slug: string; id: string }) {
+export function ThreadView({ slug, id, focusPost }: { slug: string; id: string; focusPost?: string }) {
   const t = useT();
   const confirm = useConfirm();
   const me = useMe().data;
@@ -86,11 +86,25 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
     const top = posts.reduce((m, p) => Math.max(m, p.seq), 0);
     if (seenKey && top && document.visibilityState === 'visible') { try { localStorage.setItem(seenKey, String(top)); } catch { /* a convenience */ } }
   }, [posts, seenKey]);
-  // A link to one post (#p_…) scrolls to it once it has loaded.
+  // A link to one post (…/p/<id>, or #p_… on a page of its own) scrolls to it once it has loaded and gives it focus.
   useEffect(() => {
-    const h = window.location.hash.slice(1);
-    if (h.startsWith('p_') && posts.some((p) => p.id === h)) document.getElementById(`post-${h}`)?.scrollIntoView({ block: 'center' });
-  }, [posts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    const h = focusPost ?? window.location.hash.slice(1);
+    if (!h.startsWith('p_') || !posts.some((p) => p.id === h)) return;
+    const el = document.getElementById(`post-${h}`);
+    el?.scrollIntoView({ block: 'center' });
+    el?.querySelector<HTMLElement>('article')?.focus({ preventScroll: true });
+  }, [posts.length, focusPost]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Opening the thread marks it read, so later fetches say nothing is new: keep what the first one said.
+  const [firstUnread, setFirstUnread] = useState<string | null>(null);
+  const loadedFirst = q.data?.pages[0]?.first_unread_id;
+  useEffect(() => { setFirstUnread(null); }, [id]); // a different thread starts afresh (runs before the line below)
+  useEffect(() => { if (loadedFirst) setFirstUnread((cur) => cur ?? loadedFirst); }, [loadedFirst, id]);
+  const jumpToNew = () => {
+    if (!firstUnread) return;
+    const el = document.getElementById(`post-${firstUnread}`);
+    el?.scrollIntoView({ block: 'center' });
+    el?.querySelector<HTMLElement>('article')?.focus({ preventScroll: true });
+  };
   const locked = q.data?.pages[0]?.locked ?? false;
   const pollId = q.data?.pages[0]?.poll_id ?? null;
 
@@ -137,7 +151,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
 
   const unreadThreads = useQuery({
     queryKey: ['threads', slug, 'unread-scan', me?.id ?? null],
-    queryFn: () => api.get<{ threads: ThreadSummary[] }>(`/boards/${slug}/threads?limit=100`),
+    queryFn: () => api.get<{ threads: ThreadSummary[] }>(`/boards/${slug}/threads?filter=unread&limit=5`), // the server finds them, however far down
     enabled: Boolean(me),
   });
   const goNextUnread = () => {
@@ -177,6 +191,7 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
         {me && me.role !== 'guest' && <button type="button" className="btn btn-quiet" aria-pressed={following} onClick={() => follow.mutate(!following)}>{following ? t('boards.unfollow') : t('boards.follow')}</button>}
         {board.can_moderate && posts[0] && <button type="button" className="btn btn-quiet" disabled={pin.isPending} onClick={() => pin.mutate(!posts[0]!.pinned)}>{posts[0].pinned ? t('pin.unpin') : t('pin.pin')}</button>}
         {board.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}/threads/${id}.atom`} title={subject} />}
+        {me && firstUnread && posts.some((p) => p.id === firstUnread) && posts[0]?.id !== firstUnread && <button type="button" className="btn btn-quiet" onClick={jumpToNew}>{t('boards.jumpToNew')}</button>}
         {me && <button type="button" className="btn btn-quiet" onClick={goNextUnread} disabled={!unreadThreads.data?.threads.some((x) => x.unread && x.id !== id)}>{t('boards.nextUnread')}</button>}
       </div>
       {fresh > 0 && (

@@ -100,6 +100,8 @@ export interface PostView {
 export interface ThreadSummary {
   id: string; subject: string; author: PostView['author']; posted_at: string;
   reply_count: number; last_post_at: string; last_seq: number; unread: boolean; following: boolean; has_poll: boolean; locked: boolean; pinned: boolean; state: PostView['state'];
+  /** Who wrote the newest reply (display name or handle); null when there are no replies. */
+  last_author: string | null;
 }
 
 export interface PostPreview {

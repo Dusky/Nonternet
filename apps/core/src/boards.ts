@@ -305,7 +305,7 @@ export async function listThreads(
   const limit = Math.min(opts.limit ?? 30, 100);
   const sort = opts.sort ?? 'activity';
   const filter = opts.filter ?? 'all';
-  type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean; following: boolean; has_poll: boolean };
+  type Row = PostRow & { reply_count: number; last_seq: string; last_at: Date; unread: boolean; following: boolean; has_poll: boolean; last_author: string | null };
   const UNREAD = `EXISTS (SELECT 1 FROM posts x
          WHERE (x.id = p.id OR x.thread_root_id = p.id) AND x.deleted_at IS NULL AND x.hidden_at IS NULL AND x.author_id IS DISTINCT FROM $2
            AND x.seq > ${readUpTo('$2', 'x')})`;
@@ -313,6 +313,8 @@ export async function listThreads(
   const select = (where: string, order: string, extra: unknown[], paging = '') => deps.db.query<Row>(
     `SELECT ${POST_COLUMNS}, p.reply_count, p.last_seq,
        (SELECT max(x.posted_at) FROM posts x WHERE x.id = p.id OR x.thread_root_id = p.id) AS last_at,
+       (SELECT COALESCE(lu.display_name, lu.handle) FROM posts x JOIN users lu ON lu.id = x.author_id
+         WHERE (x.id = p.id OR x.thread_root_id = p.id) AND x.deleted_at IS NULL AND x.hidden_at IS NULL ORDER BY x.seq DESC LIMIT 1) AS last_author,
        CASE WHEN $2::text IS NULL THEN false ELSE ${UNREAD} END AS unread,
        EXISTS (SELECT 1 FROM thread_follows f WHERE f.user_id = $2 AND f.thread_id = p.id) AS following,
        EXISTS (SELECT 1 FROM polls pl WHERE pl.post_id = p.id AND pl.hidden_at IS NULL) AS has_poll
@@ -333,7 +335,7 @@ export async function listThreads(
   const threads = [...head.rows, ...page].map((row): ThreadSummary => {
     const post = toPostView(row, mod);
     return { id: row.id, subject: post.subject, author: post.author, posted_at: post.posted_at, reply_count: row.reply_count,
-      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, following: row.following, has_poll: row.has_poll,
+      last_post_at: row.last_at.toISOString(), last_seq: Number(row.last_seq), unread: row.unread, following: row.following, has_poll: row.has_poll, last_author: row.reply_count > 0 ? row.last_author : null,
       locked: row.locked_at !== null, pinned: row.pinned_at !== null, state: post.state };
   });
   const last = page[page.length - 1];
@@ -359,7 +361,7 @@ export async function newPosts(deps: AppDeps, v: SessionUser, slug: string, opts
   return { last_read_seq: pointer, posts: page.map((row) => ({ ...toPostView(row, false), thread_subject: row.thread_subject })), next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
 }
 
-export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; following: boolean; poll_id: string | null; posts: PostView[]; next: number | null }> {
+export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId: string, opts: { after?: number; limit?: number }): Promise<{ board: BoardSummary; locked: boolean; following: boolean; poll_id: string | null; first_unread_id: string | null; posts: PostView[]; next: number | null }> {
   const b = await loadBoard(deps.db, slug, v);
   const mod = canModerate(v, b);
   const root = await deps.db.query<{ hidden_at: Date | null; locked_at: Date | null }>(`SELECT hidden_at, locked_at FROM posts WHERE id = $1 AND board_id = $2 AND thread_root_id IS NULL`, [threadId, b.id]);
@@ -374,7 +376,11 @@ export async function getThread(deps: AppDeps, v: Viewer, slug: string, threadId
   await attachReactions(deps, v, posts);
   const following = v ? (await deps.db.query(`SELECT 1 FROM thread_follows WHERE user_id = $1 AND thread_id = $2`, [v.userId, threadId])).rowCount === 1 : false;
   const poll = (await deps.db.query<{ id: string }>(`SELECT id FROM polls WHERE post_id = $1 AND hidden_at IS NULL`, [threadId])).rows[0];
-  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, following, poll_id: poll?.id ?? null, posts, next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
+  // The first post this person hasn't read yet, for "Jump to the first new post".
+  const firstUnread = v ? (await deps.db.query<{ id: string }>(
+    `SELECT p.id FROM posts p WHERE (p.id = $1 OR p.thread_root_id = $1) AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       AND p.author_id IS DISTINCT FROM $2 AND p.seq > ${readUpTo('$2')} ORDER BY p.seq LIMIT 1`, [threadId, v.userId])).rows[0]?.id ?? null : null;
+  return { board: toSummary(v, b), locked: root.rows[0].locked_at !== null, following, poll_id: poll?.id ?? null, first_unread_id: firstUnread, posts, next: r.rows.length > limit ? Number(page[page.length - 1]!.seq) : null };
 }
 
 // Reactions on the posts shown (not on ones that are deleted, removed or hidden): counts in a fixed order, and

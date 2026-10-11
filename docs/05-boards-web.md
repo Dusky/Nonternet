@@ -66,6 +66,8 @@ for future federation (`12`).
 - Screens: board list (by category, unread counts), threads, thread (flat or threaded), composer
   with the server preview, new board, board settings (rename, visibility, archive, private members),
   search. Keys: j and k move, r replies, n jumps to the next unread thread.
+- A thread opens with "Jump to the first new post" when there is one; thread rows say who replied last; a board's
+  page has "Search this board", and search results open the thread at the post that matched.
 - Reading a thread moves that thread's read pointer to the last post you loaded (2026-10-11: per thread, so opening the
   newest thread no longer marks older unread threads read). "Mark all read" moves it to
   the newest post in the board.

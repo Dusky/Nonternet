@@ -87,6 +87,49 @@ test.describe('boards', () => {
     await op.context().close();
   });
 
+  test('reading is kept per thread; a thread opens at its first new post; the board can be searched on its own', async ({ page, browser }) => {
+    const me = await makeUser(page);
+    await signIn(page, me.handle, PASSWORD);
+    const other = await makeUser(page);
+    await setRole(other.handle, 'trusted');
+    const op = await signedInPage(browser, other.handle);
+    const slug = uniq('reads').toLowerCase();
+    const o = { headers: { origin: BASE_URL } };
+    await op.request.post('/api/v1/boards', { data: { slug, name: `Reads ${slug}`, visibility: 'public' }, ...o });
+    const older = await (await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'Older thread', body: 'first words' }, ...o })).json();
+    const newer = await (await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'Newer thread', body: 'hello' }, ...o })).json();
+    const olderId = older.post?.id ?? older.id;
+    const newerId = newer.post?.id ?? newer.id;
+
+    // Opening the newest thread leaves the older one New.
+    await page.goto(`/boards/${slug}/t/${newerId}`);
+    await expect(page.getByRole('heading', { name: 'Newer thread' })).toBeVisible();
+    await page.goto(`/boards/${slug}`);
+    const olderRow = page.getByRole('listitem').filter({ hasText: 'Older thread' });
+    await expect(olderRow.getByText('New', { exact: true })).toBeVisible();
+
+    // Read the older thread, then someone replies: it opens with a way to the first new post, and the row says who replied.
+    await page.goto(`/boards/${slug}/t/${olderId}`);
+    await expect(page.getByRole('heading', { name: 'Older thread' })).toBeVisible();
+    await page.waitForTimeout(500);
+    const word = uniq('zebrafish');
+    await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `A reply about ${word}`, reply_to: olderId }, ...o });
+    await page.goto(`/boards/${slug}`);
+    await expect(page.getByRole('listitem').filter({ hasText: 'Older thread' })).toContainText(`last by ${other.handle}`);
+    await page.goto(`/boards/${slug}/t/${olderId}`);
+    await page.getByRole('button', { name: 'Jump to the first new post' }).click();
+    await expect(page.getByRole('article').filter({ hasText: `A reply about ${word}` })).toBeFocused();
+
+    // Search this board finds the reply and opens the thread at it.
+    await page.goto(`/boards/${slug}`);
+    await page.getByRole('link', { name: 'Search this board' }).click();
+    await page.getByRole('searchbox').fill(word);
+    await page.getByRole('searchbox').press('Enter');
+    await page.getByRole('link', { name: 'Older thread' }).click();
+    await expect(page.getByRole('article').filter({ hasText: `A reply about ${word}` })).toBeFocused();
+    await op.context().close();
+  });
+
   test('a visitor who is not signed in can read public boards and is invited to log in', async ({ page, browser }) => {
     const owner = await makeUser(page);
     await setRole(owner.handle, 'trusted');

@@ -22,7 +22,7 @@ import { eq, useLiveQuery } from '@tanstack/react-db';
 import { boardsCollection } from '../../collections';
 import { toast } from '../../components/feedback';
 
-const ROUTES = ['', 'new', 'search', 'search/:q', 'reports', 'bulletins', 'bulletins/:n', 'polls', 'polls/:pid', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/t/:id'] as const;
+const ROUTES = ['', 'new', 'search', 'search/:q', 'reports', 'bulletins', 'bulletins/:n', 'polls', 'polls/:pid', ':slug', ':slug/new', ':slug/settings', ':slug/modlog', ':slug/search', ':slug/t/:id', ':slug/t/:id/p/:post'] as const;
 
 // Bulletins and the voting booth are for people with an account. A visitor who follows a link is asked to log in,
 // and comes back here afterwards.
@@ -59,7 +59,9 @@ export default function BoardsApp() {
       {route.pattern === ':slug/new' && <NewThread slug={slug!} />}
       {route.pattern === ':slug/settings' && <SettingsPage slug={slug!} />}
       {route.pattern === ':slug/modlog' && <ModLogPage slug={slug!} />}
+      {route.pattern === ':slug/search' && <Search board={slug!} />}
       {route.pattern === ':slug/t/:id' && <ThreadView slug={slug!} id={route.params.id!} />}
+      {route.pattern === ':slug/t/:id/p/:post' && <ThreadView slug={slug!} id={route.params.id!} focusPost={route.params.post} />}
     </div>
   );
 }
@@ -217,6 +219,7 @@ function BoardPage({ slug }: { slug: string }) {
         {me && <button className="btn" onClick={markRead} disabled={!liveBoard || !unread}>{t('boards.markRead')}</button>}
         {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
         {me && <span className="spacer" />}
+        <AppLink className="btn btn-quiet" to={`${slug}/search`}>{t('boards.searchHere')}</AppLink>
         {b.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}.atom`} title={b.name} />}
         <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
         {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
@@ -243,7 +246,7 @@ function BoardPage({ slug }: { slug: string }) {
             </div>
             <p className="row-meta">
               {th.author && <span className="person"><Avatar id={th.author.id} name={th.author.display_name || th.author.handle} size="sm" />{th.author.display_name || th.author.handle}</span>}
-              {th.author ? ' · ' : ''}{t('boards.replies', { count: th.reply_count })} · <RelativeTime iso={th.last_post_at} />
+              {th.author ? ' · ' : ''}{t('boards.replies', { count: th.reply_count })} · {th.last_author ? <>{t('boards.lastBy', { name: th.last_author })} </> : null}<RelativeTime iso={th.last_post_at} />
             </p>
           </li>
         ))}

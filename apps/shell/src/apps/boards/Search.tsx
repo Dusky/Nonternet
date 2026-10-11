@@ -63,7 +63,7 @@ export function Search({ board: fixedBoard, initial = '' }: { board?: string; in
       <ul className="rows">
         {hits.map((h) => (
           <li key={h.post.id}>
-            <AppLink to={`${h.board.slug}/t/${h.post.thread_id}`}><strong>{h.post.subject}</strong></AppLink>{' '}
+            <AppLink to={`${h.board.slug}/t/${h.post.thread_id}/p/${h.post.id}`}><strong>{h.post.subject}</strong></AppLink>{' '}
             <span className="muted">{t('boards.search.in', { board: h.board.name })}{h.post.author ? ` · ${t('boards.by', { name: h.post.author.handle })}` : ''} · <RelativeTime iso={h.post.posted_at} /></span>
             <p className="snippet"><Snippet text={h.snippet.replace(/\n/g, ' ')} /></p>
           </li>
