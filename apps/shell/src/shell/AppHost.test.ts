@@ -43,15 +43,16 @@ describe('the app bridge', () => {
     const b = bridgeFor(app([]), deps());
     await expect(b.storageList('items')).rejects.toThrow('This app did not ask to do that.');
     await expect(b.profileGet()).rejects.toThrow('This app did not ask to do that.');
+    await expect(b.uiToast('hello')).rejects.toThrow('This app did not ask to do that.'); // notes need "notify"
     const s = bridgeFor(app(['storage']), deps());
     await expect(s.storagePut({ evil: true } as unknown as string, 'a', 1)).rejects.toThrow('This app did not ask to do that.');
     await expect(s.uiSetTitle('x'.repeat(500))).rejects.toThrow();
     expect(calls).toEqual([]);
   });
 
-  it('gives the profile only with profile:read, and passes notes to the shell', async () => {
+  it('gives the profile only with profile:read, and passes notes to the shell with notify', async () => {
     const d = deps();
-    const b = bridgeFor(app(['profile:read']), d);
+    const b = bridgeFor(app(['profile:read', 'notify']), d);
     expect(await b.profileGet()).toEqual({ id: 'u_1', handle: 'alice', display_name: 'Alice' });
     expect(await b.uiToast('Task deleted.', { undo: true, evil: 1 })).toBe(true);
     expect(d.toast).toHaveBeenCalledWith('Task deleted.', { undo: true, error: false });

@@ -66,6 +66,7 @@ export function bridgeFor(app: CatalogApp, deps: {
     }),
     uiSetTitle: wrap(async (title: unknown) => { deps.setTitle(str(title, 80).trim() || null); }),
     uiToast: wrap(async (text: unknown, o?: unknown) => {
+      need('notify'); // "Can show you short notes" is what the person agreed to
       const opts = (o && typeof o === 'object' ? o : {}) as { undo?: unknown; error?: unknown };
       return deps.toast(str(text, 200), { undo: opts.undo === true, error: opts.error === true });
     }),
