@@ -65,7 +65,7 @@ function ExportSection() {
 }
 
 // Bringing back an export (docs/12): upload, look at what would come back, then bring it back with the password.
-type Part = 'profile' | 'settings' | 'avatar' | 'homepage' | 'files' | 'keys' | 'clients' | 'apps';
+type Part = 'profile' | 'settings' | 'avatar' | 'homepage' | 'files' | 'keys' | 'clients' | 'apps' | 'bookmarks' | 'memos';
 interface Issue { code: string; count: number }
 interface Preview { id: string; origin: 'this_site' | 'other_site'; site: { name: string; domain: string }; handle: string; generated_at: string; parts: { part: Part; count: number; issues: Issue[] }[]; skipped: { kind: string; count: number }[] }
 interface Result { parts: { part: Part; restored: number; issues: Issue[] }[] }
@@ -97,7 +97,7 @@ function ImportSection() {
       <p>{t('data.import.intro')}</p>
       <div className="field">
         <label htmlFor="import-file">{t('data.import.file')}</label>
-        <input id="import-file" type="file" accept=".zip,application/zip" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); }} disabled={upload.isPending} />
+        <input id="import-file" type="file" accept=".zip,application/zip" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = ''; /* the same file can be picked again */ }} disabled={upload.isPending} />
       </div>
       {upload.isPending && <p className="muted" role="status">{t('data.import.checking')}</p>}
       {preview && (
