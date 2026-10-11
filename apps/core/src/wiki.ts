@@ -115,12 +115,19 @@ export async function getPage(deps: AppDeps, v: Viewer, ref: string, slug: strin
   return view(deps.db, v, w, page, redirectedFrom);
 }
 
-export async function listPages(deps: AppDeps, v: Viewer, ref: string): Promise<WikiPageSummary[]> {
+// `removed`: the hidden and deleted pages instead, for that wiki's moderators only (so they can be found and restored).
+export async function listPages(deps: AppDeps, v: Viewer, ref: string, opts: { removed?: boolean } = {}): Promise<WikiPageSummary[]> {
   const w = await loadWiki(deps.db, v, ref);
   if (!w.id) return [];
-  const r = await deps.db.query<{ slug: string; title: string; updated_at: Date; revision: number }>(
-    `SELECT slug, title, updated_at, revision FROM wiki_pages WHERE wiki_id = $1 AND deleted_at IS NULL AND hidden_at IS NULL ORDER BY lower(title) LIMIT 5000`, [w.id]);
-  return r.rows.map((p) => ({ slug: p.slug, title: p.title, updated_at: p.updated_at.toISOString(), revision: p.revision }));
+  if (opts.removed && !isModerator(v, w)) throw new ApiError(403, 'forbidden', 'Only this wiki\'s moderators can see hidden and deleted pages.');
+  const r = await deps.db.query<{ slug: string; title: string; updated_at: Date; revision: number; hidden: boolean; deleted: boolean }>(
+    `SELECT slug, title, updated_at, revision, hidden_at IS NOT NULL AS hidden, deleted_at IS NOT NULL AS deleted FROM wiki_pages
+      WHERE wiki_id = $1 AND ${opts.removed ? '(deleted_at IS NOT NULL OR hidden_at IS NOT NULL)' : 'deleted_at IS NULL AND hidden_at IS NULL'}
+      ORDER BY lower(title) LIMIT 5000`, [w.id]);
+  return r.rows.map((p) => ({
+    slug: p.slug, title: p.title, updated_at: p.updated_at.toISOString(), revision: p.revision,
+    ...(opts.removed ? { hidden: p.hidden, deleted: p.deleted } : {}),
+  }));
 }
 
 const conflict = (current: WikiPageView) => Object.assign(new ApiError(409, 'edit_conflict', 'Someone saved this page while you were editing. Your text is kept; compare it with theirs.'), { details: { current } });

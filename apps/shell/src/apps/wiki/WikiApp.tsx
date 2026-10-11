@@ -1,5 +1,5 @@
 import { FeedLink } from '../../components/FeedLink';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { diffLines } from 'diff';
 import { REPORT_CATEGORIES, WIKI_SUMMARY_MAX, WIKI_TITLE_MAX, wikiSlug, type WikiChange, type WikiInfo, type WikiPageSummary, type WikiPageView, type WikiRevisionView, type WikiSearchHit } from '@app/shared';
@@ -53,6 +53,36 @@ export default function WikiApp() {
 
 type Props = { info: WikiInfo; base: string };
 
+// A title typed into "New page", kept for the editor so it opens with the person's own capitals.
+const newTitles = new Map<string, string>();
+
+function NewPage({ info, base }: Props) {
+  const t = useT();
+  const nav = useAppNav();
+  const qc = useQueryClient();
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+  const slug = wikiSlug(title);
+  const go = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!slug || busy) return;
+    setBusy(true);
+    // A page that is already there opens instead of a blank editor.
+    const there = await qc.fetchQuery({ queryKey: ['wiki', info.ref, 'page', slug], queryFn: () => api.get<WikiPageView>(P(info.ref, slug)) }).then(() => true, () => false);
+    setBusy(false); setTitle('');
+    if (there) { toast(t('wiki.alreadyThere', { name: title.trim() })); nav.go(`${base}p/${slug}`); return; }
+    newTitles.set(`${info.ref}:${slug}`, title.trim());
+    nav.go(`${base}p/${slug}/edit`);
+  };
+  return (
+    <form className="wiki-new" onSubmit={(e) => void go(e)}>
+      <label className="visually-hidden" htmlFor="wiki-new-title">{t('wiki.newPage')}</label>
+      <input id="wiki-new-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={WIKI_TITLE_MAX} placeholder={t('wiki.newPagePlaceholder')} />
+      <button type="submit" className="btn btn-small" disabled={!slug || busy}>{t('wiki.newPage')}</button>
+    </form>
+  );
+}
+
 function WikiBar({ info, base }: Props) {
   const t = useT();
   return (
@@ -63,6 +93,7 @@ function WikiBar({ info, base }: Props) {
       <AppLink to={`${base}changes`}>{t('wiki.changes')}</AppLink>
       <AppLink to={`${base}wanted`}>{t('wiki.wanted')}</AppLink>
       <AppLink to={`${base}search`}>{t('wiki.search')}</AppLink>
+      {info.can_edit && <NewPage info={info} base={base} />}
     </nav>
   );
 }
@@ -120,7 +151,7 @@ function PageScreen({ info, base, slug, home }: Props & { slug: string; home?: b
       {tool === 'rename' && <Rename info={info} base={base} page={p} done={() => setTool(null)} />}
       {tool === 'report' && <Report info={info} page={p} done={() => setTool(null)} />}
       {(tool === 'hide' || tool === 'delete') && <WithReason info={info} page={p} action={tool} done={() => setTool(null)} />}
-      <WikiText body={p.body} base={base} exists={(s) => known.get(s) ?? false} />
+      <WikiText body={p.body} base={base} exists={(s) => known.get(s) ?? false} toc />
     </article>
   );
 }
@@ -209,21 +240,27 @@ function EditScreen({ info, base, slug }: Props & { slug: string }) {
   const qc = useQueryClient();
   const me = useMe().data;
   const q = usePage(info.ref, slug);
+  const [started, setStarted] = useState<WikiPageView | null | undefined>(undefined);
+  const settled = !q.isPending && (q.isSuccess || missing(q.error));
+  useEffect(() => { if (settled && started === undefined) setStarted(q.data ?? null); }, [settled, started, q.data]);
+  useEffect(() => setStarted(undefined), [slug]);
   if (q.isPending) return <Loading rows={6} />;
   if (q.isError && !missing(q.error)) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
-  const page = q.data ?? null;
+  // The form keeps the version it started from; a newer one saved meanwhile (seen live) is announced, not swapped in.
+  const page = started === undefined ? (q.data ?? null) : started;
+  const newer = q.data && (!page || q.data.revision > page.revision) ? q.data : null;
   if (!info.can_edit || (page && !page.can_edit)) return <Alert kind="info">{page?.protected ? t('wiki.protectedNote') : t('wiki.cantEdit')}</Alert>;
-  return <EditForm key={`${slug}:${page?.revision ?? 0}`} info={info} base={base} slug={slug} page={page} user={me?.id ?? ''} onSaved={(p) => {
+  return <EditForm key={`${slug}:${page?.revision ?? 0}`} info={info} base={base} slug={slug} page={page} newer={newer} user={me?.id ?? ''} onSaved={(p) => {
     qc.setQueryData(['wiki', info.ref, 'page', p.slug], p);
     void qc.invalidateQueries({ queryKey: ['wiki', info.ref] });
     nav.go(`${base}p/${p.slug}`);
   }} />;
 }
 
-function EditForm({ info, base, slug, page, user, onSaved }: { info: WikiInfo; base: string; slug: string; page: WikiPageView | null; user: string; onSaved: (p: WikiPageView) => void }) {
+function EditForm({ info, base, slug, page, newer, user, onSaved }: { info: WikiInfo; base: string; slug: string; page: WikiPageView | null; newer: WikiPageView | null; user: string; onSaved: (p: WikiPageView) => void }) {
   const t = useT();
   const draftKey = `wiki:${info.ref}:${slug}`;
-  const [title, setTitle] = useState(page?.title ?? titleFromSlug(slug));
+  const [title, setTitle] = useState(page?.title ?? newTitles.get(`${info.ref}:${slug}`) ?? titleFromSlug(slug));
   const [body, setBody] = useState(() => (user && loadDraft(user, draftKey)) || page?.body || '');
   const [summary, setSummary] = useState('');
   const [base_revision, setBase] = useState(page?.revision ?? 0);
@@ -246,6 +283,7 @@ function EditForm({ info, base, slug, page, user, onSaved }: { info: WikiInfo; b
     <form onSubmit={submit} aria-labelledby="wiki-edit-h">
       <h2 id="wiki-edit-h">{page ? t('wiki.editing', { name: page.title }) : t('wiki.newPage')}</h2>
       {page && <BackLink to={`${base}p/${slug}`}>{t('wiki.backToPage')}</BackLink>}
+      {newer && !theirs && <Alert kind="warning">{t('wiki.newerSaved', { who: newer.updated_by?.handle ?? t('wiki.someone') })}</Alert>}
       {theirs && (
         <section className="panel wiki-conflict" aria-labelledby="wiki-conflict-h">
           <h3 id="wiki-conflict-h">{t('wiki.conflictTitle')}</h3>
@@ -449,6 +487,35 @@ function AllPages({ info, base }: Props) {
       {q.isPending && <Loading rows={5} />}
       {q.data && q.data.pages.length === 0 && <EmptyState art="notebook">{t('wiki.empty')}</EmptyState>}
       <ul className="rows wiki-index">{q.data?.pages.map((p) => <li key={p.slug}><AppLink to={`${base}p/${p.slug}`}>{p.title}</AppLink> <span className="row-meta"><RelativeTime iso={p.updated_at} /></span></li>)}</ul>
+      {info.can_moderate && <Removed info={info} base={base} />}
+    </section>
+  );
+}
+
+// For this wiki's moderators: the hidden and deleted pages, so they can be found and brought back.
+function Removed({ info, base }: Props) {
+  const t = useT();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['wiki', info.ref, 'pages', 'removed'], queryFn: () => api.get<{ pages: WikiPageSummary[] }>(`${W(info.ref)}/pages?include=removed`) });
+  const act = useMutation({
+    mutationFn: (v: { slug: string; action: 'restore' | 'unhide' }) => api.post<WikiPageView>(`${P(info.ref, v.slug)}/${v.action}`, {}),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['wiki', info.ref] }),
+    onError: (e) => toast(errorText(e), 'error'),
+  });
+  if (!q.data?.pages.length) return null;
+  return (
+    <section aria-labelledby="wiki-removed-h">
+      <h3 id="wiki-removed-h">{t('wiki.removedPages')}</h3>
+      <ul className="rows wiki-index">
+        {q.data.pages.map((p) => (
+          <li key={p.slug}>
+            <AppLink to={`${base}p/${p.slug}`}>{p.title}</AppLink>{' '}
+            {p.deleted && <span className="badge">{t('wiki.deleted')}</span>} {p.hidden && <span className="badge">{t('wiki.hidden')}</span>}{' '}
+            <button type="button" className="btn btn-small" disabled={act.isPending} aria-label={`${p.deleted ? t('wiki.restore') : t('wiki.unhide')}: ${p.title}`}
+              onClick={() => act.mutate({ slug: p.slug, action: p.deleted ? 'restore' : 'unhide' })}>{p.deleted ? t('wiki.restore') : t('wiki.unhide')}</button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

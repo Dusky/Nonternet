@@ -20,7 +20,10 @@ export function wikiRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/wiki/:wiki', async (req) => wiki.wikiInfo(deps, req.session, params(req).ref));
   // The starter help pages (docs/20): only for the site wiki, only by an admin, only the pages that don't exist yet.
   app.post('/api/v1/wiki/site/starter', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req) => ({ added: await addStarterPages(deps, requireAdmin(req), 'web') }));
-  app.get('/api/v1/wiki/:wiki/pages', async (req) => ({ pages: await wiki.listPages(deps, req.session, params(req).ref) }));
+  app.get('/api/v1/wiki/:wiki/pages', async (req) => {
+    const removed = z.object({ include: z.enum(['removed']).optional() }).parse(req.query).include === 'removed';
+    return { pages: await wiki.listPages(deps, req.session, params(req).ref, { removed }) };
+  });
   app.get('/api/v1/wiki/:wiki/changes', async (req) => ({ changes: await wiki.changes(deps, req.session, params(req).ref) }));
   app.get('/api/v1/wiki/:wiki/wanted', async (req) => ({ wanted: await wiki.wanted(deps, req.session, params(req).ref) }));
   app.get('/api/v1/wiki/:wiki/search', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req) => {

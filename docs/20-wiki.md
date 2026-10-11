@@ -69,7 +69,15 @@ search. Built in, its pages live in core's Postgres like posts, and get:
   - The audit log records `wiki.page_*`, `wiki.revision_hidden`/`_shown` and `wiki.enabled`/`disabled`.
   - Reports use the target kind `wiki_page` and go to admins. Hiding or deleting a page closes its open reports.
   - Ordinary edits are public history and are not audited, like posts.
-- **Live:** a save sends `{type:'wiki', wiki, slug}` to open pages.
+- **Live:** a save sends `{type:'wiki', wiki, slug, revision}` to everyone signed in. An open page refetches and shows the
+  new revision; an open editor keeps the text it started from and says a newer version was saved, so the save that
+  follows shows both texts (the conflict view) rather than overwriting.
+- **Finding removed pages:** moderators see "Hidden and deleted pages" under All pages (`GET .../pages?include=removed`,
+  403 for anyone else), each with Restore or Show page again.
+- **New page by title:** a box in the wiki bar (for people who may edit) opens the editor for that title, keeping the
+  capitals typed; a title that already exists opens that page instead.
+- **Contents:** a page with three or more headings shows a contents list at the top; each heading has an id built from
+  its words (`h-getting-started`, numbered when two match).
 
 ## Where it shows
 - **Web:** the Wiki app (`10`).

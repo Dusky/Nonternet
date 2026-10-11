@@ -142,3 +142,40 @@ test('an admin can fill the empty site wiki with the starter help pages; a trust
   await expect(page.getByRole('article').getByText('ssh -p', { exact: false })).toBeVisible();
   await scan(page, 'a starter page');
 });
+
+test('a new page by title, contents for a long page, live changes, and moderators find hidden pages to bring back', async ({ page }) => {
+  const admin = await makeAdmin(page);
+  await signIn(page, admin.handle, PASSWORD, { recovery: admin.recoveryCodes[0]! });
+  const title = `Garden Notes ${uniq('g')}`;
+  const slug = title.toLowerCase().replace(/\s+/g, '-');
+  await page.goto('/wiki/pages');
+  await page.getByPlaceholder('Title of a new page').fill(title);
+  await page.getByRole('button', { name: 'New page', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(title); // the capitals typed, not ones guessed from the address
+  await page.getByLabel('Page text').fill('# Soil\n\nDig.\n\n# Seeds\n\nSow.\n\n## Watering\n\nOften.');
+  await page.getByRole('button', { name: 'Save page' }).click();
+
+  // Three headings or more: a contents list that jumps to each.
+  const contents = page.getByRole('navigation', { name: 'Contents' });
+  await expect(contents.getByRole('link')).toHaveText(['Soil', 'Seeds', 'Watering']);
+  await contents.getByRole('link', { name: 'Watering' }).click();
+  await expect(page.getByRole('heading', { name: 'Watering' })).toBeFocused();
+
+  // Someone saves meanwhile: the open page shows it without a reload.
+  expect((await page.request.put(`/api/v1/wiki/site/pages/${slug}`, { data: { title, body: '# Soil\n\nDig deep.', base_revision: 1 }, headers: h })).ok()).toBe(true);
+  await expect(page.getByRole('article').getByText('Dig deep.')).toBeVisible();
+
+  // Typing a title that already exists opens that page.
+  await page.getByPlaceholder('Title of a new page').fill(title);
+  await page.getByRole('button', { name: 'New page', exact: true }).click();
+  await expect(page.getByText(`${title} is already here, so it opened.`)).toBeVisible();
+
+  // Hidden pages leave the list, and moderators see them below it with a way back.
+  expect((await page.request.post(`/api/v1/wiki/site/pages/${slug}/hide`, { data: { reason: 'checking' }, headers: h })).ok()).toBe(true);
+  await page.goto('/wiki/pages');
+  const removed = page.getByRole('region', { name: 'Hidden and deleted pages' });
+  await expect(removed.getByRole('link', { name: title })).toBeVisible();
+  await scan(page, 'all pages with the hidden list');
+  await removed.getByRole('button', { name: `Show page again: ${title}` }).click();
+  await expect(page.locator('.wiki-index').first().getByRole('link', { name: title })).toBeVisible();
+});

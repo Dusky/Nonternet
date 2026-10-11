@@ -104,6 +104,11 @@ describe.skipIf(!dbAvailable)('wiki', () => {
     // Its name stays taken: starting it again is refused plainly, not a server error.
     expect((await save(p('tess').c, 'first-steps', { title: 'First Steps', body: 'again', base_revision: 0 })).body.error.code).toBe('taken_down');
     expect((await db.query(`SELECT status FROM reports WHERE id = $1`, [rep.body.id])).rows[0]!.status).toBe('actioned');
+    // Moderators can list hidden and deleted pages to find them again; nobody else can.
+    const removed = (await admin.client.get('/api/v1/wiki/site/pages?include=removed')).body.pages;
+    expect(removed).toEqual([expect.objectContaining({ slug: 'first-steps', hidden: true, deleted: false })]);
+    expect((await admin.client.get('/api/v1/wiki/site/pages')).body.pages.map((x: { slug: string }) => x.slug)).not.toContain('first-steps');
+    expect((await p('tess').c.get('/api/v1/wiki/site/pages?include=removed')).status).toBe(403);
     await admin.client.post('/api/v1/wiki/site/pages/first-steps/unhide', {});
     const actions = (await db.query(`SELECT action FROM audit_log WHERE target_type = 'wiki_page' ORDER BY id`)).rows.map((r) => r.action);
     expect(actions).toEqual(expect.arrayContaining(['wiki.page_protected', 'report.created', 'wiki.page_hidden', 'wiki.page_restored']));

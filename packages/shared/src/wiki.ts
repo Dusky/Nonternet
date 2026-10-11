@@ -34,5 +34,5 @@ export interface WikiRevisionView {
   summary: string; editor: WikiPerson | null; created_at: string; reverted_to: number | null; text_hidden: boolean;
 }
 export interface WikiChange { page: { slug: string; title: string }; revision: number; summary: string; editor: WikiPerson | null; created_at: string; reverted_to: number | null; created: boolean }
-export interface WikiPageSummary { slug: string; title: string; updated_at: string; revision: number }
+export interface WikiPageSummary { slug: string; title: string; updated_at: string; revision: number; hidden?: boolean; deleted?: boolean }
 export interface WikiSearchHit { slug: string; title: string; snippet: string }
