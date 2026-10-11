@@ -203,4 +203,30 @@ test.describe('on a big screen', () => {
     await page.keyboard.press('Control+k');
     await expect(page.getByRole('option', { name: new RegExp(`About ${word}`) })).toBeVisible(); // remembered
   });
+  test('right-click on the bare desktop offers a menu, and Show the desktop puts windows away and brings them back', async ({ page }) => {
+    const me = await makeUser(page);
+    await signIn(page, me.handle, PASSWORD);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.locator('.desktop-layout').click({ button: 'right', position: { x: 1380, y: 500 } });
+    await expect(page.getByRole('menuitem', { name: 'Change the wallpaper or theme' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Close all windows' })).toBeDisabled();
+    await page.getByRole('menuitem', { name: 'Dark' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-mode', 'dark');
+    await page.locator('.desktop-layout').click({ button: 'right', position: { x: 1380, y: 500 } });
+    await expect(page.getByRole('menuitem', { name: 'Dark (now)' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Follow my device' }).click();
+
+    await page.locator('[data-app-icon="boards"]').click();
+    await page.locator('[data-app-icon="memos"]').click();
+    const dialogs = page.getByRole('dialog');
+    await expect(dialogs).toHaveCount(2);
+    await page.getByRole('button', { name: 'Show the desktop' }).click();
+    await expect(dialogs.first()).toBeHidden();
+    await page.getByRole('button', { name: 'Show the desktop' }).click();
+    await expect(dialogs).toHaveCount(2);
+    await page.locator('.desktop-layout').click({ button: 'right', position: { x: 1380, y: 500 } });
+    await page.getByRole('menuitem', { name: 'Close all windows' }).click();
+    await expect(dialogs).toHaveCount(0);
+  });
 });

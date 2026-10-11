@@ -81,7 +81,7 @@ export function HomePanel({ me }: { me: Me }) {
       </ul>
 
       {showSteps && (
-        <section className="panel" aria-labelledby="home-start">
+        <section className="panel home-start" aria-labelledby="home-start">
           <div className="panel-head">
             <h3 id="home-start">{t('home.start.title')}</h3>
             <button type="button" className="btn btn-quiet btn-small" onClick={() => { setHideStart(true); try { window.localStorage.setItem(DISMISS_KEY, '1'); } catch { /* a convenience */ } }}>{t('home.start.hide')}</button>

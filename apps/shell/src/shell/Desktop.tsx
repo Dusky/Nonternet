@@ -12,6 +12,7 @@ import { focusedWindow, restoreSession, saveSession, snapGeometry, useWindows } 
 import { Window } from './Window';
 import { useContextMenu } from '../components/Menu';
 import type { AppDef } from './apps';
+import { MODES, saveModePref, modePref } from '../theme';
 
 // The desktop for big screens: an icon per app and the home panel, with the open windows on top.
 export function Desktop({ me }: { me: Me }) {
@@ -19,6 +20,15 @@ export function Desktop({ me }: { me: Me }) {
   const site = useSite();
   const { wins, setViewport, snapPreview, viewport } = useWindows();
   const top = focusedWindow(wins);
+  const open = useWindows((s) => s.open);
+  // Right-click (or Shift+F10) on the bare desktop: the things people reach for most.
+  const ctx = useContextMenu(() => [
+    { label: t('desktop.ctx.wallpaper'), onSelect: () => open('settings', 'appearance') },
+    ...MODES.map((m) => ({ label: `${t(`desktop.ctx.mode.${m}`)}${modePref() === m ? ` ${t('desktop.ctx.current')}` : ''}`, onSelect: () => saveModePref(m) })),
+    { label: t('desktop.ctx.showDesktop'), onSelect: () => useWindows.getState().toggleShowDesktop(), disabled: wins.length === 0, separator: true },
+    { label: t('desktop.ctx.closeAll'), onSelect: () => useWindows.getState().closeAll(), disabled: wins.length === 0, danger: true },
+    { label: t('app.settings'), onSelect: () => open('settings'), separator: true },
+  ]);
 
   useEffect(() => {
     const fit = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
@@ -40,7 +50,9 @@ export function Desktop({ me }: { me: Me }) {
 
   return (
     <div className="desktop" aria-label={t('nav.desktop')}>
-      <div className="desktop-layout">
+      <div className="desktop-layout" tabIndex={-1}
+        onContextMenu={(e) => { if (e.target === e.currentTarget) ctx.bind.onContextMenu(e); }}
+        onKeyDown={(e) => { if (e.target === e.currentTarget) ctx.bind.onKeyDown(e); }}>
         <ul className="icons" aria-label={t('nav.apps')}>
           {apps.map((app) => (
             <li key={app.id}><DesktopIcon app={app} /></li>
@@ -50,6 +62,7 @@ export function Desktop({ me }: { me: Me }) {
       </div>
       {snapPreview && <div className="snap-preview" aria-hidden="true" style={{ left: snapGeometry(snapPreview, viewport).x, top: snapGeometry(snapPreview, viewport).y, width: snapGeometry(snapPreview, viewport).w, height: snapGeometry(snapPreview, viewport).h }} />}
       {wins.map((w) => <Window key={w.id} win={w} focused={top?.id === w.id} />)}
+      {ctx.menu}
     </div>
   );
 }

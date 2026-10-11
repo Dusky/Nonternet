@@ -123,6 +123,11 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
             <ul className="taskbar-windows" aria-label={t('nav.openWindows')}>
               {wins.map((w) => <li key={w.id}><TaskbarWindow win={w} front={top?.id === w.id} /></li>)}
             </ul>
+            {wins.length > 0 && (
+              <button type="button" className="btn btn-quiet btn-icon show-desktop" onClick={() => useWindows.getState().toggleShowDesktop()} aria-label={t('taskbar.showDesktop')} title={t('taskbar.showDesktop')}>
+                <Icon name="minimize" />
+              </button>
+            )}
           </div>
         )}
 

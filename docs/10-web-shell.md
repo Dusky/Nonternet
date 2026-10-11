@@ -176,6 +176,10 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **Window handling:** resize from any edge or corner; drag to the left or right edge to take half the screen,
   to the top to fill it (a preview shows where it will land); a short open animation (off for reduced motion).
   Right-click, or Shift+F10 / the Menu key, opens a menu on desktop icons, taskbar buttons and title bars.
+  The bare desktop has one too (2026-10-11): change the wallpaper or theme, Follow my device / Light / Dark, Show the
+  desktop, Close all windows, Settings. A button at the right of the open windows in the taskbar does the same
+  Show the desktop (it puts every window away, and a second press brings them back). New windows cascade by 36px and
+  start again after eight. From 1280px wide the home panel lays its boxes out in two columns.
 - **`?` lists every shortcut.** Ctrl+K also finds threads (by their words), rings and mail subjects, and remembers
   the last few things opened.
 - **Wallpaper**: dots, grid, stripes or plain, drawn in the theme's colours. Since 2026-10-05 it is kept on the account and can also be a picture (see "Wallpapers" below).

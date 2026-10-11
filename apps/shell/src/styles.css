@@ -274,6 +274,7 @@ button.badge.tag:hover { background: var(--accent-soft); }
 .back svg { width: 22px; height: 22px; }
 .taskbar-apps { display: flex; align-items: center; gap: var(--space-1); flex: 1; position: relative; min-width: 0; }
 .taskbar-windows { display: flex; gap: var(--space-2); list-style: none; margin: 0; padding: 0 0 0 var(--space-2); border-left: var(--control-line) solid currentColor; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.show-desktop { flex: none; margin-left: var(--space-2); }
 .taskbar-windows .btn { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; border: var(--control-line) solid currentColor; }
 .taskbar-windows .btn.is-active { background: var(--title-active-bg); color: var(--title-active-text); border-color: var(--title-active-bg); }
 .taskbar-account { position: relative; margin-left: auto; display: flex; align-items: center; gap: var(--space-1); }
@@ -365,6 +366,11 @@ button.badge.tag:hover { background: var(--accent-soft); }
 .home-stats .label { color: var(--muted); font-size: var(--step--1); font-family: var(--font-label); }
 .home-stats .is-new .num { color: var(--accent); }
 .home .panel { margin: 0; }
+/* On a wide screen the panels sit in two columns; the greeting, the numbers and the first steps stay full width. */
+@media (min-width: 1280px) {
+  .desktop .home { width: min(64rem, 100%); grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .desktop .home > .home-greeting, .desktop .home > .home-stats, .desktop .home > .alert, .desktop .home > .hint, .desktop .home > .home-start { grid-column: 1 / -1; }
+}
 .home .panel-head .btn-small { margin-right: calc(-1 * var(--space-2)); }
 .checklist .link { min-height: 32px; padding: 0; text-align: left; }
 .home .panel h3 { font-size: var(--step-0); }

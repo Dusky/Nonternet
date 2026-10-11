@@ -114,6 +114,7 @@ function save(wins: Win[]) {
 interface State {
   wins: Win[];
   zTop: number;
+  hidden: AppId[]; // the windows Show desktop put away
   viewport: Viewport;
   setViewport(v: Viewport): void;
   open(id: AppId, path?: string): void;
@@ -127,6 +128,9 @@ interface State {
   close(id: AppId): void;
   focus(id: AppId): void;
   minimize(id: AppId): void;
+  // Show desktop: minimise every window, or bring back what that hid. closeAll closes every window.
+  toggleShowDesktop(): void;
+  closeAll(): void;
   toggleMaximize(id: AppId): void;
   snap(id: AppId, side: SnapSide): void;
   cycle(): AppId | null;
@@ -152,6 +156,7 @@ const topVisible = (wins: Win[]) => [...wins].filter((w) => !w.minimized).sort((
 export const useWindows = create<State>((set, get) => ({
   wins: [],
   zTop: 1,
+  hidden: [],
   viewport: { w: 1280, h: 800 },
   snapPreview: null,
   subtitles: {},
@@ -174,7 +179,7 @@ export const useWindows = create<State>((set, get) => ({
     const z = s.zTop + 1;
     // One window per app: opening it again brings it back and to the front. Given a place, it goes there.
     if (existing) return { zTop: z, wins: s.wins.map((w) => (w.id === id ? { ...w, minimized: false, z, ...(path !== undefined && path !== w.path ? goTo(w, path) : {}) } : w)) };
-    const cascade = s.wins.length * 28;
+    const cascade = (s.wins.length % 8) * 36;
     const saved = loadSaved()[id];
     // New windows open to the right of the desktop icons, so the icons stay in reach.
     const g = clampGeometry(saved ?? { x: ICONS_W + cascade, y: 24 + cascade, ...DEFAULT }, s.viewport);
@@ -196,6 +201,12 @@ export const useWindows = create<State>((set, get) => ({
   }),
 
   minimize: (id) => set((s) => ({ wins: s.wins.map((w) => (w.id === id ? { ...w, minimized: true } : w)) })),
+
+  toggleShowDesktop: () => set((s) => {
+    if (s.wins.some((w) => !w.minimized)) return { hidden: s.wins.filter((w) => !w.minimized).map((w) => w.id), wins: s.wins.map((w) => ({ ...w, minimized: true })) };
+    return { hidden: [], wins: s.wins.map((w) => (s.hidden.includes(w.id) ? { ...w, minimized: false } : w)) };
+  }),
+  closeAll: () => set({ wins: [], hidden: [] }),
 
   toggleMaximize: (id) => set((s) => {
     const a = area(s.viewport);
@@ -242,7 +253,7 @@ export const useWindows = create<State>((set, get) => ({
     save(get().wins);
   },
 
-  reset: () => set({ wins: [], zTop: 1 }),
+  reset: () => set({ wins: [], zTop: 1, hidden: [] }),
 }));
 
 // The window that has focus: the topmost one that is not minimized.
