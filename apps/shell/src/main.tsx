@@ -7,6 +7,7 @@ import { App } from './App';
 import { FeedbackProvider } from './components/feedback';
 import { SiteProvider } from './hooks';
 import { applyTheme, installThemeCss, rememberedTheme } from './theme';
+import { reloadForUpdate } from './chunkError';
 import './fonts';
 import './styles.css';
 
@@ -19,6 +20,8 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => undefined); });
 }
 
+// A file the page needs is gone because the site was updated while this tab was open: load the new page (once).
+window.addEventListener('vite:preloadError', (e) => { if (reloadForUpdate()) e.preventDefault(); });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
