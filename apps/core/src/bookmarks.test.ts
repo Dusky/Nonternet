@@ -114,13 +114,25 @@ describe.skipIf(!dbAvailable)('bookmarks', () => {
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
   afterAll(async () => { server.close(); await drop(); });
+  // Waits for a just-saved bookmark's page to be read.
+  const settled = async (c: Awaited<ReturnType<typeof loginAs>>, id: string) => {
+    for (let i = 0; i < 100; i++) {
+      const b = (await c.get(`/api/v1/bookmarks/${id}`)).body;
+      if (!b.fetching) return b;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    throw new Error('still reading the page');
+  };
 
   it('saves a link with the page\'s title, description and icon, and gives back the same one for the same address', async () => {
     const u = await makeUser(ctx);
     const c = await loginAs(ctx, u.handle);
     const r = await c.post('/api/v1/bookmarks', { url: `${base}/article?utm_source=feed`, tags: ['garden', 'Garden'] });
     expect(r.status).toBe(201);
-    expect(r.body.bookmark).toMatchObject({ title: 'Gardening for beginners', description: 'Start with tomatoes.', tags: ['garden'], visibility: 'private', has_icon: true, pinned: false });
+    // Saved at once under its address; the page is read just after.
+    expect(r.body.bookmark).toMatchObject({ title: `127.0.0.1/article`, tags: ['garden'], visibility: 'private', pinned: false, fetching: true });
+    const filled = await settled(c, r.body.bookmark.id);
+    expect(filled).toMatchObject({ title: 'Gardening for beginners', description: 'Start with tomatoes.', has_icon: true, fetching: false });
     const icon = await ctx.app.inject({ method: 'GET', url: `/api/v1/bookmarks/${r.body.bookmark.id}/icon`, headers: { cookie: `sid=${c.sid}` } });
     expect(icon.headers['content-type']).toBe('image/webp');
     expect((await sharp(icon.rawPayload).metadata()).width).toBe(32);
@@ -133,15 +145,47 @@ describe.skipIf(!dbAvailable)('bookmarks', () => {
 
   it('reads only the top of a big page, and still saves a link whose page fails', async () => {
     const c = await loginAs(ctx, (await makeUser(ctx)).handle);
-    expect((await c.post('/api/v1/bookmarks', { url: `${base}/big` })).body.bookmark.title).toBe('Big page');
+    expect((await settled(c, (await c.post('/api/v1/bookmarks', { url: `${base}/big` })).body.bookmark.id)).title).toBe('Big page');
     const broken = await c.post('/api/v1/bookmarks', { url: `${base}/broken/page` });
     expect(broken.status).toBe(201);
-    expect(broken.body.bookmark).toMatchObject({ title: '127.0.0.1/broken/page', description: '', has_icon: false });
+    expect(await settled(c, broken.body.bookmark.id)).toMatchObject({ title: '127.0.0.1/broken/page', description: '', has_icon: false });
     // What the person typed wins, and nothing is fetched when they gave both.
     const before = hits;
     const typed = await c.post('/api/v1/bookmarks', { url: `${base}/article/2`, title: 'My own name', description: '' });
     expect(typed.body.bookmark).toMatchObject({ title: 'My own name' });
     expect(hits).toBe(before);
+  });
+
+  it('keeps a title typed while the page was still being read', async () => {
+    const c = await loginAs(ctx, (await makeUser(ctx)).handle);
+    const r = await c.post('/api/v1/bookmarks', { url: `${base}/article/3` });
+    await c.patch(`/api/v1/bookmarks/${r.body.bookmark.id}`, { title: 'Renamed at once' });
+    expect(await settled(c, r.body.bookmark.id)).toMatchObject({ title: 'Renamed at once', description: 'Start with tomatoes.' });
+  });
+
+  it('filters by several tags, sorts four ways with paging, and exports a browser bookmarks file', async () => {
+    const c = await loginAs(ctx, (await makeUser(ctx)).handle);
+    const add = async (title: string, tags: string[], pinned = false) => (await c.post('/api/v1/bookmarks', { url: `https://example.com/${title}`, title, description: `About <${title}>`, tags, pinned })).body.bookmark.id as string;
+    await add('banana', ['fruit', 'yellow']);
+    await add('apple', ['fruit', 'red'], true);
+    await add('cherry', ['fruit', 'red']);
+    const titles = async (q: string) => (await c.get(`/api/v1/bookmarks?${q}`)).body.bookmarks.map((b: { title: string }) => b.title);
+    expect(await titles('tags=fruit,red&sort=title')).toEqual(['apple', 'cherry']);
+    expect(await titles('sort=newest')).toEqual(['cherry', 'apple', 'banana']);
+    expect(await titles('sort=oldest')).toEqual(['banana', 'apple', 'cherry']);
+    expect(await titles('sort=pinned')).toEqual(['apple', 'cherry', 'banana']);
+    // Paging follows the order it was asked for.
+    const first = (await c.get('/api/v1/bookmarks?sort=title&limit=2')).body;
+    expect(first.bookmarks.map((b: { title: string }) => b.title)).toEqual(['apple', 'banana']);
+    expect(await titles(`sort=title&limit=2&before=${first.next}`)).toEqual(['cherry']);
+    const file = await ctx.app.inject({ method: 'GET', url: '/api/v1/bookmarks/export.html', headers: { cookie: `sid=${c.sid}` } });
+    expect(file.headers['content-disposition']).toContain('bookmarks.html');
+    expect(file.body).toContain('<!DOCTYPE NETSCAPE-Bookmark-file-1>');
+    expect(file.body).toContain('<A HREF="https://example.com/apple" ADD_DATE="');
+    expect(file.body).toContain('TAGS="fruit,red">apple</A>\n<DD>About &lt;apple&gt;');
+    // The importer reads it back.
+    const { parseNetscape } = await import('./bookmarks-import');
+    expect(parseNetscape(file.body).map((b) => b.title)).toEqual(['banana', 'apple', 'cherry']);
   });
 
   it('refuses other schemes, guests, and other people\'s bookmarks', async () => {

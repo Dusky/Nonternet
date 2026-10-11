@@ -257,3 +257,9 @@ Terminal (long pastes sent in pieces), People (Away shown without a status), Hom
   badges all use the same rule. Like the board pointer it is a reading position, so it is left out of the export.
 - **Blocks apply to notifications.** Someone you blocked can't notify you at all: replies, mentions, reactions, memo
   replies and ring news, as well as mail. Their posts stay visible on boards.
+
+### 2026-10-11 — Bookmarks read the page after saving, in the core process
+"Save first, fetch in the background" runs in core itself rather than as a graphile-worker job: the job runner only starts
+when push is configured, and a lost fetch (a restart in between) only leaves the address as the title, which the person can
+edit. A set in memory says which bookmarks are still being read (`fetching` in the view). If core ever runs as more than
+one process, this moves to the job queue.

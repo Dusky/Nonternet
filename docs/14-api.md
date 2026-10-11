@@ -33,7 +33,7 @@ Homepages (built): `GET /homes/me`, `PATCH /homes/me`, `PUT|GET|DELETE /homes/me
 Moderation (built): `POST /mod-actions {action, post_id, reason, to_board?}` (hide, unhide, remove, lock, unlock, move), `POST /mod-actions/:id/undo`, `GET /modlog?board=&before=`, `POST /reports`, `GET /reports?status=&before=`, `POST /reports/:id/resolve`, `GET|POST /boards/:slug/ops`, `DELETE /boards/:slug/ops/:opId`. Event: `mod.action`.
 Notifications (built): `GET /notifications?before=&limit=` (each is `{id, kind, at, read, count, subject, place, link: {app, to}, actor}`, with the unread count), `GET /notifications/count` (`{unread, by_app: {boards, rings, admin?}, mentions}`: the numbers behind the icon badges; `admin` is open reports and only for admins), `POST /notifications/read {ids}`, `{all: true}` or `{kinds: [...]}`. `POST /mail/read-all` marks every conversation read.
 Built (M2): everything below except `PATCH` of ring boards, plus `PUT|DELETE /boards/:slug/watch`, `PUT|DELETE /boards/:slug/threads/:id/follow` (follow one thread), `GET /setup` (`{needed}`) and `POST /setup {token, handle, email, password}` (the installer's web finish: makes the first admin when `SETUP_TOKEN` is set and no admin exists yet, signs them in, audited `site.setup_finished`; 410 once an admin exists). `POST /images?alt=` (raw picture bytes, returns `{id, width, height}`), `GET /images/:id` (checks who may see the post or message it belongs to), `POST /admin/images/:id/hide|restore {reason}`. Bookmarks (`21`):
-- `GET /bookmarks?q=&tag=&pinned=&before=&limit=` returns `{bookmarks, next, total}`.
+- `GET /bookmarks?q=&tag=&tags=a,b&sort=newest|oldest|title|pinned&pinned=&before=&limit=` returns `{bookmarks, next, total}`; each bookmark has `fetching` (its page is still being read after saving). `GET /bookmarks/export.html` downloads every bookmark as a Netscape bookmarks file.
 - `GET /bookmarks/hub` returns `{pinned, recent, total}`.
 - `GET /bookmarks/tags`.
 - `POST /bookmarks {url, title?, description?, tags?, pinned?}`: 201, or 200 with `existing: true` for an address already saved. Rate-limited to 20 a minute.
@@ -182,6 +182,7 @@ All need a session. The data routes are what the shell's bridge calls on an app'
 `:wiki` is `site` or `ring:{slug}`. Reading is public; writing needs a session, and the rules in `20` decide who may.
 - `GET /api/v1/wiki/:wiki` (`can_edit`, `can_moderate`), `/pages`, `/changes`, `/wanted`, `/search?q=`.
 - `POST /api/v1/wiki/site/starter` (admins; 5 an hour): adds the starter help pages that don't exist yet, returns `{added: [titles]}`.
+- `GET /api/v1/wiki/:wiki/pages?include=removed`: the hidden and deleted pages, for that wiki's moderators (403 otherwise).
 - `GET /api/v1/wiki/:wiki/pages/:slug` (with `redirected_from` and `links`), `/history`, `/revisions/:n`, `/links-here`.
 - `PUT /api/v1/wiki/:wiki/pages/:slug {title, body, base_revision, summary}`: create (`base_revision: 0`) or edit; `409 edit_conflict` with `details.current`.
 - `POST …/pages/:slug/revert {revision, base_revision}`, `/rename {title, base_revision}`, `/protect|unprotect|hide|unhide|delete|restore {reason}`, `/revisions/:n/hide|show {reason}`, `/report {category, note}`.

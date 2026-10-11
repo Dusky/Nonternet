@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { bookmarkCreateSchema, bookmarkUpdateSchema, bookmarkletSource, sharedAddress, type BookmarkImportResult, type BookmarkPage, type BookmarkView, type BookmarkVisibility } from '@app/shared';
+import { BOOKMARK_SORTS, bookmarkCreateSchema, bookmarkUpdateSchema, type BookmarkSort, bookmarkletSource, sharedAddress, type BookmarkImportResult, type BookmarkPage, type BookmarkView, type BookmarkVisibility } from '@app/shared';
 import { api, ApiError } from '../../api';
 import { Alert, EmptyState, Loading, RelativeTime, TextField } from '../../components/ui';
 import { Icon } from '../../components/Icon';
@@ -35,12 +35,14 @@ function ListScreen() {
   const t = useT();
   const qc = useQueryClient();
   const [q, setQ] = useState('');
-  const [tag, setTag] = useState('');
+  const [picked, setPicked] = useState<string[]>([]);   // tags: bookmarks with all of them
+  const [sort, setSort] = useState<BookmarkSort>('newest');
+  const toggleTag = (x: string) => setPicked((p) => (p.includes(x) ? p.filter((y) => y !== x) : [...p, x]));
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [brokenOnly, setBrokenOnly] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [gone, setGone] = useState<Set<string>>(new Set());
-  const params = new URLSearchParams({ ...(q.trim() ? { q: q.trim() } : {}), ...(tag ? { tag } : {}), ...(pinnedOnly ? { pinned: 'true' } : {}), ...(brokenOnly ? { broken: 'true' } : {}) }).toString();
+  const params = new URLSearchParams({ ...(q.trim() ? { q: q.trim() } : {}), ...(picked.length ? { tags: picked.join(',') } : {}), ...(sort !== 'newest' ? { sort } : {}), ...(pinnedOnly ? { pinned: 'true' } : {}), ...(brokenOnly ? { broken: 'true' } : {}) }).toString();
   const key = [...LIST, params];
   const list = useInfiniteQuery({
     queryKey: key,
@@ -48,6 +50,8 @@ function ListScreen() {
     initialPageParam: '' as string,
     getNextPageParam: (last) => last.next ?? undefined,
     placeholderData: (prev) => prev,
+    // A bookmark saved a moment ago gets its title and icon once its page is read.
+    refetchInterval: (query) => (query.state.data?.pages.some((p) => p.bookmarks.some((b) => b.fetching)) ? 1500 : false),
   });
   const tags = useQuery({ queryKey: ['bookmarks', 'tags'], queryFn: () => api.get<{ tags: { tag: string; count: number }[] }>('/bookmarks/tags') }).data?.tags ?? [];
   const refresh = () => qc.invalidateQueries({ queryKey: ['bookmarks'] });
@@ -80,25 +84,32 @@ function ListScreen() {
   };
   const items = (list.data?.pages.flatMap((p) => p.bookmarks) ?? []).filter((b) => !gone.has(b.id));
   const total = list.data?.pages[0]?.total ?? 0;
-  const filtered = Boolean(q.trim() || tag || pinnedOnly || brokenOnly);
+  const filtered = Boolean(q.trim() || picked.length || pinnedOnly || brokenOnly);
 
   return (
     <>
       <QuickAdd />
       <div className="toolbar bookmarks-filters">
         <TextField label={t('bookmarks.search')} type="search" value={q} onChange={setQ} />
-        {tags.length > 0 && (
-          <div className="field">
-            <label htmlFor="bm-tag">{t('bookmarks.tag')}</label>
-            <select id="bm-tag" value={tag} onChange={(e) => setTag(e.target.value)}>
-              <option value="">{t('bookmarks.allTags')}</option>
-              {tags.map((x) => <option key={x.tag} value={x.tag}>{`${x.tag} (${x.count})`}</option>)}
-            </select>
-          </div>
-        )}
+        <div className="field">
+          <label htmlFor="bm-sort">{t('bookmarks.sort')}</label>
+          <select id="bm-sort" value={sort} onChange={(e) => setSort(e.target.value as BookmarkSort)}>
+            {BOOKMARK_SORTS.map((x) => <option key={x} value={x}>{t(`bookmarks.sort.${x}`)}</option>)}
+          </select>
+        </div>
         <label className="check"><input type="checkbox" checked={pinnedOnly} onChange={(e) => setPinnedOnly(e.target.checked)} /> {t('bookmarks.pinnedOnly')}</label>
         <label className="check"><input type="checkbox" checked={brokenOnly} onChange={(e) => setBrokenOnly(e.target.checked)} /> {t('bookmarks.brokenOnly')}</label>
       </div>
+      {tags.length > 0 && (
+        <div className="choice-row bookmark-tagbar" role="group" aria-label={t('bookmarks.filterTags')}>
+          {tags.map((x) => (
+            <button key={x.tag} type="button" className="badge tag" aria-pressed={picked.includes(x.tag)} onClick={() => toggleTag(x.tag)}>
+              {x.tag} <span className="muted">{x.count}</span>
+            </button>
+          ))}
+          {picked.length > 0 && <button type="button" className="link" onClick={() => setPicked([])}>{t('bookmarks.clearTags')}</button>}
+        </div>
+      )}
       {list.isError && <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>}
       {list.isPending && <Loading rows={4} />}
       {list.isSuccess && items.length === 0 && (filtered ? <EmptyState>{t('bookmarks.noMatch')}</EmptyState> : <EmptyState icon="link">{t('bookmarks.none')}</EmptyState>)}
@@ -115,6 +126,7 @@ function ListScreen() {
                     <a className="bookmark-title" href={b.url} target="_blank" rel="noopener noreferrer">{b.title}</a>
                     <span className="row-meta">
                       {b.host} · <RelativeTime iso={b.created_at} />
+                      {b.fetching && <> · {t('bookmarks.reading')}</>}
                       {b.visibility === 'public' && <>{' '}<span className="badge">{t('bookmarks.badge.public')}</span></>}
                       {b.visibility === 'ring' && b.ring && <>{' '}<span className="badge">{t('bookmarks.badge.ring', { name: b.ring.name })}</span></>}
                     </span>
@@ -123,7 +135,7 @@ function ListScreen() {
                     {b.description && <p className="bookmark-desc">{b.description}</p>}
                     {b.tags.length > 0 && (
                       <ul className="tags" aria-label={t('bookmarks.tags')}>
-                        {b.tags.map((x) => <li key={x}><button type="button" className="badge tag" aria-pressed={tag === x} onClick={() => setTag(tag === x ? '' : x)}>{x}</button></li>)}
+                        {b.tags.map((x) => <li key={x}><button type="button" className="badge tag" aria-pressed={picked.includes(x)} onClick={() => toggleTag(x)}>{x}</button></li>)}
                       </ul>
                     )}
                   </div>
@@ -144,6 +156,7 @@ function ListScreen() {
       </ul>
       {list.hasNextPage && <button type="button" className="btn" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>{t('bookmarks.more')}</button>}
       <ImportFile />
+      <p><a className="btn" href="/api/v1/bookmarks/export.html" download>{t('bookmarks.export')}</a></p>
       <Bookmarklet />
     </>
   );

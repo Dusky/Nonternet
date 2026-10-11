@@ -46,6 +46,9 @@ Apps (`10`) are for a person's own data only.
 - **Import:** the usual browser bookmarks HTML file, and a Linkding/Linkwarden JSON export if the format is stable
   (VERIFIED 2026-10-11 for Linkding: it exports the same HTML as browsers; Linkwarden's JSON is still unchecked and not built). **Export** is required (below).
 - A browser extension is out of scope for now.
+- **Saving is instant (2026-10-11):** the web add form saves the bookmark at once, named after its address, and reads the
+  page just after; the title, description and icon fill in a moment later (the row says "reading the page…" and the list
+  refreshes until it's done). Anything the person typed, or changed in the meantime, is kept. Imports never read pages.
 
 ## Ownership, export, deletion
 - `bookmarks.json` in the export holds every bookmark (all visibilities), with tags and ring names; favicons are not
@@ -71,7 +74,9 @@ checked_at, link_ok, created_at, updated_at, hidden_at, hidden_reason, search)`,
 - Reading a page takes at most its first 512 KB (8 seconds) and up to three icon addresses (200 KB each).
 
 ## API (`/api/v1/bookmarks`)
-As built in B1: `GET` list (`tag`, `pinned`, `q`, and a `before` cursor), `GET /hub` (pinned plus the eight newest, for the home
+As built in B1: `GET` list (`tag`, `tags` (comma-separated, all of them), `sort` (`newest`, `oldest`, `title`,
+`pinned`), `pinned`, `q`, and a `before` cursor that follows the sort), `GET /export.html` (every bookmark as a
+Netscape bookmarks file, the format browsers and the importer read), `GET /hub` (pinned plus the eight newest, for the home
 panel), `GET /:id/icon`. Planned: `ring` and `visibility` filters. `POST` add (`{url, title?, description?, tags?, visibility?,
 ring?}`), `GET/PATCH/DELETE /:id`, `POST /:id/check`, `GET /tags`, `POST /import`, `GET /public/:handle`. Limits: 20
 adds a minute (the fetch is the costly part), 10,000 bookmarks per person.

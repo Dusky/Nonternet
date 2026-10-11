@@ -38,12 +38,18 @@ export const bookmarkUpdateSchema = z.object({
 }).partial().refine((v) => Object.keys(v).length > 0, 'nothing to change')
   .refine((v) => v.visibility !== 'ring' || !!v.ring, { path: ['ring'], message: 'choose the ring to share it with' });
 
+export const BOOKMARK_SORTS = ['newest', 'oldest', 'title', 'pinned'] as const;
+export type BookmarkSort = (typeof BOOKMARK_SORTS)[number];
+
 export const bookmarkListQuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
   tag: z.string().trim().toLowerCase().max(20).optional(),
+  // Several tags, comma-separated: bookmarks with all of them.
+  tags: z.string().trim().toLowerCase().max(200).transform((s) => s.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 10)).optional(),
+  sort: z.enum(BOOKMARK_SORTS).default('newest'),
   pinned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   broken: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),   // links that did not answer when last checked
-  before: z.string().max(80).optional(),         // the `next` cursor from the last page
+  before: z.string().max(400).optional(),        // the `next` cursor from the last page
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
@@ -53,6 +59,7 @@ export interface BookmarkView {
   host: string; has_icon: boolean; created_at: string; updated_at: string;
   link_ok: boolean | null; checked_at: string | null;
   hidden: { reason: string } | null;          // a moderator took it down: the owner still sees it, nobody else does
+  fetching: boolean;                           // just saved: its page's title, description and icon are still being read
 }
 // A bookmark as other people see it: on a profile, a ring page or in a feed.
 export interface SharedBookmarkView {

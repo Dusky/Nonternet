@@ -5,7 +5,7 @@ import { ctxOf, requireUser } from '../http';
 import { viewerOf } from '../boards';
 import type { AppDeps } from '../deps';
 import * as bookmarks from '../bookmarks';
-import { IMPORT_MAX_BYTES, importFile } from '../bookmarks-import';
+import { IMPORT_MAX_BYTES, importFile, toNetscape } from '../bookmarks-import';
 
 const id = z.object({ id: z.string().regex(/^bm_[0-9A-Z]{26}$/, 'not a bookmark ID') });
 
@@ -17,8 +17,14 @@ export function bookmarkRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/bookmarks/tags', async (req) => ({ tags: await bookmarks.tagCounts(deps, requireUser(req)) }));
   // Reading the page is the costly part, so adding is limited.
   app.post('/api/v1/bookmarks', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req, reply) => {
-    const r = await bookmarks.addBookmark(deps, requireUser(req), bookmarkCreateSchema.parse(req.body));
+    const r = await bookmarks.addBookmark(deps, requireUser(req), bookmarkCreateSchema.parse(req.body), { fetch: 'later' });
     return reply.code(r.existing ? 200 : 201).send(r);
+  });
+  // Every bookmark as a browser bookmarks file, to take them anywhere.
+  app.get('/api/v1/bookmarks/export.html', async (req, reply) => {
+    const all = await bookmarks.allBookmarks(deps, requireUser(req));
+    return reply.type('text/html; charset=utf-8').header('content-disposition', 'attachment; filename="bookmarks.html"')
+      .header('x-content-type-options', 'nosniff').header('content-security-policy', "sandbox; default-src 'none'").send(toNetscape(all));
   });
   app.post('/api/v1/bookmarks/:id/check', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) => bookmarks.checkBookmark(deps, requireUser(req), id.parse(req.params).id));
   // A bookmarks file from a browser or Linkding: the raw bytes, as for pictures.

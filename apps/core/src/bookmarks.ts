@@ -4,7 +4,7 @@ import {
   type BookmarkPage, type BookmarkView, type BookmarkVisibility, type SharedBookmarkPage, type SharedBookmarkView,
 } from '@app/shared';
 import type { z } from 'zod';
-import { bookmarkCreateSchema, type bookmarkListQuerySchema, type bookmarkUpdateSchema } from '@app/shared';
+import { bookmarkCreateSchema, type BookmarkSort, type bookmarkListQuerySchema, type bookmarkUpdateSchema } from '@app/shared';
 import type { Ctx, SessionUser } from './accounts';
 import { isMember, type Viewer } from './boards';
 import { audit } from './audit';
@@ -31,11 +31,16 @@ const COLUMNS = `b.id, b.url, b.title, b.description, b.tags, b.pinned, b.visibi
 const FROM = `FROM bookmarks b LEFT JOIN rings g ON g.id = b.ring_id`;
 
 const hostOf = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
+// Bookmarks whose page is being read right now, after they were saved (one core process, so memory is enough;
+// a restart in between leaves the address as the title, which the person can edit).
+const reading = new Set<string>();
+
 const toView = (r: Row): BookmarkView => ({
   id: r.id, url: r.url, title: r.title, description: r.description, tags: r.tags, pinned: r.pinned, visibility: r.visibility,
   ring: r.ring_slug ? { slug: r.ring_slug, name: r.ring_name! } : null, host: hostOf(r.url), has_icon: r.has_icon,
   created_at: r.created_at.toISOString(), updated_at: r.updated_at.toISOString(), link_ok: r.link_ok, checked_at: r.checked_at?.toISOString() ?? null,
   hidden: r.hidden_at ? { reason: r.hidden_reason ?? '' } : null,
+  fetching: reading.has(r.id),
 });
 
 // What anyone may see (docs/21): shared, not taken down, by someone active, and for a ring bookmark a ring that is not
@@ -185,7 +190,9 @@ export async function getBookmark(deps: AppDeps, v: SessionUser, id: string, q: 
 
 // Saves a link. An address they already have (compared without the fragment and tracking parameters) gives back the
 // bookmark they have, unchanged, with `existing: true`.
-export async function addBookmark(deps: AppDeps, v: SessionUser, input: z.infer<typeof bookmarkCreateSchema>, opts: { fetch?: boolean } = {}): Promise<{ bookmark: BookmarkView; existing: boolean }> {
+// `fetch`: read the page first (true, the default), not at all (false, for imports), or after saving ('later', for the
+// web: the bookmark is there at once and its title, description and icon arrive a moment after).
+export async function addBookmark(deps: AppDeps, v: SessionUser, input: z.infer<typeof bookmarkCreateSchema>, opts: { fetch?: boolean | 'later' } = {}): Promise<{ bookmark: BookmarkView; existing: boolean }> {
   mustBeMember(v);
   const key = bookmarkKey(input.url);
   const had = await deps.db.query<{ id: string }>(`SELECT id FROM bookmarks WHERE user_id = $1 AND url_key = $2`, [v.userId, key]);
@@ -193,7 +200,8 @@ export async function addBookmark(deps: AppDeps, v: SessionUser, input: z.infer<
   const count = await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM bookmarks WHERE user_id = $1`, [v.userId]);
   if (Number(count.rows[0]!.n) >= BOOKMARKS_MAX) throw new ApiError(409, 'too_many', `You can keep up to ${BOOKMARKS_MAX.toLocaleString('en')} bookmarks. Remove some to add more.`);
   // What the person typed wins; the page fills in the rest.
-  const page = opts.fetch === false || (input.title && input.description !== undefined) ? null : await fetchPage(deps, input.url);
+  const wants = !(input.title && input.description !== undefined);
+  const page = opts.fetch === false || opts.fetch === 'later' || !wants ? null : await fetchPage(deps, input.url);
   const ringId = input.visibility === 'ring' ? await ringFor(deps.db, v, input.ring!) : null;
   const id = newId('bm');
   const title = input.title || page?.title || hostOf(input.url) + new URL(input.url).pathname.replace(/\/$/, '');
@@ -209,7 +217,23 @@ export async function addBookmark(deps: AppDeps, v: SessionUser, input: z.infer<
     }
     throw e;
   }
+  if (opts.fetch === 'later' && wants) {
+    reading.add(id);
+    void fillFromPage(deps, id, input, title).finally(() => reading.delete(id));
+  }
   return { bookmark: await getBookmark(deps, v, id), existing: false };
+}
+
+// The page's title, description and icon, written only where the person didn't type their own and hasn't changed it since.
+async function fillFromPage(deps: AppDeps, id: string, input: z.infer<typeof bookmarkCreateSchema>, placeholder: string): Promise<void> {
+  try {
+    const page = await fetchPage(deps, input.url);
+    if (page.title && !input.title) {
+      await deps.db.query(`UPDATE bookmarks SET title = $2 WHERE id = $1 AND title = $3`, [id, [...page.title].slice(0, BOOKMARK_TITLE_MAX).join(''), [...placeholder].slice(0, BOOKMARK_TITLE_MAX).join('')]);
+    }
+    if (page.description && input.description === undefined) await deps.db.query(`UPDATE bookmarks SET description = $2 WHERE id = $1 AND description = ''`, [id, page.description]);
+    if (page.icon) await deps.db.query(`UPDATE bookmarks SET favicon = $2 WHERE id = $1 AND favicon IS NULL`, [id, page.icon]);
+  } catch { /* the bookmark stays as saved */ }
 }
 
 export async function updateBookmark(deps: AppDeps, v: SessionUser, id: string, input: z.infer<typeof bookmarkUpdateSchema>): Promise<BookmarkView> {
@@ -249,19 +273,42 @@ export async function listBookmarks(deps: AppDeps, v: SessionUser, query: z.infe
   const params: unknown[] = [v.userId];
   const add = (sql: string, val: unknown) => { params.push(val); where.push(sql.replace('?', `$${params.length}`)); };
   if (query.tag) add('? = ANY(b.tags)', query.tag);
+  if (query.tags?.length) add('b.tags @> ?::text[]', query.tags);
   if (query.pinned !== undefined) add('b.pinned = ?', query.pinned);
   if (query.broken) where.push('b.link_ok = false');
   if (query.q) add(`b.search @@ websearch_to_tsquery('simple', ?)`, query.q);
   const total = Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM bookmarks b WHERE ${where.join(' AND ')}`, params)).rows[0]!.n);
+  // Each order is a tuple read in one direction, so the cursor is "after this tuple".
+  const order = SORTS[query.sort];
   if (query.before) {
-    const [at, bid] = query.before.split('|');
-    if (at && bid && !Number.isNaN(Date.parse(at))) { params.push(at, bid); where.push(`(b.created_at, b.id) < ($${params.length - 1}::timestamptz, $${params.length})`); }
+    let after: unknown[] | null = null;
+    try { after = JSON.parse(Buffer.from(query.before, 'base64url').toString('utf8')) as unknown[]; } catch { /* a bad cursor starts at the top */ }
+    if (Array.isArray(after) && after.length === order.cols.length && after.every((x) => typeof x === 'string' || typeof x === 'boolean')) {
+      const marks = after.map((x, i) => { params.push(x); return `$${params.length}${order.casts[i]}`; });
+      where.push(`(${order.cols.join(', ')}) ${order.desc ? '<' : '>'} (${marks.join(', ')})`);
+    }
   }
   params.push(query.limit + 1);
-  const r = await deps.db.query<Row>(`SELECT ${COLUMNS} ${FROM} WHERE ${where.join(' AND ')} ORDER BY b.created_at DESC, b.id DESC LIMIT $${params.length}`, params);
+  const dir = order.desc ? 'DESC' : 'ASC';
+  const r = await deps.db.query<Row & { sort_key: unknown[] }>(
+    `SELECT ${COLUMNS}, json_build_array(${order.cols.join(', ')}) AS sort_key ${FROM} WHERE ${where.join(' AND ')}
+      ORDER BY ${order.cols.map((c) => `${c} ${dir}`).join(', ')} LIMIT $${params.length}`, params);
   const rows = r.rows.slice(0, query.limit);
   const last = rows.at(-1);
-  return { bookmarks: rows.map(toView), next: r.rows.length > query.limit && last ? `${last.created_at.toISOString()}|${last.id}` : null, total };
+  return { bookmarks: rows.map(toView), next: r.rows.length > query.limit && last ? Buffer.from(JSON.stringify(last.sort_key)).toString('base64url') : null, total };
+}
+
+const SORTS: Record<BookmarkSort, { cols: string[]; casts: string[]; desc: boolean }> = {
+  newest: { cols: ['b.created_at', 'b.id'], casts: ['::timestamptz', ''], desc: true },
+  oldest: { cols: ['b.created_at', 'b.id'], casts: ['::timestamptz', ''], desc: false },
+  title: { cols: ['lower(b.title)', 'b.id'], casts: ['', ''], desc: false },
+  pinned: { cols: ['b.pinned', 'b.created_at', 'b.id'], casts: ['::boolean', '::timestamptz', ''], desc: true },
+};
+
+// Every bookmark, oldest first, for the browser-file export.
+export async function allBookmarks(deps: AppDeps, v: SessionUser): Promise<BookmarkView[]> {
+  const r = await deps.db.query<Row>(`SELECT ${COLUMNS} ${FROM} WHERE b.user_id = $1 ORDER BY b.created_at, b.id`, [v.userId]);
+  return r.rows.map(toView);
 }
 
 // "Check this link" (docs/21): on request only, never automatic. Any answer (after redirects) counts as answering; a refusal,

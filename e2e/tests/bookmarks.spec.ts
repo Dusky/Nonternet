@@ -39,10 +39,20 @@ test('save a link, tag and pin it, find it, and see it on the home screen', asyn
   await expect(page.getByRole('link', { name: 'Tomato notes' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Something else' })).toHaveCount(0);
   await page.getByLabel('Search your bookmarks').fill('');
-  await page.getByLabel('Tag', { exact: true }).selectOption('food');
+  // Tags are chips; picking two shows bookmarks with both.
+  const chips = page.getByRole('group', { name: 'Show only these tags' });
+  await chips.getByRole('button', { name: /^food/ }).click();
+  await chips.getByRole('button', { name: /^garden/ }).click();
+  await expect(chips.getByRole('button', { name: /^garden/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('link', { name: 'Something else' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Tomato notes' })).toBeVisible();
   await axe(page);
+  await page.getByRole('button', { name: 'Clear tags' }).click();
+  await page.getByLabel('Sort').selectOption('title');
+  await expect(page.locator('.bookmark-title')).toHaveText(['Something else', 'Tomato notes']);
+  // Everything as a file a browser can import.
+  const file = await page.request.get(await page.getByRole('link', { name: 'Download as a browser bookmarks file' }).getAttribute('href') ?? '');
+  expect(await file.text()).toContain('>Tomato notes</A>');
 
   await page.goto('/');
   const panel = page.getByRole('region', { name: 'Bookmarks' });

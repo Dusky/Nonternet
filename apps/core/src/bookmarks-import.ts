@@ -64,6 +64,19 @@ export function parseNetscape(html: string): ParsedBookmark[] {
   return out;
 }
 
+// The other way: every bookmark as a Netscape file that browsers (and the importer above) read. Tags go in TAGS, the
+// description in <DD>, the date saved in ADD_DATE. Everything is escaped; nothing from a bookmark becomes markup.
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+export function toNetscape(items: { url: string; title: string; description: string; tags: string[]; created_at: string }[]): string {
+  const lines = items.map((b) => {
+    const added = Math.floor(Date.parse(b.created_at) / 1000);
+    const tags = b.tags.length ? ` TAGS="${esc(b.tags.join(','))}"` : '';
+    const dd = b.description ? `\n<DD>${esc(b.description)}` : '';
+    return `<DT><A HREF="${esc(b.url)}" ADD_DATE="${added}"${tags}>${esc(b.title)}</A>${dd}`;
+  });
+  return ['<!DOCTYPE NETSCAPE-Bookmark-file-1>', '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">', '<TITLE>Bookmarks</TITLE>', '<H1>Bookmarks</H1>', '<DL><p>', ...lines, '</DL><p>', ''].join('\n');
+}
+
 export async function importFile(deps: AppDeps, v: SessionUser, bytes: Buffer): Promise<BookmarkImportResult> {
   if (!bytes.length) throw new ApiError(400, 'empty', 'Choose a bookmarks file to import.');
   if (bytes.length > IMPORT_MAX_BYTES) throw new ApiError(413, 'too_big', 'That file is too big. Bookmark files can be up to 5 MB.');
