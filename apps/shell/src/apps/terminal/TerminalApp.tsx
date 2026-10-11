@@ -48,6 +48,21 @@ const KEYS: { label: string; seq: string; name: StringKey }[] = [
 const FKEYS = ['\x1bOP', '\x1bOQ', '\x1bOR', '\x1bOS', '\x1b[15~', '\x1b[17~', '\x1b[18~', '\x1b[19~', '\x1b[20~', '\x1b[21~'];
 
 // What a key does with Ctrl or Alt held from the on-screen row: Ctrl+letter is the control byte, Alt is Escape first.
+// The BBS reads at most 4096 characters from one message, so long input (a big paste) goes in pieces.
+// Pieces never split a surrogate pair.
+export const INPUT_CHUNK = 4000;
+export function chunkInput(d: string, size = INPUT_CHUNK): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < d.length) {
+    let end = Math.min(i + size, d.length);
+    if (end < d.length && /[\uD800-\uDBFF]/.test(d[end - 1]!)) end -= 1;
+    out.push(d.slice(i, end));
+    i = end;
+  }
+  return out;
+}
+
 export function withModifiers(d: string, mods: { ctrl: boolean; alt: boolean }): string {
   let out = d;
   if (mods.ctrl && out.length === 1) {
@@ -85,7 +100,7 @@ export default function TerminalApp() {
   const send = useCallback((m: object) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(m)); }, []);
   const type = useCallback((d: string) => {
     const m = modsRef.current;
-    send({ t: 'in', d: m.ctrl || m.alt ? withModifiers(d, m) : d });
+    for (const piece of chunkInput(m.ctrl || m.alt ? withModifiers(d, m) : d)) send({ t: 'in', d: piece });
     if (m.ctrl || m.alt) setMods({ ctrl: false, alt: false });
   }, [send]);
 
@@ -95,7 +110,7 @@ export default function TerminalApp() {
     try { await navigator.clipboard.writeText(text); toast(t('common.copied')); } catch { toast(t('terminal.clipboardBlocked')); }
   }, [t, toast]);
   const paste = useCallback(async () => {
-    try { const text = await navigator.clipboard.readText(); if (text) send({ t: 'in', d: text.replace(/\r?\n/g, '\r') }); } catch { toast(t('terminal.clipboardBlocked')); }
+    try { const text = await navigator.clipboard.readText(); if (text) for (const piece of chunkInput(text.replace(/\r?\n/g, '\r'))) send({ t: 'in', d: piece }); } catch { toast(t('terminal.clipboardBlocked')); }
     term.current?.focus();
   }, [send, t, toast]);
 

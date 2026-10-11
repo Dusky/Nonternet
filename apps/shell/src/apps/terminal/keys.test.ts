@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { withModifiers } from './TerminalApp';
+import { chunkInput, withModifiers } from './TerminalApp';
 import { parsePrefs } from '../../devicePrefs';
 
 describe('on-screen Ctrl and Alt', () => {
@@ -16,5 +16,17 @@ describe('terminal preferences on this device', () => {
   it('keeps known values and falls back for anything odd', () => {
     expect(parsePrefs('terminal', JSON.stringify({ scrollback: 5000, bell: 'sound', copyOnSelect: true }))).toMatchObject({ scrollback: 5000, bell: 'sound', copyOnSelect: true, fontSize: 16 });
     expect(parsePrefs('terminal', JSON.stringify({ scrollback: 123, bell: 'loud' }))).toMatchObject({ scrollback: 2000, bell: 'flash' });
+  });
+});
+
+describe('long input', () => {
+  it('goes in pieces the BBS will take whole, without splitting an emoji', () => {
+    const big = 'a'.repeat(9000);
+    const parts = chunkInput(big);
+    expect(parts.map((p) => p.length)).toEqual([4000, 4000, 1000]);
+    expect(parts.join('')).toBe(big);
+    const emoji = `${'a'.repeat(3)}😀b`;
+    expect(chunkInput(emoji, 4)).toEqual(['aaa', '😀b']);
+    expect(chunkInput('')).toEqual([]);
   });
 });
