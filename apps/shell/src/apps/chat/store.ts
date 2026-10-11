@@ -5,7 +5,7 @@ import { api, ApiError } from '../../api';
 import type { StringKey } from '@app/strings';
 import { backoffMs } from '../../reconnect';
 import { mentions } from './format';
-import { TYPING_SHOW_MS } from './helpers';
+import { TYPING_SHOW_MS, type PresenceChoice } from './helpers';
 import { arrive } from '../../alerts';
 import { setChatWaiting } from '../../shell/chatBadge';
 import type { ChatClient } from '@app/shared';
@@ -20,9 +20,9 @@ export interface Buffer { name: string; kind: 'channel' | 'query' | 'server'; me
 export type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error';
 
 interface ChatState {
-  status: Status; error: string | null; nick: string; active: string; buffers: Map<string, Buffer>; muted: Set<string>;
+  status: Status; error: string | null; nick: string; active: string; buffers: Map<string, Buffer>; muted: Set<string>; presence: Record<string, PresenceChoice>;
   away: Set<string>; settings: ChatClient; alertText: { mention: string; dm: string; title: string } | null;
-  connect(): void; disconnect(): void; select(name: string): void; openQuery(nick: string): void; typing(): void; doneTyping(): void; send(text: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void;
+  connect(): void; disconnect(): void; select(name: string): void; openQuery(nick: string): void; typing(): void; doneTyping(): void; send(text: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void; setPresence(channel: string, choice: PresenceChoice | null): void;
   loadOlder(name: string): void; ignore(nick: string, on: boolean): void; setHighlights(words: string[]): void; setAlertText(t: ChatState['alertText']): void;
 }
 
@@ -34,6 +34,7 @@ const SERVER = '*';
 const MAX_MESSAGES = 2000;
 const QUERIES_KEY = 'chat:queries'; // conversations with one person that are open, reopened after a reload
 const MUTED_KEY = 'chat:muted';
+const PRESENCE_KEY = 'chat:presence:'; // + the person's nick: their per-channel choice about joins and leaves
 const CHANNELS_KEY = 'chat:channels'; // the channels this person has open, rejoined after a drop or a reload
 let attempt = 0;
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -59,6 +60,13 @@ function rememberQuery(nick: string, open: boolean) {
   const rest = loadQueries().filter((n) => n.toLowerCase() !== nick.toLowerCase());
   try { localStorage.setItem(QUERIES_KEY, JSON.stringify(open ? [...rest, nick] : rest)); } catch { /* private window */ }
 }
+function loadPresence(nick: string): Record<string, PresenceChoice> {
+  try {
+    const v = JSON.parse(localStorage.getItem(PRESENCE_KEY + nick.toLowerCase()) ?? '{}') as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(v).filter(([k, c]) => /^[#&]/.test(k) && (c === 'show' || c === 'hide'))) as Record<string, PresenceChoice>;
+  } catch { return {}; }
+}
+function savePresence(nick: string, p: Record<string, PresenceChoice>) { try { localStorage.setItem(PRESENCE_KEY + nick.toLowerCase(), JSON.stringify(p)); } catch { /* private window */ } }
 function saveMuted(m: Set<string>) { try { localStorage.setItem(MUTED_KEY, JSON.stringify([...m])); } catch { /* private window */ } }
 
 // The channels this person has open, kept so a reload or a dropped connection comes back to them.
@@ -139,7 +147,7 @@ export const useChat = create<ChatState>((set, get) => {
       client = c;
       c.requestCap(['draft/chathistory', 'draft/event-playback', 'message-tags', 'away-notify']);
       void api.get<{ settings: ChatClient }>('/me/client-settings/chat').then((r) => set({ settings: r.settings })).catch(() => undefined);
-      set({ nick: t.nick });
+      set({ nick: t.nick, presence: loadPresence(t.nick) });
       c.on('registered', () => {
         attempt = 0;
         set({ status: 'connected', nick: c.user.nick });
@@ -252,7 +260,7 @@ export const useChat = create<ChatState>((set, get) => {
   };
 
   return {
-    status: 'idle', error: null, nick: '', active: SERVER, buffers: new Map([[SERVER, newBuffer(SERVER, 'server')]]), muted: loadMuted(),
+    status: 'idle', error: null, nick: '', active: SERVER, buffers: new Map([[SERVER, newBuffer(SERVER, 'server')]]), muted: loadMuted(), presence: {},
     away: new Set(), settings: DEFAULT_SETTINGS, alertText: null,
     setAlertText(text) { set({ alertText: text }); },
 
@@ -333,6 +341,15 @@ export const useChat = create<ChatState>((set, get) => {
       set((s) => { const buffers = new Map(s.buffers); buffers.delete(key(name)); return { buffers, active: SERVER }; });
     },
 
+    setPresence(channel, choice) {
+      set((s) => {
+        const presence = { ...s.presence };
+        if (choice) presence[key(channel)] = choice; else delete presence[key(channel)];
+        if (s.nick) savePresence(s.nick, presence);
+        return { presence };
+      });
+    },
+
     toggleMute(name) {
       set((s) => { const muted = new Set(s.muted); if (muted.has(key(name))) muted.delete(key(name)); else muted.add(key(name)); saveMuted(muted); return { muted }; });
     },
@@ -361,6 +378,14 @@ export const useChat = create<ChatState>((set, get) => {
           }
           case 'topic': if (target && isChannel(target)) client.setTopic(target, arg); return;
           case 'nick': return note('chat.note.nick', 'error');
+          case 'presence': {
+            if (!target || !isChannel(target)) return note('chat.note.openFirst', 'error');
+            const choice = { on: 'show', show: 'show', off: 'hide', hide: 'hide', default: null } as const;
+            const c = (rest[0] ?? '').toLowerCase() as keyof typeof choice;
+            if (!(c in choice)) return note('chat.note.presenceUsage', 'error');
+            get().setPresence(target, choice[c]);
+            return note('chat.note.presence');
+          }
           case 'help': case '?': return note('chat.note.help');
           case 'away': {
             if (arg) { client.raw('AWAY', arg.slice(0, 160)); return note('chat.note.away'); }

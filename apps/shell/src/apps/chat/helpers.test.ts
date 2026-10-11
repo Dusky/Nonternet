@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findLines, groupBuffers, completeNick, completeWord, dayKey, dayLabel, nickColour, splitPaste, typingNow, foldPresence } from './helpers';
+import { findLines, groupBuffers, completeNick, completeWord, dayKey, dayLabel, nickColour, splitPaste, typingNow, foldPresence, showPresence, PRESENCE_KINDS } from './helpers';
 
 const nicks = ['alice', 'Alma', 'bob'];
 
@@ -95,5 +95,18 @@ describe('finding words in what is loaded', () => {
     const g = groupBuffers([b('#b', 'channel'), b('#a', 'channel', 2), b('zed', 'query', 1), b('amy', 'query', 3, true), b('*', 'server'), b('#c', 'channel', 1, true)]);
     expect(g.channels.map((x) => x.name)).toEqual(['*', '#c', '#a', '#b']);
     expect(g.queries.map((x) => x.name)).toEqual(['amy', 'zed']);
+  });
+});
+
+describe('showPresence', () => {
+  it('follows the Settings default unless the channel has its own choice', () => {
+    expect(showPresence('#help', {}, true)).toBe(true);
+    expect(showPresence('#help', {}, false)).toBe(false);
+    expect(showPresence('#Help', { '#help': 'hide' }, true)).toBe(false);
+    expect(showPresence('#help', { '#help': 'show' }, false)).toBe(true);
+    expect(showPresence('#other', { '#help': 'hide' }, true)).toBe(true);
+  });
+  it('covers joins, leaves, quits and nick changes, not talk', () => {
+    expect([...PRESENCE_KINDS].sort()).toEqual(['join', 'nick', 'part', 'quit']);
   });
 });

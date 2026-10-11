@@ -66,7 +66,9 @@ A small client in the shell built on **irc-framework** (Kiwi IRC's library, MIT)
 with the site's registered channels, a people list with op prefixes, scrollback from server history
 (`CHATHISTORY LATEST`, 100 lines), `/me`, `/join`, `/part`, `/msg`, `/topic`, mIRC formatting
 (colours are drawn toward the theme's text colour so they stay readable), links, unread and mention
-badges, and per-channel mute (kept on the device). Your own lines are echoed back by the server
+badges, and per-channel mute (kept on the device). Joins, leaves, quits and nick changes are part of IRC and are
+shown by default; Settings → Chat turns them off everywhere, and each channel's **Channel options** menu (or
+`/presence on|off|default`) can show or hide them in that channel only, kept on the device per person. Your own lines are echoed back by the server
 (`echo-message`), so history and live lines never double up.
 Added in the polish phase (P4, 2026-10-02):
 - **Alerts.** A mention, a highlight word or a private message goes through the site's own alerts (desktop notice and chime when the person turned them on) and adds to the browser tab's count. A muted channel still shows a badge when you are mentioned.

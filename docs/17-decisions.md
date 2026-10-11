@@ -229,3 +229,9 @@ gives small text its optical-size cut. Smaller fixes alongside: quiet buttons in
 style, radio labels stop inheriting the bold field-label rule (which also forced them onto their own lines), and metadata in Space
 Mono goes from 12px to 13px. Theme colours and the type choices themselves are unchanged.
 
+### 2026-10-11 — Chat: joins and leaves are a per-channel choice, not noise to remove
+The app reviews listed some normal IRC behaviour as bugs (instant kicks, join/part lines, notices from services getting
+their own tab, no badge for mentions while Chat was closed). Those stay as they are; the review summary marks them.
+Joins, leaves, quits and nick changes now follow the Settings switch by default, and each channel can show or hide
+them from its Channel options menu or with `/presence on|off|default`, as HexChat does. The choice is a device
+preference like mute (`chat:presence:<nick>`), so it is not in the export.

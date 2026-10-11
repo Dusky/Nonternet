@@ -234,7 +234,7 @@ plain, a "what's new" home, and the full landing page. No new themes.
   turned off (nothing is made at all: not in the list, the badge or a browser alert); boards can be muted from their page
   (a mention still gets through); mail conversations can be muted (kept in the inbox, not counted as unread); an optional
   daily email summary appears only when the site has SMTP. Defaults are everything on.
-- **On this device** (localStorage, not exported): Chat (timestamps, join/leave lines), Boards (default view, reactions),
+- **On this device** (localStorage, not exported): Chat (timestamps, join/leave/nick lines as the default; each channel can override it from its Channel options), Boards (default view, reactions),
   Terminal (text size, reader mode).
 
 ## As built (restyle, 2026-10-02)

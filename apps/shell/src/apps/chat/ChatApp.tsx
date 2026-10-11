@@ -9,9 +9,9 @@ import { parseFormatting, type Segment } from './format';
 import { usePrefs } from '../../devicePrefs';
 import { completeNick, dayKey, dayLabel, typingNow, foldPresence, findLines, groupBuffers, type Completion } from './helpers';
 import { sortedUsers, useChat, type Buffer, type Msg } from './store';
-import { useContextMenu } from '../../components/Menu';
+import { MenuButton, useContextMenu } from '../../components/Menu';
 import { useConfirm, useToast } from '../../components/feedback';
-import { nickColour, completeWord, splitPaste, COMMANDS } from './helpers';
+import { nickColour, completeWord, splitPaste, COMMANDS, PRESENCE_KINDS, showPresence } from './helpers';
 
 interface ChannelInfo { name: string; kind: 'official' | 'ring' | 'user'; owner: string | null; ring: { slug: string; name: string } | null; users: number | null; topic: string | null }
 
@@ -133,7 +133,8 @@ function NickItem({ nick, prefix, buf }: { nick: string; prefix: string; buf: Bu
 
 function BufferHeader({ buf, showUsers, onToggleUsers, finding, onToggleFind }: { buf: Buffer; showUsers: boolean; onToggleUsers: () => void; finding: boolean; onToggleFind: () => void }) {
   const t = useT();
-  const { muted, toggleMute, part, send, nick: me } = useChat();
+  const { muted, toggleMute, part, send, nick: me, presence, setPresence } = useChat();
+  const [prefs] = usePrefs('chat');
   const canTopic = buf.kind === 'channel' && ['~', '&', '@', '%'].includes(buf.users.get(me) ?? '');
   const [editing, setEditing] = useState(false);
   const [topic, setTopic] = useState('');
@@ -156,7 +157,18 @@ function BufferHeader({ buf, showUsers, onToggleUsers, finding, onToggleFind }: 
         <button type="button" className="btn btn-quiet" aria-pressed={finding} onClick={onToggleFind}>{t('chat.find.open')}</button>
         {canTopic && !editing && <button type="button" className="btn btn-quiet" onClick={() => { setTopic(buf.topic); setEditing(true); }}>{t('chat.topic.edit')}</button>}
         {buf.kind === 'channel' && <button type="button" className="btn btn-quiet chat-users-toggle" aria-expanded={showUsers} onClick={onToggleUsers}>{t('chat.people', { count: buf.users.size })}</button>}
-        <button type="button" className="btn btn-quiet" aria-pressed={isMuted} onClick={() => toggleMute(buf.name)}>{isMuted ? t('chat.unmute') : t('chat.mute')}</button>
+        {buf.kind === 'channel' ? (
+          <MenuButton label={t('chat.options')} items={[
+            { label: isMuted ? t('chat.unmute') : t('chat.mute'), onSelect: () => toggleMute(buf.name) },
+            ...(['show', 'hide', null] as const).map((c, i) => {
+              const now = (presence[buf.name.toLowerCase()] ?? null) === c;
+              const label = c ? t(`chat.presence.${c}`) : t('chat.presence.default', { state: prefs.joinPart ? t('chat.presence.shown') : t('chat.presence.hidden') });
+              return { label: now ? `${label} ${t('chat.presence.now')}` : label, onSelect: () => setPresence(buf.name, c), separator: i === 0 };
+            }),
+          ]} />
+        ) : (
+          <button type="button" className="btn btn-quiet" aria-pressed={isMuted} onClick={() => toggleMute(buf.name)}>{isMuted ? t('chat.unmute') : t('chat.mute')}</button>
+        )}
         <button type="button" className="btn btn-quiet" onClick={() => part(buf.name)}>{buf.kind === 'channel' ? t('chat.leave') : t('chat.close')}</button>
       </div>
     </header>
@@ -183,6 +195,7 @@ function Log({ buf, find }: { buf: Buffer; find: string }) {
   useEffect(() => { if (!buf.typing.size) return; const id = setInterval(() => setNow(Date.now()), 2000); return () => clearInterval(id); }, [buf.typing]);
   const who = typingNow(buf.typing, now);
   const [prefs] = usePrefs('chat');
+  const presence = useChat((s) => s.presence);
   // With a search open the log shows what matched; the current match is scrolled into view by FindBar's number.
   const found = useMemo(() => new Set(findLines(buf.messages, find)), [buf.messages, find]);
   const words = { today: t('chat.today'), yesterday: t('chat.yesterday') };
@@ -190,7 +203,7 @@ function Log({ buf, find }: { buf: Buffer; find: string }) {
   let prevDay = '';
   const shown = foldPresence(buf.messages);
   for (const m of shown) {
-    if (!prefs.joinPart && (m.kind === 'join' || m.kind === 'part' || m.kind === 'quit')) continue;
+    if (PRESENCE_KINDS.has(m.kind) && !showPresence(buf.name, presence, prefs.joinPart)) continue;
     const d = dayKey(m.time);
     if (d !== prevDay) { rows.push(<li key={`d${d}`} className="chat-day"><span>{dayLabel(m.time, Date.now(), words)}</span></li>); prevDay = d; }
     rows.push(<Line key={m.id} m={m} stamps={prefs.timestamps} found={found.has(m.id)} />);

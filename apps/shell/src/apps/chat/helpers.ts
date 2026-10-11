@@ -26,7 +26,7 @@ export function completeWord(text: string, caret: number, words: string[], prev:
   return insertAt(text, caret - word.length, caret, matches, 0, ' ');
 }
 
-export const COMMANDS = ['away', 'help', 'ignore', 'join', 'kick', 'me', 'msg', 'notice', 'op', 'deop', 'part', 'query', 'topic', 'unignore', 'voice', 'devoice', 'whois'];
+export const COMMANDS = ['away', 'help', 'ignore', 'join', 'kick', 'me', 'msg', 'notice', 'op', 'deop', 'part', 'presence', 'query', 'topic', 'unignore', 'voice', 'devoice', 'whois'];
 
 // A colour for each nick, the same every time, from the theme's readable colours (docs/10).
 export function nickColour(nick: string): string {
@@ -82,6 +82,14 @@ export function foldPresence<T extends { kind: string; nick: string }>(messages:
   }
   flush();
   return out;
+}
+
+// Joins, leaves, quits and nick changes: shown or hidden per channel, with the Settings switch as the default.
+export type PresenceChoice = 'show' | 'hide';
+export const PRESENCE_KINDS = new Set(['join', 'part', 'quit', 'nick']);
+export function showPresence(channel: string, overrides: Record<string, PresenceChoice>, defaultOn: boolean): boolean {
+  const c = overrides[channel.toLowerCase()];
+  return c ? c === 'show' : defaultOn;
 }
 
 // Find a word in the lines that are loaded: the ids of the lines whose text or nick contains it, oldest first.

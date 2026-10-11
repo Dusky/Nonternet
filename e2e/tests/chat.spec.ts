@@ -186,6 +186,40 @@ test.describe('chat', () => {
     await expect(page.locator('.chat-topic')).toHaveText('Plain talk only', { timeout: 10_000 });
   });
 
+  test('joins and leaves can be hidden in one channel from its options, or with /presence, and the choice stays', async ({ page, browser }) => {
+    const a = await makeUser(page, { handle: uniq('pia') });
+    await signIn(page, a.handle, PASSWORD);
+    await page.goto('/chat');
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+
+    const other = await browser.newContext();
+    const page2 = await other.newPage();
+    const b = await makeUser(page2, { handle: uniq('pib') });
+    await signIn(page2, b.handle, PASSWORD);
+    await page2.goto('/chat');
+    const joinLine = log(page, '#lobby').locator('.chat-k-join').filter({ hasText: b.handle });
+    await expect(joinLine).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Channel options' }).click();
+    await page.getByRole('menuitem', { name: 'Hide joins and leaves here' }).click();
+    await expect(joinLine).toHaveCount(0);
+    await page.getByRole('button', { name: 'Channel options' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Hide joins and leaves here (now)' })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Kept on this device across a reload; /presence default goes back to the Settings switch (on).
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    await expect(log(page, '#lobby').locator('.chat-k-join')).toHaveCount(0);
+    await page.getByLabel('Message #lobby').fill('/presence default');
+    await page.getByLabel('Message #lobby').press('Enter');
+    await expect(log(page, '#lobby').locator('.chat-k-join').first()).toBeVisible();
+    await page.getByLabel('Message #lobby').fill('/presence sometimes');
+    await page.getByLabel('Message #lobby').press('Enter');
+    await expect(log(page, '#lobby').getByText('Use /presence on, /presence off or /presence default.')).toBeVisible();
+    await other.close();
+  });
+
   test('joins another channel, and says plainly when a command is not known', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
