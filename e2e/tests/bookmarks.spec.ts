@@ -83,6 +83,13 @@ test('the bookmarklet\'s form is filled in but saves nothing until Save is press
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'You already saved “Lentil soup”.' })).toBeVisible();
   expect((await (await page.request.get('/api/v1/bookmarks')).json()).total).toBe(1);
+  // It says nothing changed and offers the one they have.
+  await expect(page.getByText('Nothing was changed.')).toBeVisible();
+  await page.getByRole('button', { name: 'Edit it' }).click();
+  await page.getByRole('form', { name: 'Edit “Lentil soup”' }).getByLabel('Tags').fill('food soup');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByRole('link', { name: 'Lentil soup' })).toBeVisible();
+  expect((await (await page.request.get('/api/v1/bookmarks')).json()).bookmarks[0].tags).toEqual(['food', 'soup']);
 });
 
 test('a signed-out visitor is sent to log in and comes back to the form', async ({ page }) => {

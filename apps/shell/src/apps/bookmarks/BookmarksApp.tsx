@@ -270,6 +270,7 @@ function AddScreen() {
   const [v, setV] = useState<Values>({ url: start.url, title: start.title, description: '', tags: '', pinned: false, visibility: 'private', ring: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState<{ bookmark: BookmarkView; existing: boolean } | null>(null);
+  const [fixing, setFixing] = useState(false);
   const save = useMutation({
     mutationFn: () => api.post<{ bookmark: BookmarkView; existing: boolean }>('/bookmarks', { url: v.url, ...(v.title.trim() ? { title: v.title.trim() } : {}), ...(v.description.trim() ? { description: v.description } : {}), tags: splitTags(v.tags), pinned: v.pinned, ...shareOf(v) }),
     onSuccess: (r) => { setDone(r); void qc.invalidateQueries({ queryKey: ['bookmarks'] }); },
@@ -288,7 +289,11 @@ function AddScreen() {
       <section aria-labelledby="bm-done">
         <h2 id="bm-done">{done.existing ? t('bookmarks.already', { title: done.bookmark.title }) : t('bookmarks.saved', { title: done.bookmark.title })}</h2>
         <p><a href={done.bookmark.url} target="_blank" rel="noopener noreferrer">{done.bookmark.url}</a></p>
+        {/* Saving an address you already have changes nothing; offer the one you have instead of dropping what was typed silently. */}
+        {done.existing && <p className="hint">{t('bookmarks.alreadyUnchanged')}</p>}
+        {done.existing && fixing && <EditForm b={done.bookmark} onDone={() => { setFixing(false); void qc.invalidateQueries({ queryKey: ['bookmarks'] }); nav.go(''); }} />}
         <div className="toolbar">
+          {done.existing && !fixing && <button type="button" className="btn btn-primary" onClick={() => setFixing(true)}>{t('bookmarks.editIt')}</button>}
           {popup ? <button type="button" className="btn btn-primary" onClick={() => window.close()}>{t('bookmarks.closeWindow')}</button> : null}
           <AppLink className="btn" to="">{t('bookmarks.all')}</AppLink>
         </div>

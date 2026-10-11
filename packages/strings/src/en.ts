@@ -711,6 +711,8 @@ export const en = {
   'bookmarks.saving': 'Saving…',
   'bookmarks.saved': 'Saved “{title}”.',
   'bookmarks.already': 'You already saved “{title}”.',
+  'bookmarks.alreadyUnchanged': 'Nothing was changed. Edit it to add the title, tags or sharing you picked.',
+  'bookmarks.editIt': 'Edit it',
   'bookmarks.removed': 'Removed “{title}”.',
   'bookmarks.search': 'Search your bookmarks',
   'bookmarks.tag': 'Tag',
