@@ -40,8 +40,9 @@ export async function notifyForPost(q: Queryable, post: {
   const ids = [...chosen.keys()];
   const ok = await q.query<{ id: string }>(
     `SELECT u.id FROM users u WHERE u.id = ANY($1) AND u.status = 'active' AND u.role <> 'guest'
-       AND ($2 IN ('public', 'members', 'ring') OR EXISTS (SELECT 1 FROM board_members m WHERE m.board_id = $3 AND m.user_id = u.id))`,
-    [ids, post.visibility, post.boardId]);
+       AND ($2 IN ('public', 'members', 'ring') OR EXISTS (SELECT 1 FROM board_members m WHERE m.board_id = $3 AND m.user_id = u.id))
+       AND NOT EXISTS (SELECT 1 FROM user_blocks k WHERE k.user_id = u.id AND k.blocked_id = $4)`, // someone you blocked can't notify you
+    [ids, post.visibility, post.boardId, post.authorId]);
   // What people switched off: a kind they don't want on the site, or a board they muted (a mention still gets through).
   const off = await q.query<{ user_id: string; kind: string }>(
     `SELECT user_id, kind FROM notification_prefs WHERE user_id = ANY($1) AND NOT enabled
@@ -83,7 +84,8 @@ export async function notifyOther(q: Queryable, n: {
   const pref = NOTIFICATION_PREF[n.kind];
   const ok = await q.query<{ id: string }>(
     `SELECT u.id FROM users u WHERE u.id = ANY($1) AND u.status = 'active' AND u.role <> 'guest'
-       AND NOT EXISTS (SELECT 1 FROM notification_prefs x WHERE x.user_id = u.id AND x.kind = $2 AND NOT x.enabled)`, [ids, pref]);
+       AND NOT EXISTS (SELECT 1 FROM notification_prefs x WHERE x.user_id = u.id AND x.kind = $2 AND NOT x.enabled)
+       AND NOT EXISTS (SELECT 1 FROM user_blocks k WHERE k.user_id = u.id AND k.blocked_id = $3)`, [ids, pref, n.actorId]);
   let muted = new Set<string>();
   if (n.kind === 'reaction' && n.boardId) {
     muted = new Set((await q.query<{ user_id: string }>(`SELECT user_id FROM board_notification_prefs WHERE user_id = ANY($1) AND board_id = $2`, [ids, n.boardId])).rows.map((r) => r.user_id));

@@ -173,4 +173,21 @@ describe.skipIf(!dbAvailable)('site-wide notifications', () => {
       expect((await admin.client.get('/api/v1/notifications/count')).body.by_app.admin).toBeGreaterThanOrEqual(1);
     });
   });
+  describe('blocks', () => {
+    it('stops every kind of notification from someone you blocked, and lifting the block lets them through again', async () => {
+      const t = (await p('carol').c.post('/api/v1/boards/lounge/posts', { subject: 'Carol asks', body: 'anyone?' })).body as { id: string };
+      expect((await p('carol').c.post('/api/v1/me/blocks', { handle: 'bob' })).status).toBe(204);
+      await p('carol').c.post('/api/v1/notifications/read', { all: true });
+      await p('bob').c.post('/api/v1/boards/lounge/posts', { body: 'me!', reply_to: t.id });                       // a reply
+      await p('bob').c.post('/api/v1/boards/lounge/posts', { subject: 'Hey', body: 'ping @carol' });              // a mention
+      await p('bob').c.put(`/api/v1/posts/${t.id}/reactions/agree`);                                              // a reaction
+      expect(await unread('carol')).toHaveLength(0);
+      // Someone else still gets through.
+      await p('alice').c.post('/api/v1/boards/lounge/posts', { body: 'me too', reply_to: t.id });
+      expect((await unread('carol')).map((n) => n.actor.handle)).toEqual(['alice']);
+      await p('carol').c.post('/api/v1/me/blocks/remove', { handle: 'bob' });
+      await p('bob').c.post('/api/v1/boards/lounge/posts', { body: 'back again', reply_to: t.id });
+      expect((await unread('carol')).some((n) => n.actor.handle === 'bob')).toBe(true);
+    });
+  });
 });
