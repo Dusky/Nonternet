@@ -67,6 +67,26 @@ test.describe('boards', () => {
     await op.context().close();
   });
 
+  test('a half-written reply stays put when someone else posts in the thread', async ({ page, browser }) => {
+    const me = await makeUser(page);
+    await setRole(me.handle, 'trusted');
+    await signIn(page, me.handle, PASSWORD);
+    const slug = uniq('keep').toLowerCase();
+    await page.request.post('/api/v1/boards', { data: { slug, name: `Keep ${slug}`, visibility: 'public' }, headers: { origin: BASE_URL } });
+    const t1 = await (await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'Plans', body: 'What next?' }, headers: { origin: BASE_URL } })).json();
+    const threadId = t1.post?.id ?? t1.id;
+    await page.goto(`/boards/${slug}/t/${threadId}`);
+    const box = page.getByLabel('Message', { exact: true }).or(page.locator('#compose-body')).first();
+    await box.fill('I was thinking we could');
+
+    const other = await makeUser(page);
+    const op = await signedInPage(browser, other.handle);
+    await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: 'Me first!', reply_to: threadId }, headers: { origin: BASE_URL } });
+    await expect(page.getByText('Me first!')).toBeVisible({ timeout: 15_000 });
+    await expect(box).toHaveValue('I was thinking we could');
+    await op.context().close();
+  });
+
   test('a visitor who is not signed in can read public boards and is invited to log in', async ({ page, browser }) => {
     const owner = await makeUser(page);
     await setRole(owner.handle, 'trusted');

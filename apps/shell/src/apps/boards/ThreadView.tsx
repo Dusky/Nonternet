@@ -234,8 +234,9 @@ export function ThreadView({ slug, id }: { slug: string; id: string }) {
       </ol>
       {del.isError && <Alert kind="error">{errorText(del.error)}</Alert>}
       {q.hasNextPage && <button className="btn" onClick={() => void q.fetchNextPage()} disabled={q.isFetchingNextPage}>{t('boards.more')}</button>}
+      {/* The reply box is keyed on the post picked to reply to, not the newest one, so a new post arriving doesn't wipe what you're typing. */}
       {canReply && target ? (
-        <Composer slug={slug} replyTo={target} quote={quote} onPosted={() => { setReplyTo(null); setQuote(null); }} key={target.id} />
+        <Composer slug={slug} replyTo={target} draftId={replyTo ? replyTo.id : `end-${id}`} quote={quote} onPosted={() => { setReplyTo(null); setQuote(null); }} key={replyTo?.id ?? 'end'} />
       ) : (
         <p className="muted">{locked && board.can_post ? t('boards.locked') : postNote(t, board, Boolean(me))}</p>
       )}

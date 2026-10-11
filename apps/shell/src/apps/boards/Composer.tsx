@@ -13,6 +13,7 @@ import { quoteReply } from '../../quote';
 interface Props {
   slug: string;
   replyTo?: PostView;                 // set when replying
+  draftId?: string;                   // what the draft is kept under, if not the post replied to
   quote?: { text: string; n: number } | null; // text picked in the post being replied to; quoted at the top
   onPosted: (post: PostView) => void;
   onCancel?: () => void;
@@ -20,11 +21,11 @@ interface Props {
 
 // Writes a new thread or a reply. The preview comes from the server, so it is exactly the text
 // that will be stored, shown the way a 79-column terminal shows it.
-export function Composer({ slug, replyTo, quote, onPosted, onCancel }: Props) {
+export function Composer({ slug, replyTo, draftId, quote, onPosted, onCancel }: Props) {
   const t = useT();
   const qc = useQueryClient();
   const me = useMe().data;
-  const draftKey = `board:${slug}:${replyTo?.id ?? 'new'}`;
+  const draftKey = `board:${slug}:${draftId ?? replyTo?.id ?? 'new'}`;
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [pollOn, setPollOn] = useState(false);
