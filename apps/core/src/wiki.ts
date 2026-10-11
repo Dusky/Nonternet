@@ -3,7 +3,7 @@ import type { Ctx, SessionUser } from './accounts';
 import { audit } from './audit';
 import type { Viewer } from './boards';
 import { newId } from './crypto';
-import type { Queryable } from './db';
+import { isUniqueViolation, type Queryable } from './db';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { liveAll } from './live';
@@ -168,6 +168,9 @@ export async function savePage(deps: AppDeps, v: SessionUser, ref: string, slug:
     if (!page) {
       if (input.base_revision !== 0) throw new ApiError(409, 'gone', 'This page no longer exists. Saving will start it again.');
       if (!w.id) throw noWiki();
+      // A page that was hidden or deleted still holds its name; a moderator can bring it back.
+      const held = await q.query(`SELECT 1 FROM wiki_pages WHERE wiki_id = $1 AND slug = $2`, [w.id, slug]);
+      if (held.rows[0]) throw new ApiError(409, 'taken_down', 'A page with this name was taken down. An admin or op can bring it back.');
       const id = newId('wp');
       await q.query(`INSERT INTO wiki_pages (id, wiki_id, slug, title, body, revision, created_by, updated_by) VALUES ($1, $2, $3, $4, $5, 1, $6, $6)`, [id, w.id, slug, title, body, v.userId]);
       await q.query(`INSERT INTO wiki_revisions (id, page_id, revision, editor_id, title, body, summary) VALUES ($1, $2, 1, $3, $4, $5, $6)`, [newId('wr'), id, v.userId, title, body, input.summary]);
@@ -180,6 +183,10 @@ export async function savePage(deps: AppDeps, v: SessionUser, ref: string, slug:
     if (input.base_revision !== page.revision) throw conflict(await view(q, v, w, page, null));
     if (page.body === body && page.title === title) return { w, slug, revision: page.revision }; // nothing changed: no empty revision
     return { w, slug, revision: await writeRevision(q, v, w, page, title, body, input.summary, null) };
+  }).catch((e: unknown) => {
+    // Two people starting the same page at once: the second is told, not shown an error page.
+    if (isUniqueViolation(e)) throw new ApiError(409, 'edit_conflict', 'Someone else just started this page. Open it again to see their version.');
+    throw e;
   });
   tell(out.w, out.slug, out.revision);
   return getPage(deps, v, ref, slug);
