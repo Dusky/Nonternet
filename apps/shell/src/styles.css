@@ -541,7 +541,14 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 @media (max-width: 640px) { .code-editor .cm-completionInfo { display: none; } }
 /* The preview shows the person's page as visitors will see it, so it stays on white like a browser. */
 .preview-frame { width: 100%; min-height: 22rem; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: #fff; }
-@container (max-width: 760px) { .editor-split { grid-template-columns: 1fr; } }
+/* On a narrow window the editor and the preview take turns (Write / Preview), as in the wiki. */
+.studio-tabs { display: none; }
+.preview-on { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+@container (max-width: 760px) {
+  .editor-split { grid-template-columns: 1fr; }
+  .studio-tabs { display: flex; }
+  .editor-split.is-write .preview-pane, .editor-split.is-preview > :not(.preview-pane) { display: none; }
+}
 .dns { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0 0 var(--space-3); }
 .dns dt { color: var(--muted); }
 .dns dd { margin: 0; overflow-wrap: anywhere; font-family: var(--font-mono); }
@@ -1211,6 +1218,14 @@ div.post-body.rich-text { white-space: normal; }
 .wiki-editor { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
 .wiki-preview { min-height: 12rem; padding: var(--space-3); border: var(--line-width) dashed var(--border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
 .wiki-tabs { display: none; }
+.wiki-new { display: inline-flex; gap: var(--space-2); }
+.wiki-new input { min-width: 0; width: 14rem; max-width: 100%; }
+.wiki-toc { float: right; max-width: 18rem; margin: 0 0 var(--space-3) var(--space-4); padding: var(--space-2) var(--space-3); border: var(--line-width) solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.wiki-toc h3 { margin: 0 0 var(--space-1); font-size: var(--step-0); }
+.wiki-toc ol { margin: 0; padding-left: var(--space-4); }
+.wiki-toc .toc-2 { margin-left: var(--space-3); }
+.wiki-toc .toc-3 { margin-left: var(--space-5); }
+@container (max-width: 640px) { .wiki-toc { float: none; max-width: none; margin-left: 0; } }
 @media (max-width: 760px) {
   .wiki-editor { grid-template-columns: 1fr; }
   .wiki-tabs { display: flex; }

@@ -1,5 +1,5 @@
 import type { HomeTemplateInfo } from '@app/shared';
-import { useConfirm } from '../../components/feedback';
+import { undoable, useConfirm } from '../../components/feedback';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
@@ -21,6 +21,10 @@ export function Files({ mine }: { mine: Mine }) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  // "Start empty": the file manager without a template, for people who bring their own files.
+  const [bare, setBare] = useState(false);
+  // Files deleted a moment ago, gone from the list while Undo is on offer.
+  const [gone, setGone] = useState<string[]>([]);
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['studio'] }), [qc]);
 
   const [sending, setSending] = useState<{ name: string; n: number; of: number; fraction: number } | null>(null);
@@ -52,10 +56,16 @@ export function Files({ mine }: { mine: Mine }) {
     onSuccess: () => { setRenaming(null); setError(null); void refresh(); }, onError: (e) => setError(errorText(e)),
   });
 
-  if (editing) return <Editor path={editing} url={mine.homepage.url} onClose={() => { setEditing(null); void refresh(); }} />;
-  if (!mine.homepage.has_index) return <Templates onDone={() => void refresh()} />;
+  const pages = mine.files.filter((f) => f.type === 'file' && /\.html?$/i.test(f.path)).map((f) => f.path);
+  if (editing) return <Editor path={editing} url={mine.homepage.url} pages={pages} onClose={() => { setEditing(null); void refresh(); }} />;
+  if (!mine.homepage.has_index && !bare && mine.files.length === 0) return <Templates onDone={() => void refresh()} onEmpty={() => setBare(true)} />;
 
-  const inFolder = mine.files.filter((f) => (f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '') === folder);
+  const deleteFile = (path: string) => {
+    setGone((g) => [...g, path]);
+    const back = () => setGone((g) => g.filter((x) => x !== path));
+    undoable(t('studio.files.deleted', { name: path }), () => del.mutateAsync(path).finally(back), { onUndo: back, onError: back });
+  };
+  const inFolder = mine.files.filter((f) => !gone.includes(f.path) && (f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '') === folder);
   const parts = folder ? folder.split('/') : [];
 
   return (
@@ -78,6 +88,12 @@ export function Files({ mine }: { mine: Mine }) {
         </label>
       </div>
       <p className="hint">{t('studio.files.drop', { folder: folder || t('studio.files.root') })}</p>
+      {!mine.homepage.has_index && (
+        <Alert kind="info">
+          {t('studio.files.noIndex')}{' '}
+          {mine.files.length === 0 && <button type="button" className="link" onClick={() => setBare(false)}>{t('studio.files.pickTemplate')}</button>}
+        </Alert>
+      )}
       {adding && (
         <NameForm label={t('studio.files.name')} hint={t('studio.files.nameHint')} submit={t('studio.files.create')} initial=""
           onCancel={() => setAdding(null)}
@@ -109,7 +125,9 @@ export function Files({ mine }: { mine: Mine }) {
                 {f.type === 'file' && <a href={`${mine.homepage.url}${f.path}`} target="_blank" rel="noopener noreferrer" aria-label={`${t('studio.files.open')} ${f.path}`}>{t('studio.files.open')}</a>}
                 <button type="button" className="link" onClick={() => setRenaming(f.path)} aria-label={`${t('studio.files.rename')} ${f.path}`}>{t('studio.files.rename')}</button>
                 <button type="button" className="link" aria-label={`${t('studio.files.delete')} ${f.path}`} onClick={() => {
-                  void confirm({ message: f.type === 'dir' ? t('studio.files.folderDeleteConfirm', { name: f.path }) : t('studio.files.deleteConfirm', { name: f.path }), confirmLabel: t('confirm.delete'), danger: true }).then((ok) => ok && del.mutate(f.path));
+                  // A file can come back with Undo; a whole folder is asked about, since it goes for good.
+                  if (f.type === 'file') deleteFile(f.path);
+                  else void confirm({ message: t('studio.files.folderDeleteConfirm', { name: f.path }), confirmLabel: t('confirm.delete'), danger: true }).then((ok) => ok && del.mutate(f.path));
                 }}>{t('studio.files.delete')}</button>
               </span>
               {renaming === f.path && (
@@ -138,7 +156,7 @@ function NameForm({ label, hint, submit, initial, onSubmit, onCancel }: { label:
   );
 }
 
-function Templates({ onDone }: { onDone: () => void }) {
+function Templates({ onDone, onEmpty }: { onDone: () => void; onEmpty: () => void }) {
   const t = useT();
   const [error, setError] = useState<string | null>(null);
   const list = useQuery({ queryKey: ['studio', 'templates'], queryFn: () => api.get<{ templates: HomeTemplateInfo[] }>('/homes/templates') });
@@ -159,12 +177,17 @@ function Templates({ onDone }: { onDone: () => void }) {
             <button type="button" className="btn btn-primary" disabled={use.isPending} onClick={() => use.mutate(tpl.id)}>{t('studio.start.use', { name: tpl.title })}</button>
           </li>
         ))}
+        <li className="panel">
+          <h3>{t('studio.start.empty')}</h3>
+          <p>{t('studio.start.emptyHint')}</p>
+          <button type="button" className="btn" onClick={onEmpty}>{t('studio.start.empty')}</button>
+        </li>
       </ul>
     </section>
   );
 }
 
-function Editor({ path, url, onClose }: { path: string; url: string; onClose: () => void }) {
+function Editor({ path, url, pages, onClose }: { path: string; url: string; pages: string[]; onClose: () => void }) {
   const t = useT();
   const confirm = useConfirm();
   const [text, setText] = useState<string | null>(null);
@@ -221,18 +244,25 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
   // Live preview: the text as typed, a moment after the last key, shown by the homepage origin exactly as it will be published
   // (the saved files around it, the draft in its place). Held for ten minutes at an address only this editor knows.
   const [typed, setTyped] = useState(0);
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ token: string; v: number } | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
   const previewable = /\.(html?|svg|txt|css)$/i.test(path);
   useEffect(() => {
     if (!previewable || text === null) return;
     const id = setTimeout(() => {
       api.upload<{ token: string }>(`/homes/me/preview?path=${encodeURIComponent(path)}`, latest.current)
-        .then((r) => { setPreviewFailed(false); setPreviewSrc(`${url}__preview/${r.token}/${path}?v=${Date.now()}`); })
+        .then((r) => { setPreviewFailed(false); setPreview({ token: r.token, v: Date.now() }); })
         .catch(() => setPreviewFailed(true));
     }, typed === 0 ? 0 : 600);
     return () => clearTimeout(id);
   }, [typed, text === null, path]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A stylesheet is judged on a page that uses it: the page comes from the saved files, the draft stylesheet in its place.
+  const isCss = /\.css$/i.test(path);
+  const [page, setPage] = useState(() => (pages.includes('index.html') ? 'index.html' : pages[0] ?? ''));
+  const shown = isCss && page ? page : path;
+  const previewSrc = preview ? `${url}__preview/${preview.token}/${shown}?v=${preview.v}` : `${url}${shown}?v=${stamp}`;
+  // On a narrow window the editor and the preview take turns.
+  const [pane, setPane] = useState<'write' | 'preview'>('write');
   const widgetNames = useQuery({ queryKey: ['studio', 'snippets'], queryFn: () => api.get<{ snippets: { id: string }[] }>('/homes/me/snippets'), staleTime: 300_000, enabled: /\.html?$/i.test(path) }).data?.snippets.map((s) => s.id);
 
   const close = () => { if (!dirty) onClose(); else void confirm({ message: t('studio.edit.leave'), confirmLabel: t('confirm.discard'), danger: true }).then((ok) => ok && onClose()); };
@@ -247,7 +277,13 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
       {error && <Alert kind="error">{error}</Alert>}
       {restored && dirty && <p role="status" className="hint">{t('studio.edit.restored')}</p>}
       {status && !dirty && <p role="status" className="muted">{status}</p>}
-      <div className="editor-split">
+      {previewable && (
+        <div className="studio-tabs toolbar" role="group" aria-label={t('studio.edit.view')}>
+          <button type="button" className="btn btn-quiet" aria-pressed={pane === 'write'} onClick={() => setPane('write')}>{t('studio.edit.write')}</button>
+          <button type="button" className="btn btn-quiet" aria-pressed={pane === 'preview'} onClick={() => setPane('preview')}>{t('studio.edit.previewTab')}</button>
+        </div>
+      )}
+      <div className={`editor-split is-${pane}`}>
         {text !== null && (
           <Suspense fallback={<Loading />}>
             <CodeEditor path={path} value={text} label={t('studio.edit.editor', { name: path })}
@@ -257,7 +293,14 @@ function Editor({ path, url, onClose }: { path: string; url: string; onClose: ()
         )}
         {previewable && (
           <div className="preview-pane">
-            <iframe className="preview-frame" title={t('studio.edit.preview', { name: path })} src={previewSrc ?? `${url}${path}?v=${stamp}`} />
+            {isCss && pages.length > 0 && (
+              <label className="preview-on">{t('studio.edit.previewOn')}{' '}
+                <select value={page} onChange={(e) => setPage(e.target.value)}>
+                  {pages.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </label>
+            )}
+            <iframe className="preview-frame" title={t('studio.edit.preview', { name: shown })} src={previewSrc} />
             {previewFailed && <p className="muted" role="status">{t('studio.edit.previewFailed')}</p>}
           </div>
         )}

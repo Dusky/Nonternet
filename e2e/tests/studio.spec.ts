@@ -9,6 +9,12 @@ const h = { origin: BASE_URL };
 
 // The preview frame shows the person's own page as they wrote it (here, on purpose, a picture with no alt text), so
 // the scan is of the studio around it.
+// On a phone the editor and the preview take turns; this shows the preview.
+async function showPreview(page: Page) {
+  const tab = page.getByRole('button', { name: 'Preview', exact: true });
+  if (await tab.isVisible()) await tab.click();
+}
+
 async function scan(page: Page, what: string) {
   const results = await new AxeBuilder({ page }).exclude('iframe[title^="Preview of"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `accessibility problems on ${what}`).toEqual([]);
@@ -45,6 +51,7 @@ test.describe('homepage studio', () => {
     await expect(page.getByText('You have changes that are not saved.')).toBeVisible();
     await page.keyboard.press('ControlOrMeta+s');
     await expect(page.getByText('Saved. The preview is up to date.')).toBeVisible();
+    await showPreview(page);
     await expect(page.frameLocator('iframe[title="Preview of index.html"]').getByRole('heading', { name: 'Edited in the studio' })).toBeVisible();
     const live = await page.context().newPage();
     await live.goto(home(u.handle));
@@ -89,6 +96,7 @@ test.describe('homepage studio', () => {
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.type('<!doctype html><title>t</title><h1>Typed, not saved</h1><img src="cat.gif"><a href="http://old.example/">link</a>');
     // The preview follows the typing, a moment after the last key.
+    await showPreview(page);
     await expect(page.frameLocator('iframe[title="Preview of index.html"]').getByRole('heading', { name: 'Typed, not saved' })).toBeVisible();
     // ...while the published page is still the saved one.
     const live = await page.context().newPage();
@@ -96,6 +104,8 @@ test.describe('homepage studio', () => {
     await expect(live.getByRole('heading', { name: 'Typed, not saved' })).toHaveCount(0);
     await live.close();
     // The lint points at a picture with no alt text and at an http:// address.
+    const write = page.getByRole('button', { name: 'Write', exact: true });
+    if (await write.isVisible()) await write.click();
     await expect(page.locator('.cm-lintRange-warning')).toBeVisible();
     await expect(page.locator('.cm-lintRange-info')).toBeVisible();
     await page.locator('.cm-lintRange-warning').hover();
@@ -143,6 +153,45 @@ test.describe('homepage studio', () => {
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('bad.php');
     await page.getByRole('button', { name: 'Create' }).click();
     await expect(page.getByRole('alert')).toContainText('cannot go on a homepage');
+  });
+
+  test('starts empty with your own files, previews a stylesheet on a page, and a delete can be undone', async ({ page }, info) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/studio');
+    await page.getByRole('button', { name: 'Start empty' }).click();
+    await expect(page.getByText('Nothing shows on your homepage until there is an index.html')).toBeVisible();
+    await page.getByLabel('Upload files').setInputFiles([
+      { name: 'index.html', mimeType: 'text/html', buffer: Buffer.from('<!doctype html><title>Mine</title><link rel="stylesheet" href="style.css"><h1>My own page</h1>') },
+      { name: 'style.css', mimeType: 'text/css', buffer: Buffer.from('h1 { color: rgb(0, 0, 255); }') },
+      { name: 'note.txt', mimeType: 'text/plain', buffer: Buffer.from('a note') },
+    ]);
+    await expect(page.getByText('Uploaded 3 files.')).toBeVisible();
+    await expect(page.getByText('Nothing shows on your homepage until there is an index.html')).toHaveCount(0);
+
+    // Delete with Undo: the file is back, and stays.
+    await page.getByRole('button', { name: 'Delete note.txt' }).click();
+    await expect(page.getByText('note.txt', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByText('note.txt', { exact: true })).toBeVisible();
+
+    // A stylesheet is previewed on a page that uses it, with the unsaved text in place.
+    await page.getByRole('button', { name: 'Edit style.css' }).click();
+    await expect(page.getByLabel('Preview on')).toHaveValue('index.html');
+    const editor = page.getByRole('textbox', { name: 'Editor for style.css' });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('h1 { color: rgb(255, 0, 0); }');
+    const narrow = info.project.name === 'phone';
+    if (narrow) {
+      // On a phone the editor and the preview take turns.
+      await expect(page.locator('iframe[title="Preview of index.html"]')).toBeHidden();
+      await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      await expect(editor).toBeHidden();
+    }
+    const heading = page.frameLocator('iframe[title="Preview of index.html"]').getByRole('heading', { name: 'My own page' });
+    await expect(heading).toHaveCSS('color', 'rgb(255, 0, 0)');
+    if (narrow) { await page.getByRole('button', { name: 'Write', exact: true }).click(); await expect(editor).toBeVisible(); }
   });
 
   test('adds a library asset as a copy of your own', async ({ page }) => {

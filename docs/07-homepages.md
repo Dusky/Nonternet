@@ -120,3 +120,13 @@ ignored after ten minutes, erased with the account) and returns a random token. 
 `{handle}.{homes_domain}/__preview/{token}/{file}`: that file is the draft; anything else under the token (pictures, styles) is
 the saved file, so relative links work. The token is the only way in, so a draft is never visible to anyone else. It is never
 published, never exported (the saved file is), and the same headers apply as for any homepage.
+
+## Studio additions (2026-10-11)
+- **Start empty:** next to the templates, "Start empty" opens the file manager straight away for people who bring their own
+  files. Until there is an `index.html`, a line says nothing shows yet; uploading or making one clears it.
+- **Write / Preview on narrow windows:** the editor and the preview take turns (two buttons), as in the wiki, instead of
+  stacking.
+- **A stylesheet is previewed on a page:** editing a `.css` file shows a "Preview on" choice of the HTML pages (index.html
+  first); the preview loads that page under the draft's token, so the draft stylesheet is used in place of the saved one.
+- **Undo for delete:** deleting a file goes at once with Undo for a few seconds (the delete is sent when the note goes).
+  Deleting a whole folder still asks first, since it can't come back.
