@@ -53,7 +53,7 @@ function Find() {
               {online.data.people.map((p) => (
                 <li key={p.id} className="person-card">
                   <AppLink to={encodeURIComponent(p.handle)} className="person"><Avatar id={p.id} name={p.display_name || p.handle} /><span><strong>{p.display_name || p.handle}</strong><br /><span className="row-meta">@{p.handle}</span></span></AppLink>
-                  {p.status_line && <p className="row-meta">{p.away ? `${t('people.away')} · ` : ''}{p.status_line}</p>}
+                  {(p.status_line || p.away) && <p className="row-meta">{p.away ? `${t('people.away')}${p.status_line ? ' · ' : ''}` : ''}{p.status_line}</p>}
                   <p className="row-meta">{[p.web && t('home.online.web'), p.chat && t('home.online.chat'), p.bbs && t('people.onBbs', { node: p.bbs.node, where: p.bbs.where })].filter(Boolean).join(' · ')}</p>
                 </li>
               ))}
