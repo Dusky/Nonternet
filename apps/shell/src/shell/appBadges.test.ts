@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { notificationsReadSchema } from '@app/shared';
 import { badgeMap, badgeText } from './appBadges';
 
 const counts = (o: Partial<{ unread: number; boards: number; rings: number; admin: number; mentions: number }>) => ({
@@ -24,5 +25,15 @@ describe('badgeMap', () => {
   it('caps big numbers at 99+', () => {
     expect(badgeText(99)).toBe('99');
     expect(badgeText(100)).toBe('99+');
+  });
+});
+
+describe('mark these read', () => {
+  it('sends kinds the server accepts for every app that has them', async () => {
+    const { READ_KINDS } = await import('./appBadges');
+    for (const [app, what] of Object.entries(READ_KINDS)) {
+      if (what === 'mail' || !what) continue;
+      expect(notificationsReadSchema.safeParse({ kinds: what }).success, app).toBe(true);
+    }
   });
 });

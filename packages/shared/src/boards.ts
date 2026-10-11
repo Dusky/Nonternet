@@ -137,7 +137,8 @@ export type ThreadFilter = (typeof THREAD_FILTERS)[number];
 export const notificationsReadSchema = z.union([
   z.object({ ids: z.array(z.string().regex(/^n_[0-9A-Z]{26}$/)).min(1).max(200) }),
   z.object({ all: z.literal(true) }),
-  z.object({ kinds: z.array(z.enum([...NOTIFICATION_KINDS, ...SITE_NOTIFICATION_KINDS])).min(1).max(8) }),
+  // Every kind at once is allowed: right-click "Mark these read" on the Notifications icon sends them all.
+  z.object({ kinds: z.array(z.enum([...NOTIFICATION_KINDS, ...SITE_NOTIFICATION_KINDS])).min(1).max(NOTIFICATION_KINDS.length + SITE_NOTIFICATION_KINDS.length) }),
 ]);
 
 // The numbers behind the badges on the desktop icons (docs/10). `mentions` is how many of `boards` are @mentions.
