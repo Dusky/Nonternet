@@ -109,12 +109,16 @@ test.describe('boards', () => {
     await expect(olderRow.getByText('New', { exact: true })).toBeVisible();
 
     // Read the older thread, then someone replies: it opens with a way to the first new post, and the row says who replied.
+    const marked = page.waitForResponse((r) => r.url().endsWith(`/boards/${slug}/read-pointer`) && r.request().method() === 'PUT');
     await page.goto(`/boards/${slug}/t/${olderId}`);
     await expect(page.getByRole('heading', { name: 'Older thread' })).toBeVisible();
-    await page.waitForTimeout(500);
+    await marked; // read before the reply comes
+    // Leave it first: a reply that arrives while the thread is on screen is read there and then.
+    await page.goto(`/boards/${slug}`);
+    await expect(page.getByRole('listitem').filter({ hasText: 'Older thread' })).toBeVisible();
     const word = uniq('zebrafish');
     await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `A reply about ${word}`, reply_to: olderId }, ...o });
-    await page.goto(`/boards/${slug}`);
+    await page.reload();
     await expect(page.getByRole('listitem').filter({ hasText: 'Older thread' })).toContainText(`last by ${other.handle}`);
     await page.goto(`/boards/${slug}/t/${olderId}`);
     await page.getByRole('button', { name: 'Jump to the first new post' }).click();
