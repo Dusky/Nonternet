@@ -109,7 +109,7 @@ export async function clearFor(q: Queryable, userId: string, kind: NotificationK
 interface Row {
   id: string; kind: NotificationKind; created_at: Date; read_at: Date | null; count: number; ref: string | null;
   slug: string | null; board_name: string | null; post_id: string | null; thread_id: string | null; subject: string | null;
-  ring_slug: string | null; ring_name: string | null; mail_subject: string | null;
+  ring_slug: string | null; ring_name: string | null; mail_subject: string | null; memo_body: string | null; memo_root: string | null;
   actor_id: string; handle: string; display_name: string | null;
 }
 
@@ -120,14 +120,17 @@ const FROM = `FROM notifications n
   LEFT JOIN posts p ON p.id = n.post_id
   LEFT JOIN boards b ON b.id = n.board_id
   LEFT JOIN rings r ON r.id = n.ref AND n.kind IN ('ring_invite', 'ring_request', 'ring_joined')
-  LEFT JOIN mail_threads mt ON mt.id = n.ref AND n.kind = 'mail'`;
+  LEFT JOIN mail_threads mt ON mt.id = n.ref AND n.kind = 'mail'
+  LEFT JOIN memos mm ON mm.id = n.ref AND n.kind IN ('memo_reply', 'memo_reaction')`;
 const VISIBLE = `(n.post_id IS NULL OR (p.deleted_at IS NULL AND p.hidden_at IS NULL AND b.hidden_at IS NULL
     AND (b.visibility IN ('public', 'members', 'ring') OR EXISTS (SELECT 1 FROM board_members m WHERE m.board_id = b.id AND m.user_id = n.user_id))))
   AND (n.kind <> 'mail' OR EXISTS (SELECT 1 FROM mail_participants mp WHERE mp.thread_id = n.ref AND mp.user_id = n.user_id AND mp.left_at IS NULL))
-  AND (n.kind NOT IN ('ring_invite', 'ring_request', 'ring_joined') OR r.id IS NOT NULL)`;
+  AND (n.kind NOT IN ('ring_invite', 'ring_request', 'ring_joined') OR r.id IS NOT NULL)
+  AND (n.kind NOT IN ('memo_reply', 'memo_reaction') OR (mm.id IS NOT NULL AND mm.hidden_at IS NULL))`;
 
 function linkOf(x: Row): NotificationView['link'] {
   if (x.kind === 'mail') return { app: 'mail', to: x.ref! };
+  if (x.kind === 'memo_reply' || x.kind === 'memo_reaction') return { app: 'memos', to: `m/${x.memo_root ?? x.ref}` };
   if (x.ring_slug) return { app: 'rings', to: x.ring_slug };
   return { app: 'boards', to: `${x.slug}/t/${x.thread_id}` };
 }
@@ -137,7 +140,8 @@ export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { b
   const r = await deps.db.query<Row>(
     `SELECT n.id, n.kind, n.created_at, n.read_at, n.count, n.ref, b.slug, b.name AS board_name, p.id AS post_id,
             COALESCE(p.thread_root_id, p.id) AS thread_id,
-            COALESCE(NULLIF(p.subject, ''), mt.subject, '') AS subject, r.slug AS ring_slug, r.name AS ring_name, mt.subject AS mail_subject,
+            COALESCE(NULLIF(p.subject, ''), mt.subject, left(mm.body, 80), '') AS subject, r.slug AS ring_slug, r.name AS ring_name, mt.subject AS mail_subject,
+            mm.body AS memo_body, COALESCE(mm.reply_to, mm.id) AS memo_root,
             u.id AS actor_id, u.handle, u.display_name
      ${FROM}
      WHERE n.user_id = $1 AND ${VISIBLE}
@@ -168,7 +172,7 @@ export async function unreadCounts(deps: AppDeps, v: SessionUser): Promise<Notif
   const by = (kinds: string[]) => r.rows.filter((x) => kinds.includes(x.kind)).reduce((a, x) => a + Number(x.n), 0);
   const out: NotificationCounts = {
     unread: by(r.rows.map((x) => x.kind)),
-    by_app: { boards: by(['reply', 'mention', 'watch', 'reaction']), rings: by(['ring_invite', 'ring_request', 'ring_joined']) },
+    by_app: { boards: by(['reply', 'mention', 'watch', 'reaction']), rings: by(['ring_invite', 'ring_request', 'ring_joined']), memos: by(['memo_reply', 'memo_reaction']) },
     mentions: by(['mention']),
   };
   if (v.role === 'admin') out.by_app.admin = Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM reports WHERE status = 'open'`)).rows[0]!.n);

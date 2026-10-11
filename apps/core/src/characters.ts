@@ -1,4 +1,5 @@
 import { coarseLastSeen } from './personal';
+import { newestPublic } from './memos';
 import type { CharacterView, PublicProfile, TowerLeaderboard } from '@app/shared';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
@@ -117,7 +118,7 @@ export async function publicProfile(deps: AppDeps, handle: string): Promise<Publ
   return {
     id: u.id, handle: u.handle, display_name: u.display_name, bio: u.bio, role: u.role, joined_at: u.created_at.toISOString(),
     homepage_url: u.has_page ? deps.homesUrl(u.handle) : null, rings: rings.rows,
-    status_line: u.status_line, plan: u.plan, pronouns: u.pronouns, location: u.location, links: u.links, activity, away: u.away, last_seen: coarseLastSeen(u.last_seen_at, u.show_last_seen),
+    status_line: u.status_line, plan: u.plan, memos: await newestPublic(deps.db, u.id), pronouns: u.pronouns, location: u.location, links: u.links, activity, away: u.away, last_seen: coarseLastSeen(u.last_seen_at, u.show_last_seen),
     homepage: u.has_page ? { title: u.hp_title || u.handle, updated_at: u.hp_updated?.toISOString() ?? null } : null,
     recent_posts: recent.rows.map((p) => ({ id: p.id, thread_id: p.thread_id, subject: p.subject, posted_at: p.posted_at.toISOString(), board: { slug: p.slug, name: p.board_name } })),
     characters: await charactersOf(deps, u.id), featured_character_id: u.featured_character_id,

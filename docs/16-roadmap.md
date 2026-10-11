@@ -190,7 +190,7 @@ A personal hub with saved links, shared as private, public or into a ring (`21`)
 
 ## Memos (2026-10-06, owners' choice) — PLANNED
 A private-by-default microblog feed (`22`).
-- [x] **M1:** core. [x] **M2:** the app and the home panel box. [ ] **M3:** public and ring memos, replies, reactions, feeds, moderation.
+- [x] **M1:** core. [x] **M2:** the app and the home panel box. [x] **M3:** public and ring memos, replies, reactions, feeds, moderation.
 
 ## Installer (2026-10-10, owners' choice) — BUILT
 `./sitectl install`: a wizard plus the web finish (`19`).

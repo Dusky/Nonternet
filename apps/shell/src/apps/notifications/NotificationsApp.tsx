@@ -60,7 +60,9 @@ export default function NotificationsApp() {
         {items.map((n) => {
           const name = n.actor.display_name || n.actor.handle;
           // A repeated thing is one line with a count: "Ada and 2 more reacted", "new mail (3)".
-          const text = n.count > 1 && n.kind === 'reaction' ? t('notifications.reactionMany', { name, others: n.count - 1 })
+          const text = n.count > 1 && n.kind === 'memo_reaction' ? t('notifications.memoReactionMany', { name, others: n.count - 1 })
+            : n.count > 1 && n.kind === 'memo_reply' ? t('notifications.memoReplyMany', { name, others: n.count - 1 })
+            : n.count > 1 && n.kind === 'reaction' ? t('notifications.reactionMany', { name, others: n.count - 1 })
             : n.count > 1 && n.kind === 'mail' ? t('notifications.mailMany', { name, count: n.count })
             : t(`notifications.${n.kind}`, { name });
           return (

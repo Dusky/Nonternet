@@ -353,10 +353,14 @@ const bookmarksExporter: Exporter = {
 // Memos (docs/22): every memo, whatever its sharing, with its tags and the replies the person wrote.
 const memosExporter: Exporter = {
   id: 'memos',
-  tables: ['memos', 'memo_tags'],
+  tables: ['memos', 'memo_tags', 'memo_reactions'],
   async run({ deps, user, add }) {
     const list = await exportMemos(deps.db, user.id);
     if (list.length) add('memos.json', json(list));
+    // The reactions they left on other people's memos.
+    const given = await deps.db.query<{ memo_id: string; handle: string; reaction: string; created_at: Date }>(
+      `SELECT x.memo_id, u.handle, x.reaction, x.created_at FROM memo_reactions x JOIN memos m ON m.id = x.memo_id JOIN users u ON u.id = m.user_id WHERE x.user_id = $1 ORDER BY x.created_at, x.memo_id`, [user.id]);
+    if (given.rowCount) add('memos-reactions.json', json(given.rows.map((x) => ({ memo_id: x.memo_id, memo_by: x.handle, reaction: x.reaction, at: x.created_at.toISOString() }))));
   },
 };
 

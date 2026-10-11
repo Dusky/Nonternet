@@ -1,3 +1,4 @@
+import type { ProfileMemo } from './memos';
 // MUD characters as the rest of the site sees them (docs/09): a person's characters on their profile,
 // and the one they feature next to their name on board posts. The MUD is the source of truth; core keeps
 // a copy so any part of the site can use these.
@@ -36,6 +37,8 @@ export interface PublicProfile {
   featured_character_id: string | null;
   status_line: string | null; away: boolean;
   plan: string;
+  // Their newest public memos (up to three), shown under the plan (docs/22).
+  memos: ProfileMemo[];
   pronouns: string | null; location: string | null; links: { label: string; url: string }[];
   // Coarse, and absent when the person has turned it off.
   last_seen: 'today' | 'this_week' | 'a_while' | null;

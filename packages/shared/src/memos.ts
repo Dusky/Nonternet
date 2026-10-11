@@ -25,12 +25,17 @@ const bodyText = z.string().trim().min(1, 'write something first').max(MEMO_MAX,
 export const memoCreateSchema = z.object({
   body: bodyText,
   pinned: z.boolean().default(false),
-  visibility: z.literal('private').default('private'),   // sharing arrives with M3
-});
+  visibility: z.enum(MEMO_VISIBILITIES).default('private'),
+  ring: z.string().trim().toLowerCase().max(32).optional(),   // the ring's address, when shared into a ring
+}).refine((v) => v.visibility !== 'ring' || !!v.ring, { path: ['ring'], message: 'choose the ring to share it with' });
 export const memoUpdateSchema = z.object({
   body: bodyText,
   pinned: z.boolean(),
-}).partial().refine((v) => Object.keys(v).length > 0, 'nothing to change');
+  visibility: z.enum(MEMO_VISIBILITIES),
+  ring: z.string().trim().toLowerCase().max(32),
+}).partial().refine((v) => Object.keys(v).length > 0, 'nothing to change')
+  .refine((v) => v.visibility !== 'ring' || !!v.ring, { path: ['ring'], message: 'choose the ring to share it with' });
+export const memoReplySchema = z.object({ body: bodyText });
 
 export const memoListQuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
@@ -43,5 +48,14 @@ export const memoListQuerySchema = z.object({
 export interface MemoView {
   id: string; body: string; tags: string[]; pinned: boolean; visibility: MemoVisibility; ring: { slug: string; name: string } | null;
   created_at: string; edited_at: string | null;
+  owner: { id: string; handle: string; display_name: string | null };
+  reply_to: string | null;                                   // the memo a reply answers
+  reply_count: number;
+  reactions: { name: string; count: number; mine: boolean }[];
+  hidden: { reason: string } | null;                         // a moderator took it down: only its writer (and moderators) still see it
+  can_hide: boolean;                                         // admins, and the ring's ops for a ring memo
+  mine: boolean;
 }
+// A memo on a profile or in the plan: just what a logged-out visitor may read.
+export interface ProfileMemo { id: string; body: string; created_at: string }
 export interface MemoPage { memos: MemoView[]; next: string | null; total: number }

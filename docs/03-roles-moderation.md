@@ -85,6 +85,10 @@ are their own private business and are not audited. Wiki (docs/20): wiki.enabled
 wiki.page_unprotected, wiki.page_hidden, wiki.page_restored, wiki.page_deleted, wiki.revision_hidden, wiki.revision_shown,
 wiki.starter_added (an admin added the starter help pages).
 Ordinary wiki edits are public history and are not audited. Reports take the target kind `wiki_page`, which goes to admins.
+Memos (docs/22): `memo.hidden` and `memo.restored`, always with a reason. Admins can hide any shared memo or reply; a ring's ops
+can hide the ones in their ring. Reports take the target kind `memo` (ring memos are scoped to the ring's board, so its ops see them;
+public ones go to admins) and hiding closes the open reports. Writing, editing, sharing and deleting memos is the person's own business
+and not audited.
 Bookmarks (docs/21):
 - `bookmark.hidden` and `bookmark.restored`, always with a reason. Admins can hide any shared bookmark; a ring's ops can hide
   the ones shared into their ring.

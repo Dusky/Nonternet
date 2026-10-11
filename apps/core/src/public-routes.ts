@@ -35,6 +35,9 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['GET', /^\/api\/v1\/bookmarks\/public\/:handle$/, 'a person\u2019s public bookmarks, shown on their profile (docs/21)'],
   ['GET', /^\/api\/v1\/rings\/:slug\/bookmarks$/, 'links a ring\u2019s members shared into it, shown on the ring page (docs/21)'],
   ['GET', /^\/api\/v1\/bookmarks\/:id\/icon$/, 'a bookmark\u2019s icon: the owner\u2019s, or a shared one\u2019s for anyone who may see it; the route checks (docs/21)'],
+  ['GET', /^\/api\/v1\/memos\/public\/:handle$/, 'a person\u2019s public memos, shown on their profile (docs/22)'],
+  ['GET', /^\/api\/v1\/memos\/:id\/thread$/, 'a public memo with its replies; the route checks who may read the thread (docs/22)'],
+  ['GET', /^\/api\/v1\/rings\/:slug\/memos$/, 'a ring\u2019s shared memos; empty unless signed in as a member of the ring (docs/22)'],
   ['GET', /^\/feeds\//, 'Atom feeds of public boards, people\u2019s public posts and wiki changes (docs/05, 20)'],
 ];
 

@@ -44,8 +44,11 @@ export async function answer(deps: AppDeps, raw: string): Promise<string> {
     if (p.pronouns) lines.push(`Pronouns: ${p.pronouns}`);
     if (p.location) lines.push(`Location: ${p.location}`);
     for (const l of p.links) lines.push(`Link: ${l.label ? `${l.label} ` : ''}${l.url}`);
-    lines.push('', p.plan ? 'Plan:' : 'No plan.');
-    if (p.plan) lines.push(p.plan);
+    // The plan, then their newest public memos under it. With neither, "No plan." as before.
+    lines.push('');
+    if (!p.plan && !p.memos.length) lines.push('No plan.');
+    if (p.plan) lines.push('Plan:', p.plan);
+    if (p.memos.length) lines.push(...(p.plan ? [''] : []), 'Memos:', ...p.memos.flatMap((m) => [`${m.created_at.slice(0, 10)}  ${m.body}`, '']).slice(0, -1));
     return lines.join('\n');
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) return `Nobody here goes by "${q}".`;

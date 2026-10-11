@@ -197,3 +197,10 @@ covers browsers and Linkding. Linkwarden's JSON export could not be verified, so
 OPEN: add it once there is a real export file to check against. Importing never fetches pages and everything arrives private.
 Link checking is on request only (a button per bookmark), never a background job.
 
+### 2026-10-11 — Memos as built: differences from the plan in `22`
+Memos use migrations 0052 and 0053 (bookmarks took the earlier numbers). Importing an export brings memos back **private**, as for bookmarks.
+A ring's memos are for the ring's members only, which is stricter than ring bookmarks (anyone who can see the ring). Replies have no
+sharing of their own and are readable while the memo they answer is, so making a memo private hides its thread. Memo replies and reactions
+are their own notification kinds (`memo_reply`, `memo_reaction`) so they count on the Memos icon, not Boards; they follow the Settings
+choices for replies and reactions. Push for memo notifications is not built.
+

@@ -45,7 +45,7 @@ describe.skipIf(!dbAvailable)('memos', () => {
     const { c } = await person();
     expect((await write(c, '   ')).status).toBe(400);
     expect((await write(c, 'x'.repeat(2001))).status).toBe(400);
-    expect((await write(c, 'hello', { visibility: 'public' })).status).toBe(400);
+    expect((await write(c, 'hello', { visibility: 'ring' })).status).toBe(400); // which ring?
     const guest = await loginAs(ctx, (await makeUser(ctx, { role: 'guest', verified: false })).handle);
     expect((await write(guest, 'hi')).status).toBe(403);
     expect((await ctx.app.inject({ method: 'GET', url: '/api/v1/memos' })).statusCode).toBe(401);

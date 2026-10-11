@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
 import { publicBookmarks } from './bookmarks';
+import { publicMemos } from './memos';
 
 // Atom feeds (RFC 4287; docs/05, decided 2026-10-05) of what anyone can read on the web: public boards only, nothing a
 // moderator hid, nothing deleted, no guests or suspended people. Text goes out as escaped plain text, never as HTML.
@@ -74,6 +75,20 @@ export async function bookmarkFeed(deps: AppDeps, handle: string): Promise<Feed>
     entries: page.bookmarks.map((b) => ({
       id: `tag:${deps.config.site.domain},2026:bookmark/${b.id}`, title: b.title, url: b.url, author: owner,
       published: new Date(b.created_at), updated: new Date(b.created_at), content: [b.description, b.url].filter(Boolean).join('\n\n'),
+    })),
+  };
+}
+
+// One person's public memos (docs/22). Each entry is the memo's text, escaped, linking to their profile.
+export async function memoFeed(deps: AppDeps, handle: string): Promise<Feed> {
+  const page = await publicMemos(deps, null, handle, undefined, LIMIT);
+  const owner = page.memos[0]?.owner.handle ?? (await deps.db.query<{ handle: string }>(`SELECT handle FROM users WHERE lower(handle) = lower($1)`, [handle])).rows[0]?.handle ?? handle;
+  return {
+    title: `${owner}'s memos - ${deps.config.site.name}`, selfPath: `/feeds/people/${owner}/memos.atom`, webPath: `/people/${owner}`,
+    entries: page.memos.map((m) => ({
+      id: `tag:${deps.config.site.domain},2026:memo/${m.id}`, title: [...(m.body.split('\n')[0] ?? '')].slice(0, 80).join('') || '(memo)',
+      url: `${deps.publicUrl}/people/${encodeURIComponent(owner)}`, author: owner, published: new Date(m.created_at), updated: new Date(m.edited_at ?? m.created_at),
+      content: describeImages(m.body, deps.publicUrl),
     })),
   };
 }

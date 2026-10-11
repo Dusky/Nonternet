@@ -110,12 +110,13 @@ export interface PostPreview {
 
 // What makes a notification (docs/23, E2). The first three come from board posts, the push kinds are in push.ts.
 export const NOTIFICATION_KINDS = ['reply', 'mention', 'watch'] as const;
-export const SITE_NOTIFICATION_KINDS = ['mail', 'reaction', 'ring_invite', 'ring_request', 'ring_joined'] as const;
+export const SITE_NOTIFICATION_KINDS = ['mail', 'reaction', 'ring_invite', 'ring_request', 'ring_joined', 'memo_reply', 'memo_reaction'] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number] | (typeof SITE_NOTIFICATION_KINDS)[number];
 
 // Each kind belongs to one of the choices in Settings (PREF_KINDS in profile.ts).
 export const NOTIFICATION_PREF: Record<NotificationKind, 'reply' | 'mention' | 'watch' | 'mail' | 'reaction' | 'ring'> = {
   reply: 'reply', mention: 'mention', watch: 'watch', mail: 'mail', reaction: 'reaction', ring_invite: 'ring', ring_request: 'ring', ring_joined: 'ring',
+  memo_reply: 'reply', memo_reaction: 'reaction',
 };
 
 export interface NotificationView {
@@ -123,7 +124,7 @@ export interface NotificationView {
   count: number;                                  // how many of the same thing while unread (reactions, new mail)
   subject: string;                                // the thread, conversation or ring it is about
   place: string;                                  // the board it happened in, or ''
-  link: { app: 'boards' | 'mail' | 'rings'; to: string };
+  link: { app: 'boards' | 'mail' | 'rings' | 'memos'; to: string };
   actor: { id: string; handle: string; display_name: string | null };
 }
 
@@ -142,7 +143,7 @@ export const notificationsReadSchema = z.union([
 // The numbers behind the badges on the desktop icons (docs/10). `mentions` is how many of `boards` are @mentions.
 export interface NotificationCounts {
   unread: number;
-  by_app: { boards: number; rings: number; admin?: number };
+  by_app: { boards: number; rings: number; memos?: number; admin?: number };
   mentions: number;
 }
 
@@ -186,7 +187,9 @@ export interface ReportView {
   escalated: boolean; other_open: number;
   reporter: { handle: string };
   board: { slug: string; name: string };
-  target: { type: 'post' | 'homepage' | 'guestbook' | 'mail_message' | 'file' | 'wiki_page' | 'bookmark'; id: string; handle: string | null };
+  target: { type: 'post' | 'homepage' | 'guestbook' | 'mail_message' | 'file' | 'wiki_page' | 'bookmark' | 'memo'; id: string; handle: string | null };
+  // For a memo: the memo its thread belongs to, and whether it is already hidden.
+  memo?: { root: string; hidden: boolean } | null;
   // For a bookmark: what it links to, and whether it is already hidden.
   bookmark?: { title: string; url: string; hidden: boolean } | null;
   // For a wiki page: which wiki and page, to open it from the report.

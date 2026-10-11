@@ -81,4 +81,25 @@ person.
     https, gemini and gopher addresses clickable. `#tags` stay as typed in the text and also show as chips that filter.
   - Each memo has Pin, Edit (in place) and Delete (act now, with Undo). A lock badge says it is private.
   - The home panel has a Memos box with the same write box and the newest three. The palette has "Write a memo".
-- [ ] **M3:** public and ring memos, replies, reactions, feeds, profile, reports and hiding, audit; newest public memos under the plan in finger, Gemini and the profile.
+- [x] **M3:** public and ring memos, replies, reactions, feeds, profile, reports and hiding, audit; newest public memos under the plan in finger, Gemini and the profile.
+
+  As built (migration 0053):
+  - **Who can see a memo** is set when writing or editing: Only me, Anyone, or the members of one of my rings. Making a private
+    memo visible to others asks once; going back to private never does. Changing the sharing back to private takes the memo, its
+    replies and reactions out of view for everyone else straight away.
+  - **One read rule** in core (`sharedWhere`) gates every read of someone else's memo: shared, not hidden, the writer active and
+    not a guest, and for a ring memo the ring not hidden and the reader a member. A ring's memos are for its members only.
+  - **Replies** have no sharing of their own: they are stored private and readable only while the memo they answer is. An answer
+    to a reply goes into the same thread. A memo's writer can remove replies under it; a reply's writer can remove their own.
+  - **Reactions** are the same six words as on posts, on shared memos and replies.
+  - **Notifications:** `memo_reply` and `memo_reaction`, which follow the Settings choices for replies and reactions. They show
+    as a badge on the Memos icon (not Boards) and link to the thread. A hidden memo's notifications disappear.
+  - **Where public memos show:** the profile (with a Feed link), `/feeds/people/{handle}/memos.atom`, and the newest three
+    under the plan in finger and on the Gemini page. The mirrors read as a logged-out visitor.
+  - **Reports** (kind `memo`) go to the ring's ops for a ring memo, and to admins for a public one. Admins, and a ring's ops for
+    its memos, hide and restore with a reason (`memo.hidden`, `memo.restored`, audited), which closes the open reports. The
+    writer still sees a hidden memo, marked with the reason; sharing it again does not bring it back.
+  - **Leaving a ring**, or being removed or banned, makes the person's ring memos private (a trigger on `ring_members`).
+  - **Export** gains `memos-reactions.json` (reactions they left on others' memos). Account deletion removes memos, replies and
+    reactions, and the notifications about them.
+  - Not built: push for memo notifications.

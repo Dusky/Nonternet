@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { JOIN_POLICIES, type WikiInfo, type RingDetail, type RingMemberView, type RingSummary } from '@app/shared';
 import { SharedLinks } from '../bookmarks/SharedLinks';
+import { SharedMemos } from '../memos/SharedMemos';
 import { api } from '../../api';
 import { Alert, BackLink, CopyButton, EmptyState, Loading, NotFound, TextField } from '../../components/ui';
 import { errorText, useMe, useT } from '../../hooks';
@@ -192,6 +193,7 @@ function RingPage({ slug }: { slug: string }) {
         </ul>
       </section>
 
+      {status === 'member' && <SharedMemos source={{ ring: slug }} title={t('rings.sharedMemos')} headingId="ring-memos-h" />}
       <SharedLinks source={{ ring: slug }} title={t('rings.sharedLinks')} headingId="ring-links-h" />
       <Members ring={r} />
       <p className="hint">{t('rings.ops')}: {r.ops.map((o) => o.handle).join(', ')}</p>

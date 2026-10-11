@@ -1,6 +1,7 @@
 import { useConfirm, toast } from '../../components/feedback';
 import { FeedLink } from '../../components/FeedLink';
 import { SharedLinks } from '../bookmarks/SharedLinks';
+import { SharedMemos } from '../memos/SharedMemos';
 import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -154,6 +155,8 @@ function Profile({ handle }: { handle: string }) {
           </ul>
         </section>
       )}
+      <SharedMemos source={{ handle: p.handle }} title={t('people.memos')} headingId="profile-memos"
+        feed={{ href: `/feeds/people/${encodeURIComponent(p.handle)}/memos.atom`, title: t('people.memosFeed', { handle: p.handle }) }} />
       <SharedLinks source={{ handle: p.handle }} title={t('people.bookmarks')} headingId="profile-bookmarks"
         feed={{ href: `/feeds/people/${encodeURIComponent(p.handle)}/bookmarks.atom`, title: t('people.bookmarksFeed', { handle: p.handle }) }} />
       {p.rings.length > 0 && (

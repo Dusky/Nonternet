@@ -61,6 +61,7 @@ export async function answer(deps: AppDeps, raw: string): Promise<GeminiReply> {
         ...(p.bio ? ['', ...quoted(p.bio)] : []),
         ...p.links.map((l) => link(l.url, oneLine(l.label || l.url))),
         '', '## Plan', ...(p.plan ? quoted(p.plan) : ['No plan.']), '',
+        ...(p.memos.length ? ['## Memos', ...p.memos.flatMap((m) => [m.created_at.slice(0, 10), ...quoted(m.body), '']), ] : []),
         ...(p.homepage_url ? [link(p.homepage_url, 'Homepage (on the web)')] : []),
         link(`${deps.publicUrl}/people/${encodeURIComponent(p.handle)}`, 'Profile on the web'),
         link('/', 'Home'),

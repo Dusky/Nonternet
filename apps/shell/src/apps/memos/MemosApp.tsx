@@ -5,15 +5,25 @@ import { api } from '../../api';
 import { Alert, EmptyState, Loading, RelativeTime, TextField } from '../../components/ui';
 import { Editor } from '../../components/Editor';
 import { WriteBox } from './WriteBox';
+import { MemoThread } from './MemoThread';
+import { WhoSees, type Share } from './WhoSees';
+import { useAppNav, AppLink } from '../../nav';
 import { RichText } from '../../components/RichText';
 import { Icon } from '../../components/Icon';
-import { undoable } from '../../components/feedback';
+import { undoable, useConfirm } from '../../components/feedback';
 import { errorText, useMe, useT } from '../../hooks';
 
 // Memos (docs/22): short notes in a timeline. Write at the top (Ctrl+Enter posts), newest first, pins first. For now every
 // memo is private to its writer.
 
 export default function MemosApp() {
+  const nav = useAppNav();
+  const [a, id] = nav.path.split('/');
+  if (a === 'm' && id) return <div className="app-content memos"><MemoThread id={id} /></div>;
+  return <Timeline />;
+}
+
+function Timeline() {
   const t = useT();
   const qc = useQueryClient();
   const [q, setQ] = useState('');
@@ -76,9 +86,13 @@ export default function MemosApp() {
                   <p className="row-meta memo-meta">
                     <RelativeTime iso={m.created_at} />
                     {m.edited_at && <> · {t('memos.edited')} <RelativeTime iso={m.edited_at} /></>}
-                    {' '}<span className="badge"><Icon name="lock" size={12} /> {t('memos.private')}</span>
+                    {' '}{m.visibility === 'private' && <span className="badge"><Icon name="lock" size={12} /> {t('memos.private')}</span>}
+                    {m.visibility === 'public' && <span className="badge">{t('memos.public')}</span>}
+                    {m.visibility === 'ring' && m.ring && <span className="badge">{t('memos.inRing', { name: m.ring.name })}</span>}
+                    {m.visibility !== 'private' && <> · <AppLink to={`m/${m.id}`}>{m.reply_count > 0 ? t('memos.replies', { count: m.reply_count }) : t('memos.openThread')}</AppLink></>}
                     {m.pinned && <> <span className="badge badge-accent">{t('memos.pinned')}</span></>}
                   </p>
+                  {m.hidden && <p className="field-error">{t('memos.hiddenBy', { reason: m.hidden.reason })}</p>}
                   {m.tags.length > 0 && (
                     <ul className="tags" aria-label={t('memos.tags')}>
                       {m.tags.map((x) => <li key={x}><button type="button" className="badge tag" aria-pressed={tag === x} onClick={() => setTag(tag === x ? '' : x)}>#{x}</button></li>)}
@@ -103,12 +117,28 @@ const preview = (body: string) => { const s = [...body.replace(/\s+/g, ' ')].sli
 
 function EditMemo({ m, onDone }: { m: MemoView; onDone: () => void }) {
   const t = useT();
+  const confirm = useConfirm();
   const [body, setBody] = useState(m.body);
+  const [share, setShare] = useState<Share>({ visibility: m.visibility, ring: m.ring?.slug ?? '' });
   const [error, setError] = useState<string | null>(null);
-  const save = useMutation({ mutationFn: () => api.patch(`/memos/${m.id}`, { body }), onSuccess: onDone, onError: (e) => setError(errorText(e)) });
+  const save = useMutation({
+    mutationFn: () => api.patch(`/memos/${m.id}`, { body, visibility: share.visibility, ...(share.visibility === 'ring' ? { ring: share.ring } : {}) }),
+    onSuccess: onDone,
+    onError: (e) => setError(errorText(e)),
+  });
+  // Making a private memo visible to others asks once; going back to private never does.
+  const submit = async () => {
+    if (!body.trim() || save.isPending) return;
+    if (m.visibility === 'private' && share.visibility !== 'private') {
+      const ok = await confirm({ message: t(share.visibility === 'public' ? 'memos.share.confirmPublic' : 'memos.share.confirmRing'), confirmLabel: t('memos.share.confirm') });
+      if (!ok) return;
+    }
+    save.mutate();
+  };
   return (
-    <form className="memo-edit" aria-label={t('memos.editing')} onSubmit={(e) => { e.preventDefault(); if (body.trim()) save.mutate(); }}>
-      <Editor label={t('memos.write')} value={body} onChange={setBody} maxLength={MEMO_MAX} rows={4} onSubmit={() => { if (body.trim()) save.mutate(); }} />
+    <form className="memo-edit" aria-label={t('memos.editing')} onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <Editor label={t('memos.write')} value={body} onChange={setBody} maxLength={MEMO_MAX} rows={4} onSubmit={() => void submit()} />
+      <WhoSees value={share} onChange={setShare} />
       {error && <Alert kind="error">{error}</Alert>}
       <div className="toolbar">
         <button type="submit" className="btn btn-primary" disabled={save.isPending || !body.trim()}>{t('memos.saveChanges')}</button>
@@ -117,4 +147,3 @@ function EditMemo({ m, onDone }: { m: MemoView; onDone: () => void }) {
     </form>
   );
 }
-

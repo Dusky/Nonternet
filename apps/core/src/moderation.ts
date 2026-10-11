@@ -200,7 +200,7 @@ interface ReportRow {
   id: string; status: ReportView['status']; category: ReportCategory; note: string; created_at: Date; reporter: string;
   resolved_by: string | null; resolved_at: Date | null; resolution_note: string | null; target_type: ReportView['target']['type']; target_id: string;
   slug: string | null; board_name: string | null; thread_id: string | null; subject: string | null; body: string | null; deleted_at: Date | null;
-  deleted_by: string | null; hidden_at: Date | null; post_author: string | null; handle: string | null; page_title: string | null; entry_message: string | null; mail_body: string | null; mail_author: string | null; file_name: string | null; file_title: string | null; wp_slug: string | null; wp_title: string | null; wp_body: string | null; wp_ref: string | null; bm_title: string | null; bm_url: string | null; bm_hidden: boolean | null; other_open: string;
+  deleted_by: string | null; hidden_at: Date | null; post_author: string | null; handle: string | null; page_title: string | null; entry_message: string | null; mail_body: string | null; mail_author: string | null; file_name: string | null; file_title: string | null; wp_slug: string | null; wp_title: string | null; wp_body: string | null; wp_ref: string | null; bm_title: string | null; bm_url: string | null; bm_hidden: boolean | null; me_body: string | null; me_root: string | null; me_hidden: boolean | null; other_open: string;
 }
 
 export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?: 'open' | 'actioned' | 'dismissed' | 'all'; board?: string; before?: string; limit?: number }): Promise<{ reports: ReportView[]; next: string | null }> {
@@ -213,7 +213,7 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
             b.slug, b.name AS board_name, COALESCE(p.thread_root_id, p.id) AS thread_id,
             (SELECT subject FROM posts t WHERE t.id = COALESCE(p.thread_root_id, p.id)) AS subject, p.body,
             p.deleted_at, p.deleted_by, p.hidden_at, pa.handle AS post_author,
-            COALESCE(hu.handle, gu.handle, mu.handle, fu.handle, bu.handle) AS handle, bm.title AS bm_title, bm.url AS bm_url, bm.hidden_at IS NOT NULL AS bm_hidden, hp.title AS page_title, ge.message AS entry_message,
+            COALESCE(hu.handle, gu.handle, mu.handle, fu.handle, bu.handle, meu.handle) AS handle, me.body AS me_body, COALESCE(me.reply_to, me.id) AS me_root, me.hidden_at IS NOT NULL AS me_hidden, bm.title AS bm_title, bm.url AS bm_url, bm.hidden_at IS NOT NULL AS bm_hidden, hp.title AS page_title, ge.message AS entry_message,
             mm.body AS mail_body, mu.handle AS mail_author, fi.name AS file_name, fi.title AS file_title,
             wp.slug AS wp_slug, wp.title AS wp_title, wp.body AS wp_body, CASE WHEN wk.scope_type = 'site' THEN 'site' ELSE 'ring:' || wr.slug END AS wp_ref,
             (SELECT count(*) FROM reports o WHERE o.target_type = r.target_type AND o.target_id = r.target_id AND o.status = 'open' AND o.id <> r.id) AS other_open
@@ -234,6 +234,8 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
        LEFT JOIN rings wr ON wr.id = wk.ring_id
        LEFT JOIN bookmarks bm ON r.target_type = 'bookmark' AND bm.id = r.target_id
        LEFT JOIN users bu ON bu.id = bm.user_id
+       LEFT JOIN memos me ON r.target_type = 'memo' AND me.id = r.target_id
+       LEFT JOIN users meu ON meu.id = me.user_id
      WHERE ($1::text = 'all' OR r.status = $1)
        AND ($2::text[] IS NULL OR (r.scope_type = 'board' AND r.scope_id = ANY($2)))
        AND ($3::text IS NULL OR b.slug = $3)
@@ -251,6 +253,7 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
         escalated: x.status === 'open' && now - x.created_at.getTime() > ESCALATE_AFTER_MS, other_open: Number(x.other_open),
         reporter: { handle: x.reporter }, board: { slug: x.slug ?? '', name: x.board_name ?? '' },
         target: { type: x.target_type, id: x.target_id, handle: x.handle },
+        memo: x.target_type === 'memo' && x.me_root ? { root: x.me_root, hidden: Boolean(x.me_hidden) } : null,
         bookmark: x.target_type === 'bookmark' && x.bm_url ? { title: x.bm_title ?? '', url: x.bm_url, hidden: Boolean(x.bm_hidden) } : null,
         wiki: x.target_type === 'wiki_page' && x.wp_slug ? { ref: x.wp_ref ?? 'site', slug: x.wp_slug, title: x.wp_title ?? '' } : null,
         post: isPost ? { id: x.target_id, thread_id: x.thread_id ?? '', subject: x.deleted_at ? '' : x.subject ?? '', excerpt: '', state, author: x.post_author } : null,
@@ -258,7 +261,8 @@ export async function listReports(deps: AppDeps, v: SessionUser, opts: { status?
           : x.target_type === 'mail_message' ? [...(x.mail_body ?? '')].slice(0, 600).join('')
           : x.target_type === 'file' ? [x.file_name, x.file_title].filter(Boolean).join(' — ')
           : x.target_type === 'wiki_page' ? [...(x.wp_body ?? '')].slice(0, 300).join('')
-          : x.target_type === 'bookmark' ? [x.bm_title, x.bm_url].filter(Boolean).join(' — ') : x.page_title ?? '',
+          : x.target_type === 'bookmark' ? [x.bm_title, x.bm_url].filter(Boolean).join(' — ')
+          : x.target_type === 'memo' ? [...(x.me_body ?? '')].slice(0, 300).join('') : x.page_title ?? '',
         resolved_by: x.resolved_by, resolved_at: x.resolved_at ? x.resolved_at.toISOString() : null, resolution_note: x.resolution_note,
       };
     }),

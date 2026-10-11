@@ -119,6 +119,8 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`DELETE FROM home_previews WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM app_data WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM bookmarks WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM memo_reactions WHERE user_id = $1`, [userId]);
+    await q.query(`DELETE FROM memos WHERE user_id = $1 AND reply_to IS NOT NULL`, [userId]);
     await q.query(`DELETE FROM memos WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM app_installs WHERE user_id = $1`, [userId]);
     await revokeAllSessions(q, userId, 'account_deleted');

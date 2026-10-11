@@ -83,6 +83,11 @@ the ring's ops or an admin and kept in `FILES_DIR/ring-banners/`. Anyone can see
 embed them). Ops can remove one; an admin or op can take one down with a reason (audited `ring.banner_hidden` / `ring.banner_restored`), after which visitors see
 nothing and ops see it marked. They are in the export of the people who run the ring.
 
+## Shared memos (2026-10-11)
+A member can share a memo into a ring (`22`). The ring page lists them under "Shared memos" for the ring's members only; other
+visitors see nothing. Members can reply and react. Leaving the ring, or being removed or banned, makes those memos private again.
+The ring's ops can hide one with a reason.
+
 ## Shared links (bookmarks, 2026-10-11)
 A member can share a bookmark into a ring (`21`). The ring page lists them under "Shared links" for anyone who can see the
 ring. Anyone signed in can report one, and the ring's ops can hide one with a reason. When someone leaves the ring, or is

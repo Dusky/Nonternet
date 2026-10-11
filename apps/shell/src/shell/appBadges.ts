@@ -19,6 +19,7 @@ export function badgeMap(i: { mail: number; counts?: NotificationCounts; chat: n
   put('mail', i.mail);
   put('boards', i.counts?.by_app.boards ?? 0, (i.counts?.mentions ?? 0) > 0);
   put('rings', i.counts?.by_app.rings ?? 0);
+  put('memos', i.counts?.by_app.memos ?? 0);
   put('notifications', i.counts?.unread ?? 0);
   put('chat', i.chat, true);
   put('admin', i.counts?.by_app.admin ?? 0, true);
@@ -29,7 +30,8 @@ export function badgeMap(i: { mail: number; counts?: NotificationCounts; chat: n
 export const READ_KINDS: Partial<Record<AppId, readonly string[] | 'mail'>> = {
   boards: ['reply', 'mention', 'watch', 'reaction'],
   rings: ['ring_invite', 'ring_request', 'ring_joined'],
-  notifications: ['reply', 'mention', 'watch', 'reaction', 'mail', 'ring_invite', 'ring_request', 'ring_joined'],
+  memos: ['memo_reply', 'memo_reaction'],
+  notifications: ['reply', 'mention', 'watch', 'reaction', 'mail', 'ring_invite', 'ring_request', 'ring_joined', 'memo_reply', 'memo_reaction'],
   mail: 'mail',
 };
 

@@ -195,3 +195,7 @@ page's "How to connect" lists, as with Gopher.
   - shown on the web profile, by finger and in Gemini;
   - exported as `plan.txt` and in `profile.json`, restored by import, cleared when the account is deleted;
   - not audited, like the bio.
+  - **Memos under the plan** (`22`): a person's newest three public memos are shown beneath the plan by finger, in Gemini and
+    on the profile. With no plan text, finger shows just the memos; with neither, "No plan." as before. The mirrors read as a
+    logged-out visitor, so private and ring memos never reach them. Feeds: `/feeds/people/{handle}/memos.atom` (public memos
+    only) and `/feeds/people/{handle}/bookmarks.atom`.
