@@ -190,7 +190,7 @@ export const useMud = create<MudState>((set, get) => {
       if (!get().loaded) {
         void api.get<{ settings: MudClient }>('/me/client-settings/mud')
           .then((r) => { set({ settings: r.settings, loaded: true }); restartTimers(); clientOptions(); })
-          .catch(() => set({ loaded: true }));
+          .catch(() => set({ saveError: true })); // not loaded: nothing is saved over the account's rules until it is
       }
       if (ws) return;
       clearTimeout(retryTimer);
@@ -230,6 +230,8 @@ export const useMud = create<MudState>((set, get) => {
       if (next.options.screenreader !== before.options.screenreader) clientOptions();
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
+        // Until the saved rules have loaded, saving would put the defaults over them.
+        if (!get().loaded) return set({ saveError: true });
         void api.put('/me/client-settings/mud', { settings: get().settings }).catch(() => set({ saveError: true }));
       }, 800);
     },

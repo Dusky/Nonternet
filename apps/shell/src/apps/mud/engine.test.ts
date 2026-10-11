@@ -56,6 +56,14 @@ describe('expand', () => {
     expect(expand(' kk rat;n', s)).toEqual(['kk rat;n']);
   });
 });
+describe('typed text', () => {
+  it('keeps a dollar sign and a number as typed, and still fills in @variables', () => {
+    const s = { ...base, aliases: [], variables: { target: 'rat' } };
+    expect(expand('say it costs $5', s)).toEqual(['say it costs $5']);
+    expect(expand('kill @target', s)).toEqual(['kill rat']);
+  });
+});
+
 
 describe('runTriggers', () => {
   it('collects every action of every matching trigger', () => {

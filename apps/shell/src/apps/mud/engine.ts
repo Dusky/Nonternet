@@ -50,6 +50,11 @@ export function fill(template: string, caps: string[], vars: Record<string, stri
     .replace(/@([A-Za-z_][A-Za-z0-9_]{0,30})/g, (all, name: string) => (name in vars ? vars[name]! : all));
 }
 
+/** Only variables (@name): what a typed line gets, so a "$5" someone types is sent as typed. */
+export function fillVars(text: string, vars: Record<string, string>): string {
+  return text.replace(/@([A-Za-z_][A-Za-z0-9_]{0,30})/g, (all, name: string) => (name in vars ? vars[name]! : all));
+}
+
 // ---------------------------------------------------------------- input
 
 const DIRS: Record<string, string> = { n: 'north', s: 'south', e: 'east', w: 'west', u: 'up', d: 'down', ne: 'northeast', nw: 'northwest', se: 'southeast', sw: 'southwest' };
@@ -115,7 +120,7 @@ export function expand(line: string, s: Pick<MudClient, 'aliases' | 'variables' 
   const walkOne = (cmd: string, depth: number) => {
     const hit = depth < MAX_DEPTH ? aliasFor(cmd, s.aliases) : null;
     if (hit) walk(fill(hit.alias.send, hit.caps, s.variables), depth + 1);
-    else out.push(fill(cmd, [], s.variables));
+    else out.push(fillVars(cmd, s.variables));
   };
   walk(line, 0);
   return out;
