@@ -1361,3 +1361,16 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 .who-sees legend { font-weight: 650; margin-bottom: var(--space-1); }
 .shared-links .shared-link { display: block; }
 .shared-links .mod-tools { margin-top: var(--space-1); }
+
+/* Memos (docs/22) */
+.memo-write { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
+.memo-write .btn { justify-self: start; }
+.memos-filters { flex-wrap: wrap; align-items: flex-end; gap: var(--space-2) var(--space-4); }
+.memos-filters .field { margin: 0; }
+.memo-rows > li.memo { display: grid; gap: var(--space-1); }
+.memo-body > :first-child { margin-top: 0; }
+.memo-meta .badge svg { vertical-align: -2px; }
+.memo-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.memo-edit { display: grid; gap: var(--space-2); }
+.home-memos { margin-top: var(--space-3); }
+.home-memos .rich-text p { margin: 0 0 var(--space-1); }

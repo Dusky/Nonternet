@@ -72,5 +72,13 @@ person.
   - Import brings every memo back **private**, keeping when it was written; replies to other people's memos can't come back.
   - Routes: `GET /memos` (`q`, `tag`, `pinned`, `before`, `limit`), `GET /memos/hub`, `GET /memos/tags`, `POST /memos`
     (60 an hour), `GET|PATCH|DELETE /memos/:id`.
-- [ ] **M2:** the Memos app and the home panel box, e2e.
+- [x] **M2:** the Memos app and the home panel box, e2e.
+
+  As built:
+  - The Memos app is a built-in app (`apps/shell/src/apps/memos/`). The write box is the shared `Editor`, so it has the
+    character count, Ctrl+Enter to post, and a draft kept on the device.
+  - Memos render through the shared safe text renderer (`RichText`): emphasis, lists, quotes, code and links, with only http,
+    https, gemini and gopher addresses clickable. `#tags` stay as typed in the text and also show as chips that filter.
+  - Each memo has Pin, Edit (in place) and Delete (act now, with Undo). A lock badge says it is private.
+  - The home panel has a Memos box with the same write box and the newest three. The palette has "Write a memo".
 - [ ] **M3:** public and ring memos, replies, reactions, feeds, profile, reports and hiding, audit; newest public memos under the plan in finger, Gemini and the profile.

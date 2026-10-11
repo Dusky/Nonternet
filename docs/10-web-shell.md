@@ -399,6 +399,11 @@ a person would otherwise go wrong.
   - The export lists devices without their push address or keys (`settings/push-devices.json`).
   - Not yet: admin alerts (new reports, applications) as push, and chat.
 
+## As built (memos, 2026-10-11)
+The Memos app (`apps/shell/src/apps/memos/`, signed in only) is described in `22`: a write box on top (Ctrl+Enter posts), a
+timeline with pins first, search, a tag filter, and Pin, Edit and Delete (with Undo) on each memo. Everything is private for
+now. The home panel has a Memos box with a quick-write field and the newest three, and the palette offers "Write a memo".
+
 ## As built (bookmarks, 2026-10-11)
 The Bookmarks app (`apps/shell/src/apps/bookmarks/`, signed in only) is described in `21`:
 - At the top, a box to paste an address and save it.

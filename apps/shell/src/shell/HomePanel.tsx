@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import type { BoardSummary, BookmarkView, Me } from '@app/shared';
+import type { BoardSummary, BookmarkView, MemoView, Me } from '@app/shared';
 import { api } from '../api';
 import { Icon } from '../components/Icon';
 import { Alert, Avatar } from '../components/ui';
 import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById } from './apps';
 import { Oneliners } from './Oneliners';
+import { WriteBox } from '../apps/memos/WriteBox';
+import { RichText } from '../components/RichText';
 import { TowerBoard } from './TowerBoard';
 import { useWindows, type AppId } from './windows';
 
@@ -47,6 +49,7 @@ export function HomePanel({ me }: { me: Me }) {
   // Signed up by application and not approved yet (docs/02): say so, rather than leave them wondering.
   const application = useQuery({ queryKey: ['me', 'application'], queryFn: () => api.get<{ application: { state: string } | null }>('/me/application'), enabled: !confirmed, staleTime: 60_000 }).data?.application;
   const marks = useQuery({ queryKey: ['bookmarks', 'hub'], queryFn: () => api.get<{ pinned: BookmarkView[]; recent: BookmarkView[]; total: number }>('/bookmarks/hub'), enabled: confirmed, staleTime: 30_000 }).data;
+  const memos = useQuery({ queryKey: ['memos', 'hub'], queryFn: () => api.get<{ recent: MemoView[]; total: number }>('/memos/hub'), enabled: confirmed, staleTime: 30_000 }).data;
   const [hideStart, setHideStart] = useState(dismissed);
 
   const go = (app: AppId, path = '') => {
@@ -98,6 +101,17 @@ export function HomePanel({ me }: { me: Me }) {
 
       {confirmed && <Oneliners />}
       {confirmed && site.services.mud && <TowerBoard limit={5} headingId="home-tower" />}
+
+      {confirmed && (
+        <section className="panel" aria-labelledby="home-memos">
+          <div className="panel-head">
+            <h3 id="home-memos">{t('home.memos.title')}</h3>
+            {memos && memos.total > 0 && <button type="button" className="btn btn-quiet btn-small" onClick={() => go('memos')}>{t('home.memos.all')}</button>}
+          </div>
+          <WriteBox compact />
+          {memos && memos.recent.length > 0 && <ul className="rows home-memos">{memos.recent.slice(0, 3).map((m) => <li key={m.id}><RichText body={m.body} /></li>)}</ul>}
+        </section>
+      )}
 
       {marks && <HomeBookmarks marks={marks} open={(path) => go('bookmarks', path)} />}
 

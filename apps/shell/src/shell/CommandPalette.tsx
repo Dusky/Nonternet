@@ -82,6 +82,9 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
       for (const r of rings) found.push(pick(`ring:${r.slug}`, r.name, t('palette.kind.ring'), 'rings', r.slug));
       for (const m of mail) if (m.subject.toLowerCase().includes(term)) found.push(pick(`mail:${m.id}`, m.subject, t('palette.kind.mail'), 'mail', m.id));
     }
+    if (me.role !== 'guest' && term && defaultFilter(t('palette.writeMemo'), term) > 0) {
+      found.push({ key: 'memo:write', label: t('palette.writeMemo'), kind: t('app.memos'), icon: <AppIcon id="memos" size={20} />, run: () => go('memos') });
+    }
     // Saving a link: "save" finds it, and a pasted address offers to save that address.
     if (me.role !== 'guest' && /^https?:\/\/\S+$/i.test(q.trim())) {
       found.unshift({ key: 'bookmark:this', label: t('palette.saveThis', { url: q.trim() }), kind: t('app.bookmarks'), icon: <AppIcon id="bookmarks" size={20} />, run: () => go('bookmarks', `add?url=${encodeURIComponent(q.trim())}`) });
