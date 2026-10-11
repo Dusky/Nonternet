@@ -8,6 +8,7 @@ import { CLIENT_NAMES } from '@app/shared';
 import { getClientSettings } from '../client-settings';
 import { exportAppData } from '../apps';
 import { mudExport } from '../mud/sync';
+import { exportBookmarks } from '../bookmarks';
 
 // Ownership is a feature (docs/12, CLAUDE.md): everything a person makes is in their export. Every
 // table is either handled by an exporter below or listed in EXEMPT with the reason it is not the
@@ -338,7 +339,17 @@ const appsData: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices, wikiExporter];
+// Bookmarks (docs/21): every one, whatever its sharing, with its tags. Icons are left out; they come back from the page.
+const bookmarksExporter: Exporter = {
+  id: 'bookmarks',
+  tables: ['bookmarks'],
+  async run({ deps, user, add }) {
+    const list = await exportBookmarks(deps.db, user.id);
+    if (list.length) add('bookmarks.json', json(list));
+  },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices, wikiExporter, bookmarksExporter];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.

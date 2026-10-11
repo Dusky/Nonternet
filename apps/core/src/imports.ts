@@ -2,7 +2,7 @@ import { createHash, createPublicKey, verify } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { unzipSync } from 'fflate';
-import { CLIENT_NAMES, PREF_KINDS, homepageSettingsSchema, profileUpdateSchema, wallpaperUpdateSchema } from '@app/shared';
+import { CLIENT_NAMES, PREF_KINDS, bookmarkKey, homepageSettingsSchema, profileUpdateSchema, wallpaperUpdateSchema } from '@app/shared';
 import { putClientSettings } from './client-settings';
 import { importAppData } from './apps';
 import { audit } from './audit';
@@ -19,12 +19,13 @@ import * as homes from './homes/service';
 import * as files from './files';
 import { addKey } from './bbs/service';
 import { cleanPath } from './homes/files';
+import { importBookmarks } from './bookmarks';
 
 // Bringing back an export (docs/12). Only what is yours alone comes back: your profile and settings, your
 // avatar, your homepage, your files and your SSH keys. Posts, mail, guestbooks, rings and the rest involve
 // other people or the site's own records, so they stay in the archive and the preview says why.
 
-export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys', 'clients', 'apps'] as const;
+export const IMPORT_PARTS = ['profile', 'settings', 'avatar', 'homepage', 'files', 'keys', 'clients', 'apps', 'bookmarks'] as const;
 export type ImportPart = (typeof IMPORT_PARTS)[number];
 const SKIPPED = [
   ['posts', 'posts/posts.json'], ['mail', 'mail/conversations.json'], ['guestbook', 'guestbook.json'], ['rings', 'rings/'], ['boards', 'boards/'],
@@ -143,6 +144,15 @@ async function plan(deps: AppDeps, v: SessionUser, a: Archive): Promise<{ parts:
   if (appDocs.length || appInstallsOf(a).length) {
     const known = new Set((await deps.db.query<{ app_id: string }>(`SELECT app_id FROM app_catalog WHERE present`)).rows.map((r) => r.app_id));
     parts.push({ part: 'apps', count: appDocs.length, issues: tally(appDocs.filter((d) => !known.has(d.app)).map(() => 'app_missing')) });
+  }
+  const marks = json<unknown[]>(a, 'bookmarks.json');
+  if (Array.isArray(marks) && marks.length) {
+    const have = new Set((await deps.db.query<{ url_key: string }>(`SELECT url_key FROM bookmarks WHERE user_id = $1`, [v.userId])).rows.map((r) => r.url_key));
+    const codes: string[] = [];
+    for (const m of marks) {
+      try { if (have.has(bookmarkKey(String((m as { url?: unknown }).url)))) codes.push('exists'); } catch { codes.push('invalid'); }
+    }
+    parts.push({ part: 'bookmarks', count: marks.length, issues: tally(codes) });
   }
   const skipped: { kind: string; count: number }[] = [];
   for (const [kind, path] of SKIPPED) {
@@ -278,6 +288,7 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
   });
 
   await run('apps', async () => importAppData(deps, v, appInstallsOf(a), appDocsOf(a)));
+  await run('bookmarks', async () => importBookmarks(deps, v, json<unknown[]>(a, 'bookmarks.json') ?? []));
 
   await deps.db.tx(async (q) => {
     await q.query(`UPDATE imports SET applied_at = now(), summary = $2 WHERE id = $1`, [id, JSON.stringify(result)]);

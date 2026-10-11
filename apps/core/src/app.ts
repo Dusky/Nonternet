@@ -24,6 +24,7 @@ import { ircRoutes } from './routes/irc';
 import { mudRoutes } from './routes/mud';
 import { imageRoutes } from './routes/images';
 import { setupRoutes } from './routes/setup';
+import { bookmarkRoutes } from './routes/bookmarks';
 import { mailRoutes } from './routes/mail';
 import { vouchRoutes } from './routes/vouches';
 import { fileRoutes } from './routes/files';
@@ -133,6 +134,7 @@ export async function buildApp(deps: AppDeps) {
   mailRoutes(app, deps);
   imageRoutes(app, deps);
   setupRoutes(app, deps);
+  bookmarkRoutes(app, deps);
   vouchRoutes(app, deps);
   fileRoutes(app, deps);
   consoleRoutes(app, deps);

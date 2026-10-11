@@ -57,18 +57,34 @@ Apps (`10`) are for a person's own data only.
   constraint, as for `wiki_page`). Admins and ring ops can hide one with a reason; audit `bookmark.hidden` and
   `bookmark.restored`. A person's own saving, editing and deleting is private and not audited.
 
-## Data model (migration 0044)
-`bookmarks(id, user_id, url, url_key, title, description, pinned, visibility, ring_id, favicon, checked_at, link_ok,
-created_at, updated_at, hidden_at, hidden_reason)` and `bookmark_tags(bookmark_id, tag)`. Unique `(user_id, url_key)`.
-Search is a generated `tsvector` over title, description, url and tags, as for posts.
+## Data model (migration 0050, as built)
+`bookmarks(id, user_id, url, url_key, title, description, tags text[], pinned, visibility, ring_id, favicon bytea,
+checked_at, link_ok, created_at, updated_at, hidden_at, hidden_reason, search)`, unique `(user_id, url_key)`.
+- Tags are an array, like ring tags, rather than a separate table.
+- `search` is a `tsvector` over the title, description, address and tags. A trigger keeps it, because a generated column
+  can't use `array_to_string`.
+- The icon is a 32-pixel WebP kept in the row, at most a few KB, so it goes with the database backup.
+- Icons:
+  - PNG, JPEG, GIF and WebP icons are read.
+  - In an `.ico` file, only the PNG pictures inside are used; old bitmap ones are skipped.
+  - SVG icons are not read.
+- Reading a page takes at most its first 512 KB (8 seconds) and up to three icon addresses (200 KB each).
 
 ## API (`/api/v1/bookmarks`)
-`GET` list (filters: tag, ring, visibility, pinned, `q`), `POST` add (`{url, title?, description?, tags?, visibility?,
+As built in B1: `GET` list (`tag`, `pinned`, `q`, and a `before` cursor), `GET /hub` (pinned plus the eight newest, for the home
+panel), `GET /:id/icon`. Planned: `ring` and `visibility` filters. `POST` add (`{url, title?, description?, tags?, visibility?,
 ring?}`), `GET/PATCH/DELETE /:id`, `POST /:id/check`, `GET /tags`, `POST /import`, `GET /public/:handle`. Limits: 20
 adds a minute (the fetch is the costly part), 10,000 bookmarks per person.
 
 ## Phases
-- [ ] **B1:** core: table, routes, safe-fetch of title and icon, search, limits, export, import, deletion, tests.
+- [x] **B1:** core:
+  - the table and routes;
+  - a safe fetch of the title and icon;
+  - search and limits;
+  - export, import and deletion;
+  - tests.
+
+  Until B3, only `private` is accepted. Import brings every bookmark back private and says so.
 - [ ] **B2:** the Bookmarks app and home panel section, add form, tags, pins, bookmarklet, palette entry, e2e.
 - [ ] **B3:** sharing: public on profiles and feed, ring sharing, reports and hiding, audit.
 - [ ] **B4:** share target, import of browser files, link checking.

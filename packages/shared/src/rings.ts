@@ -8,6 +8,8 @@ export const MAX_RING_MEMBERSHIPS = 20;   // a soft cap against spam (docs/06, P
 
 const tag = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,19}$/, 'tags use 2 to 20 lowercase letters, digits and hyphens');
 const tags = z.array(tag).max(5).transform((a) => [...new Set(a)]);
+// The same rule for bookmark tags (docs/21).
+export const tagListSchema = tags;
 
 // A ring's address is also the name of its board (ring-{slug}), so it is a little shorter than a board's.
 const ringSlug = slugSchema.refine((s) => s.length <= 24, 'a ring address can be up to 24 characters');

@@ -25,7 +25,8 @@ export function isPublicAddress(ip: string): boolean {
 }
 
 export interface FetchedFile { data: Buffer; contentType: string; finalUrl: string }
-export interface SafeFetchOptions { maxBytes: number; timeoutMs?: number; accept?: string; allowPrivate?: boolean }
+// `truncate`: keep the first `maxBytes` and stop, instead of refusing (for reading the top of a web page).
+export interface SafeFetchOptions { maxBytes: number; timeoutMs?: number; accept?: string; allowPrivate?: boolean; truncate?: boolean }
 
 const refuse = (message: string) => new ApiError(400, 'fetch_refused', message);
 
@@ -61,7 +62,7 @@ function once(rawUrl: string, opts: SafeFetchOptions, deadline: number): Promise
   return new Promise((resolve, reject) => {
     const req = (u.protocol === 'https:' ? https : http).request(u, {
       method: 'GET', lookup: literal ? undefined : (lookup as never), timeout: left,
-      headers: { accept: opts.accept ?? '*/*', 'user-agent': 'site-fetch/1 (+picture copy)' },
+      headers: { accept: opts.accept ?? '*/*', 'user-agent': 'site-fetch/1' },
     }, (res) => {
       const status = res.statusCode ?? 0;
       if (status >= 300 && status < 400 && res.headers.location) {
@@ -71,11 +72,17 @@ function once(rawUrl: string, opts: SafeFetchOptions, deadline: number): Promise
       }
       if (status !== 200) { res.resume(); reject(refuse(`That address answered ${status}, not a file.`)); return; }
       const declared = Number(res.headers['content-length'] ?? 0);
-      if (declared > opts.maxBytes) { res.destroy(); reject(new ApiError(413, 'too_big', 'That file is too big.')); return; }
+      if (declared > opts.maxBytes && !opts.truncate) { res.destroy(); reject(new ApiError(413, 'too_big', 'That file is too big.')); return; }
       const chunks: Buffer[] = [];
       let size = 0;
       res.on('data', (c: Buffer) => {
         size += c.length;
+        if (size > opts.maxBytes && opts.truncate) {
+          chunks.push(c.subarray(0, c.length - (size - opts.maxBytes)));
+          res.destroy();
+          resolve({ data: Buffer.concat(chunks), contentType: String(res.headers['content-type'] ?? ''), finalUrl: u.toString() });
+          return;
+        }
         if (size > opts.maxBytes) { res.destroy(); reject(new ApiError(413, 'too_big', 'That file is too big.')); return; }
         chunks.push(c);
       });
