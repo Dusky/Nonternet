@@ -144,6 +144,21 @@ describe.skipIf(!dbAvailable)('rings', () => {
       expect((await bob.c.post('/api/v1/mod-actions', { action: 'hide', post_id: thread, reason: 'not an op' })).status).toBe(403);
       expect((await carol.c.post('/api/v1/rings/synths/ops', { handle: 'alice' })).status).toBe(403); // an op cannot appoint more
     });
+    it('takes the op role away from someone who leaves the ring or is removed from it', async () => {
+      const ringId = (await visitor().get('/api/v1/rings/synths')).body.id;
+      expect((await carol.c.get('/api/v1/me')).body.user.ops).toContain(`ring:${ringId}`);
+      expect((await carol.c.post('/api/v1/rings/synths/leave')).status).toBe(204);
+      expect((await carol.c.get('/api/v1/me')).body.user.ops).not.toContain(`ring:${ringId}`);
+      expect((await carol.c.get('/api/v1/boards/ring-synths')).body.can_moderate).toBe(false);
+      // Back in, made an op again, then removed by the founder: the role goes with the membership.
+      await carol.c.post('/api/v1/rings/synths/join');
+      expect((await founder.c.post('/api/v1/rings/synths/ops', { handle: 'carol' })).status).toBe(204);
+      expect((await founder.c.post(`/api/v1/rings/synths/members/${carol.id}/remove`, { reason: 'testing removal' })).status).toBe(204);
+      expect((await carol.c.get('/api/v1/me')).body.user.ops).not.toContain(`ring:${ringId}`);
+      // As she was, for the tests that follow.
+      await carol.c.post('/api/v1/rings/synths/join');
+      expect((await founder.c.post('/api/v1/rings/synths/ops', { handle: 'carol' })).status).toBe(204);
+    });
     it('sends the ring board’s reports to the ring’s ops', async () => {
       const thread = (await alice.c.get('/api/v1/boards/ring-synths/threads')).body.threads[0].id;
       await bob.c.post('/api/v1/reports', { post_id: thread, category: 'spam' });

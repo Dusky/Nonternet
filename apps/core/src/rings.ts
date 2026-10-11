@@ -1,4 +1,4 @@
-import { MAX_RING_MEMBERSHIPS, type JoinPolicy, type MemberStatus, type RingDetail, type RingMemberView, type RingNav, type RingSummary } from '@app/shared';
+import { MAX_RING_MEMBERSHIPS, opClaim, type JoinPolicy, type MemberStatus, type RingDetail, type RingMemberView, type RingNav, type RingSummary } from '@app/shared';
 import { audit } from './audit';
 import { newId } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
@@ -54,6 +54,11 @@ const needFounder = (v: SessionUser, ring: RingRow) => {
   if (v.role !== 'admin' && v.userId !== ring.founder_id) throw new ApiError(403, 'forbidden', 'Only the ring’s founder and admins can do that.');
 };
 const isMember = (v: SessionUser) => v.role !== 'guest';
+// Someone who leaves, is removed or is banned stops being one of the ring's ops too.
+async function dropOp(q: Queryable, by: SessionUser, ringId: string, userId: string, why: string, ctx: Ctx): Promise<void> {
+  const r = await q.query(`DELETE FROM scoped_roles WHERE user_id = $1 AND scope_type = 'ring' AND scope_id = $2`, [userId, ringId]);
+  if (r.rowCount) await finishOpsChange(q, by, userId, 'revoked', opClaim('ring', ringId), why, ctx);
+}
 
 // ---------------------------------------------------------------- founding and editing
 
@@ -203,6 +208,7 @@ export async function leave(deps: AppDeps, v: SessionUser, slug: string, ctx: Ct
     if (ring.my_status === 'banned') throw new ApiError(403, 'banned', 'You cannot change that.');
     const del = await q.query(`DELETE FROM ring_members WHERE ring_id = $1 AND user_id = $2`, [ring.id, v.userId]);
     if (del.rowCount === 0) throw new ApiError(409, 'no_change', 'You are not in this ring.');
+    await dropOp(q, v, ring.id, v.userId, 'left the ring', ctx);
     await emit(q, 'ring.member_changed', { ring_id: ring.id, user_id: v.userId, status: 'removed' });
     await audit(q, { actorId: v.userId, actorKind: 'user', action: 'ring.left', targetType: 'ring', targetId: ring.id, origin: 'web', ipHash: ctx.ipHash });
   });
@@ -246,11 +252,13 @@ export async function memberAction(deps: AppDeps, v: SessionUser, slug: string, 
       if (status === 'banned') throw new ApiError(409, 'banned', 'That person is banned. Lift the ban to let them back.');
       await q.query(`DELETE FROM ring_members WHERE ring_id = $1 AND user_id = $2`, [ring.id, userId]);
       await emit(q, 'ring.member_changed', { ring_id: ring.id, user_id: userId, status: 'removed' });
+      await dropOp(q, v, ring.id, userId, 'removed from the ring', ctx);
     } else if (action === 'ban') {
       if (status === 'banned') throw new ApiError(409, 'no_change', 'That person is already banned.');
       const target = await q.query(`SELECT 1 FROM users WHERE id = $1`, [userId]);
       if (target.rowCount === 0) throw new ApiError(404, 'not_found', 'No such user.');
       await setStatus(q, ring, userId, 'banned');
+      await dropOp(q, v, ring.id, userId, 'banned from the ring', ctx);
       await q.query(`INSERT INTO ring_bans (ring_id, user_id, reason, by_id) VALUES ($1, $2, $3, $4)`, [ring.id, userId, reason, v.userId]);
     } else {
       if (status !== 'banned') throw new ApiError(409, 'no_change', 'That person is not banned.');
