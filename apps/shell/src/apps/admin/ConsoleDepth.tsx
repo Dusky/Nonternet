@@ -236,7 +236,7 @@ export function CommandConsole() {
       <form onSubmit={(e) => { e.preventDefault(); void run(); }} className="console-input">
         <label htmlFor="console-line">{t('admin.console.label')}</label>
         <input id="console-line" value={line} onChange={(e) => { setLine(e.target.value); setHi(null); }} onKeyDown={(e) => void onKey(e)}
-          autoComplete="off" autoCapitalize="none" spellCheck={false} aria-describedby="console-keys" disabled={busy} />
+          autoComplete="off" autoCapitalize="none" spellCheck={false} aria-describedby="console-keys" readOnly={busy} aria-busy={busy} /* not disabled: focus stays here for the next command */ />
         <p id="console-keys" className="hint">{t('admin.console.keys')}</p>
         {hints.length > 0 && <ul className="console-hints" aria-label={t('admin.console.hints')}>{hints.map((h) => <li key={h}><button type="button" className="link" onClick={() => { setLine(`${h} `); setHints([]); document.getElementById('console-line')?.focus(); }}>{h}</button></li>)}</ul>}
       </form>

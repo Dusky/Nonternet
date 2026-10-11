@@ -22,6 +22,7 @@ for (const theme of ['webring', 'terminal'] as const) test(`an admin uses the co
   await input.fill(`user role ${u.handle} trusted --reason "helps everyone"`);
   await input.press('Enter');
   await expect(page.getByRole('log').getByText(`${u.handle} is now trusted.`)).toBeVisible();
+  await expect(input).toBeFocused(); // ready for the next command without clicking back in
   await input.fill('help');
   await input.press('Enter');
   await expect(page.getByRole('log').getByRole('cell', { name: 'stats', exact: true })).toBeVisible();
