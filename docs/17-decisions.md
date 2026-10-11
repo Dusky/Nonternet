@@ -213,3 +213,11 @@ When the site is updated, a tab still running the old page asks for app files th
 "Something went wrong in this app". It is now recognised: the page reloads once to pick up the new version (at most once a minute),
 and if the app still can't load the note says the site was updated, with a button that reloads the page.
 
+### 2026-10-11 — Updating under an open page: start fresh, because the service worker keeps the old page
+The first fix (reload once) did not help people whose browser had the service worker: it keeps the old page until every tab of it is
+closed, so a reload brought the same old page back, still asking for app files that the new release had renamed. The recovery is now to
+remove the service worker and what it kept, then load from the network (it installs again on that load). The app boundary does this on its
+own the first time it sees the failed import (at most once a minute), and its "Reload the page" button does the same. A page that was open
+before this fix has none of this code: closing every tab of the site, or clearing its site data once, gets it onto the new version. Not
+changed: lazy app files are still not precached (that would add about 2.4 MB to the first visit).
+

@@ -255,7 +255,7 @@ test.describe('on a phone', () => {
     await page.getByRole('link', { name: 'Settings' }).click();
     for (const target of [
       page.getByRole('link', { name: 'Back' }), page.getByRole('button', { name: /Account menu/ }),
-      page.getByRole('link', { name: 'Password', exact: true }), page.getByLabel('Display name (optional)'), page.getByRole('button', { name: 'Save' }),
+      page.getByRole('link', { name: 'Password', exact: true }), page.getByLabel('Display name (optional)'), page.getByRole('button', { name: 'Save', exact: true }),
     ]) {
       const b = await box(target);
       expect(b.height, await target.evaluate((el) => el.outerHTML.slice(0, 60))).toBeGreaterThanOrEqual(44);

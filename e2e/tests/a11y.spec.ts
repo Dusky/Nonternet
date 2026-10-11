@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
-import { loginViaUi, makeAdmin, makeUser, PASSWORD, signIn, uniq } from '../support/helpers';
+import { loginViaUi, makeAdmin, makeUser, PASSWORD, settled, signIn, uniq } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // Automated accessibility checks (WCAG 2.1 A and AA) on every main screen, in both themes. This
@@ -11,6 +11,7 @@ import { BASE_URL } from '../support/stack';
 const THEMES = ['webring', 'after-dark', 'terminal', 'platinum', 'aqua', 'terminal:green', 'terminal:paper'] as const;
 
 async function scan(page: Page, what: string) {
+  await settled(page);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   const summary = results.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
   expect(summary, `accessibility problems on ${what}`).toEqual([]);

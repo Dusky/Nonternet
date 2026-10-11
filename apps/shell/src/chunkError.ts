@@ -13,11 +13,26 @@ export const isChunkLoadError = (e: unknown): boolean => {
   return e instanceof Error && e.name === 'ChunkLoadError' || MESSAGES.some((m) => text.includes(m));
 };
 
+// The service worker keeps the old page after a release (a new one waits until every tab of the old one is closed), so reloading
+// alone brings the same old page back, still asking for files that are gone. Starting fresh means removing the worker and what it
+// kept, then loading the page from the network; the worker installs again on that load.
+export async function resetServiceWorker(): Promise<void> {
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations?.()) ?? [];
+    await Promise.all(regs.map((r) => r.unregister()));
+  } catch { /* no worker, or the browser won't say */ }
+  try {
+    const keys = (await caches?.keys?.()) ?? [];
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  } catch { /* no cache storage */ }
+}
+export const reloadFresh = (): void => { void resetServiceWorker().finally(() => window.location.reload()); };
+
 const KEY = 'ui:update-reload';
 const WINDOW_MS = 60_000;
-// Reload the page for an update, but at most once a minute: if the new page fails the same way, stop and let the message show.
+// Start fresh for an update, but at most once a minute: if the new page fails the same way, stop and let the message show.
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
-export function reloadForUpdate(now = Date.now(), reload: () => void = () => window.location.reload(), store?: Store): boolean {
+export function reloadForUpdate(now = Date.now(), reload: () => void = reloadFresh, store?: Store): boolean {
   try {
     const s = store ?? window.sessionStorage;
     const last = Number(s.getItem(KEY) ?? 0);

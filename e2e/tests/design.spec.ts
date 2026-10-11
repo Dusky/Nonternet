@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
+import { makeUser, PASSWORD, setRole, settled, signIn, uniq } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // The design pass (docs/10): the landing page, the home panel, the palette, window keys, the phone
@@ -9,6 +9,7 @@ import { BASE_URL } from '../support/stack';
 const h = { origin: BASE_URL };
 
 async function scan(page: Page, what: string) {
+  await settled(page);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`), what).toEqual([]);
 }

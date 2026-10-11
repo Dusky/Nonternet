@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isChunkLoadError, reloadForUpdate } from './chunkError';
+import { isChunkLoadError, reloadForUpdate, resetServiceWorker } from './chunkError';
 
 describe('a failed import after an update', () => {
   it('is told apart from other errors', () => {
@@ -23,5 +23,24 @@ describe('reloading for an update', () => {
     expect(reload).toHaveBeenCalledTimes(1);
     expect(reloadForUpdate(1_061_000, reload, store)).toBe(true);
     expect(reload).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('starting fresh', () => {
+  it('removes the service worker and everything it kept', async () => {
+    const unregister = vi.fn(async () => true);
+    const del = vi.fn(async (_key: string) => true);
+    vi.stubGlobal('navigator', { serviceWorker: { getRegistrations: async () => [{ unregister }, { unregister }] } });
+    vi.stubGlobal('caches', { keys: async () => ['workbox-precache-v2', 'shell-assets'], delete: del });
+    await resetServiceWorker();
+    expect(unregister).toHaveBeenCalledTimes(2);
+    expect(del.mock.calls.map((c) => c[0])).toEqual(['workbox-precache-v2', 'shell-assets']);
+    vi.unstubAllGlobals();
+  });
+  it('still finishes in a browser with neither', async () => {
+    vi.stubGlobal('navigator', {});
+    vi.stubGlobal('caches', undefined);
+    await expect(resetServiceWorker()).resolves.toBeUndefined();
+    vi.unstubAllGlobals();
   });
 });

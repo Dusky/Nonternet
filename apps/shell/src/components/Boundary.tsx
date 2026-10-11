@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { en } from '@app/strings';
-import { isChunkLoadError } from '../chunkError';
+import { isChunkLoadError, reloadFresh, reloadForUpdate } from '../chunkError';
 
 // One app crashing must not take the rest of the shell with it. This catches an error while an app draws,
 // says so plainly, and offers to start that app again. It sits outside the translation context on purpose
@@ -8,7 +8,11 @@ import { isChunkLoadError } from '../chunkError';
 export class AppBoundary extends Component<{ children: ReactNode; label?: string }, { failed: boolean; round: number; updated: boolean }> {
   state = { failed: false, round: 0, updated: false };
   static getDerivedStateFromError(error: unknown) { return { failed: true, updated: isChunkLoadError(error) }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error('An app failed to draw:', error, info.componentStack); }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('An app failed to draw:', error, info.componentStack);
+    // The site was updated under this page: start fresh once, on our own, rather than wait to be asked.
+    if (isChunkLoadError(error)) reloadForUpdate();
+  }
   render() {
     if (this.state.failed) {
       // The site was updated while this page was open: the app's file is gone. Reloading the page is the fix; trying the app again is not.
@@ -16,7 +20,7 @@ export class AppBoundary extends Component<{ children: ReactNode; label?: string
         return (
           <div className="empty" role="alert">
             <p>{en['boundary.updated']}</p>
-            <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>{en['boundary.reloadPage']}</button>
+            <button type="button" className="btn btn-primary" onClick={reloadFresh}>{en['boundary.reloadPage']}</button>
           </div>
         );
       }

@@ -153,3 +153,9 @@ export async function confirmDialog(page: Page, button: string) {
   await page.getByRole('alertdialog').getByRole('button', { name: button, exact: true }).click();
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
 }
+
+// Entrance animations fade things in; a contrast check made halfway through reads the half-faded colours. Wait until every animation
+// that has an end (not the endless ones, like a blinking cursor) has finished.
+export async function settled(page: Page): Promise<void> {
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || !Number.isFinite(a.effect?.getComputedTiming().endTime as number)));
+}
