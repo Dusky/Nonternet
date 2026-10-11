@@ -22,7 +22,7 @@ export type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'clo
 interface ChatState {
   status: Status; error: string | null; nick: string; active: string; buffers: Map<string, Buffer>; muted: Set<string>; presence: Record<string, PresenceChoice>;
   away: Set<string>; settings: ChatClient; alertText: { mention: string; dm: string; title: string } | null;
-  connect(): void; disconnect(): void; select(name: string): void; openQuery(nick: string): void; typing(): void; doneTyping(): void; send(text: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void; setPresence(channel: string, choice: PresenceChoice | null): void;
+  connect(): void; disconnect(): void; select(name: string): void; openQuery(nick: string): void; typing(): void; doneTyping(): void; send(text: string, to?: string): void; join(name: string): void; part(name: string): void; toggleMute(name: string): void; setPresence(channel: string, choice: PresenceChoice | null): void;
   loadOlder(name: string): void; ignore(nick: string, on: boolean): void; setHighlights(words: string[]): void; setAlertText(t: ChatState['alertText']): void;
 }
 
@@ -46,19 +46,26 @@ const leaving = new Set<string>(); // channels closed here; the server's PART mu
 const key = (name: string) => name.toLowerCase();
 const isChannel = (name: string) => /^[#&]/.test(name);
 
+// Device storage is per person (keys end with their nick), so someone else on the same browser starts clean.
+// An older unsuffixed key is read once as a fallback, so nothing open is lost on the first visit after the change.
+let who = '';
+function read(base: string): string | null {
+  try { return localStorage.getItem(`${base}:${who.toLowerCase()}`) ?? (who ? localStorage.getItem(base) : null); } catch { return null; }
+}
+function write(base: string, value: unknown) { try { localStorage.setItem(`${base}:${who.toLowerCase()}`, JSON.stringify(value)); } catch { /* private window */ } }
 function loadMuted(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(MUTED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+  try { return new Set(JSON.parse(read(MUTED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
 }
 function loadChannels(): string[] {
-  try { return (JSON.parse(localStorage.getItem(CHANNELS_KEY) ?? '[]') as string[]).filter((c) => /^#[^\s,]{1,63}$/.test(c)).slice(0, 30); } catch { return []; }
+  try { return (JSON.parse(read(CHANNELS_KEY) ?? '[]') as string[]).filter((c) => /^#[^\s,]{1,63}$/.test(c)).slice(0, 30); } catch { return []; }
 }
-function saveChannels(names: string[]) { try { localStorage.setItem(CHANNELS_KEY, JSON.stringify(names)); } catch { /* private window */ } }
+function saveChannels(names: string[]) { write(CHANNELS_KEY, names); }
 function loadQueries(): string[] {
-  try { return (JSON.parse(localStorage.getItem(QUERIES_KEY) ?? '[]') as string[]).filter((n) => /^[^\s#&,]{1,40}$/.test(n)).slice(0, 30); } catch { return []; }
+  try { return (JSON.parse(read(QUERIES_KEY) ?? '[]') as string[]).filter((n) => /^[^\s#&,]{1,40}$/.test(n)).slice(0, 30); } catch { return []; }
 }
 function rememberQuery(nick: string, open: boolean) {
   const rest = loadQueries().filter((n) => n.toLowerCase() !== nick.toLowerCase());
-  try { localStorage.setItem(QUERIES_KEY, JSON.stringify(open ? [...rest, nick] : rest)); } catch { /* private window */ }
+  write(QUERIES_KEY, open ? [...rest, nick] : rest);
 }
 function loadPresence(nick: string): Record<string, PresenceChoice> {
   try {
@@ -67,7 +74,7 @@ function loadPresence(nick: string): Record<string, PresenceChoice> {
   } catch { return {}; }
 }
 function savePresence(nick: string, p: Record<string, PresenceChoice>) { try { localStorage.setItem(PRESENCE_KEY + nick.toLowerCase(), JSON.stringify(p)); } catch { /* private window */ } }
-function saveMuted(m: Set<string>) { try { localStorage.setItem(MUTED_KEY, JSON.stringify([...m])); } catch { /* private window */ } }
+function saveMuted(m: Set<string>) { write(MUTED_KEY, [...m]); }
 
 // The channels this person has open, kept so a reload or a dropped connection comes back to them.
 function remember(channel: string, open: boolean) {
@@ -124,7 +131,7 @@ export const useChat = create<ChatState>((set, get) => {
     }
   };
   const info = (text: string, kind: MsgKind = 'info', target = get().active) => add(target, { time: Date.now(), kind, nick: '', text });
-  const note = (key: StringKey, kind: MsgKind = 'info', target = get().active) => add(target, { time: Date.now(), kind, nick: '', text: '', key });
+  const note = (key: StringKey, kind: MsgKind = 'info', target = get().active, text = '') => add(target, { time: Date.now(), kind, nick: '', text, key });
 
   const timeOf = (e: { time?: number; tags?: Record<string, string> }) => (e.tags?.time ? Date.parse(e.tags.time) : e.time ?? Date.now());
   const inHistory = (e: { batch?: { type?: string } }) => e.batch?.type === 'chathistory';
@@ -137,8 +144,8 @@ export const useChat = create<ChatState>((set, get) => {
       try {
         t = await api.post<{ ticket: string; nick: string }>('/irc/ticket', {});
       } catch (e) {
-        // No network: try again shortly. Anything else (not allowed, chat off) is shown, not retried.
-        if (e instanceof ApiError && e.status === 0 && users > 0) return scheduleRetry();
+        // No network, busy or restarting: try again shortly. Anything else (not allowed, chat off) is shown, not retried.
+        if (e instanceof ApiError && (e.status === 0 || e.status === 429 || e.status >= 500) && users > 0) return scheduleRetry();
         set({ status: 'error', error: e instanceof ApiError ? e.message : null });
         return;
       }
@@ -147,7 +154,8 @@ export const useChat = create<ChatState>((set, get) => {
       client = c;
       c.requestCap(['draft/chathistory', 'draft/event-playback', 'message-tags', 'away-notify']);
       void api.get<{ settings: ChatClient }>('/me/client-settings/chat').then((r) => set({ settings: r.settings })).catch(() => undefined);
-      set({ nick: t.nick, presence: loadPresence(t.nick) });
+      who = t.nick;
+      set({ nick: t.nick, presence: loadPresence(t.nick), muted: loadMuted() });
       c.on('registered', () => {
         attempt = 0;
         set({ status: 'connected', nick: c.user.nick });
@@ -159,6 +167,7 @@ export const useChat = create<ChatState>((set, get) => {
         if (inHistory(e)) return add(e.channel, { time: timeOf(e), kind: 'join', nick: e.nick, text: '', msgid: e.tags?.msgid, history: true });
         if (key(e.nick) === key(get().nick)) {
           update(e.channel, (b) => ({ ...b, joined: true }), 'channel');
+          remember(e.channel, true); // so a reload or a dropped connection comes back to it
           if (get().active === SERVER) set({ active: key(e.channel) });
           c.raw(`CHATHISTORY LATEST ${e.channel} * 100`);
         } else {
@@ -174,10 +183,13 @@ export const useChat = create<ChatState>((set, get) => {
         add(e.channel, { time: timeOf(e), kind: 'part', nick: e.nick, text: e.message ?? '', msgid: e.tags?.msgid });
       });
       c.on('kick', (e: any) => {
+        // From history (event-playback): show the line, but it says nothing about who is here now.
+        if (inHistory(e)) return add(e.channel, { time: timeOf(e), kind: 'kick', nick: e.nick, text: `${e.kicked}${e.message ? `: ${e.message}` : ''}`, msgid: e.tags?.msgid, history: true });
         update(e.channel, (b) => { const u = new Map(b.users); u.delete(e.kicked); return key(e.kicked) === key(get().nick) ? { ...b, joined: false, users: new Map() } : { ...b, users: u }; });
         add(e.channel, { time: timeOf(e), kind: 'kick', nick: e.nick, text: `${e.kicked}${e.message ? `: ${e.message}` : ''}` });
       });
       c.on('quit', (e: any) => {
+        if (inHistory(e)) { const ch = e.batch?.params?.[0]; if (typeof ch === 'string' && isChannel(ch)) add(ch, { time: timeOf(e), kind: 'quit', nick: e.nick, text: e.message ?? '', msgid: e.tags?.msgid, history: true }); return; }
         for (const b of get().buffers.values()) {
           if (!b.users.has(e.nick)) continue;
           update(b.name, (x) => { const u = new Map(x.users); u.delete(e.nick); return { ...x, users: u }; });
@@ -185,6 +197,7 @@ export const useChat = create<ChatState>((set, get) => {
         }
       });
       c.on('nick', (e: any) => {
+        if (inHistory(e)) { const ch = e.batch?.params?.[0]; if (typeof ch === 'string' && isChannel(ch)) add(ch, { time: timeOf(e), kind: 'nick', nick: e.nick, text: e.new_nick, msgid: e.tags?.msgid, history: true }); return; }
         for (const b of get().buffers.values()) {
           if (!b.users.has(e.nick)) continue;
           update(b.name, (x) => { const u = new Map(x.users); const p = u.get(e.nick) ?? ''; u.delete(e.nick); u.set(e.new_nick, p); return { ...x, users: u }; });
@@ -207,7 +220,7 @@ export const useChat = create<ChatState>((set, get) => {
         });
       });
       c.on('topic', (e: any) => {
-        update(e.channel, (b) => ({ ...b, topic: e.topic ?? '' }));
+        if (!inHistory(e)) update(e.channel, (b) => ({ ...b, topic: e.topic ?? '' }));
         if (e.nick) add(e.channel, { time: timeOf(e), kind: 'topic', nick: e.nick, text: e.topic ?? '', msgid: e.tags?.msgid });
       });
       const onMessage = (e: any) => {
@@ -215,6 +228,7 @@ export const useChat = create<ChatState>((set, get) => {
         const self = key(e.nick) === key(get().nick);
         const target = isChannel(e.target) ? e.target : self ? e.target : e.nick;
         const kind: MsgKind = e.type === 'action' ? 'action' : e.type === 'notice' ? 'notice' : 'message';
+        if (!isChannel(target) && !inHistory(e) && !get().buffers.has(key(target))) rememberQuery(target, true); // someone wrote to you: keep the conversation open
         add(target, { time: timeOf(e), kind, nick: e.nick, text: e.message, msgid: e.tags?.msgid, history: inHistory(e) });
       };
       // Typing notices (IRCv3 +typing, relayed by Ergo as TAGMSG). They are a courtesy: a missing one costs nothing.
@@ -260,7 +274,7 @@ export const useChat = create<ChatState>((set, get) => {
   };
 
   return {
-    status: 'idle', error: null, nick: '', active: SERVER, buffers: new Map([[SERVER, newBuffer(SERVER, 'server')]]), muted: loadMuted(), presence: {},
+    status: 'idle', error: null, nick: '', active: SERVER, buffers: new Map([[SERVER, newBuffer(SERVER, 'server')]]), muted: new Set(), presence: {},
     away: new Set(), settings: DEFAULT_SETTINGS, alertText: null,
     setAlertText(text) { set({ alertText: text }); },
 
@@ -354,10 +368,11 @@ export const useChat = create<ChatState>((set, get) => {
       set((s) => { const muted = new Set(s.muted); if (muted.has(key(name))) muted.delete(key(name)); else muted.add(key(name)); saveMuted(muted); return { muted }; });
     },
 
-    send(raw) {
+    send(raw, to) {
       const text = raw.replace(/[\r\n]+/g, ' ');
       if (!text.trim() || !client) return;
-      const { active, buffers } = get();
+      const { buffers } = get();
+      const active = to ? key(to) : get().active; // a pasted block keeps going to where it was pasted
       const buf = buffers.get(active);
       const target = buf && buf.kind !== 'server' ? buf.name : null;
       if (text.startsWith('/') && !text.startsWith('//')) {
@@ -370,13 +385,18 @@ export const useChat = create<ChatState>((set, get) => {
           case 'msg': case 'query': {
             const [to, ...words] = rest;
             if (!to) return note('chat.note.msgWho', 'error');
+            if (isChannel(to)) { if (words.length) client.say(to, words.join(' ')); return; } // to a channel: said there, no new tab
             update(to, (b) => b, 'query');
             rememberQuery(to, true);
             set({ active: key(to) });
             if (words.length) client.say(to, words.join(' '));
             return;
           }
-          case 'topic': if (target && isChannel(target)) client.setTopic(target, arg); return;
+          case 'topic': {
+            if (!target || !isChannel(target)) return note('chat.note.openFirst', 'error');
+            if (!arg) return buf?.topic ? note('chat.note.topicIs', 'info', active, buf.topic) : note('chat.note.noTopic'); // as in IRC: no text shows it
+            client.setTopic(target, arg); return;
+          }
           case 'nick': return note('chat.note.nick', 'error');
           case 'presence': {
             if (!target || !isChannel(target)) return note('chat.note.openFirst', 'error');

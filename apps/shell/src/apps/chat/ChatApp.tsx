@@ -23,7 +23,7 @@ export default function ChatApp() {
   const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="app-content chat app-fill">
-      {status === 'error' && <Alert kind="error">{error ?? t('chat.failed')}</Alert>}
+      {status === 'error' && <Alert kind="error">{error ?? t('chat.failed')} <button type="button" className="link" onClick={() => { disconnect(); connect(); }}>{t('chat.tryAgain')}</button></Alert>}
       {status === 'closed' && (
         <Alert kind="info">{t('chat.closed')} <button type="button" className="link" onClick={() => { disconnect(); connect(); }}>{t('chat.reconnect')}</button></Alert>
       )}
@@ -240,7 +240,7 @@ function Line({ m, stamps, found }: { m: Msg; stamps: boolean; found?: boolean }
     case 'message': return <li className={cls} data-line={m.id}>{when} <Nick nick={m.nick} /> <IrcText text={m.text} /></li>;
     case 'action': return <li className={cls} data-line={m.id}>{when} <span aria-hidden="true">* </span><Nick nick={m.nick} /> <IrcText text={m.text} /></li>;
     case 'notice': return <li className={cls} data-line={m.id}>{when} <span className="chat-nick">-{m.nick || t('chat.server')}-</span> <IrcText text={m.text} /></li>;
-    case 'info': case 'error': return <li className={cls} data-line={m.id}>{when} {m.key ? t(m.key) : <IrcText text={m.text} />}</li>;
+    case 'info': case 'error': return <li className={cls} data-line={m.id}>{when} {m.key ? t(m.key, { text: m.text }) : <IrcText text={m.text} />}</li>;
     default: return <li className={cls} data-line={m.id}>{when} {t(`chat.event.${m.kind}` as never, { nick: m.nick, text: m.text ? `(${m.text})` : '' }).trim()}</li>;
   }
 }
@@ -290,9 +290,10 @@ function Composer({ target }: { target: Buffer | undefined }) {
     if (lines === null) return;
     e.preventDefault();
     if (lines.length > 10) { toast(t('chat.paste.tooMany')); return; }
+    const here = useChat.getState().active;
     void confirm({ message: t('chat.paste.confirm', { count: lines.length }), confirmLabel: t('chat.paste.send') }).then((ok) => {
       if (!ok) return;
-      lines.forEach((l, i) => setTimeout(() => send(l.startsWith('/') ? `/${l}` : l), i * 400));
+      lines.forEach((l, i) => setTimeout(() => send(l.startsWith('/') ? `/${l}` : l, here), i * 400));
     });
   };
   const keys = (e: KeyboardEvent<HTMLInputElement>) => {

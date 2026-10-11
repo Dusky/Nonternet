@@ -235,6 +235,29 @@ test.describe('chat', () => {
     await expect(channels.getByRole('button', { name: '#help' })).toBeVisible(); // back in the site list
   });
 
+  test('an open channel comes back after a reload; /topic with no text shows it; /msg to a channel says it there', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.goto('/chat');
+    await expect(page.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
+    const channels = page.getByRole('navigation', { name: 'Channels' });
+    await channels.getByRole('button', { name: '#help' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: '#help' })).toBeVisible();
+    await page.reload();
+    await expect(channels.getByRole('listitem').getByRole('button', { name: /^#help/ }).first()).toBeVisible({ timeout: 15_000 });
+
+    await channels.getByRole('button', { name: /^#lobby/ }).first().click();
+    await page.getByLabel('Message #lobby').fill('/topic');
+    await page.getByLabel('Message #lobby').press('Enter');
+    await expect(log(page, '#lobby').getByText(/The topic is: |This channel has no topic\./)).toBeVisible();
+
+    const word = uniq('sent');
+    await page.getByLabel('Message #lobby').fill(`/msg #lobby ${word}`);
+    await page.getByLabel('Message #lobby').press('Enter');
+    await expect(log(page, '#lobby').getByText(word)).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Channels' }).getByRole('button', { name: '#lobby', exact: true })).toHaveCount(1);
+  });
+
   test('someone who has not confirmed their email is told why they cannot chat', async ({ page }) => {
     const u = await makeUser(page, { verify: false });
     await signIn(page, u.handle, PASSWORD);
