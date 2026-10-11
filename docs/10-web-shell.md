@@ -39,6 +39,13 @@ in amber, magenta second), **Terminal** (the BBS everywhere, with eight screen c
 `packages/ui-themes`. Effects (scanlines, glow, CRT corners) are separate switches, off by default and
 off whenever the device asks for reduced motion or more contrast. Admin sets the default.
 
+**Light and dark (2026-10-11).** Settings → Appearance → "Light or dark": Light, Dark, or Follow my device (the default). It is
+kept on the device, like density and effects, and follows the device live. Webring, Platinum and Aqua each have a dark version of
+their own colours and shadows (`dark` next to `tokens` in `packages/ui-themes`); shape, type and layout are the same in both.
+After dark and Terminal are dark looks already, so the choice does not apply to them and the page says so. `<html>` carries
+`data-mode="light|dark"`; the stylesheet and the code editor in the Studio follow it. Every dark text and edge pair is
+tested against the same contrast rules as the light ones (4.5:1 for text, 3:1 for edges).
+
 Note: themes style the chrome; **all copy follows the plain voice** in `00`.
 
 ## Landing page (logged out)

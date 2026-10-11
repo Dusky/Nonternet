@@ -519,6 +519,7 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 .editor-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); min-height: 22rem; }
 /* The code editor stays light in every theme: its syntax colours are checked at 7:1 against white (CodeEditor.tsx). */
 .code-editor { border: 1px solid var(--line-strong); border-radius: var(--radius-sm); min-height: 22rem; overflow: auto; background: #fff; color: #111; }
+.code-editor[data-mode="dark"] { background: #1b1b1f; color: #ececec; }
 .code-editor .cm-editor { min-height: 22rem; }
 /* On a narrow screen the completion's longer note would sit over the list and catch the tap meant for an option. */
 @media (max-width: 640px) { .code-editor .cm-completionInfo { display: none; } }
@@ -1374,3 +1375,9 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 .memo-edit { display: grid; gap: var(--space-2); }
 .home-memos { margin-top: var(--space-3); }
 .home-memos .rich-text p { margin: 0 0 var(--space-1); }
+
+/* Dark mode (docs/10): the Platinum bevels are drawn with fixed greys, so the dark version has its own. */
+:root[data-chrome="platinum"][data-mode="dark"] .window-buttons button:not(.is-nav):active { box-shadow: inset 1px 1px 0 #1a1a1a; }
+:root[data-chrome="platinum"][data-mode="dark"] .btn:active:not(:disabled) { box-shadow: inset 2px 2px 0 #1a1a1a, inset -2px -2px 0 #5c5c5c; }
+:root[data-chrome="platinum"][data-mode="dark"] .taskbar-windows .btn.is-active { box-shadow: inset 2px 2px 0 #1a1a1a, inset -2px -2px 0 #5c5c5c; }
+:root[data-chrome="aqua"][data-mode="dark"] .app-tile { background-image: linear-gradient(rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 55%); }

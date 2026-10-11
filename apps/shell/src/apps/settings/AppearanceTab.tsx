@@ -2,7 +2,7 @@ import { useToast } from '../../components/feedback';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TERMINAL_SCHEMES, THEMES, type Me, type TerminalScheme, type ThemeName } from '@app/shared';
-import { TERMINAL_SCHEME_BASES, tokensFor } from '@app/ui-themes';
+import { TERMINAL_SCHEME_BASES, hasModes, tokensFor } from '@app/ui-themes';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert } from '../../components/ui';
@@ -11,7 +11,7 @@ import { alertPrefs, askDesktopPermission, desktopSupported, playChime, saveAler
 import { Section } from './Section';
 import { WallpaperPicker } from './WallpaperPicker';
 import { DeviceSwitch } from './PersonalSettings';
-import { applyTheme, BOX_STYLES, boxStylePref, clockPref, DEFAULT_THEME, DENSITIES, densityPref, effectPrefs, saveBoxStylePref, saveClockPref, saveDensityPref, saveEffectPrefs, type EffectPrefs } from '../../theme';
+import { applyTheme, BOX_STYLES, MODES, currentMode, modePref, saveModePref, boxStylePref, clockPref, DEFAULT_THEME, DENSITIES, densityPref, effectPrefs, saveBoxStylePref, saveClockPref, saveDensityPref, saveEffectPrefs, type EffectPrefs } from '../../theme';
 
 export function Appearance({ me }: { me: Me }) {
   const t = useT();
@@ -19,6 +19,8 @@ export function Appearance({ me }: { me: Me }) {
   const root = document.documentElement.dataset;
   const [theme, setTheme] = useState<ThemeName>((root.theme as ThemeName | undefined) ?? me.theme ?? DEFAULT_THEME);
   const [scheme, setScheme] = useState<TerminalScheme>((root.scheme as TerminalScheme | undefined) ?? me.theme_variant ?? 'amber');
+  const [mode, setMode] = useState(modePref);
+  const shownMode = mode === 'system' ? currentMode() : mode;
   const [fx, setFx] = useState(effectPrefs);
   const [density, setDensity] = useState(densityPref);
   const [boxes, setBoxes] = useState(boxStylePref);
@@ -47,10 +49,18 @@ export function Appearance({ me }: { me: Me }) {
 
   return (
     <>
+      <Section id="look-mode" title={t('settings.appearance.mode')} scope="device"
+        intro={hasModes(theme) ? undefined : t('settings.appearance.modeFixed', { theme: t(`settings.theme.${theme}` as StringKey) })}>
+        <div className="choice-row" role="radiogroup" aria-labelledby="look-mode">
+          {MODES.map((m) => (
+            <label key={m} className="check"><input type="radio" name="mode" value={m} checked={mode === m} onChange={() => { setMode(m); saveModePref(m); }} />{t(`settings.mode.${m}` as StringKey)}</label>
+          ))}
+        </div>
+      </Section>
       <Section id="look-theme" title={t('settings.appearance.theme')} scope="account">
         <div className="theme-cards" role="radiogroup" aria-labelledby="look-theme">
           {THEMES.map((name) => {
-            const k = tokensFor(name, name === 'terminal' ? scheme : null);
+            const k = tokensFor(name, name === 'terminal' ? scheme : null, shownMode);
             return (
               <label key={name} className={`theme-card${theme === name ? ' is-chosen' : ''}`}>
                 <span className="theme-mini" aria-hidden="true" style={{ background: k.bg, fontFamily: k.fontDisplay }}>

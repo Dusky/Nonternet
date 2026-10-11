@@ -30,8 +30,12 @@ export interface Theme {
   chrome: Chrome;
   scheme: 'light' | 'dark';
   tokens: Tokens;
+  // The dark version of a light theme: only the colours and shadows that change. A theme without one is the same in both modes
+  // (After dark and Terminal are dark looks already).
+  dark?: Partial<Tokens>;
   // Smaller shadows and thinner outlines under 700 px wide, so cards don't crowd a phone screen.
   phone?: Partial<Tokens>;
+  phoneDark?: Partial<Tokens>;
   // Optional effects. All start off; each is a switch in Settings → Appearance.
   effects: { scanlines: boolean; glow: boolean; crt: boolean };
 }
@@ -161,16 +165,54 @@ const aqua: Tokens = {
   shadowWindow: '0 18px 40px rgba(20,40,70,.28)', shadowPop: '0 12px 30px rgba(20,40,70,.22)', glow: 'none', tilt: '0deg',
 };
 
+// Dark modes (docs/10): each light theme keeps its shape, type and shadows' size, and gets its own dark colours.
+// Webring at night: ink-violet paper, light outlines, the same pink for what is new.
+const webringDark: Partial<Tokens> = {
+  bg: '#16131f', surface: '#211c2e', surface2: '#2b2540', text: '#f4f0ff', muted: '#b9b0d6', border: '#4a4170',
+  accent: '#b9a8ff', accentText: '#16131f', accentSoft: '#32295a', danger: '#ff8f80', ok: '#7fe0a3', warn: '#ffd166',
+  focus: '#7fe3ff', lineStrong: '#f4f0ff', fill: '#ff6fb1', fillText: '#16131f', pop: '#ff6fb1', popText: '#16131f',
+  sticker1: '#ffe14d', sticker2: '#8fe0ff', sticker3: '#ffa6cf', sticker4: '#c8ff6b', sticker5: '#c9b8ff', stickerText: '#16131f',
+  titleBg: '#2b2540', titleText: '#b9b0d6', titleActiveBg: '#ff6fb1', titleActiveText: '#16131f',
+  taskbarBg: '#0d0b14', taskbarText: '#f4f0ff', desktopBg: '#16131f', desktopDot: '#2e2748',
+  shadow: offset(6, '#6b5bd6'), shadowSm: offset(3, '#6b5bd6'), shadowHard: offset(3, '#6b5bd6'), shadowCard: offset(5, '#6b5bd6'),
+  shadowWindow: offset(8, '#6b5bd6'), shadowPop: offset(5, '#ff6fb1'),
+};
+// Platinum after hours: dark grey bevels (light edge up-left, dark edge down-right) on a deep teal desktop.
+const bevelOutDark = 'inset -2px -2px 0 #1a1a1a, inset 2px 2px 0 #5c5c5c';
+const platinumDark: Partial<Tokens> = {
+  bg: '#2b2b2b', surface: '#363636', surface2: '#303030', text: '#f0f0f0', muted: '#c4c4c4', border: '#555555',
+  accent: '#8fb0ff', accentText: '#0b1020', accentSoft: '#2f3a5c', danger: '#ff8f8f', ok: '#7fdc93', warn: '#ffd166',
+  focus: '#8fb0ff', lineStrong: '#cfcfcf', fill: '#454545', fillText: '#f0f0f0', pop: '#8fb0ff', popText: '#0b1020',
+  sticker1: '#454545', sticker2: '#454545', sticker3: '#454545', sticker4: '#454545', sticker5: '#454545', stickerText: '#f0f0f0',
+  titleBg: '#2b2b2b', titleText: '#b8b8b8', titleActiveBg: '#2b2b2b', titleActiveText: '#ffffff',
+  titleImage: 'repeating-linear-gradient(#2b2b2b 0 1px, #4a4a4a 1px 2px)',
+  taskbarBg: '#3a3a3a', taskbarText: '#f0f0f0', desktopBg: '#1d4a4a', desktopDot: '#2a6060',
+  shadow: '3px 3px 0 rgba(0,0,0,.6)', shadowSm: bevelOutDark, shadowHard: bevelOutDark, shadowCard: 'inset 2px 2px 0 #1a1a1a',
+  shadowWindow: 'inset -1px -1px 0 #1a1a1a, inset 1px 1px 0 #5c5c5c, 3px 3px 0 rgba(0,0,0,.6)', shadowPop: '3px 3px 0 rgba(0,0,0,.6)',
+};
+// Aqua at night: slate glass, the same blue gel buttons.
+const aquaDark: Partial<Tokens> = {
+  bg: '#1c222b', surface: '#262d38', surface2: '#2d3541', text: '#e8eef7', muted: '#a9b6c8', border: '#3d4757',
+  accent: '#6fa8ff', accentText: '#0a1220', accentSoft: '#243a5c', danger: '#ff8f80', ok: '#7fdc9a', warn: '#ffd166',
+  focus: '#6fa8ff', lineStrong: '#7d8ca3', fill: '#2a6fe0', fillText: '#ffffff', pop: '#2a6fe0', popText: '#ffffff',
+  sticker1: '#2b4a73', sticker2: '#41336b', sticker3: '#6b3a35', sticker4: '#2f5a37', sticker5: '#6b5320', stickerText: '#e8eef7',
+  titleBg: '#2d3541', titleText: '#c3cddb', titleActiveBg: '#323b49', titleActiveText: '#ffffff', titleImage: 'linear-gradient(#3a4352, #2a313d)',
+  taskbarBg: '#20262f', taskbarText: '#e8eef7', desktopBg: '#1c222b', desktopDot: '#262d38',
+  shadow: '0 12px 30px rgba(0,0,0,.5)', shadowSm: '0 1px 2px rgba(0,0,0,.5)',
+  shadowHard: 'inset 0 1px 0 rgba(255,255,255,.12), 0 1px 2px rgba(0,0,0,.5)', shadowCard: '0 1px 3px rgba(0,0,0,.5)',
+  shadowWindow: '0 18px 40px rgba(0,0,0,.6)', shadowPop: '0 12px 30px rgba(0,0,0,.5)',
+};
+
 const off = { scanlines: false, glow: false, crt: false };
 const zinePhone = (line: string, pop: string): Partial<Tokens> => ({
   lineWidth: '2px', shadow: offset(4, line), shadowCard: offset(3, line), shadowWindow: offset(4, line), shadowPop: offset(3, pop),
 });
 export const themes: Record<ThemeName, Theme> = {
-  webring: { name: 'webring', label: 'Webring', chrome: 'zine', scheme: 'light', tokens: webring, phone: zinePhone('#141414', '#ff4fa0'), effects: off },
+  webring: { name: 'webring', label: 'Webring', chrome: 'zine', scheme: 'light', tokens: webring, dark: webringDark, phone: zinePhone('#141414', '#ff4fa0'), phoneDark: zinePhone('#6b5bd6', '#ff6fb1'), effects: off },
   'after-dark': { name: 'after-dark', label: 'After dark', chrome: 'zine', scheme: 'dark', tokens: afterDark, phone: zinePhone('#ffb43a', '#ff5fae'), effects: off },
   terminal: { name: 'terminal', label: 'Terminal', chrome: 'terminal', scheme: 'dark', tokens: terminalTokens('amber'), effects: off },
-  platinum: { name: 'platinum', label: 'Platinum', chrome: 'platinum', scheme: 'light', tokens: platinum, effects: off },
-  aqua: { name: 'aqua', label: 'Aqua', chrome: 'aqua', scheme: 'light', tokens: aqua, effects: off },
+  platinum: { name: 'platinum', label: 'Platinum', chrome: 'platinum', scheme: 'light', tokens: platinum, dark: platinumDark, effects: off },
+  aqua: { name: 'aqua', label: 'Aqua', chrome: 'aqua', scheme: 'light', tokens: aqua, dark: aquaDark, effects: off },
 };
 
 const kebab = (k: string) => k.replace(/[A-Z0-9]+/g, (c) => `-${c.toLowerCase()}`);
@@ -183,8 +225,11 @@ export function themeCss(): string {
   for (const s of TERMINAL_SCHEMES) {
     out.push(`:root[data-theme="terminal"][data-scheme="${s}"]{color-scheme:${TERMINAL_SCHEME_BASES[s].light ? 'light' : 'dark'};${vars(terminalTokens(s))}}`);
   }
+  // The dark version of a light theme applies when <html data-mode="dark">.
+  for (const t of Object.values(themes)) if (t.dark) out.push(`:root[data-theme="${t.name}"][data-mode="dark"]{color-scheme:dark;${vars(t.dark as Tokens)}}`);
   const phone = Object.values(themes).filter((t) => t.phone).map((t) => `:root[data-theme="${t.name}"]{${vars(t.phone as Tokens)}}`);
-  if (phone.length) out.push(`@media (max-width: 699px){${phone.join('')}}`);
+  const phoneDark = Object.values(themes).filter((t) => t.phoneDark).map((t) => `:root[data-theme="${t.name}"][data-mode="dark"]{${vars(t.phoneDark as Tokens)}}`);
+  if (phone.length) out.push(`@media (max-width: 699px){${phone.join('')}${phoneDark.join('')}}`);
   return out.join('\n');
 }
 
@@ -192,8 +237,10 @@ export const isThemeName = (v: unknown): v is ThemeName => typeof v === 'string'
 export const isTerminalScheme = (v: unknown): v is TerminalScheme => typeof v === 'string' && (TERMINAL_SCHEMES as readonly string[]).includes(v);
 
 // The tokens actually in force for a theme (and, for Terminal, a scheme).
-export const tokensFor = (theme: ThemeName, scheme?: TerminalScheme | null): Tokens =>
-  theme === 'terminal' ? terminalTokens(scheme ?? 'amber') : themes[theme].tokens;
+export const tokensFor = (theme: ThemeName, scheme?: TerminalScheme | null, mode: 'light' | 'dark' = 'light'): Tokens =>
+  theme === 'terminal' ? terminalTokens(scheme ?? 'amber') : mode === 'dark' && themes[theme].dark ? { ...themes[theme].tokens, ...themes[theme].dark } : themes[theme].tokens;
+// Whether a theme has both a light and a dark version (After dark and Terminal are dark looks of their own).
+export const hasModes = (theme: ThemeName): boolean => Boolean(themes[theme].dark);
 
 // Contrast ratio of two #rrggbb colours (WCAG 2.x). 4.5 is AA for body text; 7 is AAA.
 export function contrast(a: string, b: string): number {

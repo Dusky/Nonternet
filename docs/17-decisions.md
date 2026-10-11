@@ -204,3 +204,12 @@ sharing of their own and are readable while the memo they answer is, so making a
 are their own notification kinds (`memo_reply`, `memo_reaction`) so they count on the Memos icon, not Boards; they follow the Settings
 choices for replies and reactions. Push for memo notifications is not built.
 
+### 2026-10-11 — Light and dark for every theme; an updated site reloads instead of crashing an app
+Dark mode is a device setting (Light, Dark, Follow my device; default follow), not a new theme and not part of the profile, so one
+person can have a dark phone and a light desktop, as with density and effects. Webring, Platinum and Aqua get dark colour sets;
+After dark and Terminal stay as the dark looks they are. Chosen by the owner from three options (every theme, one new plain dark
+theme, or only follow the device).
+When the site is updated, a tab still running the old page asks for app files that no longer exist. That used to show the generic
+"Something went wrong in this app". It is now recognised: the page reloads once to pick up the new version (at most once a minute),
+and if the app still can't load the note says the site was updated, with a button that reloads the page.
+

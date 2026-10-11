@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TERMINAL_SCHEMES, THEMES } from '@app/shared';
-import { contrast, isTerminalScheme, isThemeName, terminalPalette, terminalTokens, themeCss, themes, type Tokens } from './index';
+import { contrast, hasModes, isTerminalScheme, isThemeName, terminalPalette, terminalTokens, themeCss, themes, tokensFor, type Tokens } from './index';
 
 // Every pair the interface actually draws text on.
 const TEXT_PAIRS: [keyof Tokens, keyof Tokens][] = [
@@ -16,6 +16,7 @@ const EDGE_PAIRS: [keyof Tokens, keyof Tokens][] = [['lineStrong', 'surface'], [
 
 const variants = [
   ...Object.values(themes).filter((t) => t.name !== 'terminal').map((t) => ({ label: t.name, tokens: t.tokens })),
+  ...Object.values(themes).filter((t) => t.dark).map((t) => ({ label: `${t.name} (dark)`, tokens: { ...t.tokens, ...t.dark } as Tokens })),
   ...TERMINAL_SCHEMES.map((s) => ({ label: `terminal (${s})`, tokens: terminalTokens(s) })),
 ];
 
@@ -49,6 +50,21 @@ describe('themes', () => {
     expect(css).not.toContain('undefined');
     expect(css).toMatch(/@media \(max-width: 699px\)\{:root\[data-theme="webring"\]\{--line-width:2px;/);
     expect(css).toContain(':root[data-theme="after-dark"]{--line-width:2px;');
+  });
+
+  it('gives each light theme a dark version, and leaves the dark looks as they are', () => {
+    for (const name of ['webring', 'platinum', 'aqua'] as const) {
+      expect(contrast(themes[name].dark!.bg as string, themes[name].dark!.text as string), `${name} dark text`).toBeGreaterThan(contrast(themes[name].tokens.bg, themes[name].tokens.text) - 6);
+      expect(tokensFor(name, null, 'dark').bg).not.toBe(tokensFor(name, null, 'light').bg);
+      // Shape does not change between modes.
+      expect(tokensFor(name, null, 'dark').radius).toBe(tokensFor(name, null, 'light').radius);
+      expect(tokensFor(name, null, 'dark').fontBody).toBe(tokensFor(name, null, 'light').fontBody);
+    }
+    for (const name of ['after-dark', 'terminal'] as const) expect(hasModes(name), name).toBe(false);
+    const css = themeCss();
+    for (const name of ['webring', 'platinum', 'aqua']) expect(css).toContain(`:root[data-theme="${name}"][data-mode="dark"]{color-scheme:dark;`);
+    expect(css).not.toContain(':root[data-theme="after-dark"][data-mode');
+    expect(css).toMatch(/@media \(max-width: 699px\)\{[^]*:root\[data-theme="webring"\]\[data-mode="dark"\]\{--line-width:2px;/);
   });
 
   it('starts every effect switched off', () => {

@@ -21,8 +21,35 @@ const store = () => {
 const read = (key: string) => { try { return store()?.getItem(key) ?? null; } catch { return null; } };
 const write = (key: string, value: string) => { try { store()?.setItem(key, value); } catch { /* a convenience only */ } };
 
+// Light, dark, or whatever the device is set to (docs/10). Kept on this device, like density and effects. A theme with no dark
+// version of its own (After dark and Terminal are dark looks already) ignores it.
+export const MODES = ['system', 'light', 'dark'] as const;
+export type Mode = (typeof MODES)[number];
+const MODE_KEY = 'ui:mode';
+export function modePref(): Mode {
+  const v = read(MODE_KEY);
+  return (MODES as readonly string[]).includes(v ?? '') ? (v as Mode) : 'system';
+}
+export function resolveMode(pref: Mode, deviceDark: boolean): 'light' | 'dark' {
+  return pref === 'system' ? (deviceDark ? 'dark' : 'light') : pref;
+}
+const deviceIsDark = (): boolean => { try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { return false; } };
+export const currentMode = (): 'light' | 'dark' => resolveMode(modePref(), deviceIsDark());
+function applyMode(): void {
+  document.documentElement.dataset.mode = currentMode();
+}
+export function saveModePref(m: Mode): void {
+  write(MODE_KEY, m);
+  applyMode();
+  window.dispatchEvent(new Event('ui:theme'));
+}
+
 export function installThemeCss(): void {
   if (document.getElementById('theme-css')) return;
+  // Following the device: change with it, live.
+  try {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (modePref() === 'system') { applyMode(); window.dispatchEvent(new Event('ui:theme')); } });
+  } catch { /* an old browser: the mode is read when the page loads */ }
   const el = document.createElement('style');
   el.id = 'theme-css';
   el.textContent = themeCss();
@@ -82,6 +109,7 @@ function applyModifiers(): void {
   root.dataset.crt = fx.crt ? 'on' : 'off';
   root.dataset.density = densityPref();
   root.dataset.boxes = boxStylePref();
+  applyMode();
   applyWallpaper(wallpaperPref());
 }
 

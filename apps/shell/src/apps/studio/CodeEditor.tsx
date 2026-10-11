@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { currentMode } from '../../theme';
 import { basicSetup, EditorView } from 'codemirror';
 import { EditorState, type Extension } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
@@ -24,6 +25,28 @@ const highlight = HighlightStyle.define([
   { tag: [t.className, t.typeName, t.function(t.variableName)], color: '#003f5c' },
   { tag: [t.meta, t.documentMeta, t.processingInstruction], color: '#3d3d3d' },
 ]);
+
+// The same, for dark mode: every colour at least 7:1 against the dark editor background.
+const highlightDark = HighlightStyle.define([
+  { tag: [t.keyword, t.operatorKeyword, t.controlKeyword], color: '#d7b4ff' },
+  { tag: [t.string, t.special(t.string)], color: '#a5e8a0' },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: '#b4b4b4', fontStyle: 'italic' },
+  { tag: [t.tagName, t.angleBracket], color: '#ff9d9d' },
+  { tag: [t.attributeName, t.propertyName, t.variableName], color: '#9cd0ff' },
+  { tag: [t.attributeValue], color: '#a5e8a0' },
+  { tag: [t.number, t.bool, t.null, t.atom], color: '#ffc58a' },
+  { tag: [t.className, t.typeName, t.function(t.variableName)], color: '#8fe0ff' },
+  { tag: [t.meta, t.documentMeta, t.processingInstruction], color: '#cccccc' },
+]);
+const darkTheme = EditorView.theme({
+  '&': { backgroundColor: '#1b1b1f', color: '#ececec' },
+  '.cm-content': { caretColor: '#ffffff' },
+  '.cm-cursor': { borderLeftColor: '#ffffff' },
+  '.cm-gutters': { backgroundColor: '#232328', color: '#b4b4b4', border: 'none' },
+  '.cm-activeLine': { backgroundColor: '#2a2a31' },
+  '.cm-activeLineGutter': { backgroundColor: '#2a2a31' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: '#3d4f7a' },
+}, { dark: true });
 
 export interface Widgets { origin: string; handle: string; names: readonly string[] }
 
@@ -57,14 +80,19 @@ export default function CodeEditor({ path, value, label, onChange, onSave, widge
   const host = useRef<HTMLDivElement>(null);
   const cb = useRef({ onChange, onSave });
   cb.current = { onChange, onSave };
+  // Light or dark follows the interface (Settings → Appearance); a change starts the editor again with the text as it is.
+  const [mode, setMode] = useState(currentMode);
+  useEffect(() => { const f = () => setMode(currentMode()); window.addEventListener('ui:theme', f); return () => window.removeEventListener('ui:theme', f); }, []);
+  const latest = useRef(value);
+  latest.current = value;
   useEffect(() => {
     if (!host.current) return;
     const view = new EditorView({
       parent: host.current,
       state: EditorState.create({
-        doc: value,
+        doc: latest.current,
         extensions: [
-          basicSetup, syntaxHighlighting(highlight), language(path, widgets), EditorView.lineWrapping,
+          basicSetup, mode === 'dark' ? [darkTheme, syntaxHighlighting(highlightDark)] : syntaxHighlighting(highlight), language(path, widgets), EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': label }),
           keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => { cb.current.onSave(); return true; } }]),
           EditorView.updateListener.of((u) => { if (u.docChanged) cb.current.onChange(u.state.doc.toString()); }),
@@ -73,6 +101,6 @@ export default function CodeEditor({ path, value, label, onChange, onSave, widge
     });
     return () => view.destroy();
     // A different file gets a fresh editor. Typing must not rebuild it, so `value` is only the starting text.
-  }, [path]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <div ref={host} className="code-editor" />;
+  }, [path, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <div ref={host} className="code-editor" data-mode={mode} />;
 }
