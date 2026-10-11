@@ -111,11 +111,11 @@ function ListScreen() {
                     )}
                   </div>
                   <div className="bookmark-actions">
-                    <button type="button" className="btn btn-quiet btn-small" aria-pressed={b.pinned} onClick={() => pin.mutate(b)}>
-                      {b.pinned ? t('bookmarks.unpin') : t('bookmarks.pin')}<span className="sr-only">: {b.title}</span>
+                    <button type="button" className="btn btn-quiet btn-small" aria-pressed={b.pinned} aria-label={`${b.pinned ? t('bookmarks.unpin') : t('bookmarks.pin')}: ${b.title}`} onClick={() => pin.mutate(b)}>
+                      {b.pinned ? t('bookmarks.unpin') : t('bookmarks.pin')}
                     </button>
-                    <button type="button" className="btn btn-quiet btn-small" onClick={() => setEditing(b.id)}>{t('bookmarks.edit')}<span className="sr-only">: {b.title}</span></button>
-                    <button type="button" className="btn btn-quiet btn-small" onClick={() => remove(b)}>{t('bookmarks.remove')}<span className="sr-only">: {b.title}</span></button>
+                    <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('bookmarks.edit')}: ${b.title}`} onClick={() => setEditing(b.id)}>{t('bookmarks.edit')}</button>
+                    <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('bookmarks.remove')}: ${b.title}`} onClick={() => remove(b)}>{t('bookmarks.remove')}</button>
                   </div>
                 </>
               )}
