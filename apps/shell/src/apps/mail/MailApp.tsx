@@ -36,6 +36,9 @@ const who = (t: ReturnType<typeof useT>, p: MailPerson) => p.display_name || p.h
 
 // No prefetch on conversation links: opening one marks it read on the server, so loading it early would too.
 function Inbox() {
+  const meId = useMe().data?.id;
+  // The conversation's people include you; the list shows only the others.
+  const others = (people: MailPerson[]) => people.filter((p) => p.id !== meId);
   const t = useT();
   const [find, setFind] = useState('');
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -80,7 +83,7 @@ function Inbox() {
       <ul className="rows mail-rows">
         {shown.map((th) => (
           <li key={th.id} className={`mail-row${th.unread ? ' is-unread' : ''}`}>
-            <Avatar id={th.people[0]?.id} name={th.people[0] ? who(t, th.people[0]) : '?'} />
+            <Avatar id={others(th.people)[0]?.id} name={others(th.people)[0] ? who(t, others(th.people)[0]!) : '?'} />
             <div>
               <div className="row-head">
                 <span><AppLink to={th.id}><strong>{th.subject}</strong></AppLink>{' '}
@@ -89,7 +92,7 @@ function Inbox() {
                   {th.muted && <span className="badge">{t('mail.mutedBadge')}</span>}</span>
                 <span className="row-meta"><RelativeTime iso={th.last_message_at} /></span>
               </div>
-              <p className="row-meta">{t('mail.with', { names: th.people.length ? th.people.map((p) => who(t, p)).join(', ') : t('mail.nobody') })}</p>
+              <p className="row-meta">{t('mail.with', { names: others(th.people).length ? others(th.people).map((p) => who(t, p)).join(', ') : t('mail.nobody') })}</p>
               {th.last && th.last.excerpt && <p className="mail-excerpt">{th.last.author ? `${th.last.author}: ` : ''}{th.last.excerpt}</p>}
               <p className="row-actions">
                 <button type="button" className="link" aria-pressed={th.starred} onClick={() => star.mutate({ id: th.id, on: !th.starred })}>{th.starred ? t('mail.unstar') : t('mail.star')}</button>
@@ -203,6 +206,7 @@ function Conversation({ id }: { id: string }) {
   if (q.isError) return <><BackLink to="">{t('mail.inbox')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   const th = q.data;
   if (!th) return <Loading rows={4} />;
+  const theirs = th.people.filter((p) => p.id !== me?.id); // everyone but you
   const lastTheirs = [...messages].reverse().find((m) => m.kind === 'message' && !m.mine && !m.deleted);
   return (
     <div>
@@ -210,7 +214,7 @@ function Conversation({ id }: { id: string }) {
       <h2>{th.subject}</h2>
       <section aria-labelledby="mail-people">
         <h3 id="mail-people" className="visually-hidden">{t('mail.people')}</h3>
-        <p className="hint">{t('mail.withLabel')} {th.people.length === 0 && t('mail.nobody')}{th.people.map((p, i) => (
+        <p className="hint">{t('mail.withLabel')} {theirs.length === 0 && t('mail.nobody')}{theirs.map((p, i) => (
           <span key={p.id ?? i}>{i > 0 && ', '}{p.handle ? <PersonLink app="people" to={p.handle}>{who(t, p)}</PersonLink> : who(t, p)}</span>
         ))}</p>
       </section>
@@ -238,7 +242,7 @@ function Conversation({ id }: { id: string }) {
           </form>
           <details className="panel">
           <summary>{t('mail.manage')}</summary>
-          {th.people.length + 1 < MAIL_MAX_PEOPLE && (
+          {th.people.length < MAIL_MAX_PEOPLE && ( /* people includes you */
             <form onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
               <TextField label={t('mail.add')} value={adding} onChange={setAdding} hint={t('mail.addHint')} maxLength={40} autoCapitalize="none" spellCheck={false} required />
               {add.isError && <Alert kind="error">{errorText(add.error)}</Alert>}

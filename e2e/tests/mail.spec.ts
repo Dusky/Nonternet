@@ -33,6 +33,15 @@ test.describe('mail', () => {
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByRole('heading', { level: 2, name: 'Board games', exact: true })).toBeVisible();
     await expect(page.getByText('Want to play on Friday?')).toBeVisible();
+    // "With" names the others, never yourself.
+    const peopleHere = page.locator('section[aria-labelledby="mail-people"]');
+    await expect(peopleHere).toContainText(b.handle);
+    await expect(peopleHere).not.toContainText(a.handle);
+    await page.goto('/mail');
+    const mine = page.locator('.mail-row').filter({ hasText: 'Board games' });
+    await expect(mine).toContainText(b.handle);
+    await expect(mine.locator('p.row-meta')).not.toContainText(a.handle); // the "with" line
+    await mine.getByRole('link', { name: 'Board games' }).click();
 
     // b sees it unread, in the taskbar and the inbox, and replies.
     const bp = await signedInPage(browser, b.handle);
