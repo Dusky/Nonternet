@@ -172,7 +172,7 @@ export async function updateBoard(
 
 // ---------------------------------------------------------------- the admin console's list
 
-export interface AdminBoardRow { id: string; slug: string; name: string; owner: string; visibility: string; archived: boolean; ring: boolean; thread_count: number; last_post_at: string | null }
+export interface AdminBoardRow { id: string; slug: string; name: string; owner: string; visibility: string; archived: boolean; ring: boolean; category_id: string | null; thread_count: number; last_post_at: string | null }
 
 // Every board, private ones included, by name, with search and ?before= paging (docs/11). Admins only.
 export async function adminListBoards(deps: AppDeps, opts: { q?: string; before?: string; limit?: number }): Promise<{ boards: AdminBoardRow[]; next: string | null }> {
@@ -182,8 +182,8 @@ export async function adminListBoards(deps: AppDeps, opts: { q?: string; before?
   if (opts.before) { params.push(opts.before); where.push(`(lower(b.name), b.id) > (SELECT lower(name), id FROM boards WHERE id = $${params.length})`); }
   const limit = Math.min(opts.limit ?? 50, 200);
   params.push(limit + 1);
-  const r = await deps.db.query<{ id: string; slug: string; name: string; owner: string; visibility: string; archived_at: Date | null; ring_id: string | null; thread_count: string; last_post_at: Date | null }>(
-    `SELECT b.id, b.slug, b.name, u.handle AS owner, b.visibility, b.archived_at, b.ring_id,
+  const r = await deps.db.query<{ id: string; slug: string; name: string; owner: string; visibility: string; archived_at: Date | null; ring_id: string | null; category_id: string | null; thread_count: string; last_post_at: Date | null }>(
+    `SELECT b.id, b.slug, b.name, u.handle AS owner, b.visibility, b.archived_at, b.ring_id, b.category_id,
             (SELECT count(*) FROM posts p WHERE p.board_id = b.id AND p.thread_root_id IS NULL AND p.deleted_at IS NULL) AS thread_count,
             (SELECT max(p.posted_at) FROM posts p WHERE p.board_id = b.id AND p.deleted_at IS NULL) AS last_post_at
        FROM boards b JOIN users u ON u.id = b.owner_id
@@ -191,7 +191,7 @@ export async function adminListBoards(deps: AppDeps, opts: { q?: string; before?
       ORDER BY lower(b.name), b.id LIMIT $${params.length}`, params);
   const page = r.rows.slice(0, limit);
   return {
-    boards: page.map((b) => ({ id: b.id, slug: b.slug, name: b.name, owner: b.owner, visibility: b.visibility, archived: b.archived_at !== null, ring: b.ring_id !== null, thread_count: Number(b.thread_count), last_post_at: b.last_post_at?.toISOString() ?? null })),
+    boards: page.map((b) => ({ id: b.id, slug: b.slug, name: b.name, owner: b.owner, visibility: b.visibility, archived: b.archived_at !== null, ring: b.ring_id !== null, category_id: b.category_id, thread_count: Number(b.thread_count), last_post_at: b.last_post_at?.toISOString() ?? null })),
     next: r.rows.length > limit ? page[page.length - 1]!.id : null,
   };
 }
@@ -228,6 +228,49 @@ export async function createCategory(deps: AppDeps, v: SessionUser, name: string
     throw err;
   }
   return { id, name };
+}
+
+function mustAdmin(v: SessionUser) { if (v.role !== 'admin') throw new ApiError(403, 'forbidden', 'Only admins can do that.'); }
+
+export async function renameCategory(deps: AppDeps, v: SessionUser, id: string, name: string, ctx: Ctx): Promise<void> {
+  mustAdmin(v);
+  try {
+    await deps.db.tx(async (q) => {
+      const b = await q.query<{ name: string }>(`SELECT name FROM board_categories WHERE id = $1 FOR UPDATE`, [id]);
+      if (!b.rows[0]) throw new ApiError(404, 'not_found', 'No such category.');
+      await q.query(`UPDATE board_categories SET name = $2 WHERE id = $1`, [id, name]);
+      await audit(q, { actorId: v.userId, actorKind: 'user', action: 'board.category_renamed', targetType: 'board_category', targetId: id, before: { name: b.rows[0].name }, after: { name }, origin: 'web', ipHash: ctx.ipHash });
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new ApiError(409, 'name_taken', 'There is already a category with that name.');
+    throw err;
+  }
+}
+
+// Its boards are not deleted: they go back to the unfiled list.
+export async function deleteCategory(deps: AppDeps, v: SessionUser, id: string, ctx: Ctx): Promise<void> {
+  mustAdmin(v);
+  await deps.db.tx(async (q) => {
+    await q.query(`UPDATE boards SET category_id = NULL WHERE category_id = $1`, [id]);
+    const c = await q.query<{ name: string }>(`DELETE FROM board_categories WHERE id = $1 RETURNING name`, [id]);
+    if (!c.rows[0]) throw new ApiError(404, 'not_found', 'No such category.');
+    await audit(q, { actorId: v.userId, actorKind: 'user', action: 'board.category_deleted', targetType: 'board_category', targetId: id, before: { name: c.rows[0].name }, origin: 'web', ipHash: ctx.ipHash });
+  });
+}
+
+// Moves one place up or down in the list (the order people see).
+export async function moveCategory(deps: AppDeps, v: SessionUser, id: string, dir: 'up' | 'down', ctx: Ctx): Promise<void> {
+  mustAdmin(v);
+  await deps.db.tx(async (q) => {
+    const all = (await q.query<{ id: string }>(`SELECT id FROM board_categories ORDER BY sort, name FOR UPDATE`)).rows.map((r) => r.id);
+    const at = all.indexOf(id);
+    if (at < 0) throw new ApiError(404, 'not_found', 'No such category.');
+    const to = dir === 'up' ? at - 1 : at + 1;
+    if (to < 0 || to >= all.length) return;
+    [all[at], all[to]] = [all[to]!, all[at]!];
+    await q.query(`UPDATE board_categories c SET sort = x.n FROM unnest($1::text[]) WITH ORDINALITY AS x(id, n) WHERE c.id = x.id`, [all]);
+    await audit(q, { actorId: v.userId, actorKind: 'user', action: 'board.category_moved', targetType: 'board_category', targetId: id, after: { direction: dir }, origin: 'web', ipHash: ctx.ipHash });
+  });
 }
 
 // ---------------------------------------------------------------- members (private boards)

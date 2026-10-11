@@ -153,3 +153,8 @@ The audit log, replay and a person's history name who or what each entry is abou
   Archive / Open again (through the board's own update, audited `board.updated`) and "Give to someone"
   (`POST /admin/boards/:id/owner {handle, reason}`, audited `board.owner_changed`; a ring board belongs to its ring).
 - **Rings and Homepages tables:** "Show more" pages through the server's `before` cursor.
+- **Board categories:** a Categories block at the top of the Boards tab: add, rename, move up or down (the order the
+  board list shows), delete (its boards stay and go back to the unfiled "Other" list). Each board row has a Category
+  menu to file it (ring boards are grouped under their ring instead). Audited as `board.category_created`,
+  `_renamed`, `_moved` and `_deleted`; routes `PATCH|DELETE /admin/board-categories/:id` and
+  `POST /admin/board-categories/:id/move {direction}`.

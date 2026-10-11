@@ -89,3 +89,37 @@ test('an admin filters the audit log and downloads it, makes someone an op by pi
   await form.getByRole('button', { name: 'Give to someone' }).click();
   await expect(row).toContainText(heir.handle); // the new owner
 });
+
+test('an admin makes board categories, files a board under one, reorders and deletes them, and the board list follows', async ({ page }) => {
+  const admin = await makeAdmin(page);
+  await signIn(page, admin.handle, admin.password, { totp: await totp(admin.secret, 1) });
+  const tag = Date.now().toString(36);
+  const slug = `cat${tag}`;
+  await page.request.post('/api/v1/boards', { data: { slug, name: `Filed ${tag}`, visibility: 'public' }, headers: { origin: BASE_URL } });
+  await page.goto('/admin/boards');
+  const cats = page.getByRole('region', { name: 'Categories' });
+  for (const n of [`Zebra ${tag}`, `Yak ${tag}`]) {
+    await cats.getByLabel('New category').fill(n);
+    await cats.getByRole('button', { name: 'Add category' }).click();
+    await expect(cats.getByText(n, { exact: true })).toBeVisible();
+  }
+  await cats.getByRole('button', { name: `Move up: Yak ${tag}` }).click();
+  await expect(cats.getByRole('listitem').filter({ hasText: `Yak ${tag}` })).toBeVisible();
+  await cats.getByRole('button', { name: `Rename: Yak ${tag}` }).click();
+  await cats.getByLabel('Name', { exact: true }).fill(`Yaks ${tag}`);
+  await cats.getByRole('button', { name: 'Save name' }).click();
+  await expect(cats.getByText(`Yaks ${tag}`, { exact: true })).toBeVisible();
+
+  await page.getByLabel('Find a board by name, address or owner').fill(slug);
+  await page.getByLabel(`Category: Filed ${tag}`).selectOption({ label: `Yaks ${tag}` });
+  await page.goto('/boards');
+  await expect(page.getByRole('heading', { name: `Yaks ${tag}` })).toBeVisible();
+  await expect(page.getByRole('link', { name: `Filed ${tag}` })).toBeVisible();
+
+  await page.goto('/admin/boards');
+  await page.getByRole('button', { name: `Delete: Yaks ${tag}` }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByText(`Yaks ${tag}`, { exact: true })).toHaveCount(0);
+  await page.goto('/boards');
+  await expect(page.getByRole('link', { name: `Filed ${tag}` })).toBeVisible(); // still there, unfiled
+});

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createTestDb, dbAvailable, makeAdmin, makeApp, makeUser } from './test/harness';
+import { createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser } from './test/harness';
 
 // The admin console's tables and records (docs/11): audit filters and CSV, the op picker, the boards table.
 describe.skipIf(!dbAvailable)('admin console', () => {
@@ -55,5 +55,28 @@ describe.skipIf(!dbAvailable)('admin console', () => {
     expect(entry.after).toEqual({ owner_id: heir.id, reason: 'owner left' });
     // The new owner can get into their private board.
     expect((await db.query(`SELECT 1 FROM board_members WHERE board_id = $1 AND user_id = $2`, [ids[2], heir.id])).rowCount).toBe(1);
+  });
+
+  it('manages board categories: add, rename, reorder, file a board, delete (its boards go unfiled)', async () => {
+    const admin = await makeAdmin(ctx, 'sorter');
+    const a = (await admin.client.post('/api/v1/admin/board-categories', { name: 'Alpha' })).body.id as string;
+    const b = (await admin.client.post('/api/v1/admin/board-categories', { name: 'Beta' })).body.id as string;
+    const order = async () => (await admin.client.get('/api/v1/boards')).body.categories.map((c: { name: string }) => c.name).filter((n: string) => ['Alpha', 'Beta', 'Alpha2'].includes(n));
+    expect(await order()).toEqual(['Alpha', 'Beta']);
+    expect((await admin.client.post(`/api/v1/admin/board-categories/${b}/move`, { direction: 'up' })).status).toBe(204);
+    expect(await order()).toEqual(['Beta', 'Alpha']);
+    expect((await admin.client.patch(`/api/v1/admin/board-categories/${a}`, { name: 'Beta' })).status).toBe(409);
+    expect((await admin.client.patch(`/api/v1/admin/board-categories/${a}`, { name: 'Alpha2' })).status).toBe(204);
+    const board = (await admin.client.post('/api/v1/boards', { slug: 'filed', name: 'Filed board', visibility: 'public' })).body;
+    expect((await admin.client.patch('/api/v1/boards/filed', { category_id: a })).body.category?.name).toBe('Alpha2');
+    expect((await admin.client.get('/api/v1/admin/boards?q=filed')).body.boards[0].category_id).toBe(a);
+    expect((await admin.client.delete(`/api/v1/admin/board-categories/${a}`)).status).toBe(204);
+    expect((await admin.client.get('/api/v1/boards/filed')).body.category).toBeNull();
+    const actions = (await db.query(`SELECT action FROM audit_log WHERE action LIKE 'board.category_%' AND target_id = $1 ORDER BY id`, [a])).rows.map((r) => r.action);
+    expect(actions).toEqual(['board.category_created', 'board.category_renamed', 'board.category_deleted']);
+    const user = await makeUser(ctx);
+    const c = await loginAs(ctx, user.handle);
+    expect((await c.delete(`/api/v1/admin/board-categories/${b}`)).status).toBeGreaterThanOrEqual(401);
+    void board;
   });
 });

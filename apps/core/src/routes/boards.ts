@@ -131,6 +131,19 @@ export function boardRoutes(app: FastifyInstance, deps: AppDeps): void {
     return boards.search(deps, viewer(req), q.q, q);
   });
 
+  const catParam = z.object({ id: z.string().regex(/^bc_[0-9A-Z]{26}$/) });
+  app.patch('/api/v1/admin/board-categories/:id', async (req, reply) => {
+    await boards.renameCategory(deps, requireAdmin(req), catParam.parse(req.params).id, categoryCreateSchema.parse(req.body).name, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+  app.delete('/api/v1/admin/board-categories/:id', async (req, reply) => {
+    await boards.deleteCategory(deps, requireAdmin(req), catParam.parse(req.params).id, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+  app.post('/api/v1/admin/board-categories/:id/move', async (req, reply) => {
+    await boards.moveCategory(deps, requireAdmin(req), catParam.parse(req.params).id, z.object({ direction: z.enum(['up', 'down']) }).parse(req.body).direction, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
   app.post('/api/v1/admin/board-categories', async (req, reply) =>
     reply.code(201).send(await boards.createCategory(deps, requireAdmin(req), categoryCreateSchema.parse(req.body).name, ctxOf(deps, req))));
 

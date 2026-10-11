@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, EmptyState, Loading, TextField } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
+import { useConfirm } from '../../components/feedback';
 import { ReasonForm } from '../boards/ModTools';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { useDebounced } from './useDebounced';
 
 // ---------------------------------------------------------------- boards
 
-interface AdminBoard { id: string; slug: string; name: string; owner: string; visibility: string; archived: boolean; ring: boolean; thread_count: number; last_post_at: string | null }
+interface AdminBoard { category_id: string | null; id: string; slug: string; name: string; owner: string; visibility: string; archived: boolean; ring: boolean; thread_count: number; last_post_at: string | null }
 
 // Every board, private ones too, with search, paging, and the two things an admin does here: archive one, or give it
 // to someone else. Both are audited.
@@ -28,6 +29,11 @@ export function BoardsTable() {
     getNextPageParam: (last) => last.next ?? undefined,
   });
   const done = () => { setActing(null); setHeir(''); setError(null); void qc.invalidateQueries({ queryKey: ['admin', 'boards'] }); void qc.invalidateQueries({ queryKey: ['boards'] }); };
+  const cats = useQuery({ queryKey: ['boards', 'categories'], queryFn: () => api.get<{ categories: { id: string; name: string }[] }>('/boards') });
+  const file = useMutation({
+    mutationFn: (v: { slug: string; category_id: string | null }) => api.patch(`/boards/${v.slug}`, { category_id: v.category_id }),
+    onSuccess: done, onError: (e) => setError(errorText(e)),
+  });
   const archive = useMutation({
     mutationFn: (b: AdminBoard) => api.patch(`/boards/${b.slug}`, { archived: !b.archived }),
     onSuccess: done, onError: (e) => setError(errorText(e)),
@@ -41,6 +47,7 @@ export function BoardsTable() {
   return (
     <>
       <h2>{t('admin.tab.boards')}</h2>
+      <Categories />
       <TextField label={t('admin.boards.search')} value={q} onChange={setQ} type="search" autoCapitalize="none" spellCheck={false} />
       {list.isPending && <Loading />}
       {list.isSuccess && boards.length === 0 && <EmptyState>{t('admin.boards.none')}</EmptyState>}
@@ -48,7 +55,7 @@ export function BoardsTable() {
       {boards.length > 0 && (
         <table className="table">
           <thead><tr>
-            <th scope="col">{t('admin.boards.col.name')}</th><th scope="col">{t('admin.boards.col.owner')}</th><th scope="col">{t('admin.boards.col.visibility')}</th>
+            <th scope="col">{t('admin.boards.col.name')}</th><th scope="col">{t('admin.boards.col.owner')}</th><th scope="col">{t('admin.boards.col.visibility')}</th><th scope="col">{t('admin.boards.col.category')}</th>
             <th scope="col">{t('admin.boards.col.threads')}</th><th scope="col">{t('admin.boards.col.last')}</th><th scope="col">{t('admin.boards.col.actions')}</th>
           </tr></thead>
           <tbody>
@@ -59,6 +66,15 @@ export function BoardsTable() {
                 </th>
                 <td data-label={t('admin.boards.col.owner')}>{b.owner}</td>
                 <td data-label={t('admin.boards.col.visibility')}>{b.ring ? t('admin.boards.ringBoard') : t(`boards.vis.short.${b.visibility === 'ring' ? 'public' : b.visibility}` as never)}</td>
+                <td data-label={t('admin.boards.col.category')}>
+                  {b.ring ? '' : (
+                    <select aria-label={`${t('admin.boards.col.category')}: ${b.name}`} value={b.category_id ?? ''} disabled={file.isPending}
+                      onChange={(e) => file.mutate({ slug: b.slug, category_id: e.target.value || null })}>
+                      <option value="">{t('boards.list.other')}</option>
+                      {(cats.data?.categories ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  )}
+                </td>
                 <td data-label={t('admin.boards.col.threads')}>{b.thread_count}</td>
                 <td data-label={t('admin.boards.col.last')}>{formatWhen(b.last_post_at) ?? t('admin.never')}</td>
                 <td data-label={t('admin.boards.col.actions')}>
@@ -84,6 +100,61 @@ export function BoardsTable() {
         </ReasonForm>
       )}
     </>
+  );
+}
+
+// How the board list is grouped: add, rename, reorder and delete categories (docs/05). Deleting one keeps its boards,
+// which go back to the unfiled list. Every change is audited.
+function Categories() {
+  const t = useT();
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const q = useQuery({ queryKey: ['boards', 'categories'], queryFn: () => api.get<{ categories: { id: string; name: string }[] }>('/boards') });
+  const [name, setName] = useState('');
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const refresh = () => { setError(null); void qc.invalidateQueries({ queryKey: ['boards'] }); void qc.invalidateQueries({ queryKey: ['admin', 'boards'] }); };
+  const fail = (e: unknown) => setError(errorText(e));
+  const add = useMutation({ mutationFn: () => api.post('/admin/board-categories', { name: name.trim() }), onSuccess: () => { setName(''); refresh(); }, onError: fail });
+  const rename = useMutation({ mutationFn: (v: { id: string; name: string }) => api.patch(`/admin/board-categories/${v.id}`, { name: v.name.trim() }), onSuccess: () => { setRenaming(null); refresh(); }, onError: fail });
+  const move = useMutation({ mutationFn: (v: { id: string; direction: 'up' | 'down' }) => api.post(`/admin/board-categories/${v.id}/move`, { direction: v.direction }), onSuccess: refresh, onError: fail });
+  const remove = useMutation({ mutationFn: (id: string) => api.del(`/admin/board-categories/${id}`), onSuccess: refresh, onError: fail });
+  const cats = q.data?.categories ?? [];
+  return (
+    <section className="panel" aria-labelledby="board-cats-h">
+      <h3 id="board-cats-h">{t('admin.cats.title')}</h3>
+      <p className="hint">{t('admin.cats.hint')}</p>
+      {q.isSuccess && cats.length === 0 && <p>{t('admin.cats.none')}</p>}
+      <ul className="rows">
+        {cats.map((c, i) => (
+          <li key={c.id}>
+            {renaming?.id === c.id ? (
+              <form className="row" onSubmit={(e) => { e.preventDefault(); rename.mutate(renaming); }}>
+                <TextField label={t('admin.cats.newName')} value={renaming.name} onChange={(v) => setRenaming({ id: c.id, name: v })} minLength={2} maxLength={40} required />
+                <button type="submit" className="btn btn-small" disabled={rename.isPending}>{t('admin.cats.save')}</button>
+                <button type="button" className="btn btn-quiet btn-small" onClick={() => setRenaming(null)}>{t('common.cancel')}</button>
+              </form>
+            ) : (
+              <>
+                <strong>{c.name}</strong>
+                <span className="file-actions">
+                  <button type="button" className="link" disabled={i === 0 || move.isPending} aria-label={`${t('admin.cats.up')}: ${c.name}`} onClick={() => move.mutate({ id: c.id, direction: 'up' })}>{t('admin.cats.up')}</button>
+                  <button type="button" className="link" disabled={i === cats.length - 1 || move.isPending} aria-label={`${t('admin.cats.down')}: ${c.name}`} onClick={() => move.mutate({ id: c.id, direction: 'down' })}>{t('admin.cats.down')}</button>
+                  <button type="button" className="link" aria-label={`${t('admin.cats.rename')}: ${c.name}`} onClick={() => setRenaming({ id: c.id, name: c.name })}>{t('admin.cats.rename')}</button>
+                  <button type="button" className="link" aria-label={`${t('admin.cats.delete')}: ${c.name}`}
+                    onClick={() => void confirm({ message: t('admin.cats.deleteConfirm', { name: c.name }), confirmLabel: t('admin.cats.delete'), danger: true }).then((ok) => ok && remove.mutate(c.id))}>{t('admin.cats.delete')}</button>
+                </span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form className="row" onSubmit={(e) => { e.preventDefault(); if (name.trim()) add.mutate(); }}>
+        <TextField label={t('admin.cats.add')} value={name} onChange={setName} minLength={2} maxLength={40} />
+        <button type="submit" className="btn" disabled={add.isPending || name.trim().length < 2}>{t('admin.cats.addButton')}</button>
+      </form>
+      {error && <Alert kind="error">{error}</Alert>}
+    </section>
   );
 }
 
