@@ -257,7 +257,12 @@ the site config and browser storage all accept the old names).
 - **The Terminal window** uses your Terminal screen colour in every theme (an xterm theme built from
   `terminalPalette`), and follows a change made in Settings while it is open.
 - **Fonts** are bundled with `@fontsource` (all OFL-1.1, `17` V10), so `font-src 'self'` is unchanged.
-  A browser downloads only the faces the current theme uses.
+  A browser downloads only the faces the current theme uses. Bricolage Grotesque (Webring, After dark) is the
+  variable build with weight and optical size, so body text gets a true regular weight and the small-size cut;
+  the static build only had 500 and 800, so every label, button and heading came out extra bold.
+- **Readability rules:** quiet text buttons in a row of actions (`.toolbar`, `.actions` and friends) keep a soft
+  edge so they read as buttons; every action on a post looks the same (quiet, accent on hover); radios and
+  checkboxes inside a field are normal weight; metadata in the label font is at least 13px.
 - People's homepages, widgets and templates keep their own styling.
 - **The apps** (R3) follow the board mockups with the same structure in every theme: a panel's first
   heading row is a title strip in the first sticker colour (Terminal sets it into the box line); the

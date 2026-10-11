@@ -221,3 +221,11 @@ own the first time it sees the failed import (at most once a minute), and its "R
 before this fix has none of this code: closing every tab of the site, or clearing its site data once, gets it onto the new version. Not
 changed: lazy app files are still not precached (that would add about 2.4 MB to the first visit).
 
+### 2026-10-11 — Readability pass: a real regular weight
+"Some of the UI is hard to read" came down mostly to the default theme's font: only weights 500 and 800 of Bricolage Grotesque were
+bundled, so body text was medium and every label, button, legend and heading (asking for 600 to 700) rendered at 800. Switched to the
+variable build (`@fontsource-variable/bricolage-grotesque`, opsz axis, same OFL-1.1 licence, about 77 KB for Latin), which also
+gives small text its optical-size cut. Smaller fixes alongside: quiet buttons in action rows get a soft edge, post actions share one
+style, radio labels stop inheriting the bold field-label rule (which also forced them onto their own lines), and metadata in Space
+Mono goes from 12px to 13px. Theme colours and the type choices themselves are unchanged.
+

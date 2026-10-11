@@ -22,7 +22,7 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.13",
     "@emmetio/codemirror6-plugin": "^0.4.1",
-    "@fontsource/bricolage-grotesque": "5.3.0",
+    "@fontsource-variable/bricolage-grotesque": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@fontsource/ibm-plex-sans": "5.3.0",
     "@fontsource/nunito-sans": "5.3.0",

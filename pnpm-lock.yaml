@@ -245,7 +245,7 @@ importers:
       '@emmetio/codemirror6-plugin':
         specifier: ^0.4.1
         version: 0.4.1(@codemirror/autocomplete@6.20.3)(@codemirror/commands@6.11.1)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.12)(@codemirror/lang-javascript@6.2.5)(@codemirror/language@6.12.4)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
-      '@fontsource/bricolage-grotesque':
+      '@fontsource-variable/bricolage-grotesque':
         specifier: 5.3.0
         version: 5.3.0
       '@fontsource/ibm-plex-mono':
@@ -1427,8 +1427,8 @@ packages:
   '@fastify/rate-limit@11.2.0':
     resolution: {integrity: sha512-X7osJd4XSvMoejYrnJkSZYYjY1eNYoBqhjlzf1RakC2204qExFqZFTKj5+T7VuzA/iUI9Z3UoSqQRkB2HpG0oQ==}
 
-  '@fontsource/bricolage-grotesque@5.3.0':
-    resolution: {integrity: sha512-MdOVb/5in11IfN/IQJOExMuu6AroCIQbirl0yX7NUvKk+h0HYIKfGaVAXRS/gCPil4aFxWhjZnOw28tUwv7tFw==}
+  '@fontsource-variable/bricolage-grotesque@5.3.0':
+    resolution: {integrity: sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA==}
 
   '@fontsource/ibm-plex-mono@5.3.0':
     resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
@@ -6057,7 +6057,7 @@ snapshots:
       ip-address: 10.7.2
       toad-cache: 3.7.4
 
-  '@fontsource/bricolage-grotesque@5.3.0': {}
+  '@fontsource-variable/bricolage-grotesque@5.3.0': {}
 
   '@fontsource/ibm-plex-mono@5.3.0': {}
 

@@ -43,7 +43,7 @@ export interface Theme {
 // Font families are bundled with the shell (open licences, docs/17 V10); system fonts follow as fallbacks.
 const sans = `system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`;
 const mono = `ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace`;
-const bricolage = `'Bricolage Grotesque', ${sans}`;
+const bricolage = `'Bricolage Grotesque Variable', 'Bricolage Grotesque', ${sans}`;
 const spaceMono = `'Space Mono', ${mono}`;
 const plexMono = `'IBM Plex Mono', ${mono}`;
 const plexSans = `'IBM Plex Sans', ${sans}`;

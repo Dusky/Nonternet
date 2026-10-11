@@ -111,6 +111,8 @@ input[aria-invalid=true], textarea[aria-invalid=true] { border-color: var(--dang
 .field-error { color: var(--danger); margin: var(--space-1) 0 0; font-size: var(--step--1); font-weight: 550; }
 .check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-h); }
 .check input { width: 1.2rem; height: 1.2rem; flex: none; }
+/* A checkbox or radio inside a field reads as an answer, not as the question: normal weight, on its own line. */
+.field label.check { display: flex; font-weight: inherit; margin-bottom: 0; }
 fieldset { border: var(--control-line) solid var(--border); border-radius: var(--radius); margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-4); }
 legend { font-weight: 700; font-family: var(--font-display); padding: 0 var(--space-2); }
 .row { display: flex; gap: var(--space-2); align-items: stretch; }
@@ -134,6 +136,11 @@ progress { width: 100%; height: 10px; accent-color: var(--accent); }
 .links { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-4); }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-4); }
 .toolbar .spacer { flex: 1; }
+.toolbar label { white-space: nowrap; }
+/* In a row of actions, a quiet text button keeps a soft edge, so it reads as a button and not as loose bold words. */
+:is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions) .btn-quiet:not(.btn-icon) { border-color: var(--border); font-weight: 600; }
+:is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions) .btn-quiet:not(.btn-icon):hover:not(:disabled) { border-color: var(--line-strong); }
+:is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions) .btn-quiet.is-active { border-color: var(--line-strong); }
 
 /* Empty, loading and "something went wrong" states look the same in every app. */
 .empty { display: grid; justify-items: center; gap: var(--space-2); text-align: center; padding: var(--space-6) var(--space-4); color: var(--muted); border: var(--control-line) dashed var(--border); border-radius: var(--radius); margin: 0 0 var(--space-4); }
@@ -491,6 +498,9 @@ html[data-theme="terminal"][data-boxes="none"] .tile, html[data-theme="terminal"
 .post-actions { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); margin-top: var(--space-1); }
 .post-actions .link { min-height: 32px; font-size: var(--step--1); color: var(--muted); text-decoration: none; }
 .post-actions .link:hover { color: var(--accent); text-decoration: underline; }
+/* Every action on a post (react, report, the moderator tools) looks the same: quiet until pointed at. */
+.post .link { min-height: 32px; font-size: var(--step--1); color: var(--muted); text-decoration: none; }
+.post .link:hover { color: var(--accent); text-decoration: underline; }
 .post-body, .terminal { font-family: var(--font-mono); font-size: .94rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 var(--space-1); max-width: var(--measure); }
 .terminal { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); white-space: pre; overflow-x: auto; max-width: 100%; }
 textarea.mono { font-family: var(--font-mono); }
@@ -937,7 +947,7 @@ ul.wall li .link { font-size: var(--step--1); }
 .thread-title { font-size: var(--step-3); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 .badge.sticker { font-size: var(--step--2); text-transform: uppercase; letter-spacing: .06em; border-radius: 0; background: var(--sticker-1); color: var(--sticker-text); transform: rotate(calc(var(--tilt) * -3)); }
 .post-body { font-family: var(--font-body); font-size: var(--step-0); line-height: 1.55; }
-.post-when, .row-meta, .post-head .muted { font-family: var(--font-label); font-size: var(--step--2); }
+.post-when, .row-meta, .post-head .muted { font-family: var(--font-label); font-size: .8125rem; }
 .post-nested .post { background: var(--surface2); border-width: var(--control-line); box-shadow: none; }
 .chip { border: var(--control-line) solid var(--line-strong); font-family: var(--font-label); font-weight: 700; font-size: var(--step--2); }
 .chip:hover:not(:disabled) { border-color: var(--line-strong); background: var(--accent-soft); }
@@ -1358,8 +1368,9 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 .home-bookmark { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
 .home-bookmark span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-bookmark svg { color: var(--muted); flex: none; }
-.who-sees { border: 0; padding: 0; margin: 0; display: grid; gap: var(--space-1); }
-.who-sees legend { font-weight: 650; margin-bottom: var(--space-1); }
+.who-sees { border: 0; padding: 0; margin: 0 0 var(--space-3); display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-5); }
+.who-sees legend { font-weight: 650; padding: 0; margin-bottom: var(--space-1); }
+.who-sees > .field, .who-sees > .hint { flex-basis: 100%; }
 .shared-links .shared-link { display: block; }
 .shared-links .mod-tools { margin-top: var(--space-1); }
 
