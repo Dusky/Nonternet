@@ -7,7 +7,6 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { api, ApiError } from '../../api';
 import { readPrefs, usePrefs } from '../../devicePrefs';
-import { Alert } from '../../components/ui';
 import { useToast } from '../../components/feedback';
 import { errorText, useSite, useT } from '../../hooks';
 import { useSubtitle } from '../../nav';
@@ -98,11 +97,17 @@ export default function TerminalApp() {
   useSubtitle(title);
 
   const send = useCallback((m: object) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(m)); }, []);
+  // Keys pressed while there is no call go nowhere; say so once, rather than letting them vanish.
+  const told = useRef(false);
   const type = useCallback((d: string) => {
+    if (ws.current?.readyState !== WebSocket.OPEN) {
+      if (!told.current) { told.current = true; toast(t('terminal.notSent')); }
+      return;
+    }
     const m = modsRef.current;
     for (const piece of chunkInput(m.ctrl || m.alt ? withModifiers(d, m) : d)) send({ t: 'in', d: piece });
     if (m.ctrl || m.alt) setMods({ ctrl: false, alt: false });
-  }, [send]);
+  }, [send, t, toast]);
 
   const copy = useCallback(async () => {
     const text = term.current?.getSelection() ?? '';
@@ -117,8 +122,10 @@ export default function TerminalApp() {
   const attempt = useRef(0);
   const retry = useRef<ReturnType<typeof setTimeout>>(undefined);
   const connectRef = useRef<() => Promise<void>>(async () => undefined);
+  const calls = useRef(0); // how many times this window has called
   const retryLater = useCallback(() => {
     setStatus('reconnecting');
+    setTitle(null);
     clearTimeout(retry.current);
     retry.current = setTimeout(() => void connectRef.current(), backoffMs(attempt.current++));
   }, []);
@@ -133,7 +140,12 @@ export default function TerminalApp() {
       const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/bbs`;
       const sock = new WebSocket(url);
       ws.current = sock;
-      sock.onopen = () => { attempt.current = 0; setStatus('connected'); sock.send(JSON.stringify({ t: 'hello', handle: nick, ticket, cols: x.cols, rows: x.rows })); x.focus(); };
+      sock.onopen = () => {
+        attempt.current = 0; told.current = false; setStatus('connected');
+        // A new call starts on a clean screen, under a line that says so, instead of drawing over the last one.
+        if (calls.current++ > 0) { x.reset(); x.write(`\x1b[2m-- ${t('terminal.newCall')} --\x1b[0m\r\n`); }
+        sock.send(JSON.stringify({ t: 'hello', handle: nick, ticket, cols: x.cols, rows: x.rows })); x.focus();
+      };
       sock.onmessage = (e) => { if (typeof e.data === 'string') x.write(e.data); };
       sock.onclose = (ev) => {
         if (ws.current !== sock) return;
@@ -168,9 +180,23 @@ export default function TerminalApp() {
     x.open(host.current!);
     term.current = x;
     search.current = finder;
-    const doFit = () => { try { fit.fit(); send({ t: 'size', cols: x.cols, rows: x.rows }); } catch { /* not visible yet */ } };
-    doFit();
-    refit.current = doFit;
+    // Fit to the box; tell the BBS only when the size really changed, and at most once a frame while a window is dragged.
+    let sent = '';
+    const fitNow = () => {
+      try {
+        fit.fit();
+        const size = `${x.cols}x${x.rows}`;
+        if (size !== sent) { sent = size; send({ t: 'size', cols: x.cols, rows: x.rows }); }
+      } catch { /* not visible yet */ }
+    };
+    let frameId = 0;
+    const doFit = () => { cancelAnimationFrame(frameId); frameId = requestAnimationFrame(fitNow); };
+    fitNow();
+    refit.current = () => { sent = ''; fitNow(); };
+    // The cell size is measured when the screen opens; a font that arrives later is measured again.
+    void document.fonts?.ready.then(() => { if (!term.current) return; const f = x.options.fontFamily; x.options.fontFamily = 'monospace'; x.options.fontFamily = f; refit.current?.(); });
+    const onFonts = () => refit.current?.();
+    document.fonts?.addEventListener?.('loadingdone', onFonts);
     // Copy and paste like a desktop terminal: Ctrl+Shift+C and V, and Ctrl+C copies when something is selected.
     x.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true;
@@ -197,7 +223,7 @@ export default function TerminalApp() {
     const keepalive = setInterval(() => send({ t: 'ping' }), 30_000);
     void connect();
     return () => {
-      clearTimeout(retry.current); clearInterval(keepalive); ro.disconnect(); data.dispose(); sel.dispose(); bell.dispose(); titled.dispose();
+      clearTimeout(retry.current); clearInterval(keepalive); ro.disconnect(); cancelAnimationFrame(frameId); document.fonts?.removeEventListener?.('loadingdone', onFonts); data.dispose(); sel.dispose(); bell.dispose(); titled.dispose();
       const sock = ws.current; ws.current = null; sock?.close(); x.dispose(); term.current = null; refit.current = null;
     };
   }, [connect, send, type, copy, paste]);
@@ -233,10 +259,19 @@ export default function TerminalApp() {
 
   return (
     <div className="app-content terminal-app app-fill" ref={frame}>
-      {error && <Alert kind="error">{error}</Alert>}
-      {status === 'connecting' && <p className="hint" role="status">{t('terminal.connecting')}</p>}
-      {status === 'reconnecting' && <p className="hint" role="status">{t('terminal.reconnecting')}</p>}
-      {status === 'closed' && <Alert kind="info">{t('terminal.closed')} <button type="button" className="link" onClick={() => void connect()}>{t('terminal.reconnect')}</button></Alert>}
+      {/* The call's state lives in one line of fixed height, so the screen never changes size when it does. */}
+      <div className={`terminal-status is-${status}`}>
+        <span role="status">
+          {status === 'connecting' && t('terminal.connecting')}
+          {status === 'reconnecting' && t('terminal.reconnecting')}
+          {status === 'connected' && t('terminal.connected')}
+          {status === 'closed' && t('terminal.closed')}
+          {status === 'error' && (error ?? t('terminal.failed'))}
+        </span>
+        {(status === 'closed' || status === 'error') && <button type="button" className="btn btn-small" onClick={() => void connect()}>{t('terminal.reconnect')}</button>}
+        {status === 'connected' && <button type="button" className="btn btn-quiet btn-small" onClick={() => ws.current?.close(1000)}>{t('terminal.hangUp')}</button>}
+        {status === 'connected' && error && <span className="field-error">{error}</span>}
+      </div>
       <div className="toolbar terminal-tools" role="toolbar" aria-label={t('terminal.tools')}>
         <button type="button" className="btn btn-small" onClick={() => void copy()} aria-keyshortcuts="Control+Shift+C">{t('terminal.copy')}</button>
         <button type="button" className="btn btn-small" onClick={() => void paste()} aria-keyshortcuts="Control+Shift+V">{t('terminal.paste')}</button>

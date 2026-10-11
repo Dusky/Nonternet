@@ -61,3 +61,32 @@ test('offline mail: download a QWK packet from Settings, Terminal', async ({ pag
   await expect(page.getByText(/Your packet has \d+ new messages\./)).toBeVisible();
   await expect(page.getByLabel('Send your replies (E2ETEST.REP)')).toBeVisible();
 });
+
+test('the call state sits in one line: hang up, keys while not connected are not lost silently, Call again starts clean', async ({ page }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/terminal');
+  const screen = page.locator('.xterm-rows');
+  await expect(screen).toContainText('Main menu [', { timeout: 15_000 });
+  await expect(page.getByRole('status').filter({ hasText: 'Connected to the BBS.' })).toBeVisible();
+  const box = await page.locator('.terminal-screen').boundingBox();
+
+  await page.getByRole('button', { name: 'Hang up' }).click();
+  await expect(page.getByText('The BBS hung up.')).toBeVisible();
+  expect((await page.locator('.terminal-screen').boundingBox())!.height).toBe(box!.height); // nothing moved
+  await page.locator('.xterm-helper-textarea').focus();
+  await page.keyboard.type('w');
+  await expect(page.getByText('Not connected, so that was not sent.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Call again' }).click();
+  await expect(screen).toContainText('Main menu [', { timeout: 15_000 });
+
+  // A refused ticket says why, and Call again is right there.
+  await page.route('**/api/v1/bbs/ticket', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unavailable', message: 'The BBS is resting.' } }) }));
+  await page.getByRole('button', { name: 'Hang up' }).click();
+  await page.getByRole('button', { name: 'Call again' }).click();
+  await expect(page.getByText('The BBS is resting.')).toBeVisible();
+  await page.unroute('**/api/v1/bbs/ticket');
+  await page.getByRole('button', { name: 'Call again' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Connected to the BBS.' })).toBeVisible({ timeout: 15_000 });
+});

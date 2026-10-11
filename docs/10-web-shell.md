@@ -162,6 +162,11 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **If the stream is lost** (proxy that buffers, restart, no network) the shell says nothing and falls back to polling,
   reopening the stream with growing pauses. When it comes back, everything is refetched once to catch up.
 - **Chat, the MUD and the Terminal reconnect by themselves** after a lost connection (1 s, 2 s, 4 s … 30 s, with jitter).
+- **Terminal call state (2026-10-11):** one line of fixed height above the toolbar says Calling, Connected (with Hang up),
+  Reconnecting, hung up or the error, with Call again for the last two, so the screen never resizes when the state
+  changes. A new call starts on a reset screen. Keys pressed while not connected are not sent and a note says so once
+  (they are not replayed into the next call, where they could pick menu options). The screen is re-measured once web
+  fonts finish loading, and the size is sent to the BBS only when it changes, at most once a frame.
   A goodbye (quitting the MUD, the BBS's own Goodbye) stays closed. Chat rejoins the channels that were open; each
   reconnect gets a fresh one-use ticket.
 
