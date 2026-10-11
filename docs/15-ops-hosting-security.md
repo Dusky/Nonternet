@@ -188,3 +188,9 @@ Rules for both:
 - **The bookmarklet and share target only prefill a form.** Nothing is saved or published without the person confirming.
 - **Limits and moderation:** rate limits, size and count caps, reports and hiding for public items, audit for
   moderation actions only.
+
+**Shared bookmarks (as built 2026-10-11):**
+- A public or ring bookmark shows its address, title, description, tags, icon and owner, and nothing else. The pin and
+  everything about private bookmarks stay private.
+- Links open with `rel="noopener noreferrer nofollow"`.
+- Every read of other people's bookmarks goes through one SQL rule in `bookmarks.ts` (`SHARED`).

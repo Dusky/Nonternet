@@ -27,5 +27,6 @@ export function feedRoutes(app: FastifyInstance, deps: AppDeps): void {
   });
   app.get('/feeds/wiki/changes.atom', rate, (req, reply) => send(req, reply, () => feeds.wikiFeed(deps, null)));
   app.get('/feeds/wiki/rings/:ring/changes.atom', rate, (req, reply) => send(req, reply, () => feeds.wikiFeed(deps, (req.params as { ring: string }).ring)));
+  app.get('/feeds/people/:handle/bookmarks.atom', rate, (req, reply) => send(req, reply, () => feeds.bookmarkFeed(deps, (req.params as { handle: string }).handle)));
   app.get('/feeds/people/:file', rate, (req, reply) => send(req, reply, () => feeds.personFeed(deps, name((req.params as { file: string }).file))));
 }

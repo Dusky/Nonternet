@@ -1357,3 +1357,7 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 .home-bookmark { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
 .home-bookmark span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-bookmark svg { color: var(--muted); flex: none; }
+.who-sees { border: 0; padding: 0; margin: 0; display: grid; gap: var(--space-1); }
+.who-sees legend { font-weight: 650; margin-bottom: var(--space-1); }
+.shared-links .shared-link { display: block; }
+.shared-links .mod-tools { margin-top: var(--space-1); }

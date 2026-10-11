@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { bookmarkKey, bookmarkletSource } from '@app/shared';
-import { createTestDb, dbAvailable, loginAs, makeApp, makeUser, TEST_PASSWORD } from './test/harness';
+import { client, createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser, TEST_PASSWORD } from './test/harness';
 import { importBookmarks, plainText, pngFromIco, readPage } from './bookmarks';
 import { processNext } from './exports/service';
 import { deleteAccount } from './deletion';
@@ -114,7 +114,7 @@ describe.skipIf(!dbAvailable)('bookmarks', () => {
     const c = await loginAs(ctx, (await makeUser(ctx)).handle);
     expect((await c.post('/api/v1/bookmarks', { url: 'javascript:alert(1)' })).status).toBe(400);
     expect((await c.post('/api/v1/bookmarks', { url: 'https://me:pw@example.com/' })).status).toBe(400);
-    expect((await c.post('/api/v1/bookmarks', { url: 'https://example.com/', title: 'x', description: '', visibility: 'public' })).status).toBe(400); // sharing comes later
+    expect((await c.post('/api/v1/bookmarks', { url: 'https://example.com/', title: 'x', description: '', visibility: 'ring' })).status).toBe(400); // which ring?
     const guest = await loginAs(ctx, (await makeUser(ctx, { role: 'guest', verified: false })).handle);
     expect((await guest.post('/api/v1/bookmarks', { url: 'https://example.com/', title: 'x', description: '' })).status).toBe(403);
     const mine = (await c.post('/api/v1/bookmarks', { url: 'https://example.com/mine', title: 'Mine', description: '' })).body.bookmark;
@@ -164,7 +164,7 @@ describe.skipIf(!dbAvailable)('bookmarks', () => {
     expect(list).toEqual([expect.objectContaining({ url: 'https://example.com/kept', title: 'Kept', description: 'A note', tags: ['keep'], pinned: true, visibility: 'private', ring: null })]);
 
     const v = await makeUser(ctx);
-    const session = (await ctx.deps.db.query(`SELECT * FROM users WHERE id = $1`, [v.id])).rows[0];
+    const session = (await ctx.deps.db.query(`SELECT * FROM users WHERE id = $1`, [v.id])).rows[0]!;
     const viewer = { userId: v.id, handle: session.handle, role: 'user' } as Parameters<typeof importBookmarks>[1];
     const r = await importBookmarks(ctx.deps, viewer, [...list, { ...list[0], url: 'https://example.com/shared', visibility: 'public' }, { url: 'ftp://nope' }]);
     expect(r).toEqual({ restored: 2, codes: ['made_private', 'invalid'] });
@@ -172,9 +172,126 @@ describe.skipIf(!dbAvailable)('bookmarks', () => {
     expect(again).toEqual({ restored: 0, codes: ['exists'] });
     const rows = (await ctx.deps.db.query(`SELECT url, visibility, created_at FROM bookmarks WHERE user_id = $1 ORDER BY url`, [v.id])).rows;
     expect(rows.map((b) => b.visibility)).toEqual(['private', 'private']);
-    expect(rows[0].created_at.toISOString()).toBe(list[0].created_at); // keeps when it was saved
+    expect(rows[0]!.created_at.toISOString()).toBe(list[0].created_at); // keeps when it was saved
 
     await deleteAccount(ctx.deps, u.id, { posts: 'keep', actor: null }, {});
     expect((await ctx.deps.db.query(`SELECT 1 FROM bookmarks WHERE user_id = $1`, [u.id])).rowCount).toBe(0);
+  });
+});
+
+describe.skipIf(!dbAvailable)('sharing bookmarks', () => {
+  let drop: () => Promise<void>;
+  let ctx: Awaited<ReturnType<typeof makeApp>>;
+  type P = { id: string; handle: string; c: Awaited<ReturnType<typeof loginAs>> };
+  const person = async (handle: string, role: 'user' | 'trusted' = 'user'): Promise<P> => {
+    const u = await makeUser(ctx, { role, handle });
+    return { id: u.id, handle, c: await loginAs(ctx, handle) };
+  };
+  const add = (p: P, n: string, extra: Record<string, unknown> = {}) =>
+    p.c.post('/api/v1/bookmarks', { url: `https://example.com/${n}`, title: `Link ${n}`, description: `About ${n}`, ...extra });
+  const visitor = () => client(ctx.app);
+  const ids = (r: { body: { bookmarks: { id: string }[] } }) => r.body.bookmarks.map((b) => b.id);
+
+  beforeAll(async () => {
+    const t = await createTestDb();
+    drop = t.drop;
+    ctx = await makeApp(t.db);
+  });
+  afterAll(async () => drop());
+
+  it('shows public ones on the profile and in the feed, signed out, and never private ones', async () => {
+    const ada = await person('ada_share');
+    const pub = (await add(ada, 'pub', { visibility: 'public', tags: ['tools'] })).body.bookmark;
+    const priv = (await add(ada, 'priv')).body.bookmark;
+    const r = await visitor().get('/api/v1/bookmarks/public/ada_share');
+    expect(r.status).toBe(200);
+    expect(ids(r)).toEqual([pub.id]);
+    expect(r.body.bookmarks[0]).toMatchObject({ title: 'Link pub', visibility: 'public', owner: { handle: 'ada_share' }, can_hide: false });
+    expect(r.body.bookmarks[0]).not.toHaveProperty('pinned');
+    const feed = await ctx.app.inject({ method: 'GET', url: '/feeds/people/ada_share/bookmarks.atom' });
+    expect(feed.statusCode).toBe(200);
+    expect(feed.body).toContain('<title>Link pub</title>');
+    expect(feed.body).toContain('href="https://example.com/pub"');
+    expect(feed.body).not.toContain('Link priv');
+    // Making it private takes it off again; the private one never shows.
+    await ada.c.patch(`/api/v1/bookmarks/${pub.id}`, { visibility: 'private' });
+    expect(ids(await visitor().get('/api/v1/bookmarks/public/ada_share'))).toEqual([]);
+    expect((await visitor().get(`/api/v1/bookmarks/${priv.id}/icon`)).status).toBe(404);
+  });
+
+  it('shares into a ring only for its members, and leaving, removal or a ban makes them private again', async () => {
+    const founder = await person('ring_founder', 'trusted');
+    const bea = await person('bea_share');
+    const cy = await person('cy_share');
+    expect((await founder.c.post('/api/v1/rings', { slug: 'readers', name: 'Readers' })).status).toBe(201);
+    expect((await add(bea, 'early', { visibility: 'ring', ring: 'readers' })).body.error.code).toBe('not_in_ring');
+    await bea.c.post('/api/v1/rings/readers/join');
+    await cy.c.post('/api/v1/rings/readers/join');
+    const b1 = (await add(bea, 'r1', { visibility: 'ring', ring: 'readers' })).body.bookmark;
+    const c1 = (await add(cy, 'c1', { visibility: 'ring', ring: 'readers' })).body.bookmark;
+    expect(b1).toMatchObject({ visibility: 'ring', ring: { slug: 'readers', name: 'Readers' } });
+    const page = await visitor().get('/api/v1/rings/readers/bookmarks');
+    expect(ids(page).sort()).toEqual([b1.id, c1.id].sort());
+    expect(ids(await visitor().get('/api/v1/bookmarks/public/bea_share'))).toEqual([]); // a ring link isn't on the profile
+
+    await bea.c.post('/api/v1/rings/readers/leave');
+    expect((await bea.c.get(`/api/v1/bookmarks/${b1.id}`)).body).toMatchObject({ visibility: 'private', ring: null });
+    const founderAgain = await loginAs(ctx, 'ring_founder'); // ops are read at sign-in
+    expect((await founderAgain.post(`/api/v1/rings/readers/members/${cy.id}/ban`, { reason: 'spam links' })).status).toBe(204);
+    expect((await cy.c.get(`/api/v1/bookmarks/${c1.id}`)).body.visibility).toBe('private');
+    expect(ids(await visitor().get('/api/v1/rings/readers/bookmarks'))).toEqual([]);
+  });
+
+  it('takes a suspended person\'s shared bookmarks away with them', async () => {
+    const dee = await person('dee_share');
+    await add(dee, 'gone', { visibility: 'public' });
+    await ctx.deps.db.query(`UPDATE users SET status = 'suspended' WHERE id = $1`, [dee.id]);
+    expect((await visitor().get('/api/v1/bookmarks/public/dee_share')).status).toBe(404);
+    expect((await ctx.app.inject({ method: 'GET', url: '/feeds/people/dee_share/bookmarks.atom' })).statusCode).toBe(404);
+  });
+
+  it('reports a ring link to the ring\'s ops, who hide it with a reason (audited); the owner still sees it, marked', async () => {
+    const founder = await person('op_founder', 'trusted');
+    const eve = await person('eve_share');
+    const fay = await person('fay_share');
+    await founder.c.post('/api/v1/rings', { slug: 'makers', name: 'Makers' });
+    await eve.c.post('/api/v1/rings/makers/join');
+    const bm = (await add(eve, 'bad', { visibility: 'ring', ring: 'makers' })).body.bookmark;
+    expect((await eve.c.post(`/api/v1/bookmarks/${bm.id}/report`, { category: 'spam' })).body.error.code).toBe('own_bookmark');
+    expect((await fay.c.post(`/api/v1/bookmarks/${bm.id}/report`, { category: 'spam', note: 'ads' })).status).toBe(201);
+    expect((await fay.c.post(`/api/v1/bookmarks/${bm.id}/report`, { category: 'spam' })).body.error.code).toBe('already_reported');
+    const op = await loginAs(ctx, 'op_founder');
+    const queue = (await op.get('/api/v1/reports')).body.reports;
+    expect(queue).toEqual([expect.objectContaining({ target: expect.objectContaining({ type: 'bookmark', id: bm.id, handle: 'eve_share' }), bookmark: { title: 'Link bad', url: 'https://example.com/bad', hidden: false } })]);
+    expect((await fay.c.get('/api/v1/reports')).status).toBe(403);
+    expect((await fay.c.post(`/api/v1/bookmarks/${bm.id}/hide`, { reason: 'not mine to hide' })).status).toBe(403);
+    expect(((await op.get('/api/v1/rings/makers/bookmarks')).body.bookmarks[0]).can_hide).toBe(true);
+    expect((await op.post(`/api/v1/bookmarks/${bm.id}/hide`, { reason: 'advertising' })).status).toBe(204);
+    expect(ids(await visitor().get('/api/v1/rings/makers/bookmarks'))).toEqual([]);
+    expect((await eve.c.get(`/api/v1/bookmarks/${bm.id}`)).body.hidden).toEqual({ reason: 'advertising' });
+    // Sharing it again doesn't bring it back.
+    await eve.c.patch(`/api/v1/bookmarks/${bm.id}`, { visibility: 'public' });
+    expect(ids(await visitor().get('/api/v1/bookmarks/public/eve_share'))).toEqual([]);
+    const log = await ctx.deps.db.query(`SELECT action, after FROM audit_log WHERE target_id = $1 AND action LIKE 'bookmark.%'`, [bm.id]);
+    expect(log.rows).toEqual([expect.objectContaining({ action: 'bookmark.hidden', after: expect.objectContaining({ reason: 'advertising' }) })]);
+    // A public one is the admins' to hide; they put it back too.
+    const admin = (await makeAdmin(ctx)).client;
+    expect((await op.post(`/api/v1/bookmarks/${bm.id}/restore`, { reason: 'my mistake' })).status).toBe(403); // public now: not the ring's
+    expect((await admin.post(`/api/v1/bookmarks/${bm.id}/restore`, { reason: 'fixed' })).status).toBe(204);
+    expect(ids(await visitor().get('/api/v1/bookmarks/public/eve_share'))).toEqual([bm.id]);
+  });
+
+  it('serves a shared bookmark\'s icon to anyone, and a private one\'s only to its owner', async () => {
+    const gus = await person('gus_share');
+    const pub = (await add(gus, 'icon-pub', { visibility: 'public' })).body.bookmark;
+    const icon = await sharp({ create: { width: 32, height: 32, channels: 4, background: '#00ff00' } }).webp().toBuffer();
+    await ctx.deps.db.query(`UPDATE bookmarks SET favicon = $2 WHERE id = $1`, [pub.id, icon]);
+    const r = await ctx.app.inject({ method: 'GET', url: `/api/v1/bookmarks/${pub.id}/icon` });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['cache-control']).toMatch(/^public/);
+    await gus.c.patch(`/api/v1/bookmarks/${pub.id}`, { visibility: 'private' });
+    expect((await ctx.app.inject({ method: 'GET', url: `/api/v1/bookmarks/${pub.id}/icon` })).statusCode).toBe(404);
+    const own = await ctx.app.inject({ method: 'GET', url: `/api/v1/bookmarks/${pub.id}/icon`, headers: { cookie: `sid=${gus.c.sid}` } });
+    expect(own.headers['cache-control']).toMatch(/^private/);
   });
 });

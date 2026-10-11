@@ -39,7 +39,12 @@ Built (M2): everything below except `PATCH` of ring boards, plus `PUT|DELETE /bo
 - `POST /bookmarks {url, title?, description?, tags?, pinned?}`: 201, or 200 with `existing: true` for an address already saved. Rate-limited to 20 a minute.
 - `GET|PATCH|DELETE /bookmarks/:id` and `GET /bookmarks/:id/icon`.
 
-All of these are the person's own bookmarks only. `PATCH /me` also takes `pronouns`, `location`, `links` (up to 4 `{label, url}`); `GET /users/:handle` returns them and `activity`; `GET /homepages?filter=new&ring=<slug>`; `GET /boards/:slug/threads?sort=activity|newest|replies&filter=all|unanswered|unread&before=` (the cursor is a position in the chosen order, or an offset for `replies`), `rules` (up to 2000 characters) in `PATCH /boards/:slug`, `poll {question, options (2-10), closes_in_days?}` on a new thread's `POST /boards/:slug/posts`, `poll_id` on a thread, `POST /polls/:id/close` (its author or a board moderator),
+These are the person's own bookmarks only. Shared bookmarks (B3):
+- `GET /bookmarks/rings`;
+- `GET /bookmarks/public/:handle` and `GET /rings/:slug/bookmarks`, both public; each returns `{bookmarks, next}`;
+- `POST /bookmarks/:id/report {category, note}`;
+- `POST /bookmarks/:id/hide|restore {reason}`;
+- `visibility` and `ring` on create and edit. `PATCH /me` also takes `pronouns`, `location`, `links` (up to 4 `{label, url}`); `GET /users/:handle` returns them and `activity`; `GET /homepages?filter=new&ring=<slug>`; `GET /boards/:slug/threads?sort=activity|newest|replies&filter=all|unanswered|unread&before=` (the cursor is a position in the chosen order, or an offset for `replies`), `rules` (up to 2000 characters) in `PATCH /boards/:slug`, `poll {question, options (2-10), closes_in_days?}` on a new thread's `POST /boards/:slug/posts`, `poll_id` on a thread, `POST /polls/:id/close` (its author or a board moderator),
 `GET|POST /boards/:slug/members`, `DELETE /boards/:slug/members/:userId` (private boards),
 `POST /admin/board-categories`, and `read-pointer` takes `{post_id}` or `{all: true}`. Thread lists page
 with `before=<last_seq>`, threads with `after=<seq>`, search with `offset`. Events: `board.created`,

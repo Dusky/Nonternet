@@ -40,7 +40,7 @@ export function ReportQueue() {
 function Report({ r }: { r: ReportView }) {
   const t = useT();
   const qc = useQueryClient();
-  const [tool, setTool] = useState<null | 'hide' | 'remove' | 'dismiss' | 'hide-page' | 'hide-entry' | 'hide-file'>(null);
+  const [tool, setTool] = useState<null | 'hide' | 'remove' | 'dismiss' | 'hide-page' | 'hide-entry' | 'hide-file' | 'hide-bookmark' | 'restore-bookmark'>(null);
   const [error, setError] = useState<string | null>(null);
   const done = () => { setTool(null); setError(null); for (const k of ['reports', 'thread', 'threads', 'modlog', 'admin']) void qc.invalidateQueries({ queryKey: [k] }); };
   const act = useMutation({
@@ -48,6 +48,8 @@ function Report({ r }: { r: ReportView }) {
       if (tool === 'dismiss') return api.post(`/reports/${r.id}/resolve`, { resolution: 'dismissed', note: reason });
       if (tool === 'hide-page') return api.post(`/admin/homepages/${r.target.id}/hide`, { reason });
       if (tool === 'hide-file') return api.post(`/admin/files/${r.target.id}/hide`, { reason });
+      if (tool === 'hide-bookmark') return api.post(`/bookmarks/${r.target.id}/hide`, { reason });
+      if (tool === 'restore-bookmark') return api.post(`/bookmarks/${r.target.id}/restore`, { reason });
       if (tool === 'hide-entry') return api.post(`/admin/guestbook/${r.target.id}/hide`, { reason });
       return api.post('/mod-actions', { action: tool, post_id: r.target.id, reason });
     },
@@ -64,8 +66,9 @@ function Report({ r }: { r: ReportView }) {
     : r.target.type === 'guestbook' ? t('boards.reports.aboutEntry', { name: r.target.handle ?? '' })
     : r.target.type === 'mail_message' ? t('boards.reports.aboutMail', { name: r.target.handle ?? t('mail.deletedPerson') })
     : r.target.type === 'file' ? t('boards.reports.aboutFile', { name: r.target.handle ?? t('mail.deletedPerson') })
-    : r.target.type === 'wiki_page' ? t('boards.reports.aboutWiki', { name: r.wiki?.title ?? '' }) : null;
-  const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : k === 'hide-file' ? t('boards.reports.hideFile') : t(`boards.mod.${k}`);
+    : r.target.type === 'wiki_page' ? t('boards.reports.aboutWiki', { name: r.wiki?.title ?? '' })
+    : r.target.type === 'bookmark' ? t('boards.reports.aboutBookmark', { name: r.target.handle ?? t('mail.deletedPerson') }) : null;
+  const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : k === 'hide-file' ? t('boards.reports.hideFile') : k === 'hide-bookmark' ? t('bookmarks.hide') : k === 'restore-bookmark' ? t('bookmarks.restore') : t(`boards.mod.${k}`);
   return (
     <li>
       <p>
@@ -97,6 +100,9 @@ function Report({ r }: { r: ReportView }) {
         {r.target.type === 'file' && <OpenAppLink app="files" to="">{t('app.files')}</OpenAppLink>}
         {r.wiki && <OpenAppLink app="wiki" to={`${r.wiki.ref === 'site' ? '' : `r/${r.wiki.ref.slice(5)}/`}p/${r.wiki.slug}`}>{t('boards.reports.openPage')}</OpenAppLink>}
         {open && r.target.type === 'file' && <button type="button" className="link" onClick={() => setTool('hide-file')}>{t('boards.reports.hideFile')}</button>}
+        {r.bookmark && <a href={r.bookmark.url} target="_blank" rel="noopener noreferrer nofollow">{t('boards.reports.openLink')}</a>}
+        {r.bookmark && !r.bookmark.hidden && <button type="button" className="link" onClick={() => setTool('hide-bookmark')}>{t('bookmarks.hide')}</button>}
+        {r.bookmark?.hidden && <button type="button" className="link" onClick={() => setTool('restore-bookmark')}>{t('bookmarks.restore')}</button>}
         {open && <button type="button" className="link" onClick={() => setTool('dismiss')}>{t('boards.reports.dismiss')}</button>}
       </div>
       {tool && (

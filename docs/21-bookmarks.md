@@ -97,7 +97,27 @@ adds a minute (the fetch is the costly part), 10,000 bookmarks per person.
   - Editing happens in place.
   - The add screen (`/bookmarks/add?url=&title=`) fills in its fields from the address, and saves only when Save is pressed.
   - The home panel shows pinned bookmarks as buttons, then the eight newest.
-- [ ] **B3:** sharing: public on profiles and feed, ring sharing, reports and hiding, audit.
+- [x] **B3:** sharing:
+  - public bookmarks on profiles and in a feed;
+  - ring sharing;
+  - reports and hiding;
+  - audit.
+
+  As built:
+  - "Who can see it" (Only me / Anyone / People who visit one of my rings) is in the add and edit forms, with one plain line
+    saying who will see it. The quick "Save a link" box always saves privately.
+  - Every read of other people's bookmarks goes through one rule in core: shared, not hidden, the owner active and not a
+    guest, and for a ring bookmark a ring that is not hidden.
+  - A hidden bookmark stays visible to its owner, marked with the reason. Changing its sharing does not bring it back.
+  - Leaving a ring, or being removed or banned, makes those bookmarks private. A trigger on `ring_members` (migration 0051)
+    does this, so every way out is covered, account deletion included.
+  - Routes:
+    - `GET /bookmarks/public/:handle` and `GET /rings/:slug/bookmarks` (both public);
+    - `GET /bookmarks/rings` (where I may share);
+    - `POST /bookmarks/:id/report`;
+    - `POST /bookmarks/:id/hide|restore {reason}`;
+    - the feed at `/feeds/people/{handle}/bookmarks.atom`.
+  - A shared bookmark's icon is served to anyone who may see the bookmark; a private one's only to its owner.
 - [ ] **B4:** share target, import of browser files, link checking.
 
 ## Left open

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { bookmarkCreateSchema, bookmarkUpdateSchema, bookmarkletSource, type BookmarkPage, type BookmarkView } from '@app/shared';
+import { bookmarkCreateSchema, bookmarkUpdateSchema, bookmarkletSource, type BookmarkPage, type BookmarkView, type BookmarkVisibility } from '@app/shared';
 import { api, ApiError } from '../../api';
 import { Alert, EmptyState, Loading, RelativeTime, TextField } from '../../components/ui';
 import { Icon } from '../../components/Icon';
@@ -102,7 +102,12 @@ function ListScreen() {
                   <span className="bookmark-icon" aria-hidden="true">{b.has_icon ? <img src={iconUrl(b)} alt="" width={16} height={16} loading="lazy" /> : <Icon name="link" size={16} />}</span>
                   <div className="bookmark-main">
                     <a className="bookmark-title" href={b.url} target="_blank" rel="noopener noreferrer">{b.title}</a>
-                    <span className="row-meta">{b.host} · <RelativeTime iso={b.created_at} /></span>
+                    <span className="row-meta">
+                      {b.host} · <RelativeTime iso={b.created_at} />
+                      {b.visibility === 'public' && <>{' '}<span className="badge">{t('bookmarks.badge.public')}</span></>}
+                      {b.visibility === 'ring' && b.ring && <>{' '}<span className="badge">{t('bookmarks.badge.ring', { name: b.ring.name })}</span></>}
+                    </span>
+                    {b.hidden && <p className="field-error">{t('bookmarks.hiddenBy', { reason: b.hidden.reason })}</p>}
                     {b.description && <p className="bookmark-desc">{b.description}</p>}
                     {b.tags.length > 0 && (
                       <ul className="tags" aria-label={t('bookmarks.tags')}>
@@ -159,9 +164,10 @@ function QuickAdd() {
   );
 }
 
-interface Values { url: string; title: string; description: string; tags: string; pinned: boolean }
+interface Values { url: string; title: string; description: string; tags: string; pinned: boolean; visibility: BookmarkVisibility; ring: string }
+const shareOf = (v: Values) => ({ visibility: v.visibility, ...(v.visibility === 'ring' ? { ring: v.ring } : {}) });
 function messagesFor(v: Values, create: boolean): Record<string, string> {
-  const body = { url: v.url, title: v.title.trim() || undefined, description: v.description, tags: splitTags(v.tags), pinned: v.pinned };
+  const body = { url: v.url, title: v.title.trim() || undefined, description: v.description, tags: splitTags(v.tags), pinned: v.pinned, ...shareOf(v) };
   const r = (create ? bookmarkCreateSchema : bookmarkUpdateSchema).safeParse(create ? body : { ...body, title: v.title });
   return fieldMessages(r) ?? {};
 }
@@ -175,16 +181,48 @@ function BookmarkFields({ v, set, errors, autoFocus }: { v: Values; set: (p: Par
       <TextField label={t('bookmarks.field.description')} multiline value={v.description} onChange={(description) => set({ description })} error={errors.description} />
       <TextField label={t('bookmarks.field.tags')} value={v.tags} onChange={(tags) => set({ tags })} error={errors.tags} hint={t('bookmarks.field.tagsHint')} />
       <label className="check"><input type="checkbox" checked={v.pinned} onChange={(e) => set({ pinned: e.target.checked })} /> {t('bookmarks.field.pinned')}</label>
+      <WhoSees v={v} set={set} error={errors.ring} />
     </>
+  );
+}
+
+// Who can see it (docs/21): only me, anyone (the profile and its feed), or the people of one of my rings.
+function WhoSees({ v, set, error }: { v: Values; set: (p: Partial<Values>) => void; error?: string }) {
+  const t = useT();
+  const id = useId();
+  const rings = useQuery({ queryKey: ['bookmarks', 'rings'], queryFn: () => api.get<{ rings: { slug: string; name: string }[] }>('/bookmarks/rings') }).data?.rings ?? [];
+  const choices: BookmarkVisibility[] = rings.length || v.visibility === 'ring' ? ['private', 'public', 'ring'] : ['private', 'public'];
+  return (
+    <fieldset className="field who-sees">
+      <legend>{t('bookmarks.share.legend')}</legend>
+      {choices.map((c) => (
+        <label key={c} className="check">
+          <input type="radio" name={`${id}-who`} value={c} checked={v.visibility === c}
+            onChange={() => set({ visibility: c, ...(c === 'ring' && !v.ring && rings[0] ? { ring: rings[0].slug } : {}) })} />
+          {' '}{t(`bookmarks.share.${c}`)}
+        </label>
+      ))}
+      {v.visibility === 'ring' && (
+        <div className="field">
+          <label htmlFor={`${id}-ring`}>{t('bookmarks.share.whichRing')}</label>
+          <select id={`${id}-ring`} value={v.ring} onChange={(e) => set({ ring: e.target.value })} aria-invalid={error ? true : undefined}>
+            {!rings.some((r) => r.slug === v.ring) && <option value={v.ring}>{v.ring || '…'}</option>}
+            {rings.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+          </select>
+          {error && <p className="field-error">{error}</p>}
+        </div>
+      )}
+      <p className="hint">{t(`bookmarks.share.${v.visibility}Hint`)}</p>
+    </fieldset>
   );
 }
 
 function EditForm({ b, onDone }: { b: BookmarkView; onDone: () => void }) {
   const t = useT();
-  const [v, setV] = useState<Values>({ url: b.url, title: b.title, description: b.description, tags: b.tags.join(' '), pinned: b.pinned });
+  const [v, setV] = useState<Values>({ url: b.url, title: b.title, description: b.description, tags: b.tags.join(' '), pinned: b.pinned, visibility: b.visibility, ring: b.ring?.slug ?? '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useMutation({
-    mutationFn: () => api.patch(`/bookmarks/${b.id}`, { url: v.url, title: v.title, description: v.description, tags: splitTags(v.tags), pinned: v.pinned }),
+    mutationFn: () => api.patch(`/bookmarks/${b.id}`, { url: v.url, title: v.title, description: v.description, tags: splitTags(v.tags), pinned: v.pinned, ...shareOf(v) }),
     onSuccess: onDone,
     onError: (e) => setErrors(e instanceof ApiError && e.code === 'duplicate' ? { url: errorText(e) } : { '': errorText(e) }),
   });
@@ -213,11 +251,11 @@ function AddScreen() {
   const nav = useAppNav();
   const qc = useQueryClient();
   const start = prefill(nav.path);
-  const [v, setV] = useState<Values>({ url: start.url, title: start.title, description: '', tags: '', pinned: false });
+  const [v, setV] = useState<Values>({ url: start.url, title: start.title, description: '', tags: '', pinned: false, visibility: 'private', ring: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState<{ bookmark: BookmarkView; existing: boolean } | null>(null);
   const save = useMutation({
-    mutationFn: () => api.post<{ bookmark: BookmarkView; existing: boolean }>('/bookmarks', { url: v.url, ...(v.title.trim() ? { title: v.title.trim() } : {}), ...(v.description.trim() ? { description: v.description } : {}), tags: splitTags(v.tags), pinned: v.pinned }),
+    mutationFn: () => api.post<{ bookmark: BookmarkView; existing: boolean }>('/bookmarks', { url: v.url, ...(v.title.trim() ? { title: v.title.trim() } : {}), ...(v.description.trim() ? { description: v.description } : {}), tags: splitTags(v.tags), pinned: v.pinned, ...shareOf(v) }),
     onSuccess: (r) => { setDone(r); void qc.invalidateQueries({ queryKey: ['bookmarks'] }); },
     onError: (e) => setErrors({ '': errorText(e) }),
   });

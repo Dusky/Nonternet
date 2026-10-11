@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { tagListSchema } from './rings';
 
-// Bookmarks (docs/21). Private for now; public and ring sharing come with reports and hiding (B3).
+// Bookmarks (docs/21). Each is private, public, or shared into a ring the owner is in.
 export const BOOKMARK_VISIBILITIES = ['private', 'public', 'ring'] as const;
 export type BookmarkVisibility = (typeof BOOKMARK_VISIBILITIES)[number];
 export const BOOKMARKS_MAX = 10_000;
@@ -24,15 +24,19 @@ export const bookmarkCreateSchema = z.object({
   description: description.optional(),
   tags: tagListSchema.default([]),
   pinned: z.boolean().default(false),
-  visibility: z.literal('private').default('private'),
-});
+  visibility: z.enum(BOOKMARK_VISIBILITIES).default('private'),
+  ring: z.string().trim().toLowerCase().max(32).optional(),   // the ring's address, when shared into a ring
+}).refine((v) => v.visibility !== 'ring' || !!v.ring, { path: ['ring'], message: 'choose the ring to share it with' });
 export const bookmarkUpdateSchema = z.object({
   url: bookmarkUrlSchema,
   title: oneLine(BOOKMARK_TITLE_MAX).min(1, 'give it a title'),
   description,
   tags: tagListSchema,
   pinned: z.boolean(),
-}).partial().refine((v) => Object.keys(v).length > 0, 'nothing to change');
+  visibility: z.enum(BOOKMARK_VISIBILITIES),
+  ring: z.string().trim().toLowerCase().max(32),
+}).partial().refine((v) => Object.keys(v).length > 0, 'nothing to change')
+  .refine((v) => v.visibility !== 'ring' || !!v.ring, { path: ['ring'], message: 'choose the ring to share it with' });
 
 export const bookmarkListQuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
@@ -47,7 +51,16 @@ export interface BookmarkView {
   visibility: BookmarkVisibility; ring: { slug: string; name: string } | null;
   host: string; has_icon: boolean; created_at: string; updated_at: string;
   link_ok: boolean | null; checked_at: string | null;
+  hidden: { reason: string } | null;          // a moderator took it down: the owner still sees it, nobody else does
 }
+// A bookmark as other people see it: on a profile, a ring page or in a feed.
+export interface SharedBookmarkView {
+  id: string; url: string; title: string; description: string; tags: string[]; host: string; has_icon: boolean; created_at: string;
+  visibility: 'public' | 'ring'; ring: { slug: string; name: string } | null;
+  owner: { id: string; handle: string; display_name: string | null };
+  can_hide: boolean;                           // admins, and the ring's ops for a ring bookmark
+}
+export interface SharedBookmarkPage { bookmarks: SharedBookmarkView[]; next: string | null }
 export interface BookmarkPage { bookmarks: BookmarkView[]; next: string | null; total: number }
 
 // The parts of an address that only say where someone came from. Dropped when comparing addresses for duplicates;

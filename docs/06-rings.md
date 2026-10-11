@@ -83,5 +83,10 @@ the ring's ops or an admin and kept in `FILES_DIR/ring-banners/`. Anyone can see
 embed them). Ops can remove one; an admin or op can take one down with a reason (audited `ring.banner_hidden` / `ring.banner_restored`), after which visitors see
 nothing and ops see it marked. They are in the export of the people who run the ring.
 
+## Shared links (bookmarks, 2026-10-11)
+A member can share a bookmark into a ring (`21`). The ring page lists them under "Shared links" for anyone who can see the
+ring. Anyone signed in can report one, and the ring's ops can hide one with a reason. When someone leaves the ring, or is
+removed or banned, their bookmarks in it go back to private. A trigger on `ring_members` does this.
+
 ## As built (ring wikis, 2026-10-05)
 A ring op can switch on a wiki for the ring (ring page → "This ring has a wiki"; audited). Anyone can read it, as with ring boards. It is edited by the ring's trusted members, its ops and admins, and moderated by its ops. When it is switched off, it disappears for everyone except those who could switch it back on. See `20`.

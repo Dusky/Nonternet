@@ -32,6 +32,9 @@ export const PUBLIC_ROUTES: [method: string, pattern: RegExp, why: string][] = [
   ['GET', /^\/api\/v1\/search$/, 'searching public boards'],
   ['GET', /^\/ring\//, 'webring navigation for visitors of homepages'],
   ['GET', /^\/api\/v1\/wiki\/:wiki(\/(pages|changes|wanted|search)(\/:slug(\/(history|links-here|revisions\/:revision))?)?)?$/, 'reading the site wiki and ring wikis, as public boards are read (docs/20)'],
+  ['GET', /^\/api\/v1\/bookmarks\/public\/:handle$/, 'a person\u2019s public bookmarks, shown on their profile (docs/21)'],
+  ['GET', /^\/api\/v1\/rings\/:slug\/bookmarks$/, 'links a ring\u2019s members shared into it, shown on the ring page (docs/21)'],
+  ['GET', /^\/api\/v1\/bookmarks\/:id\/icon$/, 'a bookmark\u2019s icon: the owner\u2019s, or a shared one\u2019s for anyone who may see it; the route checks (docs/21)'],
   ['GET', /^\/feeds\//, 'Atom feeds of public boards, people\u2019s public posts and wiki changes (docs/05, 20)'],
 ];
 

@@ -2,6 +2,7 @@ import { describeImages } from '@app/shared';
 import { createHash } from 'node:crypto';
 import type { AppDeps } from './deps';
 import { ApiError } from './errors';
+import { publicBookmarks } from './bookmarks';
 
 // Atom feeds (RFC 4287; docs/05, decided 2026-10-05) of what anyone can read on the web: public boards only, nothing a
 // moderator hid, nothing deleted, no guests or suspended people. Text goes out as escaped plain text, never as HTML.
@@ -62,6 +63,19 @@ export async function personFeed(deps: AppDeps, handle: string): Promise<Feed> {
   if (!u) throw new ApiError(404, 'not_found', 'Nobody here goes by that name.');
   const r = await deps.db.query<Row>(`SELECT ${COLS} FROM ${FROM} WHERE ${PUBLIC} AND p.author_id = $1 ORDER BY p.seq DESC LIMIT ${LIMIT}`, [u.id]);
   return { title: `${u.handle} - ${deps.config.site.name}`, selfPath: `/feeds/people/${u.handle}.atom`, webPath: `/people/${u.handle}`, entries: entries(deps, r.rows) };
+}
+
+// One person's public bookmarks (docs/21). Each entry links to the page they saved; the content is their description.
+export async function bookmarkFeed(deps: AppDeps, handle: string): Promise<Feed> {
+  const page = await publicBookmarks(deps, null, handle, undefined, LIMIT);
+  const owner = page.bookmarks[0]?.owner.handle ?? (await deps.db.query<{ handle: string }>(`SELECT handle FROM users WHERE lower(handle) = lower($1)`, [handle])).rows[0]?.handle ?? handle;
+  return {
+    title: `${owner}'s bookmarks - ${deps.config.site.name}`, selfPath: `/feeds/people/${owner}/bookmarks.atom`, webPath: `/people/${owner}`,
+    entries: page.bookmarks.map((b) => ({
+      id: `tag:${deps.config.site.domain},2026:bookmark/${b.id}`, title: b.title, url: b.url, author: owner,
+      published: new Date(b.created_at), updated: new Date(b.created_at), content: [b.description, b.url].filter(Boolean).join('\n\n'),
+    })),
+  };
 }
 
 // New threads across every public board.

@@ -85,6 +85,13 @@ are their own private business and are not audited. Wiki (docs/20): wiki.enabled
 wiki.page_unprotected, wiki.page_hidden, wiki.page_restored, wiki.page_deleted, wiki.revision_hidden, wiki.revision_shown,
 wiki.starter_added (an admin added the starter help pages).
 Ordinary wiki edits are public history and are not audited. Reports take the target kind `wiki_page`, which goes to admins.
+Bookmarks (docs/21):
+- `bookmark.hidden` and `bookmark.restored`, always with a reason. Admins can hide any shared bookmark; a ring's ops can hide
+  the ones shared into their ring.
+- Reports take the target kind `bookmark`. A report on a ring bookmark is scoped to the ring's board, so the ring's ops see
+  it; a report on a public bookmark goes to admins.
+- Hiding a bookmark closes its open reports as actioned.
+- Saving, editing, sharing and deleting are the person's own business and not audited.
 
 ## As built (M9-D): avatars
 Avatars are re-encoded on upload (no metadata, 256×256 WebP). An admin can take one down with a reason; the person keeps their

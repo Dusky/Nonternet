@@ -1,5 +1,6 @@
 import { useConfirm, toast } from '../../components/feedback';
 import { FeedLink } from '../../components/FeedLink';
+import { SharedLinks } from '../bookmarks/SharedLinks';
 import { useState, type FormEvent } from 'react';
 import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -153,6 +154,8 @@ function Profile({ handle }: { handle: string }) {
           </ul>
         </section>
       )}
+      <SharedLinks source={{ handle: p.handle }} title={t('people.bookmarks')} headingId="profile-bookmarks"
+        feed={{ href: `/feeds/people/${encodeURIComponent(p.handle)}/bookmarks.atom`, title: t('people.bookmarksFeed', { handle: p.handle }) }} />
       {p.rings.length > 0 && (
         <section aria-labelledby="profile-rings" className="panel">
           <div className="panel-head"><h3 id="profile-rings">{t('people.rings')}</h3></div>

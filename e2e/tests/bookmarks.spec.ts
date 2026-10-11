@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
-import { makeUser, PASSWORD, signIn, uniq } from '../support/helpers';
+import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // Bookmarks (docs/21, B2): save, tag, pin, find, remove with Undo, the home panel section, and the bookmarklet's form.
@@ -93,4 +93,65 @@ test('a signed-out visitor is sent to log in and comes back to the form', async 
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page.getByLabel('Address')).toHaveValue('https://nowhere.invalid/later');
+});
+
+test('a public bookmark shows on the profile, can be reported, and an admin hides it from the queue', async ({ page, browser }) => {
+  const me = await makeUser(page);
+  await signIn(page, me.handle, PASSWORD);
+  await page.request.post('/api/v1/bookmarks', { data: { url: 'https://nowhere.invalid/shared', title: 'Shared find', description: 'Worth a look', visibility: 'private' }, headers: h });
+  await page.goto('/bookmarks');
+  await page.getByRole('button', { name: 'Edit: Shared find' }).click();
+  await page.getByRole('radio', { name: 'Anyone' }).check();
+  await expect(page.getByText('Shown on your profile and in your bookmarks feed')).toBeVisible();
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Public', { exact: true })).toBeVisible();
+
+  // Someone else sees it on the profile, with a feed, and reports it.
+  const other = await browser.newContext();
+  const p2 = await other.newPage();
+  const them = await makeUser(p2);
+  await signIn(p2, them.handle, PASSWORD);
+  await p2.goto(`/people/${me.handle}`);
+  const section = p2.getByRole('region', { name: 'Bookmarks' });
+  await expect(section.getByRole('link', { name: 'Shared find' })).toHaveAttribute('href', 'https://nowhere.invalid/shared');
+  await expect(section.getByRole('link', { name: 'Feed' })).toHaveAttribute('href', `/feeds/people/${me.handle}/bookmarks.atom`);
+  await axe(p2);
+  await section.getByRole('button', { name: 'Report: Shared find' }).click();
+  await p2.getByRole('form', { name: 'Report “Shared find”' }).getByRole('button', { name: 'Send report' }).click();
+  await expect(p2.getByText('Thanks. The moderators will look at it.')).toBeVisible();
+  await other.close();
+
+  // An admin hides it from the report queue; it leaves the profile and the owner sees why.
+  const adminCtx = await browser.newContext();
+  const ap = await adminCtx.newPage();
+  const admin = await makeUser(ap);
+  await setRole(admin.handle, 'admin');
+  await signIn(ap, admin.handle, PASSWORD);
+  await ap.goto('/boards/reports');
+  const item = ap.getByRole('listitem').filter({ hasText: `About a bookmark shared by ${me.handle}` });
+  await expect(item).toBeVisible();
+  await item.getByRole('button', { name: 'Hide', exact: true }).click();
+  await item.getByLabel('Reason').fill('advertising');
+  await item.getByRole('form', { name: 'Hide' }).getByRole('button', { name: 'Confirm' }).click();
+  await expect(ap.getByText(`About a bookmark shared by ${me.handle}`)).toHaveCount(0); // actioned: off the open queue
+  await adminCtx.close();
+  expect((await (await page.request.get(`/api/v1/bookmarks/public/${me.handle}`)).json()).bookmarks).toEqual([]);
+  await page.reload();
+  await expect(page.getByText('Hidden by a moderator: advertising.')).toBeVisible();
+});
+
+test('sharing into a ring shows the link on the ring page', async ({ page }) => {
+  const me = await makeUser(page);
+  await setRole(me.handle, 'trusted');
+  await signIn(page, me.handle, PASSWORD);
+  const slug = uniq('links').toLowerCase().slice(0, 20);
+  expect((await page.request.post('/api/v1/rings', { data: { slug, name: 'Link swappers' }, headers: h })).status()).toBe(201);
+  await page.goto(`/bookmarks/add?url=${encodeURIComponent('https://nowhere.invalid/ringed')}&title=${encodeURIComponent('Ring find')}`);
+  await page.getByRole('radio', { name: 'People who visit one of my rings' }).check();
+  await page.getByLabel('Ring', { exact: true }).selectOption(slug);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Saved “Ring find”.' })).toBeVisible();
+  await page.goto(`/rings/${slug}`);
+  await expect(page.getByRole('region', { name: 'Shared links' }).getByRole('link', { name: 'Ring find' })).toBeVisible();
+  await axe(page);
 });
