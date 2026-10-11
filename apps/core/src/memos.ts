@@ -102,7 +102,8 @@ export async function addMemo(deps: AppDeps, v: SessionUser, input: z.infer<type
 
 export async function updateMemo(deps: AppDeps, v: SessionUser, id: string, input: z.infer<typeof memoUpdateSchema>): Promise<MemoView> {
   await deps.db.tx(async (q) => {
-    const cur = await q.query<{ body: string; reply_to: string | null }>(`SELECT body, reply_to FROM memos WHERE id = $1 AND user_id = $2 FOR UPDATE`, [id, v.userId]);
+    const cur = await q.query<{ body: string; reply_to: string | null; visibility: string; ring_slug: string | null }>(
+      `SELECT m.body, m.reply_to, m.visibility, g.slug AS ring_slug FROM memos m LEFT JOIN rings g ON g.id = m.ring_id WHERE m.id = $1 AND m.user_id = $2 FOR UPDATE OF m`, [id, v.userId]);
     if (!cur.rows[0]) throw notFound();
     if (input.body !== undefined) {
       const body = normalizeBody(input.body, { max: MEMO_MAX, what: 'A memo' });
@@ -117,7 +118,9 @@ export async function updateMemo(deps: AppDeps, v: SessionUser, id: string, inpu
     }
     // Naming a ring shares it there; any other choice drops the ring. A reply has no sharing of its own.
     const visibility = input.visibility ?? (input.ring ? 'ring' : undefined);
-    if (visibility !== undefined) {
+    // The same sharing sent back with an edit changes nothing, so an archived ring doesn't block fixing a typo.
+    const same = visibility === cur.rows[0].visibility && (visibility !== 'ring' || (input.ring ?? cur.rows[0].ring_slug) === cur.rows[0].ring_slug);
+    if (visibility !== undefined && !same) {
       if (cur.rows[0].reply_to) throw new ApiError(400, 'reply_share', 'A reply is shared with the memo it answers.');
       await q.query(`UPDATE memos SET visibility = $2, ring_id = $3 WHERE id = $1`, [id, visibility, visibility === 'ring' ? await ringFor(q, v, input.ring!) : null]);
     }

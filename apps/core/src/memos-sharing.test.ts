@@ -81,6 +81,22 @@ describe.skipIf(!dbAvailable)('sharing memos', () => {
     expect((await cy.c.get(`/api/v1/memos/${m2.id}`)).body.visibility).toBe('private');
   });
 
+  it('lets someone fix the text of a ring memo after the ring is archived', async () => {
+    const founder = await person('arch_founder', 'trusted');
+    const eve = await person('archie_memo');
+    expect((await founder.c.post('/api/v1/rings', { slug: 'oldring', name: 'Old ring' })).status).toBe(201);
+    await eve.c.post('/api/v1/rings/oldring/join');
+    const m = (await write(eve, 'tpyo here', { visibility: 'ring', ring: 'oldring' })).body;
+    await ctx.deps.db.query(`UPDATE rings SET archived_at = now() WHERE slug = 'oldring'`);
+    // The edit form sends the sharing back unchanged with the new text.
+    const fixed = await eve.c.patch(`/api/v1/memos/${m.id}`, { body: 'typo here', visibility: 'ring', ring: 'oldring' });
+    expect(fixed.status).toBe(200);
+    expect(fixed.body).toMatchObject({ body: 'typo here', visibility: 'ring' });
+    // Moving it into the archived ring afresh is still refused.
+    await eve.c.patch(`/api/v1/memos/${m.id}`, { visibility: 'private' });
+    expect((await eve.c.patch(`/api/v1/memos/${m.id}`, { visibility: 'ring', ring: 'oldring' })).body.error.code).toBe('not_in_ring');
+  });
+
   it('takes a suspended person\'s shared memos away with them', async () => {
     const dee = await person('dee_memo');
     await write(dee, 'Gone soon', { visibility: 'public' });
