@@ -25,5 +25,12 @@ export interface MailThreadSummary {
 // One page of the inbox: `unread` counts the whole inbox, `next` is the cursor for the page after this one (null at the end).
 export interface MailInbox { threads: MailThreadSummary[]; unread: number; next: string | null }
 export interface MailMessageView { id: string; kind: 'message' | 'joined' | 'left' | 'renamed'; author: MailPerson; body: string; deleted: boolean; at: string; mine: boolean }
-export interface MailThreadView { id: string; subject: string; people: MailPerson[]; left: boolean; muted: boolean; starred: boolean; archived: boolean; messages: MailMessageView[] }
+export interface MailThreadView {
+  id: string; subject: string; people: MailPerson[]; left: boolean; muted: boolean; starred: boolean; archived: boolean; messages: MailMessageView[];
+  /** Older messages exist before the first one here: ask again with before=<first id>. */
+  earlier: boolean;
+  /** When this person last read it before this visit, for the "new messages" line; null if never. */
+  read_before: string | null;
+}
+export const MAIL_PAGE = 100;
 export interface BlockView { handle: string; since: string }

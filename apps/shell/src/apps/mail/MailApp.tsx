@@ -1,5 +1,5 @@
 import { toast, undoable, useConfirm } from '../../components/feedback';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { MAIL_BODY_MAX, MAIL_MAX_PEOPLE, MAIL_SUBJECT_MAX, MAIL_VIEWS, REPORT_CATEGORIES, type MailInbox, type MailView, type MailMessageView, type MailPerson, type MailThreadView } from '@app/shared';
 import { api } from '../../api';
@@ -139,13 +139,16 @@ function Compose({ to: initial }: { to: string }) {
   );
 }
 
+// Which fetched copy of each conversation set its "New messages" line, by its fetch time.
+const usedCopy = new Map<string, number>();
+
 function Conversation({ id }: { id: string }) {
   const t = useT();
   const confirm = useConfirm();
   const nav = useAppNav();
   const qc = useQueryClient();
   const key = ['mail', 'thread', id];
-  const q = useQuery({ queryKey: key, queryFn: () => api.get<MailThreadView>(`/mail/${id}`), refetchInterval: 30_000 });
+  const q = useQuery({ queryKey: key, queryFn: () => api.get<MailThreadView>(`/mail/${id}`), refetchInterval: 30_000, staleTime: 10_000 });
   // Opening a conversation marks it read, so the counts elsewhere change.
   useEffect(() => { if (q.data) { void qc.invalidateQueries({ queryKey: ['mail', 'list'] }); void qc.invalidateQueries({ queryKey: ['mail', 'unread'] }); } }, [q.data, qc]);
   const me = useMe().data;
@@ -156,7 +159,25 @@ function Conversation({ id }: { id: string }) {
   // it; if the server refuses, it disappears again and the text goes back in the box.
   const coll = conversationCollection(id);
   const live = useLiveQuery((qb) => qb.from({ m: coll }).orderBy(({ m }) => m.at, 'asc'), [id]);
-  const messages = (live.data ?? []) as MailMessageView[];
+  const loaded = (live.data ?? []) as MailMessageView[];
+  // Older messages, a page at a time, above the newest page the collection keeps.
+  const [older, setOlder] = useState<MailMessageView[]>([]);
+  const [moreEarlier, setMoreEarlier] = useState<boolean | null>(null);
+  const earlier = moreEarlier ?? q.data?.earlier ?? false;
+  const showEarlier = useMutation({
+    mutationFn: () => api.get<MailThreadView>(`/mail/${id}?before=${(older[0] ?? loaded[0])!.id}`),
+    onSuccess: (r) => { setOlder((o) => [...r.messages, ...o]); setMoreEarlier(r.earlier); },
+  });
+  const messages = [...older.filter((m) => !loaded.some((x) => x.id === m.id)), ...loaded];
+  // Where the new messages start, from when it was last read before this visit (later fetches would say "just now").
+  const [readBefore, setReadBefore] = useState<string | null | undefined>(undefined);
+  useEffect(() => { setReadBefore(undefined); setOlder([]); setMoreEarlier(null); }, [id]);
+  // A copy already used by an earlier visit says when it was read before *that* visit, so wait for a newer one.
+  const fresh = q.dataUpdatedAt > 0 && usedCopy.get(id) !== q.dataUpdatedAt;
+  useEffect(() => {
+    if (q.data && fresh && readBefore === undefined) { usedCopy.set(id, q.dataUpdatedAt); setReadBefore(q.data.read_before); }
+  }, [q.data, q.dataUpdatedAt, fresh, readBefore, id]);
+  const firstNew = readBefore ? messages.find((m) => !m.mine && m.at > readBefore)?.id : undefined;
   const [sendError, setSendError] = useState<string | null>(null);
   const sendNow = () => {
     const text = body;
@@ -197,10 +218,11 @@ function Conversation({ id }: { id: string }) {
   useEffect(() => {
     if (!q.data || scrolled.current) return;
     scrolled.current = true;
-    end.current?.lastElementChild?.scrollIntoView({ block: 'nearest' });
+    // Open at the new-messages line when there is one, else at the newest message.
+    (end.current?.querySelector('.mail-new') ?? end.current?.lastElementChild)?.scrollIntoView({ block: 'nearest' });
   }, [q.data]);
-  // A reply of your own scrolls into view as soon as it is on screen.
-  const count = messages.length;
+  // A reply of your own scrolls into view as soon as it is on screen (older pages added above don't).
+  const count = loaded.length;
   useEffect(() => { if (scrolled.current) end.current?.lastElementChild?.scrollIntoView({ block: 'nearest' }); }, [count]);
   useSubtitle(q.data?.subject);
   if (q.isError) return <><BackLink to="">{t('mail.inbox')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
@@ -208,8 +230,26 @@ function Conversation({ id }: { id: string }) {
   if (!th) return <Loading rows={4} />;
   const theirs = th.people.filter((p) => p.id !== me?.id); // everyone but you
   const lastTheirs = [...messages].reverse().find((m) => m.kind === 'message' && !m.mine && !m.deleted);
+  // Keys while this conversation has focus (not while typing): j/k between messages, r to reply, s to star,
+  // e to archive, u to mark unread. Listed in the shortcuts sheet.
+  const onKeys = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = e.target as HTMLElement;
+    if (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+    const root = e.currentTarget;
+    if (e.key === 'j' || e.key === 'k') {
+      const items = [...root.querySelectorAll<HTMLElement>('.mail-messages article')];
+      const at = items.findIndex((i) => i === document.activeElement);
+      items[e.key === 'j' ? Math.min(at + 1, items.length - 1) : at === -1 ? items.length - 1 : Math.max(at - 1, 0)]?.focus();
+    } else if (e.key === 'r' && !th.left) root.querySelector<HTMLElement>('form textarea')?.focus();
+    else if (e.key === 's' && !th.left) star.mutate(!th.starred);
+    else if (e.key === 'e' && !th.left && !th.archived) archive();
+    else if (e.key === 'u' && !th.left) unread.mutate();
+    else return;
+    e.preventDefault();
+  };
   return (
-    <div>
+    <div onKeyDown={onKeys}>
       <BackLink to="">{t('mail.inbox')}</BackLink>
       <h2>{th.subject}</h2>
       <section aria-labelledby="mail-people">
@@ -226,8 +266,14 @@ function Conversation({ id }: { id: string }) {
         </div>
       )}
       {th.left && <Alert kind="info">{t('mail.youLeft')}</Alert>}
+      {earlier && <button type="button" className="btn" onClick={() => showEarlier.mutate()} disabled={showEarlier.isPending || messages.length === 0}>{t('mail.showEarlier')}</button>}
       <ol className="posts mail-messages" ref={end}>
-        {messages.map((m) => <Message key={m.id} m={deleting.includes(m.id) ? { ...m, deleted: true } : m} threadId={id} canAct={!th.left} onDelete={() => deleteSoon(m.id)} />)}
+        {messages.map((m) => (
+          <Fragment key={m.id}>
+            {m.id === firstNew && <li className="chat-new mail-new" role="separator"><span>{t('mail.newMessages')}</span></li>}
+            <Message m={deleting.includes(m.id) ? { ...m, deleted: true } : m} threadId={id} canAct={!th.left} onDelete={() => deleteSoon(m.id)} />
+          </Fragment>
+        ))}
       </ol>
       {!th.left && (
         <>
@@ -272,7 +318,7 @@ function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; thread
   if (m.kind !== 'message') return <li className="mail-event">{m.kind === 'renamed' ? t('mail.renamed', { name, subject: m.body }) : t(m.kind === 'joined' ? 'mail.joined' : 'mail.left', { name })} · <RelativeTime iso={m.at} /></li>;
   return (
     <li>
-      <article className={`post${m.mine ? ' is-mine' : ''}`} aria-label={t('boards.by', { name })}>
+      <article className={`post${m.mine ? ' is-mine' : ''}`} tabIndex={-1} aria-label={t('boards.by', { name })}>
         <header className="post-head">
           {m.author.handle ? <PersonLink app="people" to={m.author.handle} className="person"><Avatar id={m.author.id} name={name} size="sm" /><strong>{name}</strong></PersonLink> : <span className="person"><Avatar id={null} name={name} size="sm" /><strong>{name}</strong></span>}
           <span className="muted">· {isPending(m.id) ? t('mail.sending') : <RelativeTime iso={m.at} />}</span>

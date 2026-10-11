@@ -46,6 +46,7 @@ function makeConversation(threadId: string) {
     id: `mail:${threadId}`,
     queryKey: ['mail', 'thread', threadId],
     queryFn: () => api.get<MailThreadView>(`/mail/${threadId}`),
+    staleTime: 10_000, // the window's own query reads the same answer; one fetch marks it read, not two
     // The cached answer can be empty for a moment (cleared, or not loaded yet): no messages, not an error.
     select: (d: MailThreadView | null | undefined) => d?.messages ?? [],
     queryClient,

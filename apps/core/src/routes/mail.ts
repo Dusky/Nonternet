@@ -23,7 +23,8 @@ export function mailRoutes(app: FastifyInstance, deps: AppDeps): void {
     const b = mailStartSchema.parse(req.body);
     return reply.code(201).send(await mail.startThread(deps, requireUser(req), b));
   });
-  app.get('/api/v1/mail/:id', async (req) => mail.readThread(deps, requireUser(req), threadId.parse(req.params).id));
+  app.get('/api/v1/mail/:id', async (req) => mail.readThread(deps, requireUser(req), threadId.parse(req.params).id,
+    z.object({ before: z.string().regex(/^mm_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(500).optional() }).parse(req.query)));
   app.post('/api/v1/mail/:id/messages', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) =>
     reply.code(201).send(await mail.reply(deps, requireUser(req), threadId.parse(req.params).id, z.object({ body }).parse(req.body).body)));
   app.post('/api/v1/mail/:id/people', async (req, reply) => {

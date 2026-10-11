@@ -14,6 +14,9 @@ const GROUPS: { title: Parameters<ReturnType<typeof useT>>[0]; rows: [keys: stri
   { title: 'shortcuts.group.boards', rows: [
     ['j / k', 'shortcuts.jk'], ['n', 'shortcuts.next'], ['r', 'shortcuts.reply'],
   ] },
+  { title: 'shortcuts.group.mail', rows: [
+    ['j / k', 'shortcuts.mailJk'], ['r', 'shortcuts.mailReply'], ['s', 'shortcuts.mailStar'], ['e', 'shortcuts.mailArchive'], ['u', 'shortcuts.mailUnread'],
+  ] },
   { title: 'shortcuts.group.writing', rows: [
     ['Ctrl Enter', 'shortcuts.send'],
   ] },

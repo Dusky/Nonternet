@@ -134,4 +134,27 @@ test.describe('mail', () => {
     await page.getByRole('button', { name: `Unblock ${b.handle}` }).click();
     await expect(page.getByText('You have not blocked anyone.')).toBeVisible();
   });
+  test('a conversation opens at a "New messages" line, and s and e star and archive it from the keyboard', async ({ page, browser }) => {
+    const a = await makeUser(page);
+    const b = await makeUser(page);
+    const ap = await signedInPage(browser, a.handle);
+    const t = await (await ap.request.post('/api/v1/mail', { data: { to: [b.handle], subject: 'Catching up', body: 'first' }, headers: { origin: BASE_URL } })).json();
+    await signIn(page, b.handle, PASSWORD);
+    await page.goto(`/mail/${t.id}`);
+    await expect(page.getByText('first')).toBeVisible();
+    await page.goto('/mail'); // leave it; the visit has marked it read
+    await expect(page.getByText('Catching up')).toBeVisible();
+    await ap.request.post(`/api/v1/mail/${t.id}/messages`, { data: { body: 'second, while you were away' }, headers: { origin: BASE_URL } });
+    await page.goto(`/mail/${t.id}`);
+    const line = page.locator('.mail-new');
+    await expect(line).toBeVisible();
+    // The line sits right before the message that came in since the last visit.
+    await expect(line.locator('xpath=following-sibling::li[1]')).toContainText('second, while you were away');
+    await page.locator('.mail-messages article').first().focus();
+    await page.keyboard.press('s');
+    await expect(page.getByRole('button', { name: 'Unstar' })).toBeVisible();
+    await page.keyboard.press('e');
+    await expect(page.getByText('Archived.').or(page.getByText(/archived/i)).first()).toBeVisible();
+    await ap.context().close();
+  });
 });

@@ -211,6 +211,9 @@ plain, a "what's new" home, and the full landing page. No new themes.
   short hover or on focus; Escape closes it. Shown on `PersonLink` to signed-in people only.
 - **Mail**: search and an unread-only filter over the 200 newest conversations (done in the browser), handle
   suggestions in the To field, quote-reply, drafts, and the conversation opens at its newest message.
+  Since 2026-10-11: a long conversation loads its newest 100 messages and "Show earlier messages" pages back; a
+  "New messages" line marks what came since your last visit and the conversation opens there; keys j/k (previous and
+  next message), r (reply), s (star), e (archive) and u (mark unread), listed in the `?` sheet.
 - **Chat**: Tab finishes a nick (again to cycle), typing notices (IRCv3 `+typing`, below), a "New messages" divider,
   day separators, "jump to newest", click a nick for a private chat, `/help`, `/away`, `/whois`, and replayed history
   is not read out line by line (the log is not live for the first 1.5 s of a buffer).

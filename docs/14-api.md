@@ -125,7 +125,7 @@ whose handler fails is retried after a minute, and after 5 failed tries it moves
 IRC (M5) consumes events with the group `irc-sync`, and the MUD sync (M6) with `mud-sync`; neither publishes any.
 
 Mail (`10`, M7): `GET|POST /mail` · `GET /mail/unread` · `GET /mail/:id` · `POST /mail/:id/messages` · `POST /mail/:id/people` ·
-`POST /mail/:id/leave` · `PUT|DELETE /mail/:id/archive` · `PUT|DELETE /mail/:id/star` · `POST /mail/:id/unread` · `PATCH /mail/:id {subject}` (groups of three or more) · `GET /mail?view=inbox|starred|archived&q=&unread=1` · `DELETE /mail/:id/messages/:mid` · `POST /mail/:id/messages/:mid/report` · blocks: `GET|POST /me/blocks` · `POST /me/blocks/remove`.
+`POST /mail/:id/leave` · `PUT|DELETE /mail/:id/archive` · `PUT|DELETE /mail/:id/star` · `POST /mail/:id/unread` · `PATCH /mail/:id {subject}` (groups of three or more) · `GET /mail?view=inbox|starred|archived&q=&unread=1` · `DELETE /mail/:id/messages/:mid` · `POST /mail/:id/messages/:mid/report` · blocks: `GET|POST /me/blocks` · `POST /me/blocks/remove`. `GET /mail/:id?before=<message id>&limit=` (limit 1–100, default 100) returns the newest page, oldest first, with `earlier` (more before it) and `read_before` (when you last read it before this visit); a `before` page does not mark it read.
 Reports gain the target type `mail_message`.
 
 File areas (`05`, M7): `GET /files` · `GET /files/areas/:slug` · `POST /files/areas/:slug/files?name=&title=&description=` (raw body) ·

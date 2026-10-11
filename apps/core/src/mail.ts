@@ -1,4 +1,4 @@
-import { MAIL_MAX_PEOPLE, type MailMessageView, type MailPerson, type MailThreadSummary, type MailThreadView, type MailView } from '@app/shared';
+import { MAIL_MAX_PEOPLE, MAIL_PAGE, type MailMessageView, type MailPerson, type MailThreadSummary, type MailThreadView, type MailView } from '@app/shared';
 import { audit } from './audit';
 import { newId } from './crypto';
 import type { Queryable } from './db';
@@ -84,8 +84,8 @@ async function tellThread(deps: AppDeps, threadId: string, exceptUserId: string)
   }
 }
 
-async function requireParticipant(q: Queryable, threadId: string, userId: string): Promise<{ joined_at: Date; left_at: Date | null }> {
-  const r = await q.query<{ joined_at: Date; left_at: Date | null }>(`SELECT joined_at, left_at FROM mail_participants WHERE thread_id = $1 AND user_id = $2`, [threadId, userId]);
+async function requireParticipant(q: Queryable, threadId: string, userId: string): Promise<{ joined_at: Date; left_at: Date | null; last_read_at: Date | null }> {
+  const r = await q.query<{ joined_at: Date; left_at: Date | null; last_read_at: Date | null }>(`SELECT joined_at, left_at, last_read_at FROM mail_participants WHERE thread_id = $1 AND user_id = $2`, [threadId, userId]);
   // Not being in a conversation looks the same as it not existing.
   if (!r.rows[0]) throw new ApiError(404, 'not_found', 'No such conversation.');
   return r.rows[0];
@@ -185,8 +185,9 @@ async function peopleIn(q: Queryable, threadId: string): Promise<MailPerson[]> {
   return r.rows.map((u) => (u.status === 'deleted' ? { id: null, handle: null, display_name: null } : { id: u.id, handle: u.handle, display_name: u.display_name }));
 }
 
-export async function readThread(deps: AppDeps, me: SessionUser, threadId: string): Promise<MailThreadView> {
+export async function readThread(deps: AppDeps, me: SessionUser, threadId: string, opts: { before?: string; limit?: number } = {}): Promise<MailThreadView> {
   const p = await requireParticipant(deps.db, threadId, me.userId);
+  const limit = Math.min(opts.limit ?? MAIL_PAGE, 500);
   const t = (await deps.db.query<{ subject: string }>(`SELECT subject FROM mail_threads WHERE id = $1`, [threadId])).rows[0]!;
   // Someone added later reads from when they joined; someone who left reads up to when they left.
   const r = await deps.db.query<{ id: string; kind: MailMessageView['kind']; author_id: string | null; handle: string | null; display_name: string | null; status: string | null; body: string; deleted_at: Date | null; created_at: Date }>(
@@ -194,16 +195,21 @@ export async function readThread(deps: AppDeps, me: SessionUser, threadId: strin
      FROM mail_messages m LEFT JOIN users u ON u.id = m.author_id
      WHERE m.thread_id = $1 AND m.created_at >= $2 AND ($3::timestamptz IS NULL OR m.created_at <= $3)
        AND NOT (m.kind = 'message' AND EXISTS (SELECT 1 FROM user_blocks b WHERE b.user_id = $4 AND b.blocked_id = m.author_id))
-     ORDER BY m.created_at, m.id LIMIT 1000`, [threadId, p.joined_at, p.left_at, me.userId]);
+       AND ($5::text IS NULL OR (m.created_at, m.id) < (SELECT created_at, id FROM mail_messages WHERE id = $5 AND thread_id = $1))
+     ORDER BY m.created_at DESC, m.id DESC LIMIT $6`, [threadId, p.joined_at, p.left_at, me.userId, opts.before ?? null, limit + 1]);
+  // The newest page, oldest first; "Show earlier" asks for the page before it.
+  const earlier = r.rows.length > limit;
+  const rows = r.rows.slice(0, limit).reverse();
   const flags = (await deps.db.query<{ starred_at: Date | null; archived_at: Date | null }>(`SELECT starred_at, archived_at FROM mail_participants WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId])).rows[0]!;
-  if (!p.left_at) {
+  if (!p.left_at && !opts.before) { // looking further back isn't reading anything new
     await deps.db.query(`UPDATE mail_participants SET last_read_at = now() WHERE thread_id = $1 AND user_id = $2`, [threadId, me.userId]);
     await clearFor(deps.db, me.userId, 'mail', threadId); // reading it answers what was waiting
   }
   return {
     id: threadId, subject: t.subject, people: await peopleIn(deps.db, threadId), left: p.left_at !== null, starred: flags.starred_at !== null, archived: flags.archived_at !== null,
     muted: (await deps.db.query(`SELECT 1 FROM mail_mutes WHERE user_id = $1 AND thread_id = $2`, [me.userId, threadId])).rowCount === 1,
-    messages: r.rows.map((m) => {
+    earlier, read_before: p.last_read_at?.toISOString() ?? null,
+    messages: rows.map((m) => {
       const gone = !m.author_id || m.status === 'deleted';
       return {
         id: m.id, kind: m.kind, at: m.created_at.toISOString(), deleted: m.deleted_at !== null, mine: m.author_id === me.userId,

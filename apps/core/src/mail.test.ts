@@ -33,6 +33,24 @@ describe.skipIf(!dbAvailable)('private mail', () => {
     expect((await client(ctx.app).get('/api/v1/mail')).status).toBe(401);
   });
 
+  it('pages a long conversation newest first, and says when it was last read for the new-messages line', async () => {
+    const a = await person(); const b = await person();
+    const t = (await a.c.post('/api/v1/mail', { to: [b.handle], subject: 'Long one', body: 'message 0' })).body;
+    for (let i = 1; i < 7; i++) await a.c.post(`/api/v1/mail/${t.id}/messages`, { body: `message ${i}` });
+    const first = (await b.c.get(`/api/v1/mail/${t.id}?limit=4`)).body;
+    expect(first.messages.map((m: { body: string }) => m.body)).toEqual(['message 3', 'message 4', 'message 5', 'message 6']);
+    expect(first.earlier).toBe(true);
+    expect(first.read_before).toBeNull(); // never read before
+    const older = (await b.c.get(`/api/v1/mail/${t.id}?limit=4&before=${first.messages[0].id}`)).body;
+    expect(older.messages.map((m: { body: string }) => m.body)).toEqual(['message 0', 'message 1', 'message 2']);
+    expect(older.earlier).toBe(false);
+    await a.c.post(`/api/v1/mail/${t.id}/messages`, { body: 'one more' });
+    const again = (await b.c.get(`/api/v1/mail/${t.id}?limit=4`)).body;
+    expect(again.read_before).not.toBeNull();
+    const newer = again.messages.filter((m: { at: string }) => m.at > again.read_before).map((m: { body: string }) => m.body);
+    expect(newer).toEqual(['one more']);
+  });
+
   it('runs group conversations of up to ten; latecomers read from when they joined; leaving stops it', async () => {
     const a = await person(); const b = await person(); const c = await person(); const d = await person();
     const t = (await a.c.post('/api/v1/mail', { to: [b.handle, c.handle], subject: 'Picnic', body: 'Saturday?' })).body;
