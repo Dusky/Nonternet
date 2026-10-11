@@ -14,7 +14,7 @@ test('pronouns, location and links show on the profile, and a dangerous link is 
   await page.getByLabel('Where you are').fill('Somewhere windy');
   await page.getByLabel('Link 1 name').fill('My blog');
   await page.getByLabel('Link 1 address').fill('https://example.org/blog');
-  await page.getByRole('button', { name: 'Save these' }).click();
+  await page.getByRole('button', { name: 'Save profile' }).click();
   await page.goto(`/people/${me.handle}`);
   await expect(page.getByText('she/her · Somewhere windy')).toBeVisible();
   const link = page.getByRole('link', { name: 'My blog' });

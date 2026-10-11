@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
-import { linkFor, makeAdmin, makeUser, signIn, totp, uniq } from '../support/helpers';
+import { linkFor, makeAdmin, makeUser, PASSWORD, signIn, totp, uniq } from '../support/helpers';
 
 // What people can do for themselves (docs/02): change their email and handle, and turn two-factor off.
 const axe = async (page: import('@playwright/test').Page) =>
@@ -86,4 +86,23 @@ test('someone applies to join, confirms their email, and gets in when an admin a
   } finally {
     await mode('invite');
   }
+});
+
+test('someone sees where they are signed in and signs out of the other places', async ({ page, browser }) => {
+  const u = await makeUser(page);
+  const other = await (await browser.newContext()).newPage();
+  await signIn(other, u.handle, PASSWORD);
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/settings/sessions');
+  const list = page.getByRole('region', { name: 'Where you are signed in' });
+  await expect(list.getByText('This one')).toBeVisible();
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+  await list.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  await expect(page.getByText('Signed out of 1 other place.')).toBeVisible();
+  await expect(list.getByText('You are signed in only here.')).toBeVisible();
+  await other.goto('/settings');
+  await expect(other).toHaveURL(/\/login/);
+  await other.context().close();
 });

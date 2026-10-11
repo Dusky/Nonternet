@@ -12,8 +12,8 @@ test('a plan written in Settings shows on the profile, and a board\'s feed carri
   await signIn(page, u.handle, PASSWORD);
   await page.goto('/settings/profile');
   await page.getByLabel('Plan').fill('Rebuilding the modem bank.\nBack on Tuesday.');
-  await page.getByRole('button', { name: 'Update plan' }).click();
-  await expect(page.getByRole('button', { name: 'Update plan' })).toBeDisabled(); // saved: nothing left to update
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled(); // saved: nothing left to update
   await page.goto(`/people/${u.handle}`);
   await expect(page.getByRole('heading', { name: 'Plan' })).toBeVisible();
   await expect(page.getByText('Rebuilding the modem bank.')).toBeVisible();

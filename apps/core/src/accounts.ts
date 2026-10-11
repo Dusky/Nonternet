@@ -269,6 +269,7 @@ export async function resolveSession(deps: AppDeps, rawToken: string): Promise<S
   if (!row) return null;
   // BBS sessions count as the BBS when it signs in (bbs/service.ts), not as web visits.
   if (!row.limited && row.kind === 'web') { noteActive(deps, row.id, 'web'); noteWebSeen(row.id); touchLastSeen(deps, row.id); }
+  touchSession(deps, row.sid);
   return { sessionId: row.sid, userId: row.id, handle: row.handle, displayName: row.display_name, bio: row.bio, theme: row.theme, theme_variant: row.theme_variant, email: row.email, role: row.role,
     emailVerified: !!row.email_verified_at, totpEnabled: !!row.totp_enabled_at, limited: row.limited, recoveryRemaining: row.recovery_remaining, roleRev: row.role_rev, ops: row.ops };
 }
@@ -281,6 +282,50 @@ function touchLastSeen(deps: AppDeps, userId: string): void {
   lastTouched.set(userId, now);
   if (lastTouched.size > 100_000) lastTouched.clear();
   deps.db.query(`UPDATE users SET last_seen_at = now() WHERE id = $1`, [userId]).catch(() => lastTouched.delete(userId));
+}
+
+// The same for each session, for "where you are signed in".
+const sessionTouched = new Map<string, number>();
+function touchSession(deps: AppDeps, sessionId: string): void {
+  const now = Date.now();
+  if (now - (sessionTouched.get(sessionId) ?? 0) < 300_000) return;
+  sessionTouched.set(sessionId, now);
+  if (sessionTouched.size > 100_000) sessionTouched.clear();
+  deps.db.query(`UPDATE sessions SET last_used_at = now() WHERE id = $1`, [sessionId]).catch(() => sessionTouched.delete(sessionId));
+}
+
+export interface SessionView { id: string; kind: 'web' | 'bbs'; user_agent: string; created_at: string; last_used_at: string | null; current: boolean }
+
+// Where you are signed in: every live session, the one in use first, then by when each was last used.
+export async function listSessions(deps: AppDeps, user: SessionUser): Promise<SessionView[]> {
+  const r = await deps.db.query<{ id: string; kind: 'web' | 'bbs'; user_agent: string | null; created_at: Date; last_used_at: Date | null }>(
+    `SELECT id, kind, user_agent, created_at, last_used_at FROM sessions
+      WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
+      ORDER BY id = $2 DESC, COALESCE(last_used_at, created_at) DESC LIMIT 100`, [user.userId, user.sessionId]);
+  return r.rows.map((s) => ({
+    id: s.id, kind: s.kind, user_agent: (s.user_agent ?? '').slice(0, 300), created_at: s.created_at.toISOString(),
+    last_used_at: s.last_used_at?.toISOString() ?? null, current: s.id === user.sessionId,
+  }));
+}
+
+// Signing out one other place (this one signs out with logout). Audited, as signing out of everywhere else is.
+export async function revokeSession(deps: AppDeps, user: SessionUser, sessionId: string, ctx: Ctx): Promise<void> {
+  if (sessionId === user.sessionId) throw new ApiError(400, 'current_session', 'That is this session. Use Log out to end it.');
+  await deps.db.tx(async (q) => {
+    const r = await q.query(`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL`, [sessionId, user.userId]);
+    if (!r.rowCount) throw new ApiError(404, 'not_found', 'That session has already ended.');
+    await q.query(`DELETE FROM push_subscriptions WHERE session_id = $1`, [sessionId]);
+    await emit(q, 'session.revoked', { user_id: user.userId, session_id: sessionId, reason: 'signed_out_elsewhere' });
+    await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.session_revoked', targetType: 'user', targetId: user.userId, origin: 'web', ipHash: ctx.ipHash, after: { session_id: sessionId } });
+  });
+}
+
+export async function revokeOtherSessions(deps: AppDeps, user: SessionUser, ctx: Ctx): Promise<number> {
+  return deps.db.tx(async (q) => {
+    const n = await revokeAllSessions(q, user.userId, 'signed_out_elsewhere', user.sessionId);
+    await audit(q, { actorId: user.userId, actorKind: 'user', action: 'user.sessions_revoked', targetType: 'user', targetId: user.userId, origin: 'web', ipHash: ctx.ipHash, after: { count: n } });
+    return n;
+  });
 }
 
 export async function logout(deps: AppDeps, user: SessionUser): Promise<void> {

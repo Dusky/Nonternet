@@ -45,6 +45,7 @@ export function TwoFactor({ me }: { me: Me }) {
     return (
       <Section id="twofa-h" title={t('settings.tab.twofa')} scope="account">
         {!me.totp_enabled && <p>{t('settings.twofa.off')}</p>}
+        <p className="hint">{t('settings.twofa.passkeysNote')}</p>
         <TotpSetup onStart={() => setInSetup(true)} onDone={() => { setInSetup(false); void qc.invalidateQueries({ queryKey: ['me'] }); }} />
       </Section>
     );
@@ -52,6 +53,7 @@ export function TwoFactor({ me }: { me: Me }) {
   return (
     <Section id="twofa-h" title={t('settings.tab.twofa')} scope="account">
       <p>{t('settings.twofa.on')}</p>
+      <p className="hint">{t('settings.twofa.passkeysNote')}</p>
       <p>{t('settings.twofa.codesLeft', { count: me.recovery_codes_remaining })}</p>
       {codes ? (
         <section aria-labelledby="new-codes">

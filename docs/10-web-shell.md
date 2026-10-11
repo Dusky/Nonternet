@@ -482,3 +482,10 @@ All are decorative (`aria-hidden`); the words beside them say everything. Code: 
 - **Rings:** `RingOrbit`, sites joined in a loop, with a light going once round it as a webring does.
 - **MUD:** a small tower in text characters beside the tips.
 - **Can't reach the site:** the screen shown when the site's config won't load has an unplugged plug and socket (`Spot` kind `plug`) above its message and Retry button.
+
+### Settings additions (2026-10-11)
+- "Where you are signed in" lists sessions with Sign out for each and "Sign out everywhere else" (docs/02).
+- The words on your profile (status line, plan, pronouns, place, links) are one form with one "Save profile" button; the
+  switches below it (Away, last seen) save as you flip them.
+- The export, import and delete intros now list what each really covers, from the exporters, the import parts and the
+  deletion code; the two-factor screen says passkeys skip the code.

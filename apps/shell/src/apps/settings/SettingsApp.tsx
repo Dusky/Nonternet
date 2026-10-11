@@ -9,11 +9,12 @@ import { BoardSettings, ChatAccountSettings, ChatSettings, NotificationChoices, 
 import { Profile, FeaturedCharacter } from './ProfileTab';
 import { Password, TwoFactor } from './SecurityTab';
 import { Passkeys } from './Passkeys';
+import { Sessions } from './Sessions';
 import { DevicePush } from './Push';
 import { EmailAddress, Handle } from './AccountTab';
 import { Appearance, DeviceAlerts } from './AppearanceTab';
 
-const ROUTES = ['profile', 'account', 'password', 'two-factor', 'passkeys', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards'] as const;
+const ROUTES = ['profile', 'account', 'password', 'two-factor', 'passkeys', 'sessions', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards'] as const;
 
 export default function SettingsApp() {
   const t = useT();
@@ -35,6 +36,7 @@ export default function SettingsApp() {
       { to: 'password', label: t('settings.tab.password') },
       { to: 'two-factor', label: t('settings.tab.twofa') },
       { to: 'passkeys', label: t('settings.tab.passkeys') },
+      { to: 'sessions', label: t('settings.tab.sessions') },
       { to: 'terminal', label: t('settings.tab.terminal') },
       ...(me.role !== 'guest' ? [{ to: 'blocked', label: t('settings.tab.blocked') }] : []),
       { to: 'data', label: t('settings.tab.data') },
@@ -45,6 +47,7 @@ export default function SettingsApp() {
       {route?.pattern === 'password' && <Password />}
       {route?.pattern === 'two-factor' && <TwoFactor me={me} />}
       {route?.pattern === 'passkeys' && <Passkeys />}
+      {route?.pattern === 'sessions' && <Sessions />}
       {route?.pattern === 'terminal' && <><TerminalDisplay /><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <><SshKeys /><OfflineMail /></>}</>}
       {route?.pattern === 'data' && <YourData me={me} />}
       {route?.pattern === 'blocked' && <Blocks />}

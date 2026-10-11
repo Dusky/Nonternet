@@ -30,7 +30,7 @@ webauthn_credentials (id, user_id fk, credential_id unique, public_key, counter,
 webauthn_challenges (id, user_id null for sign-in, purpose register|login, challenge, expires_at)  -- one use, five minutes
 users.plan (text, up to 2000 characters; finger, profile and Gemini show it)
 push_subscriptions (id, user_id fk, session_id, endpoint unique, p256dh, auth, kinds[], label, created_at, last_used_at, failures)  -- push devices (10); pushes stop when the session ends
-sessions (id, user_id fk, token_hash unique, user_agent, ip_hash, limited bool, expires_at, revoked_at)
+sessions (id, user_id fk, token_hash unique, user_agent, ip_hash, limited bool, expires_at, revoked_at, last_used_at (0055))
                                    -- token_hash = sha256 of the cookie value; limited = admin still setting up TOTP while the site requires it
 email_verifications (token_hash pk, user_id fk, expires_at, used_at)   -- 24 h, single use
 password_resets (token_hash pk, user_id fk, expires_at, used_at)       -- 1 h, single use, newest wins

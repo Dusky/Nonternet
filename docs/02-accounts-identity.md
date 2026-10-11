@@ -103,6 +103,16 @@
   - The WebAuthn user handle is the stable user id, so a rename doesn't orphan a passkey. Passkeys are in the export as a record (`keys/passkeys.json`: name, dates, synced, transports; no key material). They are not imported, since a passkey only works on the site that made it. They are deleted with the account.
   - The terminal (BBS, IRC, MUD) is unchanged: it keeps the terminal password and SSH keys.
 
+### Where you are signed in (2026-10-11)
+- Settings → "Where you are signed in" lists every live session (web and BBS): a short name from the browser ("Firefox
+  on Linux"), when it was last used (`sessions.last_used_at`, kept to within five minutes) and when it began, with this
+  one first and marked.
+- Any other one can be signed out (`DELETE /me/sessions/:id`, audited `user.session_revoked`), or all but this one at
+  once (`POST /me/sessions/revoke-others`, audited `user.sessions_revoked` with the count). Both drop those sessions'
+  push devices and tell the services, as a password change does; signing out of everywhere else also ends the person's
+  OIDC grants. This session is ended with Log out instead.
+- Sessions are not in the export (they are access, not something the person made).
+
 ## Roles, ops and `role_rev` (built in M1)
 - An admin changes a role with a reason (`POST /admin/users/:id/role`). Role, ops and suspension
   changes are audited with before and after, and they publish an event (`14`).

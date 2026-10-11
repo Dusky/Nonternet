@@ -47,8 +47,6 @@ export function PersonalProfile({ me }: { me: Me }) {
   const toast = useToast();
   const q = usePersonal();
   const fileInput = useRef<HTMLInputElement>(null);
-  const [line, setLine] = useState<string | null>(null);
-  const [plan, setPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['me', 'personal'] }); void qc.invalidateQueries({ queryKey: ['avatars'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); void qc.invalidateQueries({ queryKey: ['online'] }); };
   const patch = useMutation({ mutationFn: (body: object) => api.patch('/me', body), onSuccess: () => { setError(null); refresh(); toast(t('settings.profile.saved')); }, onError: (e) => setError(errorText(e)) });
@@ -61,8 +59,6 @@ export function PersonalProfile({ me }: { me: Me }) {
   const saveFlag = (v: object) => api.patch('/me', v).then(() => { refresh(); });
   const p = q.data;
   if (!p) return null;
-  const shown = line ?? p.status_line ?? '';
-  const planShown = plan ?? p.plan;
   return (
     <Section id="personal-h" title={t('settings.personal.title')} scope="account">
       <div className="avatar-edit">
@@ -79,14 +75,6 @@ export function PersonalProfile({ me }: { me: Me }) {
           </div>
         </div>
       </div>
-      <form onSubmit={(e: FormEvent) => { e.preventDefault(); patch.mutate({ status_line: shown.trim() || null }); }}>
-        <TextField label={t('settings.status.label')} hint={t('settings.status.hint')} value={shown} onChange={setLine} maxLength={80} />
-        <button className="btn" type="submit" disabled={patch.isPending || shown === (p.status_line ?? '')}>{t('settings.status.save')}</button>
-      </form>
-      <form onSubmit={(e: FormEvent) => { e.preventDefault(); patch.mutate({ plan: planShown }, { onSuccess: () => setPlan(null) }); }}>
-        <TextField label={t('settings.plan.label')} hint={t('settings.plan.hint')} value={planShown} onChange={setPlan} maxLength={PLAN_MAX} multiline />
-        <button className="btn" type="submit" disabled={patch.isPending || planShown === p.plan}>{t('settings.plan.save')}</button>
-      </form>
       <AboutYou p={p} patch={(body, done) => patch.mutate(body, { onSuccess: done })} pending={patch.isPending} />
       <Switch label={t('settings.status.away')} checked={p.away} save={(on) => saveFlag({ away: on })} />
       <Switch label={t('settings.lastSeen')} checked={p.show_last_seen} save={(on) => saveFlag({ show_last_seen: on })} />
@@ -236,19 +224,28 @@ export function TerminalDisplay() {
 }
 
 // Optional plain-text fields on the public profile: pronouns, where you are, and up to four links.
+// The words on your profile, in one form with one Save: status line, plan, pronouns, place and links. (The switches
+// below it save as you flip them.)
 function AboutYou({ p, patch, pending }: { p: PersonalSettings; patch: (body: object, done: () => void) => void; pending: boolean }) {
   const t = useT();
+  const [line, setLine] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
+  const lineShown = line ?? p.status_line ?? '';
+  const planShown = plan ?? p.plan;
   const [pronouns, setPronouns] = useState<string | null>(null);
   const [location, setLocation] = useState<string | null>(null);
   const [links, setLinks] = useState<{ label: string; url: string }[] | null>(null);
   const shownLinks = links ?? [...p.links, ...Array.from({ length: Math.max(0, PROFILE_LINKS_MAX - p.links.length) }, () => ({ label: '', url: '' }))];
-  const same = (pronouns ?? p.pronouns ?? '') === (p.pronouns ?? '') && (location ?? p.location ?? '') === (p.location ?? '') && links === null;
+  const same = (pronouns ?? p.pronouns ?? '') === (p.pronouns ?? '') && (location ?? p.location ?? '') === (p.location ?? '') && links === null
+    && lineShown === (p.status_line ?? '') && planShown === p.plan;
   return (
     <form onSubmit={(e: FormEvent) => {
       e.preventDefault();
-      patch({ pronouns: (pronouns ?? p.pronouns ?? '').trim() || null, location: (location ?? p.location ?? '').trim() || null, links: shownLinks.filter((l) => l.url.trim()).map((l) => ({ label: l.label.trim(), url: l.url.trim() })) },
-        () => { setPronouns(null); setLocation(null); setLinks(null); });
+      patch({ status_line: lineShown.trim() || null, plan: planShown, pronouns: (pronouns ?? p.pronouns ?? '').trim() || null, location: (location ?? p.location ?? '').trim() || null, links: shownLinks.filter((l) => l.url.trim()).map((l) => ({ label: l.label.trim(), url: l.url.trim() })) },
+        () => { setLine(null); setPlan(null); setPronouns(null); setLocation(null); setLinks(null); });
     }}>
+      <TextField label={t('settings.status.label')} hint={t('settings.status.hint')} value={lineShown} onChange={setLine} maxLength={80} />
+      <TextField label={t('settings.plan.label')} hint={t('settings.plan.hint')} value={planShown} onChange={setPlan} maxLength={PLAN_MAX} multiline />
       <TextField label={t('settings.about.pronouns')} value={pronouns ?? p.pronouns ?? ''} onChange={setPronouns} maxLength={40} />
       <TextField label={t('settings.about.location')} value={location ?? p.location ?? ''} onChange={setLocation} maxLength={60} />
       {shownLinks.map((l, i) => (

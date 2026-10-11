@@ -28,6 +28,16 @@ export function meRoutes(app: FastifyInstance, deps: AppDeps): void {
     return { user: accounts.toMe(fresh!) };
   });
 
+  // Where you are signed in, and signing out of one place or every other one.
+  app.get('/api/v1/me/sessions', async (req) => ({ sessions: await accounts.listSessions(deps, requireUser(req)) }));
+  app.delete('/api/v1/me/sessions/:id', async (req, reply) => {
+    const { id } = z.object({ id: z.string().regex(/^s_[0-9A-Z]{26}$/) }).parse(req.params);
+    await accounts.revokeSession(deps, requireUser(req), id, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+  app.post('/api/v1/me/sessions/revoke-others', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req) =>
+    ({ revoked: await accounts.revokeOtherSessions(deps, requireUser(req), ctxOf(deps, req)) }));
+
   app.put('/api/v1/me/password', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req, reply) => {
     const body = changePasswordSchema.parse(req.body);
     await accounts.changePassword(deps, requireUser(req), body.current_password, body.new_password, ctxOf(deps, req), (err) => req.log.error({ err }, 'password-changed email failed'));

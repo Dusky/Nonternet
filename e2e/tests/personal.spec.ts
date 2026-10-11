@@ -20,7 +20,7 @@ test('a status line and an avatar show on the profile, and an admin can take the
   await signIn(page, u.handle, PASSWORD);
   await page.goto('/settings/profile');
   await page.getByLabel('Status line').fill('Tuning a synth');
-  await page.getByRole('button', { name: 'Update status' }).click();
+  await page.getByRole('button', { name: 'Save profile' }).click();
   await page.getByLabel('Show that I am away').check();
   await page.getByLabel('Choose a picture').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
   await expect(page.getByRole('button', { name: 'Remove picture' })).toBeVisible();
