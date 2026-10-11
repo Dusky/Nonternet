@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { grantOpSchema, roleSchema } from '@app/shared';
+import { OP_SCOPES, grantOpSchema, roleSchema } from '@app/shared';
+import * as boards from '../boards';
 import { z } from 'zod';
 import * as accounts from '../accounts';
 import * as admin from '../admin';
@@ -147,12 +148,49 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
     return admin.listAudit(deps, { actor: q.actor, targetType: q.target_type, targetId: q.target_id, action: q.action, origin: q.origin, from: q.from, to: q.to, before: q.before, limit: q.limit });
   });
 
+  // The same entries as a spreadsheet file, up to 10,000 of them, with the filters the page uses. Reading the log out is
+  // itself written to the log.
+  app.get('/api/v1/admin/audit.csv', async (req, reply) => {
+    const who = requireAdmin(req);
+    const q = auditQuery.omit({ before: true, limit: true }).parse(req.query);
+    const rows: Awaited<ReturnType<typeof admin.listAudit>>['entries'] = [];
+    let before: number | undefined;
+    do {
+      const page = await admin.listAudit(deps, { actor: q.actor, targetType: q.target_type, targetId: q.target_id, action: q.action, origin: q.origin, from: q.from, to: q.to, before, limit: 200 });
+      rows.push(...page.entries);
+      before = page.next_before ?? undefined;
+    } while (before && rows.length < 10_000);
+    await admin.noteAuditExport(deps, who, rows.length, q, ctxOf(deps, req));
+    return reply.type('text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="audit.csv"').header('cache-control', 'no-store').send(admin.auditCsv(rows));
+  });
+
+  app.get('/api/v1/admin/ops/targets', async (req) => {
+    requireAdmin(req);
+    const q = z.object({ scope: z.enum(OP_SCOPES), q: z.string().trim().max(60).default('') }).parse(req.query);
+    return { targets: await admin.opTargets(deps, q.scope, q.q) };
+  });
+
   // Everything that happened to one object (a user now; boards and rings later), newest first.
   app.get('/api/v1/admin/audit/object/:type/:id', async (req) => {
     requireAdmin(req);
     const p = z.object({ type: z.string().max(40), id: z.string().max(100) }).parse(req.params);
     const q = auditQuery.pick({ before: true, limit: true }).parse(req.query);
     return admin.listAudit(deps, { targetType: p.type, targetId: p.id, before: q.before, limit: q.limit });
+  });
+
+  // Boards (docs/11): every board with search and paging; archiving goes through the board's own update (audited
+  // board.updated), and handing a board to someone else is here (audited board.owner_changed).
+  app.get('/api/v1/admin/boards', async (req) => {
+    requireAdmin(req);
+    const q = z.object({ q: z.string().trim().max(100).optional(), before: z.string().regex(/^b_[0-9A-Z]{26}$/).optional(), limit: z.coerce.number().int().min(1).max(200).optional() }).parse(req.query);
+    return boards.adminListBoards(deps, q);
+  });
+  app.post('/api/v1/admin/boards/:id/owner', async (req, reply) => {
+    const who = requireAdmin(req);
+    const { id } = z.object({ id: z.string().regex(/^b_[0-9A-Z]{26}$/) }).parse(req.params);
+    const body = z.object({ handle: z.string().trim().min(1).max(40), reason }).parse(req.body);
+    await boards.reassignBoard(deps, who, id, body.handle, body.reason, ctxOf(deps, req));
+    return reply.code(204).send();
   });
 
   // Homepages (docs/07, docs/11): the list, and hiding one. Hidden pages are not served or listed.

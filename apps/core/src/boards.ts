@@ -170,6 +170,51 @@ export async function updateBoard(
   return getBoard(deps, v, slug);
 }
 
+// ---------------------------------------------------------------- the admin console's list
+
+export interface AdminBoardRow { id: string; slug: string; name: string; owner: string; visibility: string; archived: boolean; ring: boolean; thread_count: number; last_post_at: string | null }
+
+// Every board, private ones included, by name, with search and ?before= paging (docs/11). Admins only.
+export async function adminListBoards(deps: AppDeps, opts: { q?: string; before?: string; limit?: number }): Promise<{ boards: AdminBoardRow[]; next: string | null }> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (opts.q) { params.push(`%${opts.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`); where.push(`(b.name ILIKE $${params.length} OR b.slug ILIKE $${params.length} OR u.handle ILIKE $${params.length})`); }
+  if (opts.before) { params.push(opts.before); where.push(`(lower(b.name), b.id) > (SELECT lower(name), id FROM boards WHERE id = $${params.length})`); }
+  const limit = Math.min(opts.limit ?? 50, 200);
+  params.push(limit + 1);
+  const r = await deps.db.query<{ id: string; slug: string; name: string; owner: string; visibility: string; archived_at: Date | null; ring_id: string | null; thread_count: string; last_post_at: Date | null }>(
+    `SELECT b.id, b.slug, b.name, u.handle AS owner, b.visibility, b.archived_at, b.ring_id,
+            (SELECT count(*) FROM posts p WHERE p.board_id = b.id AND p.thread_root_id IS NULL AND p.deleted_at IS NULL) AS thread_count,
+            (SELECT max(p.posted_at) FROM posts p WHERE p.board_id = b.id AND p.deleted_at IS NULL) AS last_post_at
+       FROM boards b JOIN users u ON u.id = b.owner_id
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY lower(b.name), b.id LIMIT $${params.length}`, params);
+  const page = r.rows.slice(0, limit);
+  return {
+    boards: page.map((b) => ({ id: b.id, slug: b.slug, name: b.name, owner: b.owner, visibility: b.visibility, archived: b.archived_at !== null, ring: b.ring_id !== null, thread_count: Number(b.thread_count), last_post_at: b.last_post_at?.toISOString() ?? null })),
+    next: r.rows.length > limit ? page[page.length - 1]!.id : null,
+  };
+}
+
+// Giving a board to someone else (an owner who left, or asked). Admins only, with a reason, audited.
+export async function reassignBoard(deps: AppDeps, v: SessionUser, boardId: string, handle: string, reason: string, ctx: Ctx): Promise<void> {
+  if (v.role !== 'admin') throw new ApiError(403, 'forbidden', 'Only admins can do that.');
+  await deps.db.tx(async (q) => {
+    const b = await q.query<{ owner_id: string; ring_id: string | null; visibility: string }>(`SELECT owner_id, ring_id, visibility FROM boards WHERE id = $1 FOR UPDATE`, [boardId]);
+    const board = b.rows[0];
+    if (!board) throw new ApiError(404, 'not_found', 'No such board.');
+    if (board.ring_id) throw new ApiError(409, 'ring_board', 'A ring board belongs to its ring; hand over the ring instead.');
+    const u = await q.query<{ id: string; status: string; role: string }>(`SELECT id, status, role FROM users WHERE lower(handle) = lower($1)`, [handle.replace(/^@/, '')]);
+    const to = u.rows[0];
+    if (!to || to.status !== 'active') throw new ApiError(404, 'no_such_person', 'Nobody active goes by that handle.');
+    if (to.role === 'guest') throw new ApiError(409, 'guest', 'A guest cannot own a board.');
+    if (to.id === board.owner_id) throw new ApiError(409, 'same_owner', 'They already own it.');
+    await q.query(`UPDATE boards SET owner_id = $2 WHERE id = $1`, [boardId, to.id]);
+    if (board.visibility === 'private') await q.query(`INSERT INTO board_members (board_id, user_id, added_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [boardId, to.id, v.userId]);
+    await audit(q, { actorId: v.userId, actorKind: 'user', action: 'board.owner_changed', targetType: 'board', targetId: boardId, before: { owner_id: board.owner_id }, after: { owner_id: to.id, reason }, origin: 'web', ipHash: ctx.ipHash });
+  });
+}
+
 export async function createCategory(deps: AppDeps, v: SessionUser, name: string, ctx: Ctx): Promise<{ id: string; name: string }> {
   if (v.role !== 'admin') throw new ApiError(403, 'forbidden', 'Only admins can do that.');
   const id = newId('bc');

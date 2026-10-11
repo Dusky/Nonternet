@@ -1,31 +1,55 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, EmptyState, Loading, TextField } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
-import type { BoardSummary } from '@app/shared';
 import { ReasonForm } from '../boards/ModTools';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { useDebounced } from './useDebounced';
 
 // ---------------------------------------------------------------- boards
 
+interface AdminBoard { id: string; slug: string; name: string; owner: string; visibility: string; archived: boolean; ring: boolean; thread_count: number; last_post_at: string | null }
+
+// Every board, private ones too, with search, paging, and the two things an admin does here: archive one, or give it
+// to someone else. Both are audited.
 export function BoardsTable() {
   const t = useT();
-  const q = useQuery({ queryKey: ['boards', 'admin'], queryFn: () => api.get<{ boards: BoardSummary[] }>('/boards') });
-  if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
-  if (!q.data) return <Loading />;
-  const boards = q.data.boards;
+  const qc = useQueryClient();
+  const [q, setQ] = useState('');
+  const dq = useDebounced(q);
+  const [acting, setActing] = useState<{ board: AdminBoard; what: 'archive' | 'owner' } | null>(null);
+  const [heir, setHeir] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const list = useInfiniteQuery({
+    queryKey: ['admin', 'boards', dq],
+    queryFn: ({ pageParam }) => api.get<{ boards: AdminBoard[]; next: string | null }>(`/admin/boards?${new URLSearchParams({ ...(dq ? { q: dq } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
+    initialPageParam: '' as string,
+    getNextPageParam: (last) => last.next ?? undefined,
+  });
+  const done = () => { setActing(null); setHeir(''); setError(null); void qc.invalidateQueries({ queryKey: ['admin', 'boards'] }); void qc.invalidateQueries({ queryKey: ['boards'] }); };
+  const archive = useMutation({
+    mutationFn: (b: AdminBoard) => api.patch(`/boards/${b.slug}`, { archived: !b.archived }),
+    onSuccess: done, onError: (e) => setError(errorText(e)),
+  });
+  const give = useMutation({
+    mutationFn: (reason: string) => api.post(`/admin/boards/${acting!.board.id}/owner`, { handle: heir.trim(), reason }),
+    onSuccess: done, onError: (e) => setError(errorText(e)),
+  });
+  if (list.isError) return <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>;
+  const boards = list.data?.pages.flatMap((p) => p.boards) ?? [];
   return (
     <>
       <h2>{t('admin.tab.boards')}</h2>
-      <p className="hint">{t('admin.boards.hint')}</p>
-      {boards.length === 0 && <EmptyState>{t('admin.boards.none')}</EmptyState>}
+      <TextField label={t('admin.boards.search')} value={q} onChange={setQ} type="search" autoCapitalize="none" spellCheck={false} />
+      {list.isPending && <Loading />}
+      {list.isSuccess && boards.length === 0 && <EmptyState>{t('admin.boards.none')}</EmptyState>}
+      {error && !acting && <Alert kind="error">{error}</Alert>}
       {boards.length > 0 && (
         <table className="table">
           <thead><tr>
             <th scope="col">{t('admin.boards.col.name')}</th><th scope="col">{t('admin.boards.col.owner')}</th><th scope="col">{t('admin.boards.col.visibility')}</th>
-            <th scope="col">{t('admin.boards.col.threads')}</th><th scope="col">{t('admin.boards.col.last')}</th>
+            <th scope="col">{t('admin.boards.col.threads')}</th><th scope="col">{t('admin.boards.col.last')}</th><th scope="col">{t('admin.boards.col.actions')}</th>
           </tr></thead>
           <tbody>
             {boards.map((b) => (
@@ -33,14 +57,31 @@ export function BoardsTable() {
                 <th scope="row" data-label={t('admin.boards.col.name')}>
                   <OpenAppLink app="boards" to={b.slug}>{b.name}</OpenAppLink>{b.archived && <> <span className="badge">{t('boards.badge.archived')}</span></>}
                 </th>
-                <td data-label={t('admin.boards.col.owner')}>{b.owner.handle}</td>
-                <td data-label={t('admin.boards.col.visibility')}>{t(`boards.vis.short.${b.visibility === 'ring' ? 'public' : b.visibility}`)}</td>
+                <td data-label={t('admin.boards.col.owner')}>{b.owner}</td>
+                <td data-label={t('admin.boards.col.visibility')}>{b.ring ? t('admin.boards.ringBoard') : t(`boards.vis.short.${b.visibility === 'ring' ? 'public' : b.visibility}` as never)}</td>
                 <td data-label={t('admin.boards.col.threads')}>{b.thread_count}</td>
                 <td data-label={t('admin.boards.col.last')}>{formatWhen(b.last_post_at) ?? t('admin.never')}</td>
+                <td data-label={t('admin.boards.col.actions')}>
+                  {!b.ring && (
+                    <>
+                      <button type="button" className="link" disabled={archive.isPending} onClick={() => { setError(null); archive.mutate(b); }} aria-label={`${b.archived ? t('admin.boards.unarchive') : t('admin.boards.archive')}: ${b.name}`}>
+                        {b.archived ? t('admin.boards.unarchive') : t('admin.boards.archive')}
+                      </button>{' · '}
+                      <button type="button" className="link" onClick={() => { setError(null); setActing({ board: b, what: 'owner' }); }} aria-label={`${t('admin.boards.giveTo')}: ${b.name}`}>{t('admin.boards.giveTo')}</button>
+                    </>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {list.hasNextPage && <button type="button" className="btn" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>{t('admin.more')}</button>}
+      {acting?.what === 'owner' && (
+        <ReasonForm label={t('admin.boards.giveThis', { name: acting.board.name })} submitLabel={t('admin.boards.giveTo')} pending={give.isPending} error={error}
+          onSubmit={(reason) => give.mutate(reason)} onCancel={() => setActing(null)}>
+          <TextField label={t('admin.boards.newOwner')} value={heir} onChange={setHeir} autoCapitalize="none" spellCheck={false} required />
+        </ReasonForm>
       )}
     </>
   );
@@ -58,16 +99,19 @@ export function HomepagesTable() {
   const dq = useDebounced(q);
   const [acting, setActing] = useState<HpRow | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const list = useQuery({
+  const list = useInfiniteQuery({
     queryKey: ['admin', 'homepages', dq],
-    queryFn: () => api.get<{ homepages: HpRow[]; totals: { homepages: string; bytes: string; hidden: string } }>(`/admin/homepages${dq ? `?q=${encodeURIComponent(dq)}` : ''}`),
+    queryFn: ({ pageParam }) => api.get<{ homepages: HpRow[]; totals: { homepages: string; bytes: string; hidden: string }; next: string | null }>(`/admin/homepages?${new URLSearchParams({ ...(dq ? { q: dq } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
+    initialPageParam: '' as string,
+    getNextPageParam: (last) => last.next ?? undefined,
   });
   const run = useMutation({
     mutationFn: (reason: string) => api.post(`/admin/homepages/${acting!.user_id}/${acting!.hidden ? 'restore' : 'hide'}`, { reason }),
     onSuccess: () => { setActing(null); setError(null); void qc.invalidateQueries({ queryKey: ['admin'] }); }, onError: (e) => setError(errorText(e)),
   });
   if (list.isError) return <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>;
-  const d = list.data;
+  const first = list.data?.pages[0];
+  const d = first && { totals: first.totals, homepages: list.data!.pages.flatMap((p) => p.homepages) };
   return (
     <>
       <h2>{t('admin.tab.homepages')}</h2>
@@ -98,6 +142,7 @@ export function HomepagesTable() {
           </tbody>
         </table>
       )}
+      {list.hasNextPage && <button type="button" className="btn" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>{t('admin.more')}</button>}
       {acting && (
         <ReasonForm label={t('admin.homepages.hideThis', { name: acting.handle })} submitLabel={t('boards.mod.confirm')} pending={run.isPending} error={error}
           onSubmit={(reason) => run.mutate(reason)} onCancel={() => setActing(null)} />
@@ -117,13 +162,18 @@ export function RingsTable() {
   const dq = useDebounced(q);
   const [acting, setActing] = useState<RingRow | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const list = useQuery({ queryKey: ['admin', 'rings', dq], queryFn: () => api.get<{ rings: RingRow[] }>(`/admin/rings${dq ? `?q=${encodeURIComponent(dq)}` : ''}`) });
+  const list = useInfiniteQuery({
+    queryKey: ['admin', 'rings', dq],
+    queryFn: ({ pageParam }) => api.get<{ rings: RingRow[]; next: string | null }>(`/admin/rings?${new URLSearchParams({ ...(dq ? { q: dq } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
+    initialPageParam: '' as string,
+    getNextPageParam: (last) => last.next ?? undefined,
+  });
   const run = useMutation({
     mutationFn: (reason: string) => api.post(`/admin/rings/${acting!.id}/${acting!.hidden ? 'restore' : 'hide'}`, { reason }),
     onSuccess: () => { setActing(null); setError(null); void qc.invalidateQueries({ queryKey: ['admin'] }); }, onError: (e) => setError(errorText(e)),
   });
   if (list.isError) return <Alert kind="error" retry={() => void list.refetch()}>{errorText(list.error)}</Alert>;
-  const rings = list.data?.rings ?? [];
+  const rings = list.data?.pages.flatMap((p) => p.rings) ?? [];
   return (
     <>
       <h2>{t('admin.tab.rings')}</h2>
@@ -151,6 +201,7 @@ export function RingsTable() {
           </tbody>
         </table>
       )}
+      {list.hasNextPage && <button type="button" className="btn" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>{t('admin.more')}</button>}
       {acting && <ReasonForm label={t(acting.hidden ? 'admin.rings.restoreThis' : 'admin.rings.hideThis', { name: acting.name })} submitLabel={t('boards.mod.confirm')} pending={run.isPending} error={error} onSubmit={(reason) => run.mutate(reason)} onCancel={() => setActing(null)} />}
     </>
   );

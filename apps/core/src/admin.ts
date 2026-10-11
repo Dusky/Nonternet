@@ -178,6 +178,46 @@ export async function listOps(deps: AppDeps, targetId: string): Promise<{ ops: O
 // Any user can be an op, not only trusted ones (docs/03). Only admins grant ops for now; ring
 // founders and board owners get their own paths when rings and boards exist.
 // Boards and rings must exist. Channels arrive with IRC (M5) and are only checked for shape until then.
+// The audit log as CSV: one row per entry, the reason pulled out, every field quoted so commas and line breaks in a
+// reason can't break the columns, and a leading = + - @ neutralised so a spreadsheet won't run it as a formula.
+const cell = (v: unknown) => {
+  const s = v === null || v === undefined ? '' : typeof v === 'string' ? v : JSON.stringify(v);
+  return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+};
+export function auditCsv(rows: Awaited<ReturnType<typeof listAudit>>['entries']): string {
+  const head = ['id', 'at', 'actor', 'actor_kind', 'action', 'target_type', 'target_id', 'target', 'origin', 'reason'];
+  const lines = rows.map((e) => {
+    const reason = e.after && typeof e.after === 'object' && 'reason' in e.after ? (e.after as { reason: unknown }).reason : '';
+    return [e.id, e.at, e.actor_handle ?? '', e.actor_kind, e.action, e.target_type ?? '', e.target_id ?? '', e.target_label ?? '', e.origin, reason].map(cell).join(',');
+  });
+  return [head.join(','), ...lines].join('\r\n') + '\r\n';
+}
+
+export async function noteAuditExport(deps: AppDeps, admin: SessionUser, count: number, filters: object, ctx: Ctx): Promise<void> {
+  await audit(deps.db, { actorId: admin.userId, actorKind: 'user', action: 'audit.exported', origin: 'web', ipHash: ctx.ipHash, after: { count, filters } });
+}
+
+// What an op can be given, found by name for the console's picker: boards and rings by name or address, channels by
+// name, and the MUD's one world.
+export async function opTargets(deps: AppDeps, scope: OpScope, q: string): Promise<{ id: string; label: string }[]> {
+  const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  if (scope === 'board') {
+    const r = await deps.db.query<{ id: string; name: string; slug: string }>(
+      `SELECT id, name, slug FROM boards WHERE (name ILIKE $1 OR slug ILIKE $1) ORDER BY lower(name) LIMIT 20`, [like]);
+    return r.rows.map((b) => ({ id: b.id, label: `${b.name} (${b.slug})` }));
+  }
+  if (scope === 'ring') {
+    const r = await deps.db.query<{ id: string; name: string; slug: string }>(
+      `SELECT id, name, slug FROM rings WHERE (name ILIKE $1 OR slug ILIKE $1) ORDER BY lower(name) LIMIT 20`, [like]);
+    return r.rows.map((g) => ({ id: g.id, label: `${g.name} (${g.slug})` }));
+  }
+  if (scope === 'channel') {
+    const r = await deps.db.query<{ name: string }>(`SELECT name FROM irc_channels WHERE removed_at IS NULL AND name ILIKE $1 ORDER BY name LIMIT 20`, [like]);
+    return r.rows.map((c) => ({ id: c.name, label: c.name }));
+  }
+  return [{ id: 'world', label: 'world' }];
+}
+
 export async function grantOp(deps: AppDeps, admin: SessionUser, targetId: string, scope: OpScope, scopeId: string, reason: string | undefined, ctx: Ctx): Promise<{ id: string; ops: string[]; role_rev: number }> {
   return deps.db.tx(async (q) => {
     const t = await lockTarget(q, targetId);
@@ -231,7 +271,8 @@ export async function listAudit(deps: AppDeps, f: AuditFilter) {
   const where: string[] = [];
   const params: unknown[] = [];
   const add = (sql: string, value: unknown) => { params.push(value); where.push(sql.replace('?', `$${params.length}`)); };
-  if (f.actor) add('a.actor_id = ?', f.actor);
+  // A person's id, or their handle as typed (the console's filter box takes either).
+  if (f.actor) /^u_[0-9A-Z]{26}$/.test(f.actor) ? add('a.actor_id = ?', f.actor) : add('a.actor_id = (SELECT id FROM users WHERE lower(handle) = lower(?))', f.actor.replace(/^@/, ''));
   if (f.targetType) add('a.target_type = ?', f.targetType);
   if (f.targetId) add('a.target_id = ?', f.targetId);
   // "user.role_changed" matches exactly; "user.*" matches the family.

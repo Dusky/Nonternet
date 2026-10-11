@@ -233,14 +233,19 @@ function SuspendForm({ userId, suspended, disabled, onDone }: { userId: string; 
 function OpsSection({ userId, ops, onDone }: { userId: string; ops: OpRow[]; onDone: () => void }) {
   const t = useT();
   const [scope, setScope] = useState<(typeof OP_SCOPES)[number]>('board');
-  const [scopeId, setScopeId] = useState('');
+  // The place is found by name (boards and rings by name or address, channels by name), never typed as an id.
+  const [find, setFind] = useState('');
+  const [picked, setPicked] = useState<{ id: string; label: string } | null>(null);
+  const [why, setWhy] = useState('');
+  const dfind = useDebounced(find);
+  const targets = useQuery({ queryKey: ['admin', 'op-targets', scope, dfind], queryFn: () => api.get<{ targets: { id: string; label: string }[] }>(`/admin/ops/targets?scope=${scope}&q=${encodeURIComponent(dfind)}`) });
   const [error, setError] = useState<string | null>(null);
   const grant = useMutation({
-    mutationFn: () => api.post(`/admin/users/${userId}/ops`, { scope, scope_id: scopeId.trim() }),
-    onSuccess: () => { setScopeId(''); onDone(); },
+    mutationFn: () => api.post(`/admin/users/${userId}/ops`, { scope, scope_id: picked!.id, reason: why.trim() || undefined }),
+    onSuccess: () => { setPicked(null); setFind(''); setWhy(''); onDone(); },
     onError: (e) => setError(errorText(e)),
   });
-  const revoke = useMutation({ mutationFn: (opId: string) => api.del(`/admin/users/${userId}/ops/${opId}`), onSuccess: onDone, onError: (e) => setError(errorText(e)) });
+  const revoke = useMutation({ mutationFn: (opId: string) => api.del(`/admin/users/${userId}/ops/${opId}`, { reason: why.trim().length >= 3 ? why.trim() : undefined }), onSuccess: onDone, onError: (e) => setError(errorText(e)) });
   return (
     <section className="panel" aria-labelledby="ops">
       <h3 id="ops">{t('admin.user.ops')}</h3>
@@ -254,11 +259,18 @@ function OpsSection({ userId, ops, onDone }: { userId: string; ops: OpRow[]; onD
       <form onSubmit={(e) => { e.preventDefault(); setError(null); grant.mutate(); }}>
         <div className="field">
           <label htmlFor={`scope-${userId}`}>{t('admin.user.opScope')}</label>
-          <select id={`scope-${userId}`} value={scope} onChange={(e) => setScope(e.target.value as typeof scope)}>{OP_SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+          <select id={`scope-${userId}`} value={scope} onChange={(e) => { setScope(e.target.value as typeof scope); setPicked(null); }}>{OP_SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
         </div>
-        <TextField label={t('admin.user.opId')} value={scopeId} onChange={setScopeId} autoCapitalize="none" spellCheck={false} />
+        {scope !== 'mud' && <TextField label={t('admin.user.opFind')} type="search" value={find} onChange={setFind} autoCapitalize="none" spellCheck={false} />}
+        <div className="choice-row" role="group" aria-label={t('admin.user.opPlaces')}>
+          {(targets.data?.targets ?? []).map((x) => (
+            <button key={x.id} type="button" className="badge tag" aria-pressed={picked?.id === x.id} onClick={() => setPicked(picked?.id === x.id ? null : x)}>{x.label}</button>
+          ))}
+          {targets.data && targets.data.targets.length === 0 && <span className="hint">{t('admin.user.opNoPlaces')}</span>}
+        </div>
+        <TextField label={t('admin.user.opReason')} value={why} onChange={setWhy} maxLength={500} />
         {error && <Alert kind="error">{error}</Alert>}
-        <button className="btn" type="submit" disabled={grant.isPending || !scopeId.trim()}>{t('admin.user.grantOp')}</button>
+        <button className="btn" type="submit" disabled={grant.isPending || !picked}>{picked ? t('admin.user.grantOpAt', { place: picked.label }) : t('admin.user.grantOp')}</button>
       </form>
     </section>
   );

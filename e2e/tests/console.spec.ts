@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
 import { makeAdmin, makeUser, signIn, totp } from '../support/helpers';
+import { BASE_URL } from '../support/stack';
 
 async function scan(page: Page, what: string) {
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
@@ -43,4 +44,48 @@ for (const theme of ['webring', 'terminal'] as const) test(`an admin uses the co
   await expect(page.getByRole('region', { name: 'When people post' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download retention as CSV' })).toHaveAttribute('href', /kind=cohorts/);
   await scan(page, 'the stats');
+});
+
+test('an admin filters the audit log and downloads it, makes someone an op by picking the board by name, and archives and hands over a board', async ({ page }) => {
+  const admin = await makeAdmin(page);
+  await signIn(page, admin.handle, admin.password, { totp: await totp(admin.secret, 1) });
+  const owner = await makeUser(page);
+  const heir = await makeUser(page);
+  const slug = `cake${Date.now().toString(36)}`;
+  const origin = { origin: BASE_URL };
+  const board = await (await page.request.post('/api/v1/boards', { data: { slug, name: `Cake club ${slug}`, visibility: 'public' }, headers: origin })).json();
+
+  // Audit: by who, by kind of action, and the same as a file.
+  await page.goto('/admin/audit');
+  await page.getByLabel('Done by (handle)').fill(admin.handle);
+  await page.getByRole('group', { name: 'Kinds of action' }).getByRole('button', { name: 'board', exact: true }).click();
+  await expect(page.locator('.timeline li').filter({ hasText: 'board.created' }).first()).toBeVisible();
+  await expect(page.locator('.timeline li').filter({ hasText: 'user.role_changed' })).toHaveCount(0);
+  await scan(page, 'the audit log with filters');
+  const href = await page.getByRole('link', { name: 'Download these as CSV' }).getAttribute('href');
+  expect(href).toContain('action=board.*');
+  const csv = await (await page.request.get(href!)).text();
+  expect(csv.split('\r\n')[0]).toBe('id,at,actor,actor_kind,action,target_type,target_id,target,origin,reason');
+  expect(csv).toContain('board.created');
+
+  // Ops: the board is found by its name, never typed as an id.
+  await page.goto(`/admin/users/${owner.id}`);
+  await page.getByLabel('Find the place by name').fill('Cake club');
+  await page.getByRole('group', { name: 'Places that match' }).getByRole('button', { name: new RegExp(slug) }).click();
+  await page.getByLabel('Why (kept in the audit log)').fill('runs the bake-off');
+  await page.getByRole('button', { name: /Make them an op of Cake club/ }).click();
+  await expect(page.getByText(`board:${board.id}`)).toBeVisible();
+
+  // Boards: find it, archive it, give it to someone else.
+  await page.goto('/admin/boards');
+  await page.getByLabel('Find a board by name, address or owner').fill(slug);
+  const row = page.getByRole('row').filter({ hasText: `Cake club ${slug}` });
+  await row.getByRole('button', { name: /^Archive: / }).click();
+  await expect(row.getByText('Archived')).toBeVisible();
+  await row.getByRole('button', { name: /^Give to someone: / }).click();
+  const form = page.getByRole('form', { name: /Give Cake club/ });
+  await form.getByLabel('Their handle').fill(heir.handle);
+  await form.getByLabel('Reason').fill('owner asked');
+  await form.getByRole('button', { name: 'Give to someone' }).click();
+  await expect(row).toContainText(heir.handle); // the new owner
 });

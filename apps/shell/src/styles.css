@@ -1221,6 +1221,7 @@ div.post-body.rich-text { white-space: normal; }
 .wiki-preview { min-height: 12rem; padding: var(--space-3); border: var(--line-width) dashed var(--border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
 .wiki-tabs { display: none; }
 .session-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.audit-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0 var(--space-3); align-items: end; }
 .bare-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .wiki-new { display: inline-flex; gap: var(--space-2); }
 .wiki-new input { min-width: 0; width: 14rem; max-width: 100%; }

@@ -140,3 +140,16 @@ panel: admins see Write, Edit and Take down there. Each of those actions is in t
 
 ## As built (audit names, 2026-10-04)
 The audit log, replay and a person's history name who or what each entry is about: @handle for people (linked to their page), names for boards and rings (linked to them). Names are looked up when the log is read, so a renamed person reads correctly; the log keeps ids, and the full id is in the tooltip.
+
+## As built (console tables and records, 2026-10-11)
+- **Audit log:** filters for kind of action (chips for `user.*`, `board.*`, `post.*`, `ring.*`, `wiki.*`, `report.*`,
+  `settings.*`, `ops.*`, `app.*`), who did it (a handle or a user id), where from (web, console, cli, bbs, system) and a
+  date range; each entry shows its origin. "Download these as CSV" gives the same entries (up to 10,000) as
+  `GET /admin/audit.csv`: every field quoted, a leading `= + - @` neutralised so spreadsheets don't run it, the reason in
+  its own column. Downloading is itself audited (`audit.exported`, with the count and filters).
+- **Ops:** the place is picked by name from `GET /admin/ops/targets?scope=&q=` (boards and rings by name or address,
+  channels by name, the MUD's world), with a reason that goes in the audit log; the raw id field is gone.
+- **Boards table:** every board (private ones too) from `GET /admin/boards?q=&before=&limit=`, with search, "Show more",
+  Archive / Open again (through the board's own update, audited `board.updated`) and "Give to someone"
+  (`POST /admin/boards/:id/owner {handle, reason}`, audited `board.owner_changed`; a ring board belongs to its ring).
+- **Rings and Homepages tables:** "Show more" pages through the server's `before` cursor.
