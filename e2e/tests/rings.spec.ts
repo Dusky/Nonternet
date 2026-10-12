@@ -88,6 +88,33 @@ test.describe('rings', () => {
     for (const p of people) await p.page.context().close();
   });
 
+  test('a ring page asks for nothing it will be refused: no wiki probe for members, a Wiki link only once the wiki is on', async ({ page, browser }) => {
+    const founder = await makeUser(page);
+    await setRole(founder.handle, 'trusted');
+    await signIn(page, founder.handle, PASSWORD);
+    const slug = uniq('rw');
+    expect((await page.request.post('/api/v1/rings', { data: { slug, name: `Ring ${slug}` }, headers: h })).ok()).toBe(true);
+
+    const other = await browser.newContext({ baseURL: BASE_URL });
+    const member = await other.newPage();
+    const u = await makeUser(member);
+    await signIn(member, u.handle, PASSWORD);
+    const refused: string[] = [];
+    member.on('response', (r) => { if (r.status() >= 400 && r.url().includes('/api/')) refused.push(`${r.status()} ${r.url()}`); });
+    await member.goto(`/rings/${slug}`);
+    await expect(member.getByRole('heading', { name: `Ring ${slug}` })).toBeVisible();
+    await expect(member.getByRole('link', { name: 'Wiki', exact: true })).toHaveCount(0);
+    expect(refused).toEqual([]);
+
+    // The founder switches the wiki on, and the link shows up for the member.
+    await page.goto(`/rings/${slug}`);
+    await page.getByRole('switch', { name: 'This ring has a wiki' }).check();
+    await expect(page.getByRole('link', { name: 'Wiki', exact: true })).toBeVisible();
+    await member.reload();
+    await expect(member.getByRole('link', { name: 'Wiki', exact: true })).toBeVisible();
+    await other.close();
+  });
+
   test('a user who is not trusted cannot found a ring, and a trusted one stops at the quota', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);

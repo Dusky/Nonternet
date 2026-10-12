@@ -43,7 +43,7 @@ export interface RingSummary {
   // About the viewer.
   me: { status: MemberStatus | null; is_op: boolean; is_founder: boolean } | null;
 }
-export interface RingDetail extends RingSummary { about: string; ops: { op_id: string; id: string; handle: string }[]; latest_posts: { id: string; thread_id: string; subject: string; author: string | null; at: string }[] }
+export interface RingDetail extends RingSummary { about: string; wiki_enabled: boolean; ops: { op_id: string; id: string; handle: string }[]; latest_posts: { id: string; thread_id: string; subject: string; author: string | null; at: string }[] }
 export interface RingMemberView {
   user_id: string; handle: string; display_name: string | null; status: MemberStatus; joined_at: string; homepage_url: string | null;
   // For ops only: why a page may not be working as part of the ring.

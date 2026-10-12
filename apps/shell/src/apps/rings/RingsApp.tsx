@@ -164,7 +164,7 @@ function RingPage({ slug }: { slug: string }) {
       {error && <Alert kind="error">{error}</Alert>}
       <div className="toolbar">
         {r.board && <OpenAppLink app="boards" to={r.board.slug} className="btn">{t('rings.board')}</OpenAppLink>}
-        <RingWikiLink slug={slug} />
+        {r.wiki_enabled && <OpenAppLink app="wiki" to={`r/${slug}`} className="btn">{t('rings.wiki')}</OpenAppLink>}
         {me && status === null && !r.archived && r.join_policy !== 'invite' && (
           <button className="btn btn-primary" onClick={() => join.mutate()} disabled={join.isPending}>{r.join_policy === 'approval' ? t('rings.requestJoin') : t('rings.join')}</button>
         )}
@@ -389,11 +389,6 @@ function Manage({ ring, onChange }: { ring: RingDetail; onChange: () => void }) 
 
 // The ring's wiki (docs/20): a link when it is on, and for ops a switch. A wiki that is off looks like none to others.
 const useRingWiki = (slug: string) => useQuery({ queryKey: ['wiki', `ring:${slug}`, 'info'], queryFn: () => api.get<WikiInfo>(`/wiki/ring:${slug}`).catch(() => null) });
-function RingWikiLink({ slug }: { slug: string }) {
-  const t = useT();
-  const q = useRingWiki(slug);
-  return q.data?.enabled ? <OpenAppLink app="wiki" to={`r/${slug}`} className="btn">{t('rings.wiki')}</OpenAppLink> : null;
-}
 function RingWikiSwitch({ slug }: { slug: string }) {
   const t = useT();
   const qc = useQueryClient();
@@ -402,7 +397,7 @@ function RingWikiSwitch({ slug }: { slug: string }) {
   const shown = on ?? Boolean(q.data?.enabled);
   const save = useMutation({
     mutationFn: (enabled: boolean) => api.put(`/rings/${slug}/wiki`, { enabled }),
-    onSettled: async () => { await qc.invalidateQueries({ queryKey: ['wiki', `ring:${slug}`] }); setOn(null); },
+    onSettled: async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['wiki', `ring:${slug}`] }), qc.invalidateQueries({ queryKey: ['ring', slug] })]); setOn(null); },
   });
   if (q.isPending) return null;
   return (

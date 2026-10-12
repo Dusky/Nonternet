@@ -102,13 +102,14 @@ export async function getRingSummary(deps: AppDeps, v: Viewer, slug: string): Pr
 
 export async function getRing(deps: AppDeps, v: Viewer, slug: string): Promise<RingDetail> {
   const r = await loadRing(deps.db, slug, v);
-  const [ops, latest] = await Promise.all([
+  const [ops, latest, wiki] = await Promise.all([
     deps.db.query<{ op_id: string; id: string; handle: string }>(`SELECT s.id AS op_id, u.id, u.handle FROM scoped_roles s JOIN users u ON u.id = s.user_id WHERE s.scope_type = 'ring' AND s.scope_id = $1 ORDER BY u.handle`, [r.id]),
     deps.db.query<{ id: string; thread_id: string; subject: string; handle: string | null; posted_at: Date }>(
       `SELECT p.id, COALESCE(p.thread_root_id, p.id) AS thread_id, p.subject, u.handle, p.posted_at FROM posts p LEFT JOIN users u ON u.id = p.author_id
        WHERE p.board_id = $1 AND p.deleted_at IS NULL AND p.hidden_at IS NULL ORDER BY p.seq DESC LIMIT 5`, [r.board_id]),
+    deps.db.query<{ enabled: boolean }>(`SELECT enabled FROM wikis WHERE ring_id = $1`, [r.id]),
   ]);
-  return { ...toSummary(v, r), about: r.about, ops: ops.rows,
+  return { ...toSummary(v, r), about: r.about, ops: ops.rows, wiki_enabled: wiki.rows[0]?.enabled ?? false,
     latest_posts: latest.rows.map((p) => ({ id: p.id, thread_id: p.thread_id, subject: p.subject, author: p.handle, at: p.posted_at.toISOString() })) };
 }
 
