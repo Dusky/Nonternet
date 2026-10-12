@@ -53,6 +53,8 @@ export function Composer({ slug, replyTo, draftId, quote, onPosted, onCancel }: 
       void qc.invalidateQueries({ queryKey: ['threads', slug] });
       void qc.invalidateQueries({ queryKey: ['thread', slug] });
       if (me) clearDraft(me.id, draftKey);
+      // The box is kept across other people's posts (it is keyed on the post replied to), so it empties itself once sent.
+      setBody(''); setSubject(''); setPreview(null);
       onPosted(post);
     },
     onError: (e) => setError(errorText(e)),
