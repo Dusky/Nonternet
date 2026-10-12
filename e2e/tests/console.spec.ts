@@ -144,10 +144,18 @@ test('the admin settings page is grouped, searchable, and can show only what was
   await row.getByRole('button', { name: 'Review change' }).click();
   const confirm = row.getByRole('button', { name: 'Make this change' });
   if (await confirm.isVisible().catch(() => false)) await confirm.click();
-  await expect(row.getByText(/version 1|Version 1/i)).toBeVisible();
+  await expect(row.getByText(/version \d+/i)).toBeVisible(); // versions keep counting across the desktop and phone runs
   await page.getByLabel('Only the ones I have changed').check();
   await expect(page.getByRole('region', { name: /^Minimum age/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Limits and quotas' })).toHaveCount(0);
+
+  // Put it back, so the sign-up tests that follow still see the age they expect.
+  await row.getByLabel('New value').fill(now);
+  await row.getByLabel('Reason').fill('putting it back after the test');
+  await row.getByRole('button', { name: 'Review change' }).click();
+  const back = row.getByRole('button', { name: 'Make this change' });
+  if (await back.isVisible().catch(() => false)) await back.click();
+  await expect.poll(async () => (await (await page.request.get('/api/v1/admin/settings')).json()).settings.find((s: { key: string }) => s.key === 'signup.minimum_age').value).toBe(Number(now));
 });
 
 test('on a phone the current page is in view in the admin and Settings rows of sections', async ({ page, isMobile }) => {

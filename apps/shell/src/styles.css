@@ -1483,3 +1483,4 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 }
 .shell { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 899px) { .taskbar { min-width: 0; } .taskbar .brand .brand-mark { flex: none; } }
+.menu-check { font-weight: 700; }

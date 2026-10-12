@@ -53,7 +53,7 @@ function FirstRun() {
       <h2 id="mud-first-h">{t('mud.first.title')}</h2>
       <p>{t('mud.first.body')}</p>
       <div className="actions">
-        <button type="button" className="btn btn-primary" onClick={() => sendRaw('charcreate')}>{t('mud.first.make')}</button>
+        <button type="button" className="btn btn-primary" onClick={() => { sendRaw('charcreate'); /* the menu that follows is in the log: bring it into view, below the card on a phone */ requestAnimationFrame(() => document.querySelector('.mud-log')?.scrollIntoView({ block: 'nearest' })); }}>{t('mud.first.make')}</button>
         <button type="button" className="btn" onClick={() => sendRaw('help')}>{t('mud.first.help')}</button>
       </div>
     </section>

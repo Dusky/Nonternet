@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useT } from '../hooks';
 import { Button, Menu, MenuItem as AriaMenuItem, MenuTrigger, Popover, Separator, type Placement } from 'react-aria-components';
 
 // Menus, built on React Aria so they all behave the same way: arrow keys, Home and End move between items,
@@ -12,11 +13,14 @@ export interface MenuEntry {
   icon?: ReactNode;
   disabled?: boolean;
   danger?: boolean;
+  /** The choice that is on now, shown with a tick and said to screen readers. */
+  checked?: boolean;
   /** A line above this item. */
   separator?: boolean;
 }
 
 function Items({ items }: { items: MenuEntry[] }) {
+  const t = useT();
   return (
     <>
       {items.map((it) => [
@@ -24,7 +28,7 @@ function Items({ items }: { items: MenuEntry[] }) {
         <AriaMenuItem
           key={it.label} id={it.label} textValue={it.label} isDisabled={it.disabled} onAction={it.onSelect}
           className={`menu-item${it.danger ? ' is-danger' : ''}`}
-        >{it.icon}{it.label}</AriaMenuItem>,
+        >{it.icon}{it.checked && <span className="menu-check" aria-hidden="true">✓ </span>}{it.label}{it.checked && <span className="visually-hidden">({t('menu.selected')})</span>}</AriaMenuItem>,
       ])}
     </>
   );

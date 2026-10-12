@@ -187,7 +187,7 @@ function BufferHeader({ buf, showUsers, onToggleUsers, finding, onToggleFind }: 
             ...(['show', 'hide', null] as const).map((c, i) => {
               const now = (presence[buf.name.toLowerCase()] ?? null) === c;
               const label = c ? t(`chat.presence.${c}`) : t('chat.presence.default', { state: prefs.joinPart ? t('chat.presence.shown') : t('chat.presence.hidden') });
-              return { label: now ? `${label} ${t('chat.presence.now')}` : label, onSelect: () => setPresence(buf.name, c), separator: i === 0 };
+              return { label, checked: now, onSelect: () => setPresence(buf.name, c), separator: i === 0 };
             }),
           ]} />
         ) : (

@@ -204,7 +204,7 @@ test.describe('chat', () => {
     await page.getByRole('menuitem', { name: 'Hide joins and leaves here' }).click();
     await expect(joinLine).toHaveCount(0);
     await page.getByRole('button', { name: 'Channel options' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Hide joins and leaves here (now)' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Hide joins and leaves here (selected)' })).toBeVisible();
     await page.keyboard.press('Escape');
 
     // Kept on this device across a reload; /presence default goes back to the Settings switch (on).

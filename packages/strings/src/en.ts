@@ -1545,7 +1545,7 @@ export const en = {
   'chat.presence.default': 'Joins and leaves as in Settings ({state})',
   'chat.presence.shown': 'shown',
   'chat.presence.hidden': 'hidden',
-  'chat.presence.now': '(now)',
+  'menu.selected': 'selected',
   'chat.leave': 'Leave',
   'chat.close': 'Close',
   'chat.newMessages': 'New messages',
