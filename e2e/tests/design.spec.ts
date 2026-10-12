@@ -173,6 +173,7 @@ test('buttons: a disabled one is solid, not dashed, and a switched-on toggle loo
   const u = await makeUser(page);
   await signIn(page, u.handle, PASSWORD);
   await page.goto('/memos');
+  await page.getByRole('textbox', { name: 'Write a memo' }).click(); // on a phone the empty box is folded until it has focus
   const post = page.getByRole('button', { name: 'Post', exact: true });
   await expect(post).toBeDisabled();
   expect(await post.evaluate((el) => getComputedStyle(el).borderStyle)).toBe('solid');

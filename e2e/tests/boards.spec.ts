@@ -87,7 +87,7 @@ test.describe('boards', () => {
     await op.context().close();
   });
 
-  test('reading is kept per thread; a thread opens at its first new post; the board can be searched on its own', async ({ page, browser }) => {
+  test('reading is kept per thread; a thread opens at its first new post; the board can be searched on its own', async ({ page, browser, isMobile }) => {
     const me = await makeUser(page);
     await signIn(page, me.handle, PASSWORD);
     const other = await makeUser(page);
@@ -126,7 +126,8 @@ test.describe('boards', () => {
 
     // Search this board finds the reply and opens the thread at it.
     await page.goto(`/boards/${slug}`);
-    await page.getByRole('link', { name: 'Search this board' }).click();
+    if (isMobile) { await page.getByRole('button', { name: 'More', exact: true }).click(); await page.getByRole('menuitem', { name: 'Search this board' }).click(); }
+    else await page.getByRole('link', { name: 'Search this board' }).click();
     await page.getByRole('searchbox').fill(word);
     await page.getByRole('searchbox').press('Enter');
     await page.getByRole('link', { name: 'Older thread' }).click();
