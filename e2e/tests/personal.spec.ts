@@ -56,7 +56,7 @@ test('the directory finds people by name and filters by role', async ({ page }) 
   await page.getByLabel('Search by name or handle').fill(word);
   await expect(page.getByRole('link', { name: new RegExp(`${word}bo`) })).toBeVisible();
   await expect(page.getByRole('link', { name: new RegExp(`${word}ann`) }).first()).toBeVisible();
-  await page.getByLabel('Show').selectOption('trusted');
+  await page.getByRole('combobox', { name: 'Role' }).selectOption('trusted');
   await expect(page.getByLabel('Everyone', { exact: true }).getByRole('link', { name: new RegExp(`${word}ann`) })).toHaveCount(0);
   await expect(page.getByLabel('Everyone', { exact: true }).getByRole('link', { name: new RegExp(`${word}bo`) })).toBeVisible();
   await scan(page, 'the directory');
