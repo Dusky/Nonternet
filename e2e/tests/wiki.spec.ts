@@ -38,6 +38,10 @@ test('start a wiki, follow a link to a missing page, write it, and see the histo
   await page.getByRole('link', { name: 'Start the first page' }).click();
 
   const text = page.getByLabel('Page text');
+  // The formatting help is reachable on every width, not only where the Write/Preview tabs show.
+  await page.getByRole('button', { name: /page formatting/i }).click();
+  await expect(page.getByText('Pages are plain text with a little formatting.')).toBeVisible();
+  await page.keyboard.press('Escape');
   await text.fill('# Welcome\n\nThis is our ring. Read the [[Patch Notes]] first.\n\n- one\n- two');
   // The preview follows the text, and a page that doesn't exist yet is marked as such.
   // On a phone the preview is a tab of its own.
@@ -114,6 +118,7 @@ test('people who are not trusted read but cannot edit, and search finds pages', 
   await reader.goto(`/wiki/p/${slug}`);
   await expect(reader.getByRole('heading', { name: title })).toBeVisible();
   await expect(reader.getByRole('link', { name: 'Edit', exact: true })).toHaveCount(0);
+  await expect(reader.getByText('Trusted people can edit pages here.')).toBeVisible(); // and they are told who can
   await reader.goto('/wiki/search');
   await reader.getByLabel('Search this wiki').fill(word);
   await reader.getByRole('button', { name: 'Search' }).last().click();

@@ -1236,7 +1236,7 @@ div.post-body.rich-text { white-space: normal; }
 @container (max-width: 640px) { .wiki-toc { float: none; max-width: none; margin-left: 0; } }
 @media (max-width: 760px) {
   .wiki-editor { grid-template-columns: 1fr; }
-  .wiki-tabs { display: flex; }
+  .wiki-tabs { display: flex; gap: var(--space-2); }
   .wiki-editor.is-write .wiki-preview, .wiki-editor.is-preview .wiki-write { display: none; }
 }
 .wiki-conflict { border-color: var(--warn); }

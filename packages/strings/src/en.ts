@@ -1948,6 +1948,8 @@ export const en = {
   'wiki.deleteWhy': 'Why delete it?',
   'wiki.protectedNote': 'This page is protected. Only admins and ops can edit it.',
   'wiki.cantEdit': 'You can read this wiki but not edit it.',
+  'wiki.whoCanEdit': 'Trusted people can edit pages here.',
+  'wiki.whoCanEditSignedOut': 'Trusted people can edit pages here. Log in to take part.',
   'wiki.editing': 'Editing “{name}”',
   'wiki.newPage': 'New page',
   'wiki.newPagePlaceholder': 'Title of a new page',

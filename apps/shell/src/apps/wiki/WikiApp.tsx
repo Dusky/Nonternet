@@ -148,6 +148,7 @@ function PageScreen({ info, base, slug, home }: Props & { slug: string; home?: b
         {me && !info.can_moderate && <button type="button" className="btn btn-quiet" onClick={() => setTool('report')}>{t('wiki.report')}</button>}
         {info.can_moderate && <ModTools info={info} page={p} open={setTool} />}
       </div>
+      {!info.can_edit && !p.protected && <p className="hint">{t(me ? 'wiki.whoCanEdit' : 'wiki.whoCanEditSignedOut')}</p>}
       {tool === 'rename' && <Rename info={info} base={base} page={p} done={() => setTool(null)} />}
       {tool === 'report' && <Report info={info} page={p} done={() => setTool(null)} />}
       {(tool === 'hide' || tool === 'delete') && <WithReason info={info} page={p} action={tool} done={() => setTool(null)} />}
@@ -299,9 +300,12 @@ function EditForm({ info, base, slug, page, newer, user, onSaved }: { info: Wiki
         </section>
       )}
       {!page && <TextField label={t('wiki.pageTitle')} value={title} onChange={setTitle} maxLength={WIKI_TITLE_MAX} error={titleOk ? undefined : t('wiki.titleOtherPage')} required />}
-      <div className="wiki-tabs toolbar" role="group" aria-label={t('wiki.view')}>
-        <button type="button" className="btn btn-quiet" aria-pressed={tab === 'write'} onClick={() => setTab('write')}>{t('wiki.write')}</button>
-        <button type="button" className="btn btn-quiet" aria-pressed={tab === 'preview'} onClick={() => setTab('preview')}>{t('wiki.preview')}</button>
+      <div className="toolbar">
+        {/* Write and Preview switch only where the two do not fit side by side (a phone); the help is always here. */}
+        <div className="wiki-tabs" role="group" aria-label={t('wiki.view')}>
+          <button type="button" className="btn btn-quiet" aria-pressed={tab === 'write'} onClick={() => setTab('write')}>{t('wiki.write')}</button>
+          <button type="button" className="btn btn-quiet" aria-pressed={tab === 'preview'} onClick={() => setTab('preview')}>{t('wiki.preview')}</button>
+        </div>
         <HelpTip topic={t('wiki.markupHelpTopic')}>
           <p>{t('wiki.markupHelp1')}</p>
           <pre className="wiki-source">{t('wiki.markupHelp2')}</pre>
