@@ -1,6 +1,6 @@
-import type { HomeTemplateInfo } from '@app/shared';
+import { HOME_EDITABLE_EXTENSIONS, type HomeTemplateInfo } from '@app/shared';
 import { undoable, useConfirm } from '../../components/feedback';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent, type MutableRefObject } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Alert, TextField, Loading, EmptyState } from '../../components/ui';
@@ -10,7 +10,10 @@ import { Mine, fmt } from './shared';
 
 const CodeEditor = lazy(() => import('./CodeEditor'));
 
-export function Files({ mine }: { mine: Mine }) {
+// Whether the open editor has unsaved changes, and how to throw them away; the Studio asks before leaving for another section.
+export interface EditGuard { dirty: boolean; discard: () => void }
+
+export function Files({ mine, guard }: { mine: Mine; guard: MutableRefObject<EditGuard> }) {
   const t = useT();
   const confirm = useConfirm();
   const qc = useQueryClient();
@@ -57,7 +60,7 @@ export function Files({ mine }: { mine: Mine }) {
   });
 
   const pages = mine.files.filter((f) => f.type === 'file' && /\.html?$/i.test(f.path)).map((f) => f.path);
-  if (editing) return <Editor path={editing} url={mine.homepage.url} pages={pages} onClose={() => { setEditing(null); void refresh(); }} />;
+  if (editing) return <Editor path={editing} url={mine.homepage.url} pages={pages} guard={guard} onClose={() => { setEditing(null); void refresh(); }} />;
   if (!mine.homepage.has_index && !bare && mine.files.length === 0) return <Templates onDone={() => void refresh()} onEmpty={() => setBare(true)} />;
 
   const deleteFile = (path: string) => {
@@ -99,6 +102,8 @@ export function Files({ mine }: { mine: Mine }) {
           onCancel={() => setAdding(null)}
           onSubmit={async (name) => {
             const path = folder ? `${folder}/${name}` : name;
+            // A new file is empty text; pictures and other kinds come in by upload.
+            if (adding === 'file' && !(HOME_EDITABLE_EXTENSIONS as readonly string[]).includes(name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '')) { setError(t('studio.files.newTextOnly')); return; }
             try {
               if (adding === 'folder') await api.post('/homes/me/folders', { path });
               else await api.upload(`/homes/me/file?path=${encodeURIComponent(path)}`, '');
@@ -187,7 +192,7 @@ function Templates({ onDone, onEmpty }: { onDone: () => void; onEmpty: () => voi
   );
 }
 
-function Editor({ path, url, pages, onClose }: { path: string; url: string; pages: string[]; onClose: () => void }) {
+function Editor({ path, url, pages, guard, onClose }: { path: string; url: string; pages: string[]; guard: MutableRefObject<EditGuard>; onClose: () => void }) {
   const t = useT();
   const confirm = useConfirm();
   const [text, setText] = useState<string | null>(null);
@@ -200,6 +205,12 @@ function Editor({ path, url, pages, onClose }: { path: string; url: string; page
   const me = useMe().data;
   const [restored, setRestored] = useState(false);
   const draftKey = `studio:${path}`;
+  const discardDraft = () => { if (me) clearDraft(me.id, draftKey); };
+  // Tell the Studio about unsaved changes, so moving to another section asks first (and discarding really discards).
+  useEffect(() => {
+    guard.current = { dirty, discard: discardDraft };
+    return () => { guard.current = { dirty: false, discard: () => undefined }; };
+  });
 
   // Unsaved changes: ask the browser before the tab goes.
   useEffect(() => {
@@ -265,7 +276,7 @@ function Editor({ path, url, pages, onClose }: { path: string; url: string; page
   const [pane, setPane] = useState<'write' | 'preview'>('write');
   const widgetNames = useQuery({ queryKey: ['studio', 'snippets'], queryFn: () => api.get<{ snippets: { id: string }[] }>('/homes/me/snippets'), staleTime: 300_000, enabled: /\.html?$/i.test(path) }).data?.snippets.map((s) => s.id);
 
-  const close = () => { if (!dirty) onClose(); else void confirm({ message: t('studio.edit.leave'), confirmLabel: t('confirm.discard'), danger: true }).then((ok) => ok && onClose()); };
+  const close = () => { if (!dirty) onClose(); else void confirm({ message: t('studio.edit.leave'), confirmLabel: t('confirm.discard'), danger: true }).then((ok) => { if (ok) { discardDraft(); onClose(); } }); };
   return (
     <section aria-labelledby="edit-h">
       <h2 id="edit-h">{t('studio.edit.title', { name: path })}</h2>

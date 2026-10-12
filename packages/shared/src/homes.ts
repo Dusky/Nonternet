@@ -11,6 +11,9 @@ export const homeFolderSchema = z.object({ path: z.string().max(200) });
 export const homeMoveSchema = z.object({ from: z.string().max(200), to: z.string().max(200) });
 export const homeTemplateSchema = z.object({ template: z.string().max(40), replace: z.boolean().default(false) });
 
+// Text the studio can open in its editor; anything else is uploaded.
+export const HOME_EDITABLE_EXTENSIONS = ['html', 'htm', 'css', 'js', 'mjs', 'json', 'txt', 'md', 'xml', 'svg'] as const;
+
 export interface HomeFileEntry { path: string; type: 'file' | 'dir'; size: number; modified: string; editable: boolean }
 export interface HomepageSummary {
   title: string; description: string; url: string; has_index: boolean;

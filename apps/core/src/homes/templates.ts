@@ -3,7 +3,8 @@
 // No product name here: a template only knows the person's handle and title.
 export interface Template { id: string; title: string; description: string; files: (v: { handle: string; title: string }) => Record<string, string> }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+// Every use is in element text or a double-quoted value, so an apostrophe stays as typed (a beginner reads this source).
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 const BASE_CSS = (bg: string, fg: string, accent: string) => `/* Change anything here. This file styles every page. */
 body { margin: 0; padding: 2rem 1rem; background: ${bg}; color: ${fg}; font: 18px/1.5 Georgia, "Times New Roman", serif; }

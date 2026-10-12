@@ -85,6 +85,38 @@ test.describe('homepage studio', () => {
     await expect(page.getByText('Saved. The preview is up to date.')).toBeVisible();
   });
 
+  test('leaving with unsaved changes asks first, discarding really discards, and a new file has to be text', async ({ page }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await page.request.post('/api/v1/homes/me/template', { data: { template: 'blank' }, headers: h });
+    await page.goto('/studio');
+    await page.getByRole('button', { name: 'Edit index.html' }).click();
+    const editor = page.getByRole('textbox', { name: 'Editor for index.html' });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('<h1>Not saved</h1>');
+    await expect(page.getByText('You have changes that are not saved.')).toBeVisible();
+    // Another section asks first; staying keeps the editor and the text.
+    await page.getByRole('link', { name: 'Asset library' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(page.getByText('You have changes that are not saved.')).toBeVisible();
+    // Discarding goes to the other section and forgets the draft.
+    await page.getByRole('link', { name: 'Asset library' }).click();
+    await confirmDialog(page, 'Close without saving');
+    await expect(page.getByRole('heading', { name: 'Asset library' }).or(page.getByRole('link', { name: 'Asset library' }))).toBeVisible();
+    await page.getByRole('link', { name: 'Files', exact: true }).click();
+    await page.getByRole('button', { name: 'Edit index.html' }).click();
+    await expect(page.getByText(/Unsaved changes from your last visit were restored/)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Close editor' }).click();
+    // A new file has to be text; a picture comes in by upload.
+    await page.getByRole('button', { name: 'New file' }).click();
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('cat.gif');
+    await page.getByRole('button', { name: 'Create' }).click();
+    await expect(page.getByText(/A new file has to be text/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit cat.gif' })).toHaveCount(0);
+  });
+
   test('the preview shows what you type before you save it, the published page does not, and the editor points out mistakes', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
@@ -152,7 +184,7 @@ test.describe('homepage studio', () => {
     await page.getByRole('button', { name: 'New file' }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('bad.php');
     await page.getByRole('button', { name: 'Create' }).click();
-    await expect(page.getByRole('alert')).toContainText('cannot go on a homepage');
+    await expect(page.getByRole('alert')).toContainText('A new file has to be text');
   });
 
   test('starts empty with your own files, previews a stylesheet on a page, and a delete can be undone', async ({ page }, info) => {

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join, posix } from 'node:path';
+import { HOME_EDITABLE_EXTENSIONS } from '@app/shared';
 import { ApiError } from '../errors';
 
 // What a homepage may contain. Anything else is refused at upload, so the site never stores or
@@ -16,7 +17,7 @@ export const MIME: Record<string, string> = {
 export const extOf = (name: string): string => (name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '');
 export const mimeFor = (name: string): string | null => MIME[extOf(name)] ?? null;
 // Text the studio can open in its editor.
-export const isEditable = (name: string): boolean => ['html', 'htm', 'css', 'js', 'mjs', 'json', 'txt', 'md', 'xml', 'svg'].includes(extOf(name));
+export const isEditable = (name: string): boolean => (HOME_EDITABLE_EXTENSIONS as readonly string[]).includes(extOf(name));
 
 const SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9_.~()+-]{0,99}$/;
 export const MAX_DEPTH = 8;

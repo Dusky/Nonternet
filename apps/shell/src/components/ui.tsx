@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type CSSProperties, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useId, useState, type CSSProperties, type InputHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { useMe, useT } from '../hooks';
@@ -116,10 +116,10 @@ export function BackLink({ to, children }: { to: string; children: ReactNode }) 
 }
 
 // Section tabs inside an app; the current one is marked for screen readers too.
-export function Tabs({ label, items }: { label: string; items: { to: string; label: string }[] }) {
+export function Tabs({ label, items }: { label: string; items: { to: string; label: string; onClick?: (e: MouseEvent<HTMLAnchorElement>) => void }[] }) {
   return (
     <nav className="tabs" aria-label={label}>
-      {items.map((i) => <AppNavLink key={i.to} to={i.to}>{i.label}</AppNavLink>)}
+      {items.map((i) => <AppNavLink key={i.to} to={i.to} onClick={i.onClick}>{i.label}</AppNavLink>)}
     </nav>
   );
 }
