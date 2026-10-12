@@ -1048,6 +1048,9 @@ li.new-divider::before, li.new-divider::after { border-top: var(--line-width) so
   .app-page .app-fill .chat-log { height: auto; flex: 1; min-height: 5rem; }
   .app-page .app-fill > .terminal-screen { min-height: 8rem; }
   .app-page .app-fill > .mud-layout { flex: 1; height: auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+  /* With the side panel open the page flows and scrolls, as before: the log keeps a sensible height and the panel follows it. */
+  .app-page .app-fill > .mud-layout.has-panel { flex: none; height: auto; grid-template-rows: none; }
+  .app-page .app-fill > .mud-layout.has-panel > .mud-screen { height: min(60dvh, 30rem); }
 }
 
 /* ---- Settings (P2): one look for every section; a real switch for on/off choices */
