@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { NOTIFICATION_FILTERS, type NotificationFilter, type NotificationView } from '@app/shared';
+import { NOTIFICATION_FILTERS, NOTIFICATION_FILTER_KINDS, type NotificationFilter, type NotificationView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, Avatar, EmptyState, Loading, RelativeTime } from '../../components/ui';
 import { errorText, useT } from '../../hooks';
@@ -47,13 +47,16 @@ export default function NotificationsApp() {
     onSettled: () => void refresh(),
   });
   const markAll = useMutation({
-    mutationFn: () => api.post('/notifications/read', { all: true }),
+    // On a tab (Boards, Mail, ...) only that tab's kinds are marked; "All" and "Unread" mark everything.
+    mutationFn: () => api.post('/notifications/read', filter === 'all' || filter === 'unread' ? { all: true } : { kinds: NOTIFICATION_FILTER_KINDS[filter] }),
     onMutate: () => markLocally(() => true, false),
     onError: (_e, _v, c) => qc.setQueryData(listKey, c?.before),
     onSettled: () => void refresh(),
   });
   const items = q.data?.pages.flatMap((p) => p.notifications) ?? [];
   const unread = q.data?.pages[0]?.unread ?? 0;
+  // Enabled by what this tab shows, not by the number on the bell.
+  const anyUnread = filter === 'all' ? unread > 0 : items.some((n) => !n.read);
   const days = groupNotifications(items);
   const now = Date.now();
   const words = { today: t('chat.today'), yesterday: t('chat.yesterday') };
@@ -69,7 +72,7 @@ export default function NotificationsApp() {
           ))}
         </div>
         <span className="spacer" />
-        <button type="button" className="btn" onClick={() => markAll.mutate()} disabled={unread === 0}>{t('notifications.markAll')}</button>
+        <button type="button" className="btn" onClick={() => markAll.mutate()} disabled={!anyUnread}>{t('notifications.markAll')}</button>
       </div>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
       {setRead.isError && <Alert kind="error">{errorText(setRead.error)}</Alert>}

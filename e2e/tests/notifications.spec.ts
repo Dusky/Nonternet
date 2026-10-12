@@ -99,5 +99,12 @@ test('filter tabs, a day heading, replies to one thread folded into one line, an
   await page.getByRole('button', { name: /^Mark unread:/ }).first().click();
   await page.getByRole('button', { name: 'Unread', exact: true }).click();
   await expect(page.getByText('Hello there')).toBeVisible();
+  // Mark all read on a tab marks that tab only: the replies on the Boards tab stay unread.
+  await page.getByRole('button', { name: 'Mail', exact: true }).click();
+  await page.getByRole('button', { name: 'Mark all read' }).click();
+  await expect(page.getByRole('button', { name: 'Mark all read' })).toBeDisabled(); // nothing unread on this tab
+  await page.getByRole('button', { name: 'Unread', exact: true }).click();
+  await expect(page.getByText('Hello there')).toHaveCount(0);
+  await expect(page.getByText(/and 1 other replied to you/)).toBeVisible();
   await scan(page, 'notifications with filters');
 });
