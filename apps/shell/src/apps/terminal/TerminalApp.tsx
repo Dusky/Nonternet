@@ -43,6 +43,7 @@ const KEYS: { label: string; seq: string; name: StringKey }[] = [
   { label: 'PgUp', seq: '\x1b[5~', name: 'terminal.key.pgup' },
   { label: 'PgDn', seq: '\x1b[6~', name: 'terminal.key.pgdn' },
   { label: 'Enter', seq: '\r', name: 'terminal.key.enter' },
+  { label: '^C', seq: '\x03', name: 'terminal.key.ctrlc' },
 ];
 const FKEYS = ['\x1bOP', '\x1bOQ', '\x1bOR', '\x1bOS', '\x1b[15~', '\x1b[17~', '\x1b[18~', '\x1b[19~', '\x1b[20~', '\x1b[21~'];
 

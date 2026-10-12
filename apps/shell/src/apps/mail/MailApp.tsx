@@ -95,8 +95,8 @@ function Inbox() {
               <p className="row-meta">{t('mail.with', { names: others(th.people).length ? others(th.people).map((p) => who(t, p)).join(', ') : t('mail.nobody') })}</p>
               {th.last && th.last.excerpt && <p className="mail-excerpt">{th.last.author ? `${th.last.author}: ` : ''}{th.last.excerpt}</p>}
               <p className="row-actions">
-                <button type="button" className="link" aria-pressed={th.starred} onClick={() => star.mutate({ id: th.id, on: !th.starred })}>{th.starred ? t('mail.unstar') : t('mail.star')}</button>
-                <button type="button" className="link" onClick={() => archive(th.id, !th.archived)}>{th.archived ? t('mail.unarchive') : t('mail.archive')}</button>
+                <button type="button" className="link" aria-pressed={th.starred} aria-label={`${th.starred ? t('mail.unstar') : t('mail.star')}: ${th.subject}`} onClick={() => star.mutate({ id: th.id, on: !th.starred })}>{th.starred ? t('mail.unstar') : t('mail.star')}</button>
+                <button type="button" className="link" aria-label={`${th.archived ? t('mail.unarchive') : t('mail.archive')}: ${th.subject}`} onClick={() => archive(th.id, !th.archived)}>{th.archived ? t('mail.unarchive') : t('mail.archive')}</button>
               </p>
             </div>
           </li>
@@ -326,7 +326,7 @@ function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; thread
         {m.deleted ? <p className="muted">{t('mail.deleted')}</p> : <RichText body={m.body} className="post-body" />}
         {!m.deleted && canAct && !isPending(m.id) && (
           <footer className="post-actions">
-            {m.mine ? <button type="button" className="link" onClick={onDelete}>{t('mail.delete')}</button> : m.author.id && <ReportMessage threadId={threadId} messageId={m.id} />}
+            {m.mine ? <button type="button" className="link" aria-label={`${t('mail.delete')}: ${t('mail.messageFrom', { name })}`} onClick={onDelete}>{t('mail.delete')}</button> : m.author.id && <ReportMessage threadId={threadId} messageId={m.id} from={name} />}
           </footer>
         )}
       </article>
@@ -334,7 +334,7 @@ function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; thread
   );
 }
 
-function ReportMessage({ threadId, messageId }: { threadId: string; messageId: string }) {
+function ReportMessage({ threadId, messageId, from }: { threadId: string; messageId: string; from: string }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<(typeof REPORT_CATEGORIES)[number]>('abuse');
@@ -343,7 +343,7 @@ function ReportMessage({ threadId, messageId }: { threadId: string; messageId: s
   if (send.isSuccess) return <span className="muted" role="status">{t('mail.report.sent')}</span>;
   return (
     <>
-      <button type="button" className="link" onClick={() => setOpen(!open)} aria-expanded={open}>{t('mail.report')}</button>
+      <button type="button" className="link" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`${t('mail.report')}: ${t('mail.messageFrom', { name: from })}`}>{t('mail.report')}</button>
       {open && (
         <form className="panel" aria-label={t('mail.report.title')} onSubmit={(e) => { e.preventDefault(); send.mutate(); }}>
           <p className="hint">{t('mail.report.intro')}</p>

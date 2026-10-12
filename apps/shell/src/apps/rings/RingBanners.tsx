@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { useConfirm, undoable } from '../../components/feedback';
 import { Alert, CopyButton, TextField } from '../../components/ui';
+import { en } from '@app/strings';
 import { errorText, useMe, useT } from '../../hooks';
 
 type Kind = '468x60' | '88x31';
@@ -56,7 +57,7 @@ export function BannerManager({ slug, name }: { slug: string; name: string }) {
               </label>
               {b && <button type="button" className="btn btn-quiet" onClick={() => { setGoing((g) => [...g, kind]); undoable(t('rings.banners.removed'), () => api.del(`/rings/${slug}/banner/${kind}`).then(refresh), { onUndo: () => setGoing((g) => g.filter((x) => x !== kind)), onError: () => setGoing((g) => g.filter((x) => x !== kind)) }); }}>{t('rings.banners.remove')}</button>}
               {b && me?.role === 'admin' && (b.hidden
-                ? <button type="button" className="btn btn-quiet" onClick={() => hide.mutate({ kind, on: false, reason: 'Restored' })}>{t('rings.banners.restore')}</button>
+                ? <button type="button" className="btn btn-quiet" onClick={() => hide.mutate({ kind, on: false, reason: en['moderation.reason.restored'] })}>{t('rings.banners.restore')}</button>
                 : <button type="button" className="btn btn-quiet" onClick={() => setReasonFor(kind)}>{t('classics.hide')}</button>)}
             </div>
             {reasonFor === kind && (

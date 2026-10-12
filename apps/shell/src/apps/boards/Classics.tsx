@@ -4,6 +4,7 @@ import { BULLETIN_BODY_MAX, BULLETIN_TITLE_MAX, ONELINER_MAX, POLL_OPTIONS_MAX, 
 import { api } from '../../api';
 import { useConfirm } from '../../components/feedback';
 import { Alert, BackLink, EmptyState, Loading, RelativeTime, TextField } from '../../components/ui';
+import { en } from '@app/strings';
 import { errorText, useMe, useT } from '../../hooks';
 import { RichText } from '../../components/RichText';
 import { AppLink, useAppNav, useSubtitle } from '../../nav';
@@ -88,7 +89,7 @@ export function BulletinPage({ number }: { number: number }) {
       {me?.role === 'admin' && !editing && (
         <div className="toolbar">
           <button type="button" className="btn" onClick={() => setEditing(true)}>{t('edit.edit')}</button>
-          <button type="button" className="btn btn-quiet" onClick={() => { void confirm({ message: t('classics.bulletins.hideConfirm'), confirmLabel: t('classics.hide'), danger: true }).then((ok) => ok && hide.mutate('Taken down by an admin')); }}>{t('classics.hide')}</button>
+          <button type="button" className="btn btn-quiet" onClick={() => { void confirm({ message: t('classics.bulletins.hideConfirm'), confirmLabel: t('classics.hide'), danger: true }).then((ok) => ok && hide.mutate(en['moderation.reason.takenDown'])); }}>{t('classics.hide')}</button>
         </div>
       )}
     </article>
@@ -170,7 +171,7 @@ export function PollPage({ id }: { id: string }) {
   const confirm = useConfirm();
   const q = useQuery({ queryKey: ['classics', 'poll', id], queryFn: () => api.get<PollView>(`/polls/${id}`) });
   const hide = useMutation({
-    mutationFn: () => api.post(`/admin/polls/${id}/hide`, { reason: 'Taken down by an admin' }),
+    mutationFn: () => api.post(`/admin/polls/${id}/hide`, { reason: en['moderation.reason.takenDown'] }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['classics'] }); nav.go('polls'); },
   });
   useSubtitle(q.data?.question ?? null);

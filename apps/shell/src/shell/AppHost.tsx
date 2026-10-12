@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { connect, WindowMessenger, type Connection } from 'penpal';
 import type { AppPermission, CatalogApp } from '@app/shared';
+import { en } from '@app/strings';
 import { api, ApiError } from '../api';
 import { toast as sonner } from 'sonner';
 import { Alert } from '../components/ui';
@@ -30,7 +31,7 @@ function themeNow(): { vars: Record<string, string>; scheme: 'light' | 'dark' } 
 }
 
 class Refused extends Error {}
-const plain = (e: unknown) => (e instanceof ApiError || e instanceof Refused ? e.message : 'Something went wrong.');
+const plain = (e: unknown) => (e instanceof ApiError || e instanceof Refused ? e.message : en['common.wentWrong']);
 
 // The calls an app may make, given what it asked for. Anything else is refused with a plain message.
 export function bridgeFor(app: CatalogApp, deps: {

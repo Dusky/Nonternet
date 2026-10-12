@@ -263,3 +263,19 @@ Terminal (long pastes sent in pieces), People (Away shown without a status), Hom
 when push is configured, and a lost fetch (a restart in between) only leaves the address as the title, which the person can
 edit. A set in memory says which bookmarks are still being read (`fetching` in the view). If core ever runs as more than
 one process, this moves to the job queue.
+
+### 2026-10-11 — Text, accessibility and docs pass after the reviews
+- **Names:** repeated row actions in Mail (inbox rows, each message) and the homepage guestbook now say what they act on
+  ("Archive: <subject>", "Delete: message from <name>"), the pattern the other apps already use.
+- **Words in the strings pack:** the generic error shown for app failures, the wiki's `[picture: …]` line, the Studio
+  "Folder" label, the admin status words (OK / Down), moderation reasons written to the audit log, and weekday names in the
+  stats heatmap (now from the reader's locale). `apps/shell/src/literals.test.ts` fails if English is written straight into
+  `aria-label`, `placeholder` or `title`. Key names on the Terminal key bar (Ctrl, Alt, F1…) stay as typed on a keyboard.
+  The key bar also gains `^C`, which `docs/04` promised.
+- **Admin Settings:** grouped by area, searchable, with an "only the ones I have changed" filter; a rolled-back or reset
+  setting now shows its new value.
+- **Docs synced:** the "what each app has" table in `23`, ring boards in `05`, regex alias captures in `09`, Memos and
+  Wiki status in `16`.
+- **OPEN (not decided here): the language of server messages.** Core's error messages and the shared zod messages are
+  English literals. The reviews flagged them in Mail, Rings, Wiki and Chat. Decide whether the server sends message codes the
+  shell translates, before any second language is added.

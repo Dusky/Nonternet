@@ -58,7 +58,7 @@ for future federation (`12`).
   cannot show. Libraries: `wrap-ansi` (wrapping), `iconv-lite` (CP437).
 - Quotas: `limits.trusted_board_quota` (default 3) counts a user's boards that are not archived;
   admins have none.
-- Ring boards cannot be created yet (M3). Until then a `ring` board takes no posts.
+- A ring board is created with its ring (`06`) and takes posts like any board; it is managed through the ring, not the Boards app.
 
 ## As built (M2, Boards app)
 - The Boards app is public: `/boards` opens without an account, with a login link in place of the

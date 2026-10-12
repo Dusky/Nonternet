@@ -169,6 +169,7 @@ The MUD becomes a procedurally generated tower (`18`, `17` D22).
 
 ## Wiki (2026-10-05, owners' choice) — DONE
 The site wiki and ring wikis (`20`).
+Follow-ups from the app review, built 2026-10-11: New page box, moderators' hidden/deleted list, live updates, contents list. Still open: link autocomplete in the editor.
 - [x] **K1:** the markup parser (shared) and core: tables, rules, routes, history, conflicts, moderation, export, deletion.
 - [x] **K2:** the Wiki app in the shell.
 - [x] **K3:** read-only in the BBS, Gopher and Gemini; an Atom feed of recent changes; docs.
@@ -188,7 +189,7 @@ A personal hub with saved links, shared as private, public or into a ring (`21`)
 - [x] **B3:** sharing, reports and hiding.
 - [x] **B4:** share target, browser file import, link checking.
 
-## Memos (2026-10-06, owners' choice) — PLANNED
+## Memos (2026-10-06, owners' choice) — DONE
 A private-by-default microblog feed (`22`).
 - [x] **M1:** core. [x] **M2:** the app and the home panel box. [x] **M3:** public and ring memos, replies, reactions, feeds, moderation.
 

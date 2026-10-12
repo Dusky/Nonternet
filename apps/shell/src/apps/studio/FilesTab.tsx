@@ -73,7 +73,7 @@ export function Files({ mine }: { mine: Mine }) {
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop}
       className={dragging ? 'dropzone is-over' : 'dropzone'}
     >
-      <nav aria-label="Folder" className="crumbs">
+      <nav aria-label={t('studio.files.folder')} className="crumbs">
         <button type="button" className="link" onClick={() => setFolder('')} aria-current={folder === '' ? 'true' : undefined}>{t('studio.files.root')}</button>
         {parts.map((p, i) => (
           <span key={i}> / <button type="button" className="link" onClick={() => setFolder(parts.slice(0, i + 1).join('/'))}>{p}</button></span>

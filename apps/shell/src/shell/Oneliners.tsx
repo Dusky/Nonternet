@@ -4,6 +4,7 @@ import { ONELINER_MAX, type OnelinerView } from '@app/shared';
 import { api } from '../api';
 import { useConfirm } from '../components/feedback';
 import { Alert, RelativeTime } from '../components/ui';
+import { en } from '@app/strings';
 import { errorText, useMe, useT } from '../hooks';
 import { OpenAppLink } from './OpenAppLink';
 
@@ -18,7 +19,7 @@ export function Oneliners() {
   const refresh = () => qc.invalidateQueries({ queryKey: ['classics', 'oneliners'] });
   const post = useMutation({ mutationFn: () => api.post('/oneliners', { body: text }), onSuccess: () => { setText(''); void refresh(); } });
   const del = useMutation({ mutationFn: (id: string) => api.del(`/oneliners/${id}`), onSuccess: () => void refresh() });
-  const hide = useMutation({ mutationFn: (id: string) => api.post(`/admin/oneliners/${id}/hide`, { reason: 'Taken down by an admin' }), onSuccess: () => void refresh() });
+  const hide = useMutation({ mutationFn: (id: string) => api.post(`/admin/oneliners/${id}/hide`, { reason: en['moderation.reason.takenDown'] }), onSuccess: () => void refresh() });
   if (q.isError) return null; // the wall is a nicety: say nothing if it can't load
   return (
     <section className="panel wall-panel" aria-labelledby="home-wall">

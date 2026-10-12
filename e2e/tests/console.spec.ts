@@ -123,3 +123,29 @@ test('an admin makes board categories, files a board under one, reorders and del
   await page.goto('/boards');
   await expect(page.getByRole('link', { name: `Filed ${tag}` })).toBeVisible(); // still there, unfiled
 });
+
+test('the admin settings page is grouped, searchable, and can show only what was changed', async ({ page }) => {
+  const admin = await makeAdmin(page);
+  await signIn(page, admin.handle, admin.password, { totp: await totp(admin.secret, 1) });
+  await page.goto('/admin/settings');
+  await expect(page.getByRole('heading', { name: 'Limits and quotas' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Joining' })).toBeVisible();
+  await page.getByLabel('Find a setting').fill('theme');
+  await expect(page.getByRole('heading', { name: 'Look', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Limits and quotas' })).toHaveCount(0);
+  await page.getByLabel('Find a setting').fill('zzzz-nothing');
+  await expect(page.getByText('No setting matches.')).toBeVisible();
+  await page.getByLabel('Find a setting').fill('');
+  // Change one, and "only the ones I have changed" leaves just that one.
+  const row = page.getByRole('region', { name: /^Minimum age/ });
+  const now = await row.getByLabel('New value').inputValue(); // the desktop and phone runs share one site
+  await row.getByLabel('New value').fill(now === '18' ? '19' : '18');
+  await row.getByLabel('Reason').fill('testing the filter');
+  await row.getByRole('button', { name: 'Review change' }).click();
+  const confirm = row.getByRole('button', { name: 'Make this change' });
+  if (await confirm.isVisible().catch(() => false)) await confirm.click();
+  await expect(row.getByText(/version 1|Version 1/i)).toBeVisible();
+  await page.getByLabel('Only the ones I have changed').check();
+  await expect(page.getByRole('region', { name: /^Minimum age/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Limits and quotas' })).toHaveCount(0);
+});

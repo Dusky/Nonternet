@@ -7,12 +7,12 @@ but late. Notifications come straight after readable text.
 ## Where things stand (checked 2026-10-07)
 | App | Has | Thin |
 |---|---|---|
-| Boards | threads, replies, edit history, pins, reactions, mentions, watch a board, mute, search, lock / move / hide, mod log, drafts | posts render as plain preformatted text (no formatting, no clickable links, no images); no following one thread; no quote-reply; no thread sorting or unanswered view; no polls in threads |
-| Mail | 1:1 and small groups, add people, leave, delete, report, block, mute, search | plain-text body; no archive or star; group conversations can't be renamed; no attachments |
-| Notifications | replies, mentions, watched boards | three kinds only, and the table needs a post and a board on every row (`0007_notifications.sql`), so nothing else can notify; no grouping, filters or "mark one read" |
-| People | directory, who's online, profile with status, `.plan`, homepage link, feed | no activity on profiles (posts, rings, wiki edits); no links or optional fields |
-| Homepages directory | list, random | no sorting by recently updated, no tags, no "new this week" |
-| Chat (web) | channels, mentions, history, away, private chats | not reviewed for this pass |
+| Boards | threads, replies, formatting and links, quote-reply, edit history, pins, reactions, mentions, follow a thread, watch a board, mute, search (whole site or one board), sort and unanswered/unread filters, board rules, polls, pictures, per-thread read tracking, jump to the first new post, lock / move / hide, mod log, drafts | the categories screen is in the admin console, not the Boards app |
+| Mail | 1:1 and small groups, add people, leave, rename a group, delete, report, block, mute, search, star, archive, mark unread, pictures, paging of long threads, a New messages line, keyboard shortcuts | no attachments other than pictures |
+| Notifications | replies, mentions, reactions, mail, ring and memo news, watched boards and followed threads | blocked people never notify; grouping, day headings, filter tabs and per-row read/unread are built |
+| People | directory, who's online, profile with status, `.plan`, pronouns, place and links, recent activity, homepage link, feed | handle-history redirects and reporting a person are OPEN (`17`) |
+| Homepages directory | list, random, sort (recently updated, name, new this week), filter by ring | no tags or neighbourhoods (OPEN, `17`) |
+| Chat (web) | channels, mentions, history, away, private chats, per-conversation drafts, find in a conversation, start a channel, edit the topic, join/leave lines per channel, keyboard switching | push for DMs and mentions is not built (needs Ergo-side support, see `08`) |
 
 ## Phases
 Each phase is tested and pushed on its own. Bookmarks (`21`) and memos (`22`) fit after E1, because memos use the
@@ -105,8 +105,8 @@ same formatting.
   the address. Wiki pages do not take pictures yet.
 
 ### E7 — Chat check-up (reviewed and passed 2026-10-10)
-Review the web chat window against the other apps (channel list and joining, topics, the people list, search in
-history), then plan its pass here.
+The web chat window was reviewed against the other apps (channel list and joining, topics, the people list, search in
+history) and its pass is built; see `08` (web client).
 
 ## Rules for every phase
 - New user content is in the export, import where it applies, and account deletion.

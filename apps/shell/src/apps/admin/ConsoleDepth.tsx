@@ -84,7 +84,8 @@ function LineChart({ label, series, days }: { label: string; series: { name: str
   );
 }
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// Monday first, named in the reader's own language (2024-01-01 was a Monday).
+const DAYS = Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(2024, 0, 1 + i)));
 
 export function StatsPanel() {
   const t = useT();

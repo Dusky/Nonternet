@@ -140,7 +140,7 @@ function Guestbook({ handle }: { handle: string }) {
             {e.url && <p className="hint"><a href={e.url} target="_blank" rel="nofollow ugc noopener noreferrer">{e.url}</a></p>}
             {me && (reported === e.id
               ? <span className="muted" role="status">{t('guestbook.reported')}</span>
-              : <button type="button" className="link" onClick={() => report.mutate(e.id)}>{t('guestbook.report')}</button>)}
+              : <button type="button" className="link" aria-label={`${t('guestbook.report')}: ${t('guestbook.entryFrom', { name: e.name })}`} onClick={() => report.mutate(e.id)}>{t('guestbook.report')}</button>)}
           </li>
         ))}
       </ul>

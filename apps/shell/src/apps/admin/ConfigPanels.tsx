@@ -1,7 +1,7 @@
 import { THEMES } from '@app/shared';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { StringKey } from '@app/strings';
+import { en, type StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, TextField, Loading, EmptyState } from '../../components/ui';
 import { AnnouncementBox } from '../../components/Announcements';
@@ -21,14 +21,37 @@ const shown = (t: ReturnType<typeof useT>, key: string, v: unknown): string =>
 export function SettingsPanel() {
   const t = useT();
   const q = useQuery({ queryKey: ['admin', 'settings'], queryFn: () => api.get<{ settings: SettingRow[]; readonly: { name: string; domain: string; homes_domain: string } }>('/admin/settings') });
+  const [find, setFind] = useState('');
+  const [changedOnly, setChangedOnly] = useState(false);
   if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
   if (!q.data) return <Loading />;
   const r = q.data.readonly;
+  const needle = find.trim().toLowerCase();
+  // A group with no name of its own shows its key, so a new setting area can never break the page.
+  const groupName = (n: string) => (`admin.config.group.${n}` in en ? t(`admin.config.group.${n}` as StringKey) : n);
+  const shownSettings = q.data.settings.filter((s) => (!changedOnly || s.overridden) && (!needle || `${s.key} ${t(label(s.key))}`.toLowerCase().includes(needle)));
+  const groups = [...new Set(shownSettings.map((s) => s.key.split('.')[0]!))].map((name) => ({ name, rows: shownSettings.filter((s) => s.key.startsWith(`${name}.`)) }));
   return (
     <>
       <h2>{t('admin.tab.config')}</h2>
       <p className="hint">{t('admin.config.readonly', { name: r.name, domain: r.domain, homes: r.homes_domain })}</p>
-      {q.data.settings.map((s) => <Setting key={s.key} s={s} />)}
+      <div className="toolbar">
+        <TextField label={t('admin.config.search')} type="search" value={find} onChange={setFind} autoCapitalize="none" spellCheck={false} />
+        <label className="check"><input type="checkbox" checked={changedOnly} onChange={(e) => setChangedOnly(e.target.checked)} /> {t('admin.config.changedOnly')}</label>
+      </div>
+      {groups.length > 1 && !needle && (
+        <nav aria-label={t('admin.config.groups')} className="choice-row">
+          {groups.map((g) => <a key={g.name} href={`#settings-${g.name}`} className="badge tag">{groupName(g.name)}</a>)}
+        </nav>
+      )}
+      {shownSettings.length === 0 && <EmptyState>{t('admin.config.noMatch')}</EmptyState>}
+      {groups.map((g) => (
+        <section key={g.name} aria-labelledby={`settings-${g.name}`}>
+          <h3 id={`settings-${g.name}`} className="settings-group">{groupName(g.name)}</h3>
+          {/* Keyed by version, so a rollback or "use the file's value" shows the new value, not the one typed before. */}
+          {g.rows.map((s) => <Setting key={`${s.key}:${s.version}:${s.overridden}`} s={s} />)}
+        </section>
+      ))}
     </>
   );
 }

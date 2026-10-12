@@ -50,7 +50,7 @@ Owners' choices: **rules, no code**, and the rules **kept on the account** (`cli
   (everything escaped).
 - **Input**: history kept on the account (200, newest first; Up and Down), a command separator (default `;`, doubled to send it as text),
   **speedwalk** (`#3n 2e`) and **repeat** (`#5 kill rat`), a line starting with a space is sent exactly as typed. One line sends at most 50 commands.
-- **Aliases**: starts with / is exactly / regular expression; `$1`… `$*` for what follows, `@name` for variables; aliases may use aliases, 8 deep.
+- **Aliases**: starts with / is exactly / regular expression; `$1`… for the parts of a match (for a regular expression, `$*` is capture group 1; otherwise it is everything after the alias), `@name` for variables; aliases may use aliases, 8 deep.
 - **Triggers**: contains / starts with / is exactly / regular expression over each line (colours removed), with up to 8 actions: send, colour
   the match or the line, hide the line, copy it to a named side window, chime, desktop notice when the tab is in the background, set a variable
   from a capture. Triggers may send at most 40 commands per 10 seconds; past that they pause and say so.
