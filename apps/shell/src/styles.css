@@ -1473,3 +1473,6 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 
 /* The Add apps cards keep their own padding (the generic row padding has none at the sides). */
 .rows.app-catalog > li.app-card { padding: var(--space-4); }
+.notif-row .row-head { flex-wrap: nowrap; gap: var(--space-2); }
+.notif-row .row-head .badge { white-space: nowrap; flex: none; }
+@media (max-width: 899px) { .wiki-bar.is-editing { display: none; } }

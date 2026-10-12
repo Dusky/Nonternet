@@ -120,6 +120,7 @@ interface Row {
 const FROM = `FROM notifications n
   JOIN users u ON u.id = n.actor_id
   LEFT JOIN posts p ON p.id = n.post_id
+  LEFT JOIN posts tp ON tp.id = COALESCE(p.thread_root_id, p.id)
   LEFT JOIN boards b ON b.id = n.board_id
   LEFT JOIN rings r ON r.id = n.ref AND n.kind IN ('ring_invite', 'ring_request', 'ring_joined')
   LEFT JOIN mail_threads mt ON mt.id = n.ref AND n.kind = 'mail'
@@ -144,7 +145,7 @@ export async function listNotifications(deps: AppDeps, v: SessionUser, opts: { b
   const r = await deps.db.query<Row>(
     `SELECT n.id, n.kind, n.created_at, n.read_at, n.count, n.ref, b.slug, b.name AS board_name, p.id AS post_id,
             COALESCE(p.thread_root_id, p.id) AS thread_id,
-            COALESCE(NULLIF(p.subject, ''), mt.subject, left(mm.body, 80), '') AS subject, r.slug AS ring_slug, r.name AS ring_name, mt.subject AS mail_subject,
+            COALESCE(NULLIF(tp.subject, ''), NULLIF(p.subject, ''), mt.subject, left(mm.body, 80), '') AS subject, r.slug AS ring_slug, r.name AS ring_name, mt.subject AS mail_subject,
             mm.body AS memo_body, COALESCE(mm.reply_to, mm.id) AS memo_root,
             u.id AS actor_id, u.handle, u.display_name
      ${FROM}

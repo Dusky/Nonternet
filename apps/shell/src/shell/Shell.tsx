@@ -142,6 +142,11 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
               <Clock />
             </span>
           )}
+          {!desktop && (
+            <button type="button" className="btn btn-quiet bell" onClick={() => setPalette(true)} aria-label={t('palette.open')}>
+              <Icon name="search" size={22} />
+            </button>
+          )}
           {confirmed && (
             <button type="button" className="btn btn-quiet bell" onClick={() => launch('mail')}
               aria-label={unreadMail > 0 ? t('mail.bellCount', { count: unreadMail }) : t('mail.bell')}>

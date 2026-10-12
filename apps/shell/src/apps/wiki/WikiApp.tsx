@@ -85,8 +85,11 @@ function NewPage({ info, base }: Props) {
 
 function WikiBar({ info, base }: Props) {
   const t = useT();
+  const nav = useAppNav();
+  // While writing, a phone gets the text box first: the bar is folded away until the page is saved or left.
+  const editing = /\/edit$/.test(nav.path);
   return (
-    <nav className="wiki-bar" aria-label={t('wiki.nav')}>
+    <nav className={`wiki-bar${editing ? ' is-editing' : ''}`} aria-label={t('wiki.nav')}>
       <strong>{info.ring ? t('wiki.ofRing', { name: info.ring.name }) : t('wiki.title')}</strong>
       <AppLink to={base || ''}>{t('wiki.home')}</AppLink>
       <AppLink to={`${base}pages`}>{t('wiki.allPages')}</AppLink>
@@ -399,7 +402,7 @@ function RevisionScreen({ info, base, slug, revision }: Props & { slug: string; 
       <h2 id="wiki-rev-h">{r.data?.title ?? titleFromSlug(slug)} <span className="badge">{t('wiki.revision', { n: revision })}</span></h2>
       {r.isPending && <Loading rows={4} />}
       {r.isError && <Alert kind="error">{errorText(r.error)}</Alert>}
-      {r.data && <p className="row-meta">{r.data.editor ? `@${r.data.editor.handle}` : t('wiki.deletedAccount')} · <RelativeTime iso={r.data.created_at} />{r.data.summary ? ` · ${r.data.summary}` : ''}</p>}
+      {r.data && <p className="row-meta">{r.data.editor ? <PersonLink app="people" to={r.data.editor.handle}>@{r.data.editor.handle}</PersonLink> : t('wiki.deletedAccount')} · <RelativeTime iso={r.data.created_at} />{r.data.summary ? ` · ${r.data.summary}` : ''}</p>}
       {r.data && (r.data.body === null ? <Alert kind="info">{t('wiki.textHiddenNote')}</Alert> : <WikiText body={r.data.body} base={base} exists={(s) => known.get(s) ?? false} />)}
     </article>
   );
@@ -471,7 +474,7 @@ function Changes({ info, base }: Props) {
           <li key={`${c.page.slug}-${c.revision}`}>
             <div className="row-head">
               <span><AppLink to={`${base}p/${c.page.slug}`}><strong>{c.page.title}</strong></AppLink>{' '}{c.created && <span className="badge">{t('wiki.newPageBadge')}</span>}</span>
-              <span className="row-meta">{c.editor ? `@${c.editor.handle}` : t('wiki.deletedAccount')} · <RelativeTime iso={c.created_at} /></span>
+              <span className="row-meta">{c.editor ? <PersonLink app="people" to={c.editor.handle}>@{c.editor.handle}</PersonLink> : t('wiki.deletedAccount')} · <RelativeTime iso={c.created_at} /></span>
             </div>
             {c.summary && <p>{c.summary}</p>}
             {!c.created && <AppLink className="row-meta" to={`${base}p/${c.page.slug}/compare/${c.revision - 1}/${c.revision}`}>{t('wiki.whatChanged')}</AppLink>}

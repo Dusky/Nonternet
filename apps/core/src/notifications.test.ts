@@ -61,6 +61,13 @@ describe.skipIf(!dbAvailable)('notifications', () => {
     await clear('alice');
   });
 
+  it('names the thread, not the reply, on a reply notification', async () => {
+    const t = await post('alice', 'about the subject', { subject: 'The thread subject' });
+    await post('bob', 'a reply', { reply_to: t.id, subject: 'Re: The thread subject' });
+    expect((await inbox('alice')).notifications[0]).toMatchObject({ kind: 'reply', subject: 'The thread subject' });
+    await clear('alice');
+  });
+
   it('tells people who are mentioned, and sends one notification when a person is both replied to and mentioned', async () => {
     const t = await post('alice', 'thread two');
     await post('bob', 'hello @carol and @alice', { reply_to: t.id });
