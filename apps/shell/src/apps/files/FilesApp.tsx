@@ -268,20 +268,21 @@ function Upload({ slug }: { slug: string }) {
   const patch = (i: number, p: Partial<QueueItem>) => setQueue((q) => q.map((x, n) => (n === i ? { ...x, ...p } : x)));
   const run = async () => {
     setBusy(true);
+    let allSent = true; // title and description are kept when anything failed, so the retry needs no retyping
     for (let i = 0; i < queue.length; i++) {
       const item = queue[i]!;
-      if (item.state === 'done' || tooBig(item.file)) continue;
+      if (item.state === 'done') continue;
+      if (tooBig(item.file)) { allSent = false; continue; }
       patch(i, { state: 'sending', progress: 0, error: undefined });
       try {
         const single = queue.length === 1;
         const p = new URLSearchParams({ name: (single && name) || item.file.name.replace(/\s+/g, '_'), title: single ? title : '', description: single ? description : '' });
         await api.uploadWithProgress<FileView>(`/files/areas/${encodeURIComponent(slug)}/files?${p}`, item.file, (progress) => patch(i, { progress }));
         patch(i, { state: 'done', progress: 1 });
-      } catch (e) { patch(i, { state: 'failed', error: errorText(e) }); }
+      } catch (e) { allSent = false; patch(i, { state: 'failed', error: errorText(e) }); }
     }
     setBusy(false);
-    setTitle(''); setDescription('');
-    if (input.current) input.current.value = '';
+    if (allSent) { setTitle(''); setDescription(''); if (input.current) input.current.value = ''; }
     void qc.invalidateQueries({ queryKey: ['files'] });
   };
   const onDrop = (e: DragEvent) => { e.preventDefault(); setOver(false); if (!busy) pick(e.dataTransfer.files); };
