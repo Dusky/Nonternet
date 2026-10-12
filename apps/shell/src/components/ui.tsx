@@ -1,8 +1,8 @@
-import { useEffect, useId, useState, type CSSProperties, type InputHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type InputHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { useMe, useT } from '../hooks';
-import { AppLink, AppNavLink } from '../nav';
+import { AppLink, AppNavLink, useAppNav } from '../nav';
 import { Icon, type IconName } from './Icon';
 import { LostWindows, Spot, type SpotKind } from './Spots';
 
@@ -115,10 +115,25 @@ export function BackLink({ to, children }: { to: string; children: ReactNode }) 
   return <AppLink to={to} className="back-link"><Icon name="back" />{children}</AppLink>;
 }
 
+// In a row of sections that scrolls sideways (a phone), the current one is brought into view.
+function useScrollToCurrent<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const nav = useAppNav();
+  useEffect(() => {
+    const cur = ref.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    const row = ref.current;
+    if (!cur || !row || row.scrollWidth <= row.clientWidth) return; // nothing is hidden
+    const a = cur.getBoundingClientRect(); const b = row.getBoundingClientRect();
+    row.scrollLeft += (a.left - b.left) - (b.width - a.width) / 2;
+  }, [nav.path]);
+  return ref;
+}
+
 // Section tabs inside an app; the current one is marked for screen readers too.
 export function Tabs({ label, items }: { label: string; items: { to: string; label: string; onClick?: (e: MouseEvent<HTMLAnchorElement>) => void }[] }) {
+  const ref = useScrollToCurrent<HTMLElement>();
   return (
-    <nav className="tabs" aria-label={label}>
+    <nav className="tabs" aria-label={label} ref={ref}>
       {items.map((i) => <AppNavLink key={i.to} to={i.to} onClick={i.onClick}>{i.label}</AppNavLink>)}
     </nav>
   );
@@ -127,10 +142,11 @@ export function Tabs({ label, items }: { label: string; items: { to: string; lab
 // A list of sections down the side (on narrow screens it becomes a row of chips), and the section
 // beside it. For apps with many sections: Settings, the admin console.
 export function SideNav({ label, groups, children }: { label: string; groups: { label?: string; items: { to: string; label: string }[] }[]; children: ReactNode }) {
+  const ref = useScrollToCurrent<HTMLElement>();
   return (
     <div className="app-frame">
       <div className="split">
-        <nav className="side-nav" aria-label={label}>
+        <nav className="side-nav" aria-label={label} ref={ref}>
           {groups.map((g, i) => (
             <div key={g.label ?? i} className="side-nav-group">
               {g.label && <p className="side-nav-label" aria-hidden="true">{g.label}</p>}

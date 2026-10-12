@@ -149,3 +149,20 @@ test('the admin settings page is grouped, searchable, and can show only what was
   await expect(page.getByRole('region', { name: /^Minimum age/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Limits and quotas' })).toHaveCount(0);
 });
+
+test('on a phone the current page is in view in the admin and Settings rows of sections', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'the rows only scroll sideways on a phone');
+  const admin = await makeAdmin(page);
+  await signIn(page, admin.handle, admin.password, { totp: await totp(admin.secret, 1) });
+  const inView = async (nav: string, link: string) => {
+    const row = (await page.getByRole('navigation', { name: nav }).boundingBox())!;
+    const cur = (await page.getByRole('navigation', { name: nav }).getByRole('link', { name: link, exact: true }).boundingBox())!;
+    expect(cur.x, `${link} starts inside the row`).toBeGreaterThanOrEqual(row.x - 1);
+    expect(cur.x + cur.width, `${link} ends inside the row`).toBeLessThanOrEqual(row.x + row.width + 1);
+  };
+  await page.goto('/admin/legal');
+  await expect(page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Legal', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect.poll(async () => { try { await inView('Admin', 'Legal'); return true; } catch { return false; } }).toBe(true);
+  await page.goto('/settings/blocked');
+  await expect.poll(async () => { try { await inView('Settings', 'Blocked'); return true; } catch { return false; } }).toBe(true);
+});
