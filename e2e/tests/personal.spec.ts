@@ -62,7 +62,7 @@ test('the directory finds people by name and filters by role', async ({ page }) 
   await scan(page, 'the directory');
 });
 
-test('turning off replies stops that notification, and a muted board goes quiet', async ({ page, browser }) => {
+test('turning off replies stops that notification, and a muted board goes quiet', async ({ page, browser, isMobile }) => {
   const owner = await makeUser(page);
   await setRole(owner.handle, 'trusted');
   const other = await makeUser(page);
@@ -87,8 +87,9 @@ test('turning off replies stops that notification, and a muted board goes quiet'
 
   await page.getByLabel('Someone replies to my post').check();
   await page.goto(`/boards/${slug}`);
-  await page.getByRole('button', { name: 'Mute', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Unmute', exact: true })).toBeVisible();
+  // On a phone the board's secondary actions are under More.
+  if (isMobile) { await page.getByRole('button', { name: 'More', exact: true }).click(); await page.getByRole('menuitem', { name: 'Mute', exact: true }).click(); await page.getByRole('button', { name: 'More', exact: true }).click(); await expect(page.getByRole('menuitem', { name: 'Unmute', exact: true })).toBeVisible(); await page.keyboard.press('Escape'); }
+  else { await page.getByRole('button', { name: 'Mute', exact: true }).click(); await expect(page.getByRole('button', { name: 'Unmute', exact: true })).toBeVisible(); }
   await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: 'another reply', reply_to: t.id }, headers: h });
   expect((await (await page.request.get('/api/v1/notifications/count')).json()).unread).toBe(0);
   await page.goto('/settings/notifications');
