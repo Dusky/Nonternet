@@ -200,8 +200,8 @@ function DeleteForm({ userId, handle, disabled, onDone }: { userId: string; hand
       <h3>{t('admin.user.delete')}</h3>
       <p className="hint">{t('admin.user.deleteHint')}</p>
       <fieldset>
-        <legend>{t('data.delete.postsLegend')}</legend>
-        <label className="check"><input type="radio" name={`dposts-${userId}`} checked={posts === 'keep'} onChange={() => setPosts('keep')} />{t('data.delete.postsKeep')}</label>
+        <legend>{t('admin.user.deletePostsLegend')}</legend>
+        <label className="check"><input type="radio" name={`dposts-${userId}`} checked={posts === 'keep'} onChange={() => setPosts('keep')} />{t('admin.user.deletePostsKeep')}</label>
         <label className="check"><input type="radio" name={`dposts-${userId}`} checked={posts === 'erase'} onChange={() => setPosts('erase')} />{t('data.delete.postsErase')}</label>
       </fieldset>
       <TextField label={t('field.reason')} value={reason} onChange={setReason} hint={t('admin.user.reasonHint')} disabled={disabled} />

@@ -37,6 +37,7 @@ function Find() {
   const me = useMe().data;
   const [handle, setHandle] = useState('');
   const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), enabled: Boolean(me && me.role !== 'guest'), refetchInterval: 60_000 });
+  const others = online.data?.people.filter((p) => p.id !== me?.id) ?? [];
   const go = (e: FormEvent) => { e.preventDefault(); const h = handle.trim().replace(/^@/, ''); if (h) nav.go(encodeURIComponent(h)); };
   return (
     <>
@@ -44,13 +45,12 @@ function Find() {
         <TextField label={t('people.find')} value={handle} onChange={setHandle} hint={t('people.findHint')} maxLength={40} autoCapitalize="none" spellCheck={false} />
         <button className="btn btn-primary" type="submit">{t('people.go')}</button>
       </form>
-      {me && me.role !== 'guest' && <Directory />}
       {online.data && (
         <section aria-labelledby="people-online">
-          <h2 id="people-online">{t('people.online', { count: online.data.people.length })}</h2>
-          {online.data.people.length === 0 ? <EmptyState icon="user">{t('people.onlineNone')}</EmptyState> : (
+          <h2 id="people-online">{t('people.online', { count: others.length })}</h2>
+          {others.length === 0 ? <EmptyState icon="user">{t('people.onlineNone')}</EmptyState> : (
             <ul className="cards">
-              {online.data.people.map((p) => (
+              {others.map((p) => (
                 <li key={p.id} className="person-card">
                   <AppLink to={encodeURIComponent(p.handle)} className="person"><Avatar id={p.id} name={p.display_name || p.handle} /><span><strong>{p.display_name || p.handle}</strong><br /><span className="row-meta">@{p.handle}</span></span></AppLink>
                   {(p.status_line || p.away) && <p className="row-meta">{p.away ? `${t('people.away')}${p.status_line ? ' · ' : ''}` : ''}{p.status_line}</p>}
@@ -61,6 +61,7 @@ function Find() {
           )}
         </section>
       )}
+      {me && me.role !== 'guest' && <Directory />}
     </>
   );
 }

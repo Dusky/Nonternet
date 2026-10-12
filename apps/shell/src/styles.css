@@ -73,7 +73,7 @@ img { max-width: 100%; }
 .btn:hover:not(:disabled) { background: var(--surface2); }
 /* Pressed: the button drops into its shadow. */
 .btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
-.btn:disabled { color: var(--muted); background: var(--surface2); border-style: dashed; border-color: var(--muted); box-shadow: none; cursor: not-allowed; }
+.btn:disabled { color: var(--muted); background: var(--surface2); border-style: solid; border-color: var(--border); box-shadow: none; cursor: not-allowed; opacity: .8; }
 .btn svg { width: 18px; height: 18px; flex: none; }
 .btn-primary { background: var(--fill); color: var(--fill-text); }
 .btn-primary:hover:not(:disabled) { background: var(--fill); filter: brightness(1.05); }
@@ -83,6 +83,8 @@ img { max-width: 100%; }
 .btn-quiet { background: transparent; border-color: transparent; box-shadow: none; }
 .btn-quiet:hover:not(:disabled) { border-color: transparent; }
 .btn-quiet.is-active { border-color: var(--border); background: var(--surface2); }
+/* A switched-on toggle looks switched on: a stronger edge and a bar under it, so it is not colour alone. */
+.btn[aria-pressed="true"]:not(.btn-primary), .btn.is-active { border-color: var(--line-strong); background: var(--surface2); box-shadow: inset 0 -3px 0 var(--accent); }
 .btn-small { box-shadow: none; min-height: 32px; padding: 0 var(--space-3); font-size: var(--step--1); }
 .btn-icon { padding: 0; width: var(--control-h); }
 .link {
@@ -138,8 +140,8 @@ progress { width: 100%; height: 10px; accent-color: var(--accent); }
 .toolbar .spacer { flex: 1; }
 .toolbar label { white-space: nowrap; }
 /* In a row of actions, a quiet text button keeps a soft edge, so it reads as a button and not as loose bold words. */
-:is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions) .btn-quiet:not(.btn-icon) { border-color: var(--border); font-weight: 600; }
-:is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions) .btn-quiet:not(.btn-icon):hover:not(:disabled) { border-color: var(--line-strong); }
+:is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions, .chat-find, .mud-find, .terminal-keys, .terminal-find, .studio-tabs, .wiki-tabs, .picture-add) .btn-quiet:not(.btn-icon) { border-color: var(--border); font-weight: 600; }
+:is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions, .chat-find, .mud-find, .terminal-keys, .terminal-find, .studio-tabs, .wiki-tabs, .picture-add) .btn-quiet:not(.btn-icon):hover:not(:disabled) { border-color: var(--line-strong); }
 :is(.toolbar, .actions, .row-actions, .memo-actions, .file-actions) .btn-quiet.is-active { border-color: var(--line-strong); }
 
 /* Empty, loading and "something went wrong" states look the same in every app. */
@@ -781,7 +783,7 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 .scheme-choice.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .scheme-choice:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
 .scheme-swatch { display: inline-flex; align-items: center; justify-content: center; width: 3rem; height: 2rem; font-family: 'VT323', var(--font-mono); font-size: 1.2rem; border: 2px solid; border-radius: 2px; }
-.choice-row { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.choice-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
 .theme-swatch { display: grid; grid-template-columns: 2fr 1fr 1fr; height: 3.5rem; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
 
 /* ---- shell top: the taskbar and the banners under it */
@@ -844,7 +846,7 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 
 /* Reactions, edit history, new-posts divider (M9-C) */
 .reactions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin: var(--space-2) 0; }
-.chip { font: inherit; font-size: var(--step--1); padding: 2px var(--space-3); border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.chip { font: inherit; font-size: var(--step--1); min-height: 28px; padding: 2px var(--space-3); border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
 .chip:hover:not(:disabled) { border-color: var(--accent); }
 .chip.is-on { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
 .chip .count { font-variant-numeric: tabular-nums; margin-left: 2px; }
@@ -1455,3 +1457,9 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 
 /* No Ctrl key on a touch screen: the shortcut note is for keyboards. */
 @media (pointer: coarse) { .editor-key { display: none; } }
+
+.row-actions { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+@media (pointer: coarse) { .chip { min-height: 40px; padding-inline: var(--space-4); } }
+@media (max-width: 899px) {
+  .memo-write.is-idle :is(.editor-meta, .memo-who, [type=submit]) { display: none; }
+}

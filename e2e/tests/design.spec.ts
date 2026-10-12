@@ -168,3 +168,19 @@ test('terminal: the new screens keep their contrast', async ({ page }) => {
   await expect(page.getByRole('region', { name: /^Hello,/ })).toBeVisible();
   await scan(page, 'home (terminal)');
 });
+
+test('buttons: a disabled one is solid, not dashed, and a switched-on toggle looks different from an off one', async ({ page }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/memos');
+  const post = page.getByRole('button', { name: 'Post', exact: true });
+  await expect(post).toBeDisabled();
+  expect(await post.evaluate((el) => getComputedStyle(el).borderStyle)).toBe('solid');
+
+  await page.goto('/notifications');
+  const all = page.getByRole('button', { name: 'All', exact: true });
+  const unread = page.getByRole('button', { name: 'Unread', exact: true });
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  const look = (el: import('@playwright/test').Locator) => el.evaluate((n) => { const c = getComputedStyle(n); return `${c.boxShadow}|${c.borderColor}|${c.backgroundColor}`; });
+  expect(await look(all)).not.toBe(await look(unread));
+});

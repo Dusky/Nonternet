@@ -489,3 +489,29 @@ All are decorative (`aria-hidden`); the words beside them say everything. Code: 
   switches below it (Away, last seen) save as you flip them.
 - The export, import and delete intros now list what each really covers, from the exporters, the import parts and the
   deletion code; the two-factor screen says passkeys skip the code.
+
+## As built (hands-on review fixes, 2026-10-12)
+
+What the browser review of every app found, and how the shell now behaves:
+- **Offline is not signed out.** `useMe` keeps the last user the server named for this tab (session storage, forgotten on
+  a 401 or a clean "nobody"), so a reload with no network keeps the shell and its "You are offline" banner instead of the
+  visitor page (`lastUser.ts`). A tab that never knew a user still shows the visitor page; the server decides everything.
+- **Notes and announcements** sit bottom left on a big screen (the toasts are bottom centre), so they never cover a
+  window's minimize, maximize and close. On a phone they are one short line in the page.
+- **Chat, MUD and Terminal fill the phone screen** between the top bar and the tab bar, so the message box, the command
+  box and the prompt are always in view. The page scrolls only where the app needs more room (Chat's join forms).
+- **Rows of sections** (the admin console, Settings, app tabs) scroll the current one into view on a phone.
+- **Buttons:** a disabled button is solid and faded, not dashed; a toggle that is on (`aria-pressed`) has a stronger edge
+  and a bar under it; quiet buttons in find bars, key bars and Write/Preview groups keep a soft edge; chips are at least 28 px
+  tall (40 px on touch).
+- **The writing box's shortcut note** ("Ctrl+Enter sends.") is hidden on touch screens and says "saves" in edit forms.
+- **Memos:** on a phone an empty, unfocused write box folds down to its text area so the memos are on the first screen.
+- **Boards:** on a phone the board's secondary actions are in one "More" menu.
+- **People:** "Online now" comes before the directory and does not list you.
+- **Studio:** moving to another section with unsaved changes asks first, and discarding clears the draft; a new file must be
+  text (the list of editable extensions is shared, `HOME_EDITABLE_EXTENSIONS`).
+- **Notifications:** "Mark all read" marks only the tab you are on.
+- **Admin Status:** the disk tile shows the total as well as what is free, the charts say they update every 5 minutes, and the
+  IRC "connected" count leaves out the site's own bot.
+- Still on the list (not done): the Mail compose and Wiki editor phone layouts, the Boards badge versus the home "new posts"
+  tile (they count different things: things aimed at you, and unread posts), and the per-app quick wins in the reviews.

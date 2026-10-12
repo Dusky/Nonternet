@@ -19,7 +19,7 @@ export function Password() {
   });
   return (
     <Section id="password-h" title={t('settings.tab.password')} scope="account">
-      <Form f={f} submitLabel={t('settings.tab.password')} extra={changed && !f.serverError ? <Alert kind="success">{t('settings.password.changed')}</Alert> : null}>
+      <Form f={f} submitLabel={t('settings.password.change')} extra={changed && !f.serverError ? <Alert kind="success">{t('settings.password.changed')}</Alert> : null}>
         <Field f={f} name="current_password" label={t('field.currentPassword')} type="password" autoComplete="current-password" onInput={() => setChanged(false)} />
         <Field f={f} name="new_password" label={t('field.newPassword')} type="password" hint={t('auth.signup.passwordHint')} autoComplete="new-password" onInput={() => setChanged(false)} />
       </Form>

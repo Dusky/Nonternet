@@ -54,6 +54,7 @@ export function StatusPanel() {
   const s = q.data;
   if (!s) return <Loading />;
   const free = (d: { free_bytes: number } | null) => (d ? size(d.free_bytes) : '?');
+  const total = (d: { total_bytes: number } | null) => (d ? size(d.total_bytes) : '?');
   const c = s.counts;
   return (
     <>
@@ -72,11 +73,12 @@ export function StatusPanel() {
         <Tile title={t('admin.status.tile.redis')} value={s.redis.configured ? (s.redis.ok ? t('admin.status.ok') : t('admin.status.problem')) : '–'} detail={s.redis.configured ? (s.redis.ok ? t('admin.status.tile.redisOk', { ms: s.redis.ms ?? 0 }) : t('admin.status.tile.redisDown')) : t('admin.status.tile.redisOff')} bad={s.redis.configured && !s.redis.ok} />
         <Tile title={t('admin.status.tile.events')} value={String(s.outbox.backlog)} detail={s.outbox.oldest_age_s === null ? t('admin.status.tile.eventsEmpty') : t('admin.status.tile.eventsDetail', { age: age(s.outbox.oldest_age_s) })} bad={s.warnings.includes('outbox_backlog')} />
         <Tile title={t('admin.status.tile.exports')} value={String(s.exports.queued + s.exports.running)} detail={t('admin.status.tile.exportsDetail', { queued: s.exports.queued, running: s.exports.running, failed: s.exports.failed_24h })} bad={s.exports.failed_24h > 0} />
-        <Tile title={t('admin.status.tile.disk')} value={free(s.disk.homes)} detail={t('admin.status.tile.diskDetail', { homes: free(s.disk.homes), exports: free(s.disk.exports) })} bad={s.warnings.includes('disk_low')} />
+        <Tile title={t('admin.status.tile.disk')} value={free(s.disk.homes)} detail={t('admin.status.tile.diskDetail', { homes: free(s.disk.homes), homesTotal: total(s.disk.homes), exports: free(s.disk.exports), exportsTotal: total(s.disk.exports) })} bad={s.warnings.includes('disk_low')} />
         <Tile title={t('admin.status.tile.backup')} value={s.backups.lastBackup ? formatWhen(s.backups.lastBackup.at) ?? '' : t(s.backups.backupGrace ? 'admin.status.tile.backupSoon' : 'admin.status.tile.backupNever')} detail={!s.backups.lastBackup && s.backups.backupGrace ? t('admin.status.tile.backupSoonDetail') : undefined} bad={s.backups.backupOverdue} />
         <Tile title={t('admin.status.tile.restore')} value={s.backups.lastRestoreTest ? t(s.backups.lastRestoreTest.ok ? 'admin.status.tile.restoreOk' : 'admin.status.tile.restoreFailed', { when: formatWhen(s.backups.lastRestoreTest.at) ?? '' }) : t(s.backups.restoreTestGrace ? 'admin.status.tile.restoreSoon' : 'admin.status.tile.restoreNever')} detail={!s.backups.lastRestoreTest && s.backups.restoreTestGrace ? t('admin.status.tile.restoreSoonDetail') : undefined} bad={s.backups.restoreTestOverdue} />
       </div>
       <div className="sparks"><Spark metric="posts" /><Spark metric="signups" /></div>
+      <p className="hint">{t('admin.status.chartsNote')}</p>
       <p className="hint">{t('admin.status.refreshed', { when: formatWhen(s.at) ?? '' })}</p>
     </>
   );

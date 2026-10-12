@@ -279,3 +279,16 @@ one process, this moves to the job queue.
 - **OPEN (not decided here): the language of server messages.** Core's error messages and the shared zod messages are
   English literals. The reviews flagged them in Mail, Rings, Wiki and Chat. Decide whether the server sends message codes the
   shell translates, before any second language is added.
+
+### 2026-10-12 — Hands-on review fixes (round 2)
+
+- Built from the browser reviews of every app: the MUD log stays on the newest line; offline no longer looks signed out;
+  Notifications "Mark all read" follows the tab; the wiki's formatting help works on every width and says who can edit;
+  Studio asks before throwing away unsaved changes; the ring page no longer logs a 404; the new-look note and
+  announcements moved clear of window controls; Chat, MUD and Terminal fill the phone screen; button states, chip sizes and
+  the editor's shortcut note were made consistent. Details in `10` ("As built (hands-on review fixes)").
+- **Offline user kept in session storage, for the tab only.** It is not a login: the server still decides every request, and a
+  401 or signing out clears it.
+- **OPEN, logged here as round 1 asked and not decided:** whether the telnet door needs TLS (the MUD and BBS speak plain
+  telnet); suspension expiry; sign-up abuse tools; admin notes on people; whether archived file areas stay readable
+  (`05` says readable, the code hides them).

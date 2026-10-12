@@ -25,12 +25,15 @@ export function WriteBox({ compact = false }: { compact?: boolean }) {
     },
     onError: (e) => setError(errorText(e)),
   });
+  const [focused, setFocused] = useState(false);
   const send = () => { if (body.trim() && !post.isPending) post.mutate(); };
   return (
-    <form className="memo-write" onSubmit={(e) => { e.preventDefault(); send(); }}>
+    // On a phone an empty, unfocused box folds down to its text area, so the memos are on the first screen.
+    <form className={`memo-write${!focused && !body ? ' is-idle' : ''}`} onSubmit={(e) => { e.preventDefault(); send(); }}
+      onFocus={() => setFocused(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }}>
       <Editor label={t('memos.write')} value={body} onChange={setBody} draftKey="memo:new" maxLength={MEMO_MAX} rows={compact ? 2 : 3} onSubmit={send}
         hint={share.visibility === 'private' ? t('memos.writeHint') : undefined} />
-      {!compact && <WhoSees value={share} onChange={setShare} />}
+      {!compact && <div className="memo-who"><WhoSees value={share} onChange={setShare} /></div>}
       {error && <Alert kind="error">{error}</Alert>}
       <button type="submit" className="btn btn-primary" disabled={post.isPending || !body.trim()}>{post.isPending ? t('memos.posting') : t('memos.post')}</button>
     </form>

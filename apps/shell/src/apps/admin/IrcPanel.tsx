@@ -28,7 +28,7 @@ export function IrcPanel() {
       {o.last_sync && o.last_sync.failures.length > 0 && <Alert kind="error">{t('admin.irc.syncFailures', { count: o.last_sync.failures.length })}</Alert>}
       {o.status && (
         <div className="tiles">
-          <div className="tile" role="group" aria-label={t('admin.irc.connected')}><h3>{t('admin.irc.connected')}</h3><p className="tile-value">{o.status.users.total}</p><p className="hint">{t('admin.irc.peak', { count: o.status.users.max })}</p></div>
+          <div className="tile" role="group" aria-label={t('admin.irc.connected')}><h3>{t('admin.irc.connected')}</h3><p className="tile-value">{Math.max(0, o.status.users.total - (o.bot_connected ? 1 : 0))}</p><p className="hint">{t('admin.irc.peak', { count: o.status.users.max })}</p></div>
           <div className="tile" role="group" aria-label={t('admin.irc.channels')}><h3>{t('admin.irc.channels')}</h3><p className="tile-value">{o.status.channels}</p></div>
           <div className="tile" role="group" aria-label={t('admin.irc.server')}><h3>{t('admin.irc.server')}</h3><p className="tile-value">{o.status.version}</p><p className="hint">{t('admin.irc.since', { when: formatWhen(o.status.start_time) ?? '' })}</p></div>
         </div>

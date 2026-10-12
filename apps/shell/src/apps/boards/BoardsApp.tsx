@@ -7,7 +7,8 @@ import { api } from '../../api';
 import { PersonLink } from '../people/PersonLink';
 import { Alert, Avatar, BackLink, EmptyState, Loading, NotFound, RelativeTime } from '../../components/ui';
 import { Icon } from '../../components/Icon';
-import { errorText, useMe, useT } from '../../hooks';
+import { errorText, useIsDesktop, useMe, useT } from '../../hooks';
+import { MenuButton } from '../../components/Menu';
 import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
 import { BoardSettings, NewBoard } from './BoardForms';
 import { Composer } from './Composer';
@@ -197,6 +198,7 @@ function BoardPage({ slug }: { slug: string }) {
   };
   const nextUnread = () => { const n = list.find((x) => x.unread); if (n) nav.go(`${slug}/t/${n.id}`); };
   useListKeys(root, { n: nextUnread });
+  const desktop = useIsDesktop();
 
   // A new thread or anything read elsewhere should show up when the window comes back into view.
   useEffect(() => { refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -212,18 +214,37 @@ function BoardPage({ slug }: { slug: string }) {
       {b.description && <p>{b.description}</p>}
       {b.rules && <details className="board-rules"><summary>{t('boards.rules')}</summary><RichText body={b.rules} /></details>}
       <p className="hint">{t('boards.ownedBy')} <PersonLink app="people" to={b.owner.handle}>@{b.owner.handle}</PersonLink></p>
-      <div className="toolbar">
-        {b.can_post && <AppLink className="btn btn-primary" to={`${slug}/new`}>{t('boards.newThread')}</AppLink>}
-        {me && <button className="btn" onClick={toggleWatch} aria-pressed={watching} disabled={!liveBoard}>{watching ? t('boards.unwatch') : t('boards.watch')}</button>}
-        {me && me.role !== 'guest' && personal.data && <button className="btn" onClick={() => mute.mutate(!muted)} aria-pressed={muted}>{muted ? t('boards.unmute') : t('boards.mute')}</button>}
-        {me && <button className="btn" onClick={markRead} disabled={!liveBoard || !unread}>{t('boards.markRead')}</button>}
-        {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
-        {me && <span className="spacer" />}
-        <AppLink className="btn btn-quiet" to={`${slug}/search`}>{t('boards.searchHere')}</AppLink>
-        {b.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}.atom`} title={b.name} />}
-        <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
-        {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
-      </div>
+      {desktop ? (
+        <div className="toolbar">
+          {b.can_post && <AppLink className="btn btn-primary" to={`${slug}/new`}>{t('boards.newThread')}</AppLink>}
+          {me && <button className="btn" onClick={toggleWatch} aria-pressed={watching} disabled={!liveBoard}>{watching ? t('boards.unwatch') : t('boards.watch')}</button>}
+          {me && me.role !== 'guest' && personal.data && <button className="btn" onClick={() => mute.mutate(!muted)} aria-pressed={muted}>{muted ? t('boards.unmute') : t('boards.mute')}</button>}
+          {me && <button className="btn" onClick={markRead} disabled={!liveBoard || !unread}>{t('boards.markRead')}</button>}
+          {me && <button className="btn" onClick={nextUnread} disabled={!list.some((x) => x.unread)}>{t('boards.nextUnread')}</button>}
+          {me && <span className="spacer" />}
+          <AppLink className="btn btn-quiet" to={`${slug}/search`}>{t('boards.searchHere')}</AppLink>
+          {b.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}.atom`} title={b.name} />}
+          <AppLink className="btn btn-quiet" to={`${slug}/modlog`}>{t('boards.modlog')}</AppLink>
+          {b.can_moderate && <AppLink className="btn btn-quiet" to={`${slug}/settings`}>{t('boards.settings')}</AppLink>}
+        </div>
+      ) : (
+        // On a phone the main actions stay and the rest fold into one menu, so the threads are on the first screen.
+        <div className="toolbar">
+          {b.can_post && <AppLink className="btn btn-primary" to={`${slug}/new`}>{t('boards.newThread')}</AppLink>}
+          {me && <button className="btn" onClick={toggleWatch} aria-pressed={watching} disabled={!liveBoard}>{watching ? t('boards.unwatch') : t('boards.watch')}</button>}
+          <MenuButton label={t('boards.moreActions')} className="btn" items={[
+            ...(me && me.role !== 'guest' && personal.data ? [{ label: muted ? t('boards.unmute') : t('boards.mute'), onSelect: () => mute.mutate(!muted) }] : []),
+            ...(me ? [
+              { label: t('boards.markRead'), onSelect: markRead, disabled: !liveBoard || !unread },
+              { label: t('boards.nextUnread'), onSelect: nextUnread, disabled: !list.some((x) => x.unread) },
+            ] : []),
+            { label: t('boards.searchHere'), onSelect: () => nav.go(`${slug}/search`), separator: Boolean(me) },
+            { label: t('boards.modlog'), onSelect: () => nav.go(`${slug}/modlog`) },
+            ...(b.can_moderate ? [{ label: t('boards.settings'), onSelect: () => nav.go(`${slug}/settings`) }] : []),
+          ]} />
+          {b.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}.atom`} title={b.name} />}
+        </div>
+      )}
       <div className="toolbar thread-filters">
         <label>{t('boards.sort.label')} <select value={sort} onChange={(e) => setSort(e.target.value as ThreadSort)}>{THREAD_SORTS.map((s) => <option key={s} value={s}>{t(`boards.sort.${s}`)}</option>)}</select></label>
         {me && <label>{t('boards.filter.label')} <select value={filter} onChange={(e) => setFilter(e.target.value as ThreadFilter)}>{THREAD_FILTERS.map((f) => <option key={f} value={f}>{t(`boards.filter.${f}`)}</option>)}</select></label>}
