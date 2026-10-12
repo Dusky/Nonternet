@@ -13,6 +13,13 @@ describe.skipIf(!dbAvailable)('private mail', () => {
   });
   afterAll(async () => drop());
 
+  it('the inbox names the last writer by display name when they have one', async () => {
+    const a = await person(); const b = await person();
+    await db.query(`UPDATE users SET display_name = 'Ada L' WHERE handle = $1`, [a.handle]);
+    await a.c.post('/api/v1/mail', { to: [b.handle], subject: 'Names', body: 'hello' });
+    expect((await b.c.get('/api/v1/mail')).body.threads[0].last.author).toBe('Ada L');
+  });
+
   it('two people write to each other; only they can read it; unread counts follow', async () => {
     const a = await person(); const b = await person(); const c = await person();
     const t = (await a.c.post('/api/v1/mail', { to: [b.handle.toUpperCase()], subject: 'Hello', body: 'Are you coming tonight?' })).body;

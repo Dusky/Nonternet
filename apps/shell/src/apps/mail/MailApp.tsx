@@ -321,7 +321,7 @@ function Message({ m, threadId, canAct, onDelete }: { m: MailMessageView; thread
       <article className={`post${m.mine ? ' is-mine' : ''}`} tabIndex={-1} aria-label={t('boards.by', { name })}>
         <header className="post-head">
           {m.author.handle ? <PersonLink app="people" to={m.author.handle} className="person"><Avatar id={m.author.id} name={name} size="sm" /><strong>{name}</strong></PersonLink> : <span className="person"><Avatar id={null} name={name} size="sm" /><strong>{name}</strong></span>}
-          <span className="muted">· {isPending(m.id) ? t('mail.sending') : <RelativeTime iso={m.at} />}</span>
+          <span className="post-when muted">{isPending(m.id) ? t('mail.sending') : <RelativeTime iso={m.at} />}</span>
         </header>
         {m.deleted ? <p className="muted">{t('mail.deleted')}</p> : <RichText body={m.body} className="post-body" />}
         {!m.deleted && canAct && !isPending(m.id) && (

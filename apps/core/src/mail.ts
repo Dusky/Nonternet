@@ -151,7 +151,7 @@ export async function listThreads(deps: AppDeps, me: SessionUser, opts: InboxQue
     `SELECT t.id, t.subject, t.last_message_at, p.last_read_at, p.left_at, p.starred_at, p.archived_at, l.handle, l.body, l.deleted_at, l.created_at AS l_at, l.author_id
      FROM mail_participants p JOIN mail_threads t ON t.id = p.thread_id
      LEFT JOIN LATERAL (
-       SELECT u.handle, m.body, m.deleted_at, m.created_at, m.author_id FROM mail_messages m LEFT JOIN users u ON u.id = m.author_id
+       SELECT COALESCE(NULLIF(u.display_name, ''), u.handle) AS handle, m.body, m.deleted_at, m.created_at, m.author_id FROM mail_messages m LEFT JOIN users u ON u.id = m.author_id
        WHERE m.thread_id = t.id AND m.kind = 'message' AND m.created_at >= p.joined_at AND (p.left_at IS NULL OR m.created_at <= p.left_at)
          AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.user_id = $1 AND b.blocked_id = m.author_id)
        ORDER BY m.created_at DESC, m.id DESC LIMIT 1) l ON true
