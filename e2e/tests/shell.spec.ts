@@ -223,6 +223,24 @@ test.describe('the note about the new look', () => {
     await expect(page.getByTestId('new-look')).toHaveCount(0); // not again on this device
   });
 
+  test('stays clear of a window\'s title bar on a big screen and is short on a phone', async ({ page, isMobile }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    const note = page.getByTestId('new-look');
+    await expect(note).toBeVisible();
+    const nb = (await note.boundingBox())!;
+    if (isMobile) {
+      expect(nb.height).toBeLessThan(90);
+      return;
+    }
+    await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+    const win = page.getByRole('dialog', { name: 'Notifications window' });
+    await expect(win).toBeVisible();
+    const title = (await win.getByRole('button', { name: /^Close/ }).boundingBox())!;
+    const overlaps = nb.x < title.x + title.width && nb.x + nb.width > title.x && nb.y < title.y + title.height && nb.y + nb.height > title.y;
+    expect(overlaps, 'the note covers the window\'s close button').toBe(false);
+  });
+
   test('can be dismissed without opening Settings', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);

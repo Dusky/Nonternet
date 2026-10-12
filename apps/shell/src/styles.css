@@ -554,7 +554,8 @@ mark { background: var(--accent-soft); color: var(--text); padding: 0 .15rem; bo
 .dns dd { margin: 0; overflow-wrap: anywhere; font-family: var(--font-mono); }
 
 /* ---- announcements */
-.announcements { position: fixed; top: calc(var(--taskbar-h) + 8px); right: 12px; z-index: 5500; display: grid; gap: 6px; width: min(26rem, calc(100vw - 24px)); }
+/* Bottom left on a big screen: out of the way of window title bars and their buttons (the toasts are bottom centre). */
+.announcements { position: fixed; bottom: 12px; left: 12px; z-index: 5500; display: grid; gap: 6px; width: min(26rem, calc(100vw - 24px)); }
 .announcement { box-shadow: var(--shadow-pop); display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); padding: var(--space-2) var(--space-3); color: var(--text); border: var(--line-width) solid var(--line-strong); border-left-width: 6px; border-radius: var(--radius-sm); background: var(--surface); }
 .announcement-info { border-left-color: var(--accent); }
 .announcement-warning { border-left-color: var(--danger); }
@@ -1023,6 +1024,10 @@ li.new-divider::before, li.new-divider::after { border-top: var(--line-width) so
 .shell > .shell-top { grid-row: 1; } .shell > .announcements { grid-row: 2; } .shell > .stage { grid-row: 3; } .shell > .tabbar { grid-row: 4; }
 @media (max-width: 899px) {
   .shell > .announcements { position: static; width: auto; margin: var(--space-2) var(--space-3); }
+  /* One short line each, so a note never takes a third of the screen. */
+  .announcement { padding: var(--space-1) var(--space-2); gap: var(--space-2); }
+  .announcement .announcement-body { margin: 0; font-size: var(--step--1); line-height: 1.35; }
+  .announcement .btn-quiet { min-height: 2rem; min-width: 2rem; padding: 0; }
 }
 
 /* ---- Settings (P2): one look for every section; a real switch for on/off choices */
