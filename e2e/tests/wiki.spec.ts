@@ -30,7 +30,7 @@ async function ringWithWiki(page: Page) {
   return slug;
 }
 
-test('start a wiki, follow a link to a missing page, write it, and see the history and what changed', async ({ page }) => {
+test('start a wiki, follow a link to a missing page, write it, and see the history and what changed', async ({ page, isMobile }) => {
   await trusted(page);
   const ring = await ringWithWiki(page);
   await page.getByRole('link', { name: 'Wiki', exact: true }).click();
@@ -42,6 +42,9 @@ test('start a wiki, follow a link to a missing page, write it, and see the histo
   await page.getByRole('button', { name: /page formatting/i }).click();
   await expect(page.getByText('Pages are plain text with a little formatting.')).toBeVisible();
   await page.keyboard.press('Escape');
+  // The shortcut note is for keyboards, and says saves in an edit form.
+  if (isMobile) await expect(page.getByText(/Ctrl\+Enter/)).toBeHidden();
+  else await expect(page.getByText('Ctrl+Enter saves.')).toBeVisible();
   await text.fill('# Welcome\n\nThis is our ring. Read the [[Patch Notes]] first.\n\n- one\n- two');
   // The preview follows the text, and a page that doesn't exist yet is marked as such.
   // On a phone the preview is a tab of its own.

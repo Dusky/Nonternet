@@ -137,7 +137,7 @@ function EditMemo({ m, onDone }: { m: MemoView; onDone: () => void }) {
   };
   return (
     <form className="memo-edit" aria-label={t('memos.editing')} onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-      <Editor label={t('memos.write')} value={body} onChange={setBody} maxLength={MEMO_MAX} rows={4} onSubmit={() => void submit()} />
+      <Editor label={t('memos.write')} value={body} onChange={setBody} maxLength={MEMO_MAX} rows={4} saves onSubmit={() => void submit()} />
       <WhoSees value={share} onChange={setShare} />
       {error && <Alert kind="error">{error}</Alert>}
       <div className="toolbar">

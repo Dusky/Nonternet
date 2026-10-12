@@ -313,7 +313,7 @@ function EditForm({ info, base, slug, page, newer, user, onSaved }: { info: Wiki
       </div>
       <div className={`wiki-editor is-${tab}`}>
         <div className="wiki-write">
-          <Editor label={t('wiki.text')} value={body} onChange={setBody} draftKey={user ? draftKey : undefined} rows={18} mono onSubmit={() => submit()} />
+          <Editor label={t('wiki.text')} value={body} onChange={setBody} draftKey={user ? draftKey : undefined} rows={18} mono saves onSubmit={() => submit()} />
         </div>
         <section className="wiki-preview" aria-label={t('wiki.preview')}>
           <WikiText body={body} base={base} exists={(s) => known.has(s) || s === slug} />

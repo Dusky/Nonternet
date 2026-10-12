@@ -1452,3 +1452,6 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 :root[data-chrome="aqua"][data-mode="dark"] .app-tile { background-image: linear-gradient(rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 55%); }
 .notif-day { font-size: var(--step--1); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: var(--space-4) 0 var(--space-2); }
 .notif-row .row-actions { margin: var(--space-1) 0 0; }
+
+/* No Ctrl key on a touch screen: the shortcut note is for keyboards. */
+@media (pointer: coarse) { .editor-key { display: none; } }

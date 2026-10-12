@@ -77,7 +77,7 @@ export function EditPost({ post, slug, isStart, asMod, onDone }: { post: PostVie
     <form className="panel" aria-label={t('edit.label')} onSubmit={(e) => { e.preventDefault(); if (ready) save.mutate(); }}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onDone(); } }}>
       {isStart && <TextField label={t('boards.compose.subject')} value={subject} onChange={setSubject} />}
-      <Editor label={t('boards.compose.body')} mono rows={8} mentions value={body} onChange={setBody} onSubmit={() => ready && save.mutate()} />
+      <Editor label={t('boards.compose.body')} mono rows={8} mentions value={body} onChange={setBody} saves onSubmit={() => ready && save.mutate()} />
       {asMod && post.author && <TextField label={t('edit.reason')} hint={t('edit.reasonHint')} value={reason} onChange={setReason} maxLength={300} />}
       {save.isError && <Alert kind="error">{errorText(save.error)}</Alert>}
       <div className="actions">

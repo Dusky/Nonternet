@@ -2099,6 +2099,7 @@ export const en = {
   'editor.picture.none': 'no description',
   'editor.people': 'People',
   'editor.sendKey': 'Ctrl+Enter sends.',
+  'editor.saveKey': 'Ctrl+Enter saves.',
   'editor.left': '{count} left|{count} left',
   'editor.restored': 'Draft restored.',
   'editor.discard': 'Discard',

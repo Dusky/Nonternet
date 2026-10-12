@@ -20,13 +20,14 @@ interface Props {
   required?: boolean;
   hint?: string;
   onSubmit?: () => void;           // Ctrl/Cmd+Enter
+  saves?: boolean;                 // the shortcut saves (an edit form) rather than sends
   id?: string;
   children?: ReactNode;            // extra controls under the box
 }
 
 // Shared writing box: a counter, Ctrl/Cmd+Enter to send, a draft that survives a reload or closed window,
 // a warning before the page is left with unsent words, and @name suggestions.
-export function Editor({ label, value, onChange, draftKey, maxLength, rows = 6, mono, mentions, required, hint, onSubmit, id: givenId, children, pictures }: Props) {
+export function Editor({ label, value, onChange, draftKey, maxLength, rows = 6, mono, mentions, required, hint, onSubmit, saves, id: givenId, children, pictures }: Props) {
   const t = useT();
   const me = useMe().data;
   const uid = useId();
@@ -119,7 +120,7 @@ export function Editor({ label, value, onChange, draftKey, maxLength, rows = 6, 
       )}
       <p className="hint editor-meta" id={`${id}-meta`}>
         {hint && <span>{hint} </span>}
-        {onSubmit && <span>{t('editor.sendKey')} </span>}
+        {onSubmit && <span className="editor-key">{t(saves ? 'editor.saveKey' : 'editor.sendKey')} </span>}
         {left !== null && <span className={near ? 'counter near' : 'counter'} aria-live="off">{t('editor.left', { count: left })}</span>}
       </p>
       {pictures && (
