@@ -20,7 +20,7 @@ test('the Terminal window calls the BBS with no login prompt, and the console se
   await page.locator('.xterm-helper-textarea').focus();
   await page.keyboard.type('w');
   // The list pages when many people are on (it is a shared test site), so the screen's title is the proof the key got through.
-  await expect(screen).toContainText("Who's online");
+  await expect(screen).toContainText(/Who's online|press a key/); // a long list pages, and on a short phone screen the title has scrolled off
   // The key bar sends keys a phone lacks.
   await page.getByRole('button', { name: 'Enter' }).click();
   await page.getByRole('button', { name: 'Use your own terminal program' }).click();
