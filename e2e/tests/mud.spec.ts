@@ -81,7 +81,7 @@ test.describe('the MUD', () => {
   });
 
   for (const theme of ['webring', 'terminal']) {
-    test(`a new player rolls a character and walks into town (${theme})`, async ({ page }) => {
+    test(`a new player rolls a character and walks into town (${theme})`, async ({ page, isMobile }) => {
       await page.addInitScript((t) => localStorage.setItem('ui:theme', t), theme);
       const u = await makeUser(page, { handle: uniq('hero') });
       await signIn(page, u.handle, PASSWORD);
@@ -108,6 +108,12 @@ test.describe('the MUD', () => {
         expect(bottom).toBeLessThanOrEqual(log.y + log.height + 2);
         expect(bottom).toBeGreaterThanOrEqual(log.y + log.height - 40);
       }).toPass({ timeout: 5_000 });
+      if (isMobile) {
+        // On a phone the command box is on the screen, above the tab bar.
+        const box = (await page.getByLabel('Type a command, like look or north').boundingBox())!;
+        const bar = (await page.getByRole('navigation', { name: 'Main sections' }).boundingBox())!;
+        expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+      }
       // Buttons a new player starts with, so a phone needn't type everything.
       await page.getByRole('group', { name: 'Your buttons' }).getByRole('button', { name: 'Tower' }).click();
       await expect(world(page).locator('.mud-you').filter({ hasText: /^> season$/ }).first()).toBeVisible();

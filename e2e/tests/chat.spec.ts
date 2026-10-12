@@ -358,6 +358,12 @@ test.describe('chat', () => {
     else { await page.getByRole('button', { name: 'Open Chat' }).click(); scope = page.getByRole('dialog', { name: 'Chat window' }); }
     await expect(scope.getByRole('heading', { level: 2, name: '#lobby' })).toBeVisible({ timeout: 15_000 });
     await expect(scope.getByLabel('Message #lobby')).toBeVisible();
+    if (isMobile) {
+      // The message box is on the screen, above the tab bar, without scrolling.
+      const box = (await scope.getByLabel('Message #lobby').boundingBox())!;
+      const bar = (await page.getByRole('navigation', { name: 'Main sections' }).boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+    }
     await scan(page, 'the Chat app (terminal)');
   });
 });

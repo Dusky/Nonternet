@@ -9,13 +9,19 @@ async function scan(page: Page, what: string) {
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `accessibility problems on ${what}`).toEqual([]);
 }
 
-test('the Terminal window calls the BBS with no login prompt, and the console sees the caller', async ({ page, browser }) => {
+test('the Terminal window calls the BBS with no login prompt, and the console sees the caller', async ({ page, browser, isMobile }) => {
   const u = await makeUser(page);
   await signIn(page, u.handle, PASSWORD);
   await page.goto('/terminal');
   const screen = page.locator('.xterm-rows');
   await expect(screen).toContainText('Main menu [', { timeout: 15_000 });
   await expect(screen).not.toContainText('Handle:');
+  if (isMobile) {
+    // The prompt and the key bar are on the screen, above the tab bar, without scrolling.
+    const keys = (await page.getByRole('group', { name: 'Extra keys' }).boundingBox())!;
+    const bar = (await page.getByRole('navigation', { name: 'Main sections' }).boundingBox())!;
+    expect(keys.y + keys.height).toBeLessThanOrEqual(bar.y);
+  }
   await scan(page, 'the Terminal window');
   await page.locator('.xterm-helper-textarea').focus();
   await page.keyboard.type('w');
