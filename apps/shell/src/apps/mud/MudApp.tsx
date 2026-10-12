@@ -139,7 +139,16 @@ function Screen({ finding, onCloseFind }: { finding: boolean; onCloseFind: () =>
   const [scrolledUp, setScrolledUp] = useState(false);
   const [query, setQuery] = useState('');
   const [hit, setHit] = useState(0);
-  useLayoutEffect(() => { const el = ref.current; if (el && stick.current) el.scrollTop = el.scrollHeight; }, [lines]);
+  const lastTop = useRef(0);
+  // Pin to the newest line. Lines out of view are laid out lazily (content-visibility), so the height keeps changing
+  // for a frame or two after new output; pin again once it has settled.
+  const pin = () => { const el = ref.current; if (el && stick.current) { el.scrollTop = el.scrollHeight; lastTop.current = el.scrollTop; } };
+  useLayoutEffect(() => {
+    pin();
+    const f1 = requestAnimationFrame(() => { pin(); });
+    const f2 = window.setTimeout(pin, 120);
+    return () => { cancelAnimationFrame(f1); clearTimeout(f2); };
+  }, [lines]);
   const q = finding ? query.trim().toLowerCase() : '';
   const hits = useMemo(() => (q ? lines.filter((l) => (l.kind === 'game' ? plainText(l.text) : l.text).toLowerCase().includes(q)).map((l) => l.id) : []), [lines, q]);
   const jump = (dir: 1 | -1) => {
@@ -163,7 +172,14 @@ function Screen({ finding, onCloseFind }: { finding: boolean; onCloseFind: () =>
         </div>
       )}
       <div ref={ref} className="mud-log" role="log" aria-live="polite" aria-label={t('mud.log')} tabIndex={0}
-        onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; setScrolledUp(!stick.current); }}>
+        onScroll={(e) => {
+          // Only a scroll upwards by the reader lets go of the bottom; layout changes alone never do.
+          const el = e.currentTarget;
+          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+          if (atBottom) stick.current = true; else if (el.scrollTop < lastTop.current) stick.current = false;
+          lastTop.current = el.scrollTop;
+          setScrolledUp(!stick.current);
+        }}>
         {lines.map((l) => <Block key={l.id} line={l} mark={q} current={hits[hit] === l.id} />)}
       </div>
       {/* Scrolled back to read: the newest lines stay in view below, like a split screen. */}

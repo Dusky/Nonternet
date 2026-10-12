@@ -99,6 +99,15 @@ test.describe('the MUD', () => {
       await type(page, `ic ${name}`);
       await expect(world(page).getByText('Town square').last()).toBeVisible();
       await expect(first).toHaveCount(0); // gone once you are in the world
+      // The newest text is in view, not just in the page: its box sits inside the log's box (toBeVisible alone passes when it is scrolled out).
+      await expect(async () => {
+        const log = (await world(page).boundingBox())!;
+        const last = (await world(page).locator('.mud-out').last().boundingBox())!;
+        // Pinned to the end: the newest block's bottom edge is at the log's bottom (a long room text may start above the top on a phone).
+        const bottom = last.y + last.height;
+        expect(bottom).toBeLessThanOrEqual(log.y + log.height + 2);
+        expect(bottom).toBeGreaterThanOrEqual(log.y + log.height - 40);
+      }).toPass({ timeout: 5_000 });
       // Buttons a new player starts with, so a phone needn't type everything.
       await page.getByRole('group', { name: 'Your buttons' }).getByRole('button', { name: 'Tower' }).click();
       await expect(world(page).locator('.mud-you').filter({ hasText: /^> season$/ }).first()).toBeVisible();

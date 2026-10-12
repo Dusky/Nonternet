@@ -1088,7 +1088,7 @@ button.chat-person:hover { text-decoration: underline; }
 .mud-find input { flex: 1; min-width: 6rem; }
 .mud-log mark, .mud-split mark { background: var(--accent-soft); color: inherit; outline: 1px solid var(--accent); }
 .mud-log .is-hit { outline: 2px solid var(--focus); outline-offset: 2px; }
-.mud-split { max-height: 38%; overflow: hidden; padding: var(--space-1) var(--space-3); border-top: 3px double var(--line-strong); background: var(--surface2); font-family: var(--font-mono); font-size: var(--mud-font, .92rem); line-height: 1.45; position: relative; }
+.mud-split { display: flex; flex-direction: column; justify-content: flex-end; max-height: 38%; overflow: hidden; padding: var(--space-1) var(--space-3); border-top: 3px double var(--line-strong); background: var(--surface2); font-family: var(--font-mono); font-size: var(--mud-font, .92rem); line-height: 1.45; position: relative; }
 .mud-split p { margin: 0; white-space: pre-wrap; }
 .mud-latest { position: absolute; right: var(--space-2); top: var(--space-1); }
 .mud-buttons { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-2); border-top: 1px solid var(--border); }
@@ -1186,6 +1186,8 @@ button.chat-person:hover { text-decoration: underline; }
    once it has been seen, so scrolling back doesn't jump. */
 .chat-log > ol > .chat-line { content-visibility: auto; contain-intrinsic-size: auto 1.6em; }
 .mud-log > .mud-out, .mud-log > .mud-you, .mud-log > .mud-note { content-visibility: auto; contain-intrinsic-size: auto 2.5em; }
+/* The newest lines are always laid out, so pinning to the bottom lands on the real end of the log. */
+.mud-log > :nth-last-child(-n+30) { content-visibility: visible; }
 .posts > li { content-visibility: auto; contain-intrinsic-size: auto 9rem; }
 
 /* The "?" help button and its popover (components/HelpTip.tsx). */
