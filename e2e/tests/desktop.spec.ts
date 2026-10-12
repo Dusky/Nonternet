@@ -85,6 +85,22 @@ test.describe('on a big screen', () => {
     await expect(page.getByText('You are offline')).toHaveCount(0);
   });
 
+  test('offline is not signed out: a reload with no network keeps the shell and says so', async ({ page, context }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    await expect(page.getByRole('button', { name: /^Account menu for / })).toBeVisible();
+    // The page is served from the service worker once it controls it.
+    await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active)), { timeout: 15_000 }).toBe(true);
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByRole('status').filter({ hasText: 'You are offline' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Log in' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Account menu for / })).toBeVisible();
+    await context.setOffline(false);
+  });
+
   test('being signed out in the background is said plainly, with a way back in', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);

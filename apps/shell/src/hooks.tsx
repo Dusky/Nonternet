@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Me, PublicSite } from '@app/shared';
 import { en, makeT } from '@app/strings';
 import { api, ApiError } from './api';
+import { loadMe } from './lastUser';
 import { Spot } from './components/Spots';
 import { fetchSite } from './site';
 import { setFavicon, watchThemeForFavicon } from './shell/tabInfo';
@@ -45,18 +46,12 @@ function useSiteContext() {
 export const useSite = (): PublicSite => useSiteContext().site;
 export const useT = (): T => useSiteContext().t;
 
-// The signed-in user, or null. Errors other than "not signed in" surface as query errors.
+// The signed-in user, or null. Errors other than "not signed in" surface as query errors, except that with no
+// network the last known user for this tab is kept (lastUser.ts).
 export function useMe() {
   return useQuery({
     queryKey: ['me'],
-    queryFn: async (): Promise<Me | null> => {
-      try {
-        return (await api.get<{ user: Me | null }>('/session')).user;
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) return null;
-        throw err;
-      }
-    },
+    queryFn: (): Promise<Me | null> => loadMe(async () => (await api.get<{ user: Me | null }>('/session')).user),
     staleTime: 30_000,
     retry: false,
   });
