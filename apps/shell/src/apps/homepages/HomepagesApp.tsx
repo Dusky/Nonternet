@@ -42,13 +42,14 @@ function Directory() {
     <>
       <form role="search" className="search-form" onSubmit={(e: FormEvent) => { e.preventDefault(); setTerm(q.trim()); }}>
         <TextField label={t('homepages.search')} value={q} onChange={setQ} type="search" />
-        <div className="field">
+        <div className="toolbar">
           <button type="button" className={`btn btn-quiet${fresh ? ' is-active' : ''}`} aria-pressed={fresh} onClick={() => setFresh((f) => !f)}>{t('homepages.filter.new')}</button>
           {rings.data && rings.data.rings.length > 0 && (
-            <select aria-label={t('homepages.filter.ring')} value={ring} onChange={(e) => setRing(e.target.value)}>
+            <><label htmlFor="hp-ring">{t('homepages.filter.ring')}</label>
+            <select id="hp-ring" value={ring} onChange={(e) => setRing(e.target.value)}>
               <option value="">{t('homepages.filter.anyRing')}</option>
               {rings.data.rings.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
-            </select>
+            </select></>
           )}
           <label htmlFor="hp-sort">{t('homepages.sort')}</label>
           <select id="hp-sort" value={sort} onChange={(e) => setSort(e.target.value as 'recent' | 'name')}>

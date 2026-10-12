@@ -113,7 +113,9 @@ function Timeline() {
   );
 }
 
-const preview = (body: string) => { const s = [...body.replace(/\s+/g, ' ')].slice(0, 30).join(''); return s.length < body.length ? `${s}…` : s; };
+// A short plain-text form of a memo for button names: the markup characters are dropped so a screen reader does not read them out.
+export const plainPreview = (body: string) => body.replace(/\[\[([^\]|]+)\|?([^\]]*)\]\]/g, (_m, a: string, b: string) => b || a).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*`_>#]+/g, '').replace(/\s+/g, ' ').trim();
+const preview = (raw: string) => { const body = plainPreview(raw); const s = [...body].slice(0, 30).join(''); return s.length < body.length ? `${s}…` : s; };
 
 function EditMemo({ m, onDone }: { m: MemoView; onDone: () => void }) {
   const t = useT();
@@ -137,7 +139,7 @@ function EditMemo({ m, onDone }: { m: MemoView; onDone: () => void }) {
   };
   return (
     <form className="memo-edit" aria-label={t('memos.editing')} onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-      <Editor label={t('memos.write')} value={body} onChange={setBody} maxLength={MEMO_MAX} rows={4} saves onSubmit={() => void submit()} />
+      <Editor label={t('memos.editLabel')} value={body} onChange={setBody} maxLength={MEMO_MAX} rows={4} saves onSubmit={() => void submit()} />
       <WhoSees value={share} onChange={setShare} />
       {error && <Alert kind="error">{error}</Alert>}
       <div className="toolbar">

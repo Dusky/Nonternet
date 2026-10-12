@@ -122,6 +122,7 @@ export default function TerminalApp() {
 
   const attempt = useRef(0);
   const retry = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hungUp = useRef(false); // the person ended the call, so the line says so, not that the BBS did
   const connectRef = useRef<() => Promise<void>>(async () => undefined);
   const calls = useRef(0); // how many times this window has called
   const retryLater = useCallback(() => {
@@ -132,6 +133,7 @@ export default function TerminalApp() {
   }, []);
 
   const connect = useCallback(async () => {
+    hungUp.current = false;
     const x = term.current;
     if (!x) return;
     setStatus('connecting');
@@ -266,11 +268,11 @@ export default function TerminalApp() {
           {status === 'connecting' && t('terminal.connecting')}
           {status === 'reconnecting' && t('terminal.reconnecting')}
           {status === 'connected' && t('terminal.connected')}
-          {status === 'closed' && t('terminal.closed')}
+          {status === 'closed' && t(hungUp.current ? 'terminal.hungUpByYou' : 'terminal.closed')}
           {status === 'error' && (error ?? t('terminal.failed'))}
         </span>
         {(status === 'closed' || status === 'error') && <button type="button" className="btn btn-small" onClick={() => void connect()}>{t('terminal.reconnect')}</button>}
-        {status === 'connected' && <button type="button" className="btn btn-quiet btn-small" onClick={() => ws.current?.close(1000)}>{t('terminal.hangUp')}</button>}
+        {status === 'connected' && <button type="button" className="btn btn-quiet btn-small" onClick={() => { hungUp.current = true; ws.current?.close(1000); }}>{t('terminal.hangUp')}</button>}
         {status === 'connected' && error && <span className="field-error">{error}</span>}
       </div>
       <div className="toolbar terminal-tools" role="toolbar" aria-label={t('terminal.tools')}>

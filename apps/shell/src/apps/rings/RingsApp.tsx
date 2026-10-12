@@ -145,6 +145,7 @@ function RingPage({ slug }: { slug: string }) {
   const q = useQuery({ queryKey: ['ring', slug, me?.id ?? null], queryFn: () => api.get<RingDetail>(`/rings/${slug}`) });
   const refresh = () => { for (const k of ['ring', 'rings', 'boards', 'me']) void qc.invalidateQueries({ queryKey: [k] }); };
   const join = useMutation({ mutationFn: () => api.post<{ status: string }>(`/rings/${slug}/join`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
+  const confirmLeave = useConfirm();
   const leave = useMutation({ mutationFn: () => api.post(`/rings/${slug}/leave`), onSuccess: refresh, onError: (e) => setError(errorText(e)) });
   useSubtitle(q.data?.name);
   if (q.isError) return <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>;
@@ -170,7 +171,7 @@ function RingPage({ slug }: { slug: string }) {
         )}
         {me && status === 'invited' && <button className="btn btn-primary" onClick={() => join.mutate()} disabled={join.isPending}>{t('rings.acceptInvite')}</button>}
         {me && (status === 'member' || status === 'invited' || status === 'pending') && !r.me?.is_founder && (
-          <button className="btn" onClick={() => leave.mutate()} disabled={leave.isPending}>{t('rings.leave')}</button>
+          <button className="btn" onClick={() => void confirmLeave({ message: t('rings.leaveConfirm'), confirmLabel: t('rings.leave'), danger: true }).then((ok) => ok && leave.mutate())} disabled={leave.isPending}>{t('rings.leave')}</button>
         )}
       </div>
       {status === 'pending' && <p className="muted">{t('rings.pending')}</p>}

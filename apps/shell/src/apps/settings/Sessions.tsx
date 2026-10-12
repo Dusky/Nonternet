@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { toast } from '../../components/feedback';
 import { Alert, Loading, RelativeTime } from '../../components/ui';
-import { errorText, useT } from '../../hooks';
+import { errorText, formatWhen, useT } from '../../hooks';
 import { deviceParts } from './device';
 import { Section } from './Section';
 
@@ -37,8 +37,8 @@ export function Sessions() {
             <div>
               <strong>{name(s)}</strong> {s.current && <span className="badge badge-accent">{t('sessions.thisOne')}</span>}
               <p className="row-meta">
-                {s.last_used_at ? <>{t('sessions.lastUsed')} <RelativeTime iso={s.last_used_at} /> · </> : null}
-                {t('sessions.since')} <RelativeTime iso={s.created_at} />
+                {t('sessions.since')} {formatWhen(s.created_at)}
+                {s.last_used_at && Math.abs(Date.parse(s.last_used_at) - Date.parse(s.created_at)) > 60_000 ? <> · {t('sessions.lastUsed')} <RelativeTime iso={s.last_used_at} /></> : null}
               </p>
             </div>
             {!s.current && (

@@ -126,6 +126,7 @@ function ListScreen() {
                     <a className="bookmark-title" href={b.url} target="_blank" rel="noopener noreferrer">{b.title}</a>
                     <span className="row-meta">
                       {b.host} · <RelativeTime iso={b.created_at} />
+                      {b.pinned && <>{' '}<span className="badge sticker">{t('bookmarks.badge.pinned')}</span></>}
                       {b.fetching && <> · {t('bookmarks.reading')}</>}
                       {b.visibility === 'public' && <>{' '}<span className="badge">{t('bookmarks.badge.public')}</span></>}
                       {b.visibility === 'ring' && b.ring && <>{' '}<span className="badge">{t('bookmarks.badge.ring', { name: b.ring.name })}</span></>}

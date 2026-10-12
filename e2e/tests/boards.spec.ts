@@ -128,6 +128,8 @@ test.describe('boards', () => {
     await page.goto(`/boards/${slug}`);
     if (isMobile) { await page.getByRole('button', { name: 'More', exact: true }).click(); await page.getByRole('menuitem', { name: 'Search this board' }).click(); }
     else await page.getByRole('link', { name: 'Search this board' }).click();
+    await expect(page.getByRole('heading', { name: 'Search this board' })).toBeVisible(); // scoped, and the way back says the board
+    await expect(page.getByRole('link', { name: 'Back to the board' })).toBeVisible();
     await page.getByRole('searchbox').fill(word);
     await page.getByRole('searchbox').press('Enter');
     await page.getByRole('link', { name: 'Older thread' }).click();

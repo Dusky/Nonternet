@@ -65,7 +65,7 @@ export default function AddAppsApp() {
             <div className="app-card-body">
               <h2>{a.name}</h2>
               <p>{a.description}</p>
-              <p className="row-meta">{permissionsText(a.permissions, t)}</p>
+              <p className="row-meta">{a.permissions.length > 0 && <strong>{t('apps.canLead')} </strong>}{permissionsText(a.permissions, t)}</p>
             </div>
             <div className="app-card-actions">
               {a.installed ? (

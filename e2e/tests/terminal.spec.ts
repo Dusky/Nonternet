@@ -78,7 +78,7 @@ test('the call state sits in one line: hang up, keys while not connected are not
   const box = await page.locator('.terminal-screen').boundingBox();
 
   await page.getByRole('button', { name: 'Hang up' }).click();
-  await expect(page.getByText('The BBS hung up.')).toBeVisible();
+  await expect(page.getByText('You hung up.')).toBeVisible();
   expect((await page.locator('.terminal-screen').boundingBox())!.height).toBe(box!.height); // nothing moved
   await page.locator('.xterm-helper-textarea').focus();
   await page.keyboard.type('w');

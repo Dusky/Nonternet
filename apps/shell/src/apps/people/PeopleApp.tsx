@@ -11,7 +11,7 @@ import { api } from '../../api';
 import { Alert, Avatar, CopyButton, EmptyState, Loading, NotFound, RelativeTime, TextField } from '../../components/ui';
 import type { OnlinePerson } from '../../shell/HomePanel';
 import { useDebounced } from '../admin/useDebounced';
-import { errorText, formatWhen, useMe, useT } from '../../hooks';
+import { errorText, formatDay, useMe, useT } from '../../hooks';
 import { OpenAppLink } from '../../shell/OpenAppLink';
 import { useBlocks } from '../settings/Blocks';
 import { AppLink, matchRoute, useAppNav, useSubtitle } from '../../nav';
@@ -90,7 +90,7 @@ function Directory() {
         <label className="inline">{t('people.role')}{' '}
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="">{t('people.anyRole')}</option>
-            {(['user', 'trusted', 'admin'] as const).map((r) => <option key={r} value={r}>{t(`people.role.${r}` as StringKey)}</option>)}
+            {(['user', 'trusted', 'admin'] as const).map((r) => <option key={r} value={r}>{t(`role.${r}` as StringKey)}</option>)}
           </select>
         </label>
       </div>
@@ -125,7 +125,7 @@ function Profile({ handle }: { handle: string }) {
         <Avatar id={p.id} name={p.display_name || p.handle} size="lg" />
         <div>
         <h2 id="profile-name">{p.display_name || p.handle}</h2>
-        <p className="muted">@{p.handle}{p.role !== 'user' && <> · <span className="badge">{t(`people.role.${p.role}` as StringKey)}</span></>} · {t('people.joined', { when: formatWhen(p.joined_at) ?? '' })}{p.last_seen && <> · {t(lastSeenKey(p.last_seen))}</>}</p>
+        <p className="muted">@{p.handle}{p.role !== 'user' && <> · <span className="badge">{t(`people.role.${p.role}` as StringKey)}</span></>} · {t('people.joined', { when: formatDay(p.joined_at) })}{p.last_seen && <> · {t(lastSeenKey(p.last_seen))}</>}</p>
         {(p.status_line || p.away) && <p className="profile-status">{p.away && <span className="badge">{t('people.away')}</span>} {p.status_line}</p>}
         </div>
       </header>

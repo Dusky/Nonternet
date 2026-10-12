@@ -38,7 +38,7 @@ test('write with Ctrl+Enter, find by tag and search, pin, edit and see "edited"'
   await expect(page.getByRole('button', { name: /^Unpin: Order lentils/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: /^Edit: Remember to call Sam/ }).click();
   const edit = page.getByRole('form', { name: 'Edit memo' });
-  await edit.getByLabel('Write a memo').fill('Remember to call Sam on Friday #people');
+  await edit.getByLabel('Memo text').fill('Remember to call Sam on Friday #people');
   await edit.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByText('Remember to call Sam on Friday')).toBeVisible();
   await expect(page.getByText(/edited/)).toBeVisible();

@@ -74,7 +74,7 @@ export default function AdminApp() {
       {route?.pattern === 'invites' && <Invites />}
       {route?.pattern === 'applications' && <ApplicationsPanel />}
       {route?.pattern === 'vouches' && <VouchesPanel />}
-      {route?.pattern === 'reports' && <ReportQueue />}
+      {route?.pattern === 'reports' && <><h2>{t('admin.reports.title')}</h2><ReportQueue /></>}
       {route?.pattern === 'boards' && <BoardsTable />}
       {route?.pattern === 'rings' && <RingsTable />}
       {route?.pattern === 'homepages' && <HomepagesTable />}

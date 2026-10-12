@@ -152,7 +152,7 @@ progress { width: 100%; height: 10px; accent-color: var(--accent); }
 .loading { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); padding: var(--space-4); }
 .loading::before { content: ''; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 .skeleton { display: grid; gap: var(--space-3); padding: var(--space-2) 0; }
-.skeleton span { display: block; height: 3.25rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--surface2) 0%, var(--surface) 50%, var(--surface2) 100%); background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+.skeleton span { display: block; height: 3.25rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, color-mix(in srgb, var(--border) 55%, var(--surface)) 0%, color-mix(in srgb, var(--border) 25%, var(--surface)) 50%, color-mix(in srgb, var(--border) 55%, var(--surface)) 100%); background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
@@ -212,7 +212,8 @@ ul.plain li, ol.plain li { padding: 2px 0; }
   border: var(--control-line) solid var(--line-strong); border-radius: 999px; vertical-align: middle; background: var(--surface); color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; font-family: var(--font-label);
 }
 .tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: var(--space-1) 0 0; }
-button.badge.tag { cursor: pointer; font: inherit; font-size: var(--step--2); font-weight: 600; }
+button.badge.tag { cursor: pointer; font: inherit; font-size: var(--step--2); font-weight: 600; min-height: 24px; }
+@media (pointer: coarse) { button.badge.tag { min-height: 40px; padding-inline: var(--space-3); } }
 button.badge.tag:hover { background: var(--accent-soft); }
 .person-card .person { text-decoration: none; color: var(--text); }
 .badge-warn, .badge-expired { border-color: var(--danger); color: var(--danger); }
@@ -1051,6 +1052,9 @@ li.new-divider::before, li.new-divider::after { border-top: var(--line-width) so
 
 /* ---- Settings (P2): one look for every section; a real switch for on/off choices */
 .settings-section .panel-head { align-items: center; }
+/* A form's button never sits right on the next heading. */
+.settings-section h3 { margin-top: var(--space-5); }
+.settings-section > :first-child h3, .settings-section h3:first-child { margin-top: 0; }
 .settings-scope { font-weight: 600; }
 .field-label { display: block; font-weight: 700; margin: 0 0 var(--space-1); }
 .check.switch { gap: var(--space-3); cursor: pointer; }
@@ -1463,3 +1467,6 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 @media (max-width: 899px) {
   .memo-write.is-idle :is(.editor-meta, .memo-who, [type=submit]) { display: none; }
 }
+
+/* The Add apps cards keep their own padding (the generic row padding has none at the sides). */
+.rows.app-catalog > li.app-card { padding: var(--space-4); }

@@ -40,9 +40,9 @@ export function AppsPanel() {
             {q.data.apps.map((a) => (
               <tr key={a.id}>
                 <td><strong>{a.name}</strong><br /><span className="row-meta">{a.description}</span>{!a.present && <><br /><span className="badge badge-warn">{t('admin.apps.missing')}</span></>}</td>
-                <td>{a.version}</td>
-                <td>{a.people}</td>
-                <td>
+                <td data-label={t('admin.apps.version')}>{a.version}</td>
+                <td data-label={t('admin.apps.people')}>{a.people}</td>
+                <td data-label={t('admin.apps.offered')}>
                   <label className="check">
                     <input type="checkbox" checked={shown(a)} disabled={!a.present} onChange={(e) => toggle(a.id, e.target.checked)} />
                     {t('admin.apps.offerLabel', { app: a.name })}

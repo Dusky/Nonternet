@@ -43,8 +43,8 @@ export function Search({ board: fixedBoard, initial = '' }: { board?: string; in
   };
   return (
     <>
-      <BackLink to="">{t('boards.backToBoards')}</BackLink>
-      <h2>{t('boards.search.title')}</h2>
+      <BackLink to={fixedBoard ?? ''}>{fixedBoard ? t('boards.search.backToBoard') : t('boards.backToBoards')}</BackLink>
+      <h2>{fixedBoard ? t('boards.search.titleBoard') : t('boards.search.title')}</h2>
       <form onSubmit={submit} role="search" className="search-form">
         <TextField label={t('boards.search.label')} value={input} onChange={setInput} type="search" minLength={2} required />
         {!fixedBoard && boards.length > 0 && (
