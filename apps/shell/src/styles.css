@@ -377,10 +377,17 @@ button.badge.tag:hover { background: var(--accent-soft); }
 .home-stats .label { color: var(--muted); font-size: var(--step--1); font-family: var(--font-label); }
 .home-stats .is-new .num { color: var(--accent); }
 .home .panel { margin: 0; }
+.widget { min-width: 0; display: grid; gap: var(--space-2); align-content: start; }
+.widget.is-editing { outline: var(--control-line) dashed var(--line-strong); outline-offset: 4px; }
+.widget-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.widget-bar strong { margin-right: auto; font-family: var(--font-label); }
+.widget-add { display: grid; gap: var(--space-2); }
+.widget-add .actions { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.home-edit { margin: 0; }
 /* On a wide screen the panels sit in two columns; the greeting, the numbers and the first steps stay full width. */
 @media (min-width: 1280px) {
   .desktop .home { width: min(64rem, 100%); grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-  .desktop .home > .home-greeting, .desktop .home > .home-stats, .desktop .home > .alert, .desktop .home > .hint, .desktop .home > .home-start { grid-column: 1 / -1; }
+  .desktop .home > :not(.widget), .desktop .home > .widget.is-wide { grid-column: 1 / -1; }
 }
 .home .panel-head .btn-small { margin-right: calc(-1 * var(--space-2)); }
 .checklist .link { min-height: 32px; padding: 0; text-align: left; }

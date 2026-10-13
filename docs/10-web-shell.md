@@ -541,3 +541,15 @@ What the browser review of every app found, and how the shell now behaves:
   A place is stored as app plus a plain path (no scheme, no `//`, no `..`), and a bookmark by its id, never by address.
 - Next in the plan: shortcuts on the desktop (to bookmarks and to places such as a thread or a person) and widgets (the home
   panel's boxes made choosable).
+
+## As built (home panel widgets, 2026-10-13)
+
+- The home panel under the greeting is a list of widgets: Numbers, Getting started, The wall, The tower, Memos, Bookmarks, New
+  posts, Who is online, Links. "Change the home panel" (bottom of the panel, and the bare desktop's menu) switches to arranging:
+  each widget has Move up / down, Wide (big screens; a wide widget spans both columns), Hide, and hidden ones are offered under
+  "Add to the home panel". Done leaves arranging. A widget with nothing to show is left out, except while arranging.
+- Kept in the `desktop` client document as `widgets` (id and size, in order) plus `widgets_set`. Until someone first changes
+  anything, the default list applies, so a widget added later reaches everyone who never customised. Getting started's old
+  "hide" flag (kept on the device) still counts until then. "Put the desktop back as it was" restores the default list.
+- Phones use the same list (one column, so no Wide).
+- Not here: widgets from installed apps, a calendar widget.

@@ -175,3 +175,35 @@ test('shortcuts show on the phone home screen and can be removed in Settings', a
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'Open Board talk (shortcut)' })).toHaveCount(0);
 });
+
+test('the home panel can be rearranged: move, hide, add back, and it is kept', async ({ page, isMobile }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  const order = () => page.locator('.home > .widget').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.widget));
+  await expect(page.locator('.home')).toBeVisible();
+  await page.getByRole('button', { name: 'Change the home panel' }).click();
+  // While arranging, every widget has its controls, even ones with nothing in them yet.
+  await page.getByRole('button', { name: 'Move Memos up' }).click();
+  await page.getByRole('button', { name: 'Move Memos up' }).click();
+  const moved = await order();
+  expect(moved.indexOf('memos')).toBeLessThan(moved.indexOf('wall'));
+  await page.getByRole('button', { name: 'Hide The wall' }).click();
+  await expect(page.locator('[data-widget="wall"]')).toHaveCount(0);
+  if (!isMobile) {
+    await page.getByRole('button', { name: 'Make Memos wide' }).click();
+    await expect(page.getByRole('button', { name: 'Make Memos wide' })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await scan(page, 'the home panel while arranging');
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Change the home panel' })).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(page.locator('.home')).toBeVisible();
+  const after = await order();
+  expect(after).not.toContain('wall');
+  expect(after.indexOf('memos')).toBeLessThan(after.indexOf('bookmarks'));
+  // Add it back.
+  await page.getByRole('button', { name: 'Change the home panel' }).click();
+  await page.getByRole('button', { name: 'Add The wall' }).click();
+  await expect(page.locator('[data-widget="wall"]')).toHaveCount(1);
+});

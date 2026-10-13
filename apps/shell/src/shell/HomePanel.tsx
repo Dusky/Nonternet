@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import type { BoardSummary, BookmarkView, MemoView, Me } from '@app/shared';
+import type { BoardSummary, BookmarkView, MemoView, Me, WidgetChoice, WidgetId } from '@app/shared';
 import { api } from '../api';
 import { Icon } from '../components/Icon';
 import { Alert, Avatar } from '../components/ui';
@@ -12,6 +12,8 @@ import { WriteBox } from '../apps/memos/WriteBox';
 import { RichText } from '../components/RichText';
 import { TowerBoard } from './TowerBoard';
 import { useWindows, type AppId } from './windows';
+import { useDesktopLayout } from './desktopLayout';
+import { addWidget, hiddenWidgets, hideWidget, moveWidget, resolveWidgets, sizeWidget } from './desktopLayout.logic';
 
 export interface OnlinePerson { id: string; handle: string; display_name: string | null; status_line: string | null; away: boolean; web: boolean; chat: boolean; bbs: { node: number; where: string; via: string } | null }
 interface HomeSummary { homepage: { url: string; last_updated_at: string | null } }
@@ -50,7 +52,7 @@ export function HomePanel({ me }: { me: Me }) {
   const application = useQuery({ queryKey: ['me', 'application'], queryFn: () => api.get<{ application: { state: string } | null }>('/me/application'), enabled: !confirmed, staleTime: 60_000 }).data?.application;
   const marks = useQuery({ queryKey: ['bookmarks', 'hub'], queryFn: () => api.get<{ pinned: BookmarkView[]; recent: BookmarkView[]; total: number }>('/bookmarks/hub'), enabled: confirmed, staleTime: 30_000 }).data;
   const memos = useQuery({ queryKey: ['memos', 'hub'], queryFn: () => api.get<{ recent: MemoView[]; total: number }>('/memos/hub'), enabled: confirmed, staleTime: 30_000 }).data;
-  const [hideStart, setHideStart] = useState(dismissed);
+  const hideStart = dismissed();
 
   const go = (app: AppId, path = '') => {
     if (desktop) openWin(app, path); else navigate(`${appById(app).path}${path ? `/${path}` : ''}`);
@@ -58,12 +60,100 @@ export function HomePanel({ me }: { me: Me }) {
   const withNew = (boards ?? []).filter((b) => (b.unread ?? 0) > 0).sort((a, b) => (b.unread ?? 0) - (a.unread ?? 0));
   const unreadPosts = withNew.reduce((n, b) => n + (b.unread ?? 0), 0);
   const steps = gettingStarted({ me, homepageUpdated: Boolean(home?.homepage.last_updated_at), watchesABoard: (boards ?? []).some((b) => b.watching) });
-  const showSteps = !hideStart && steps.some((s) => !s.done);
   const others = (online ?? []).filter((p) => p.id !== me.id);
   const stepAction: Record<(typeof steps)[number]['key'], () => void> = {
     verify: () => go('settings', 'profile'), bio: () => go('settings', 'profile'), homepage: () => go('studio'),
     watch: () => go('boards'), twofa: () => go('settings', 'two-factor'),
   };
+
+  const settings = useDesktopLayout((st) => st.settings);
+  const loaded = useDesktopLayout((st) => st.loaded);
+  const editing = useDesktopLayout((st) => st.editingHome) && loaded;
+  const legacyHidden = hideStart;
+  const list = resolveWidgets(settings, legacyHidden);
+  const change = (fn: (l: WidgetChoice[]) => WidgetChoice[]) => useDesktopLayout.getState().changeWidgets(fn, legacyHidden);
+
+  // Each widget's content, or null when it has nothing to show (it is then left out, except while arranging).
+  const blocks: Record<WidgetId, ReactNode> = {
+    stats: (
+      <ul className="home-stats">
+        <li><button type="button" className={unreadPosts ? 'is-new' : ''} onClick={() => go('boards')}><span className="num">{unreadPosts}</span><span className="label">{t('home.stat.posts', { count: unreadPosts })}</span></button></li>
+        {confirmed && <li><button type="button" className={mail ? 'is-new' : ''} onClick={() => go('mail')}><span className="num">{mail}</span><span className="label">{t('home.stat.mail', { count: mail })}</span></button></li>}
+        <li><button type="button" className={notes ? 'is-new' : ''} onClick={() => go('notifications')}><span className="num">{notes}</span><span className="label">{t('home.stat.notifications', { count: notes })}</span></button></li>
+        {online && <li><button type="button" onClick={() => go('people')}><span className="num">{online.length}</span><span className="label">{t('home.stat.online', { count: online.length })}</span></button></li>}
+      </ul>
+    ),
+    start: !steps.some((s) => !s.done) ? null : (
+      <section className="panel home-start" aria-labelledby="home-start">
+        <div className="panel-head">
+          <h3 id="home-start">{t('home.start.title')}</h3>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => change((l) => hideWidget(l, 'start'))}>{t('home.start.hide')}</button>
+        </div>
+        <ul className="checklist">
+          {steps.map((s) => (
+            <li key={s.key} className={s.done ? 'is-done' : undefined}>
+              <span className="tick" aria-hidden="true">{s.done && <Icon name="check" />}</span>
+              {s.done
+                ? <span>{t(`home.start.${s.key}`)} <span className="sr-only">{t('home.start.done')}</span></span>
+                : <button type="button" className="link" onClick={stepAction[s.key]}>{t(`home.start.${s.key}`)}</button>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ),
+    wall: confirmed ? <Oneliners /> : null,
+    tower: confirmed && site.services.mud ? <TowerBoard limit={5} headingId="home-tower" /> : null,
+    memos: !confirmed ? null : (
+      <section className="panel" aria-labelledby="home-memos">
+        <div className="panel-head">
+          <h3 id="home-memos">{t('home.memos.title')}</h3>
+          {memos && memos.total > 0 && <button type="button" className="btn btn-quiet btn-small" onClick={() => go('memos')}>{t('home.memos.all')}</button>}
+        </div>
+        <WriteBox compact />
+        {memos && memos.recent.length > 0 && <ul className="rows home-memos">{memos.recent.slice(0, 3).map((m) => <li key={m.id}><RichText body={m.body} /></li>)}</ul>}
+      </section>
+    ),
+    bookmarks: marks ? <HomeBookmarks marks={marks} open={(path) => go('bookmarks', path)} /> : null,
+    new: withNew.length === 0 ? null : (
+      <section className="panel" aria-labelledby="home-new">
+        <div className="panel-head">
+          <h3 id="home-new">{t('home.new.title')}</h3>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => go('boards')}>{t('home.new.all')}</button>
+        </div>
+        <ul className="rows">
+          {withNew.slice(0, 5).map((b) => (
+            <li key={b.id} className="row-head">
+              <button type="button" className="link" onClick={() => go('boards', b.slug)}>{b.name}</button>
+              <span className="badge badge-accent">{t('boards.unread', { count: b.unread ?? 0 })}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ),
+    online: others.length === 0 ? null : (
+      <section className="panel" aria-labelledby="home-online">
+        <h3 id="home-online">{t('home.online.title')}</h3>
+        <ul className="people-strip">
+          {others.slice(0, 24).map((p) => (
+            <li key={p.id}>
+              <button type="button" className="btn btn-quiet btn-small person" onClick={() => go('people', p.handle)} title={where(t, p)}>
+                <Avatar id={p.id} name={p.display_name || p.handle} size="sm" />{p.display_name || p.handle}
+                <span className="sr-only">, {where(t, p)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ),
+    links: !home ? null : (
+      <p className="hint">
+        <a href={home.homepage.url} target="_blank" rel="noopener noreferrer">{t('home.yourHomepage')}</a>
+        {' · '}<button type="button" className="link" onClick={() => go('studio')}>{t('home.editHomepage')}</button>
+        {site.services.bbs && <>{' · '}<button type="button" className="link" onClick={() => go('terminal')}>{t('home.callBbs')}</button></>}
+      </p>
+    ),
+  };
+  const missing = hiddenWidgets(list).filter((id) => id !== 'tower' || (confirmed && site.services.mud));
 
   return (
     <section className="home" aria-labelledby="home-title">
@@ -73,87 +163,34 @@ export function HomePanel({ me }: { me: Me }) {
       </div>
       {application?.state === 'pending' && <Alert kind="info">{me.email_verified ? t('home.application.waiting') : t('home.application.confirmFirst')}</Alert>}
 
-      <ul className="home-stats">
-        <li><button type="button" className={unreadPosts ? 'is-new' : ''} onClick={() => go('boards')}><span className="num">{unreadPosts}</span><span className="label">{t('home.stat.posts', { count: unreadPosts })}</span></button></li>
-        {confirmed && <li><button type="button" className={mail ? 'is-new' : ''} onClick={() => go('mail')}><span className="num">{mail}</span><span className="label">{t('home.stat.mail', { count: mail })}</span></button></li>}
-        <li><button type="button" className={notes ? 'is-new' : ''} onClick={() => go('notifications')}><span className="num">{notes}</span><span className="label">{t('home.stat.notifications', { count: notes })}</span></button></li>
-        {online && <li><button type="button" onClick={() => go('people')}><span className="num">{online.length}</span><span className="label">{t('home.stat.online', { count: online.length })}</span></button></li>}
-      </ul>
-
-      {showSteps && (
-        <section className="panel home-start" aria-labelledby="home-start">
-          <div className="panel-head">
-            <h3 id="home-start">{t('home.start.title')}</h3>
-            <button type="button" className="btn btn-quiet btn-small" onClick={() => { setHideStart(true); try { window.localStorage.setItem(DISMISS_KEY, '1'); } catch { /* a convenience */ } }}>{t('home.start.hide')}</button>
+      {list.map((w, i) => {
+        const node = blocks[w.id];
+        if (!node && !editing) return null;
+        const name = t(`home.widget.${w.id}`);
+        return (
+          <div key={w.id} className={`widget${w.size === 'wide' ? ' is-wide' : ''}${editing ? ' is-editing' : ''}`} data-widget={w.id}>
+            {editing && (
+              <div className="widget-bar" role="group" aria-label={name}>
+                <strong>{name}</strong>
+                <button type="button" className="btn btn-quiet btn-small" disabled={i === 0} aria-label={t('home.widget.up', { name })} onClick={() => change((l) => moveWidget(l, w.id, -1))}>↑</button>
+                <button type="button" className="btn btn-quiet btn-small" disabled={i === list.length - 1} aria-label={t('home.widget.down', { name })} onClick={() => change((l) => moveWidget(l, w.id, 1))}>↓</button>
+                {desktop && <button type="button" className="btn btn-quiet btn-small" aria-pressed={w.size === 'wide'} aria-label={t('home.widget.wide', { name })} onClick={() => change((l) => sizeWidget(l, w.id, w.size === 'wide' ? 'normal' : 'wide'))}>{t('home.widget.wideShort')}</button>}
+                <button type="button" className="btn btn-quiet btn-small" aria-label={t('home.widget.hide', { name })} onClick={() => change((l) => hideWidget(l, w.id))}>{t('home.widget.hideShort')}</button>
+              </div>
+            )}
+            {node ?? <p className="hint">{t('home.widget.empty')}</p>}
           </div>
-          <ul className="checklist">
-            {steps.map((s) => (
-              <li key={s.key} className={s.done ? 'is-done' : undefined}>
-                <span className="tick" aria-hidden="true">{s.done && <Icon name="check" />}</span>
-                {s.done
-                  ? <span>{t(`home.start.${s.key}`)} <span className="sr-only">{t('home.start.done')}</span></span>
-                  : <button type="button" className="link" onClick={stepAction[s.key]}>{t(`home.start.${s.key}`)}</button>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+        );
+      })}
 
-      {confirmed && <Oneliners />}
-      {confirmed && site.services.mud && <TowerBoard limit={5} headingId="home-tower" />}
-
-      {confirmed && (
-        <section className="panel" aria-labelledby="home-memos">
-          <div className="panel-head">
-            <h3 id="home-memos">{t('home.memos.title')}</h3>
-            {memos && memos.total > 0 && <button type="button" className="btn btn-quiet btn-small" onClick={() => go('memos')}>{t('home.memos.all')}</button>}
-          </div>
-          <WriteBox compact />
-          {memos && memos.recent.length > 0 && <ul className="rows home-memos">{memos.recent.slice(0, 3).map((m) => <li key={m.id}><RichText body={m.body} /></li>)}</ul>}
-        </section>
-      )}
-
-      {marks && <HomeBookmarks marks={marks} open={(path) => go('bookmarks', path)} />}
-
-      {withNew.length > 0 && (
-        <section className="panel" aria-labelledby="home-new">
-          <div className="panel-head">
-            <h3 id="home-new">{t('home.new.title')}</h3>
-            <button type="button" className="btn btn-quiet btn-small" onClick={() => go('boards')}>{t('home.new.all')}</button>
-          </div>
-          <ul className="rows">
-            {withNew.slice(0, 5).map((b) => (
-              <li key={b.id} className="row-head">
-                <button type="button" className="link" onClick={() => go('boards', b.slug)}>{b.name}</button>
-                <span className="badge badge-accent">{t('boards.unread', { count: b.unread ?? 0 })}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {others.length > 0 && (
-        <section className="panel" aria-labelledby="home-online">
-          <h3 id="home-online">{t('home.online.title')}</h3>
-          <ul className="people-strip">
-            {others.slice(0, 24).map((p) => (
-              <li key={p.id}>
-                <button type="button" className="btn btn-quiet btn-small person" onClick={() => go('people', p.handle)} title={where(t, p)}>
-                  <Avatar id={p.id} name={p.display_name || p.handle} size="sm" />{p.display_name || p.handle}
-                  <span className="sr-only">, {where(t, p)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {home && (
-        <p className="hint">
-          <a href={home.homepage.url} target="_blank" rel="noopener noreferrer">{t('home.yourHomepage')}</a>
-          {' · '}<button type="button" className="link" onClick={() => go('studio')}>{t('home.editHomepage')}</button>
-          {site.services.bbs && <>{' · '}<button type="button" className="link" onClick={() => go('terminal')}>{t('home.callBbs')}</button></>}
-        </p>
+      {editing ? (
+        <div className="widget-add">
+          {missing.length > 0 && <h3>{t('home.widget.addTitle')}</h3>}
+          {missing.length > 0 && <ul className="actions">{missing.map((id) => <li key={id}><button type="button" className="btn btn-small" onClick={() => change((l) => addWidget(l, id))}>{t('home.widget.add', { name: t(`home.widget.${id}`) })}</button></li>)}</ul>}
+          <div className="actions"><button type="button" className="btn btn-primary" onClick={() => useDesktopLayout.getState().setEditingHome(false)}>{t('home.widget.done')}</button></div>
+        </div>
+      ) : (
+        loaded && <p className="home-edit"><button type="button" className="link" onClick={() => useDesktopLayout.getState().setEditingHome(true)}>{t('home.widget.change')}</button></p>
       )}
     </section>
   );

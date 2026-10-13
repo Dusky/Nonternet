@@ -55,6 +55,10 @@ describe.skipIf(!dbAvailable)('chat and MUD client settings on the account', () 
     expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { hidden: ['settings'] } })).status).toBe(400);
     expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { positions: { boards: { col: 99, row: 0 } } } })).status).toBe(400);
     expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { positions: { '<script>': { col: 0, row: 0 } } } })).status).toBe(400);
+    // The home panel's widgets: known ids only, each once.
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { widgets_set: true, widgets: [{ id: 'memos', size: 'wide' }, { id: 'stats' }] } })).status).toBe(200);
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { widgets_set: true, widgets: [{ id: 'nope' }] } })).status).toBe(400);
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { widgets_set: true, widgets: [{ id: 'stats' }, { id: 'stats' }] } })).status).toBe(400);
     // Shortcuts point at a bookmark by id or at a place inside an app, and nothing else.
     const sc = (target: object) => ({ settings: { shortcuts: [{ id: 's_abc123', label: 'x', target }] } });
     expect((await c.put('/api/v1/me/client-settings/desktop', sc({ type: 'place', app: 'boards', path: 'general/t/p_123' }))).status).toBe(200);

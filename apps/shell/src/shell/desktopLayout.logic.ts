@@ -1,4 +1,4 @@
-import { DESKTOP_MAX_COL, DESKTOP_MAX_ROW, type DesktopClient, type DesktopShortcut } from '@app/shared';
+import { DESKTOP_MAX_COL, DESKTOP_MAX_ROW, WIDGET_IDS, type DesktopClient, type DesktopShortcut, type WidgetChoice, type WidgetId } from '@app/shared';
 
 // Where icons sit on the desktop grid (docs/10). Pure functions, so the rules are easy to test: saved positions are kept,
 // anything without a (free) place fills the first free cells in the default order, and a drop on an occupied cell swaps.
@@ -89,3 +89,24 @@ export function placePath(path: string): string {
   return p.length <= 300 && /^[A-Za-z0-9._~:@%+/-]*$/.test(p) && !p.includes('//') && !p.includes('..') ? p : '';
 }
 export const newShortcutId = (): string => `s_${Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')}`;
+
+// Home panel widgets. Untouched accounts follow the default list (so a widget added later reaches them); once someone changes
+// anything the list is theirs. 'start' (Getting started) used to be hidden by a flag kept on the device: that still counts.
+const WIDE_BY_DEFAULT: WidgetId[] = ['stats', 'start', 'links'];
+export const defaultWidgets = (): WidgetChoice[] => WIDGET_IDS.map((id) => ({ id, size: WIDE_BY_DEFAULT.includes(id) ? 'wide' : 'normal' }));
+export function resolveWidgets(s: Pick<DesktopClient, 'widgets' | 'widgets_set'>, legacyStartHidden = false): WidgetChoice[] {
+  if (s.widgets_set) return s.widgets;
+  return defaultWidgets().filter((w) => !(legacyStartHidden && w.id === 'start'));
+}
+// Each of these takes the current list and gives the new one.
+export function moveWidget(list: WidgetChoice[], id: WidgetId, by: -1 | 1): WidgetChoice[] {
+  const i = list.findIndex((w) => w.id === id); const j = i + by;
+  if (i < 0 || j < 0 || j >= list.length) return list;
+  const out = [...list]; [out[i], out[j]] = [out[j]!, out[i]!];
+  return out;
+}
+export const sizeWidget = (list: WidgetChoice[], id: WidgetId, size: WidgetChoice['size']): WidgetChoice[] => list.map((w) => (w.id === id ? { ...w, size } : w));
+export const hideWidget = (list: WidgetChoice[], id: WidgetId): WidgetChoice[] => list.filter((w) => w.id !== id);
+export const addWidget = (list: WidgetChoice[], id: WidgetId): WidgetChoice[] =>
+  list.some((w) => w.id === id) ? list : [...list, { id, size: defaultWidgets().find((w) => w.id === id)!.size }];
+export const hiddenWidgets = (list: WidgetChoice[]): WidgetId[] => WIDGET_IDS.filter((id) => !list.some((w) => w.id === id));

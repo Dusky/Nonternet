@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { en } from '@app/strings';
-import { DESKTOP_MAX_SHORTCUTS, desktopClientSchema, type DesktopClient } from '@app/shared';
+import { DESKTOP_MAX_SHORTCUTS, desktopClientSchema, type DesktopClient, type WidgetChoice } from '@app/shared';
 import { api } from '../api';
 import { toast } from '../components/feedback';
-import { NEVER_HIDDEN, newShortcutId, phoneOrder, sameTarget, shiftPhone, shortcutKey, type ShortcutTarget } from './desktopLayout.logic';
+import { NEVER_HIDDEN, newShortcutId, resolveWidgets, phoneOrder, sameTarget, shiftPhone, shortcutKey, type ShortcutTarget } from './desktopLayout.logic';
 
 // The desktop layout as the account keeps it (docs/10): where icons sit, what is hidden, the phone order. Loaded once after
 // sign-in; changes show at once and are saved a moment later, and nothing is saved before the first load, so the defaults can
@@ -20,6 +20,10 @@ interface State {
   addShortcut: (label: string, target: ShortcutTarget) => { id: string; added: boolean } | 'full' | null;
   removeShortcut: (id: string) => void;
   renameShortcut: (id: string, label: string) => void;
+  // The home panel's widgets. The first change turns the default list into the person's own.
+  editingHome: boolean;
+  setEditingHome: (on: boolean) => void;
+  changeWidgets: (fn: (list: WidgetChoice[]) => WidgetChoice[], legacyStartHidden?: boolean) => void;
   reset: () => DesktopClient;
   restore: (s: DesktopClient) => void;
 }
@@ -68,6 +72,13 @@ export const useDesktopLayout = create<State>((set, get) => {
       if (!get().loaded || !l) return;
       const s = get().settings;
       apply({ ...s, shortcuts: s.shortcuts.map((x) => (x.id === id ? { ...x, label: l } : x)) });
+    },
+    editingHome: false,
+    setEditingHome: (editingHome) => set({ editingHome }),
+    changeWidgets: (fn, legacy = false) => {
+      if (!get().loaded) return;
+      const s = get().settings;
+      apply({ ...s, widgets_set: true, widgets: fn(resolveWidgets(s, legacy)) });
     },
     reset: () => { const before = get().settings; if (get().loaded) apply({ ...empty(), shortcuts: before.shortcuts }); return before; },
     restore: (s) => { if (get().loaded) apply(s); },

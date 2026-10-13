@@ -86,12 +86,21 @@ export const desktopShortcutSchema = z.object({
 });
 export type DesktopShortcut = z.infer<typeof desktopShortcutSchema>;
 export const DESKTOP_MAX_SHORTCUTS = 60;
+// The home panel is made of widgets (docs/10). The list is the person's choice of which, in what order, and how wide.
+export const WIDGET_IDS = ['stats', 'start', 'wall', 'tower', 'memos', 'bookmarks', 'new', 'online', 'links'] as const;
+export type WidgetId = (typeof WIDGET_IDS)[number];
+export const widgetSchema = z.object({ id: z.enum(WIDGET_IDS), size: z.enum(['normal', 'wide']).default('normal') });
+export type WidgetChoice = z.infer<typeof widgetSchema>;
 export const desktopClientSchema = z.object({
   positions: z.record(itemKey, z.object({ col: z.number().int().min(0).max(DESKTOP_MAX_COL), row: z.number().int().min(0).max(DESKTOP_MAX_ROW) })).default({})
     .refine((p) => Object.keys(p).length <= 100, 'Too many icons are placed.'),   // big screens: where each icon sits
   phone_order: z.array(itemKey).max(100).default([]),                              // phones: the order of the app grid
   hidden: z.array(itemKey).max(100).default([])                                    // apps left off the desktop and the phone grid
     .refine((h) => !h.includes('settings'), 'Settings cannot be hidden, so there is always a way back.'),
+  // Absent until the person first changes the home panel; until then the default list applies, so new widgets reach everyone.
+  widgets_set: z.boolean().default(false),
+  widgets: z.array(widgetSchema).max(WIDGET_IDS.length).default([])
+    .refine((w) => new Set(w.map((x) => x.id)).size === w.length, 'Each widget can only be there once.'),
   shortcuts: z.array(desktopShortcutSchema).max(DESKTOP_MAX_SHORTCUTS).default([]),  // icons that open a bookmark or a place; item key 'sc:<id>'
 }).prefault({});
 export type DesktopClient = z.infer<typeof desktopClientSchema>;

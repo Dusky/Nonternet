@@ -299,7 +299,7 @@ one process, this moves to the job queue.
   MUD client settings, rather than per device: a person's desktop is the same wherever they sign in, and it is part of their
   export. A separate phone order exists because a phone grid is a list, not a plane.
 - Settings can never be hidden. Hiding an app only removes its icon; the Apps menu, the palette and its own address still work.
-- Not decided here and not built yet: widgets, folders. They are the next steps in the same
+- Not built yet: folders. They are the next steps in the same
   document (see the plan in the repository's planning notes), not OPEN questions.
 
 ## 2026-10-13 (later): desktop shortcuts
@@ -310,3 +310,10 @@ one process, this moves to the job queue.
   change, and a place path for a profile (`people/<handle>`) is enough and gets the same "Missing" treatment if it stops working.
 - Reset keeps shortcuts (they are things a person made, not an arrangement); each can be removed, with Undo on add.
 - No audit entry: a person's own settings, same rule as the rest of the desktop document.
+
+## 2026-10-13 (later): home panel widgets
+
+- The home panel is a per-account list of widgets (`desktop` client document: `widgets`, `widgets_set`). Untouched accounts follow
+  the default list, so new widgets arrive for them; the first change makes the list theirs. No audit entry (own settings).
+- Widgets from installed apps and a calendar are not built (they would need a widget entry point in the app bridge: a later design).
+- NEXT (owner, 2026-10-13): fix the MUD browser client's menus and controls, which are reported broken.

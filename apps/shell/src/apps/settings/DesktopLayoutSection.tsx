@@ -49,7 +49,7 @@ export function DesktopLayoutSection() {
         })}
       </ul>
       <div className="actions">
-        <button type="button" className="btn" disabled={!loaded || (Object.keys(settings.positions).length === 0 && settings.hidden.length === 0 && settings.phone_order.length === 0)}
+        <button type="button" className="btn" disabled={!loaded || (Object.keys(settings.positions).length === 0 && settings.hidden.length === 0 && settings.phone_order.length === 0 && !settings.widgets_set)}
           onClick={() => { const before = useDesktopLayout.getState().reset(); toast(t('desktop.resetDone'), 'ok', { undo: () => useDesktopLayout.getState().restore(before) }); }}>{t('desktop.ctx.reset')}</button>
       </div>
     </Section>

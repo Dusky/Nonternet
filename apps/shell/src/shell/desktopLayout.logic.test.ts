@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gridSize, moveTo, neighbour, newShortcutId, phoneOrder, place, placePath, sameTarget, shiftPhone, shortcutKey } from './desktopLayout.logic';
+import { addWidget, defaultWidgets, hiddenWidgets, hideWidget, moveWidget, resolveWidgets, sizeWidget, gridSize, moveTo, neighbour, newShortcutId, phoneOrder, place, placePath, sameTarget, shiftPhone, shortcutKey } from './desktopLayout.logic';
 
 const keys = ['a', 'b', 'c', 'd', 'e'];
 
@@ -93,5 +93,25 @@ describe('shortcuts', () => {
   });
   it('makes ids the server accepts', () => {
     expect(newShortcutId()).toMatch(/^s_[a-z0-9]{6,20}$/);
+  });
+});
+
+describe('home panel widgets', () => {
+  it('follows the default list until the person changes it, and honours the old Getting-started flag', () => {
+    expect(resolveWidgets({ widgets: [], widgets_set: false }).map((w) => w.id)).toEqual(defaultWidgets().map((w) => w.id));
+    expect(resolveWidgets({ widgets: [], widgets_set: false }, true).map((w) => w.id)).not.toContain('start');
+    expect(resolveWidgets({ widgets: [{ id: 'memos', size: 'wide' }], widgets_set: true })).toEqual([{ id: 'memos', size: 'wide' }]);
+  });
+  it('moves, resizes, hides and adds', () => {
+    const d = defaultWidgets();
+    expect(moveWidget(d, 'start', 1).slice(0, 3).map((w) => w.id)).toEqual(['stats', 'wall', 'start']);
+    expect(moveWidget(d, 'stats', -1)).toBe(d);
+    expect(moveWidget(d, 'links', 1)).toBe(d);
+    expect(sizeWidget(d, 'memos', 'wide').find((w) => w.id === 'memos')!.size).toBe('wide');
+    const without = hideWidget(d, 'tower');
+    expect(without.some((w) => w.id === 'tower')).toBe(false);
+    expect(hiddenWidgets(without)).toEqual(['tower']);
+    expect(addWidget(without, 'tower').at(-1)).toEqual({ id: 'tower', size: 'normal' });
+    expect(addWidget(d, 'tower')).toBe(d);
   });
 });
