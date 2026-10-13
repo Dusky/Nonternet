@@ -515,3 +515,21 @@ What the browser review of every app found, and how the shell now behaves:
   IRC "connected" count leaves out the site's own bot.
 - Still on the list (not done): the Mail compose and Wiki editor phone layouts, the Boards badge versus the home "new posts"
   tile (they count different things: things aimed at you, and unread posts), and the per-app quick wins in the reviews.
+
+## As built (desktop layout, 2026-10-13)
+
+- **Moving icons.** On a big screen the desktop icons sit on a grid of fixed cells. Drag an icon to another cell (a plain click
+  still opens the app); dropping on an occupied cell swaps the two. Without a mouse: the icon's menu (right-click or Shift+F10)
+  has Move left / right / up / down, and the new place is announced. Icons nobody moved fill the two-column strip in the usual
+  order, so nothing changes for people who never arrange anything.
+- **Hiding.** "Hide from the desktop" in the icon's menu leaves an app off the desktop and the phone grid; it stays in the Apps
+  menu, and the bare desktop's menu offers "Show <app> on the desktop". Settings is never hidden, so there is always a way back.
+  "Arrange the icons" clears the positions; "Put the desktop back as it was" clears positions, hidden apps and the phone order,
+  with Undo.
+- **Phones.** The app grid follows the same hidden set and its own order. Settings → Appearance → "Desktop and home screen"
+  is the form version of all of this: a switch per app, earlier / later, Reset.
+- **Where it is kept.** On the account as a third client document (`desktop`, next to `chat` and `mud`): `positions`, `phone_order`,
+  `hidden`. It follows the person to any browser, is in the export (`desktop/client.json`), is restored by import and erased
+  with the account. Nothing is saved before the first load, so defaults never overwrite an arrangement.
+- Next in the plan: shortcuts on the desktop (to bookmarks and to places such as a thread or a person) and widgets (the home
+  panel's boxes made choosable).

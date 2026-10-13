@@ -10,6 +10,7 @@ import { errorText, useT } from '../../hooks';
 import { alertPrefs, askDesktopPermission, desktopSupported, playChime, saveAlertPrefs, unlockAudio, type AlertPrefs } from '../../alerts';
 import { Section } from './Section';
 import { WallpaperPicker } from './WallpaperPicker';
+import { DesktopLayoutSection } from './DesktopLayoutSection';
 import { DeviceSwitch } from './PersonalSettings';
 import { applyTheme, BOX_STYLES, MODES, currentMode, modePref, saveModePref, boxStylePref, clockPref, DEFAULT_THEME, DENSITIES, densityPref, effectPrefs, saveBoxStylePref, saveClockPref, saveDensityPref, saveEffectPrefs, type EffectPrefs } from '../../theme';
 
@@ -105,6 +106,7 @@ export function Appearance({ me }: { me: Me }) {
           </Section>
         </>
       )}
+      <DesktopLayoutSection />
       <Section id="look-effects" title={t('settings.appearance.effects')} scope="device" intro={t('settings.appearance.effectsNote')}>
         {(['scanlines', 'glow', 'crt'] as const).map((key) => (
           <DeviceSwitch key={key} label={t(`settings.effects.${key}` as StringKey)} hint={t(`settings.effects.${key}.hint` as StringKey)} checked={fx[key]} onChange={(on) => toggle(key, on)} />

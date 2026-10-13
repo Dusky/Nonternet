@@ -292,3 +292,12 @@ one process, this moves to the job queue.
 - **OPEN, logged here as round 1 asked and not decided:** whether the telnet door needs TLS (the MUD and BBS speak plain
   telnet); suspension expiry; sign-up abuse tools; admin notes on people; whether archived file areas stay readable
   (`05` says readable, the code hides them).
+
+### 2026-10-13 — The desktop layout follows the account
+
+- Icon positions, hidden apps and the phone order are kept on the account as a `desktop` client document, like the chat and
+  MUD client settings, rather than per device: a person's desktop is the same wherever they sign in, and it is part of their
+  export. A separate phone order exists because a phone grid is a list, not a plane.
+- Settings can never be hidden. Hiding an app only removes its icon; the Apps menu, the palette and its own address still work.
+- Not decided here and not built yet: shortcuts to bookmarks and places, widgets, folders. They are the next steps in the same
+  document (see the plan in the repository's planning notes), not OPEN questions.

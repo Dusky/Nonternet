@@ -67,7 +67,7 @@ README.txt               # human explanation of the archive
   must hand over or archive the ring first, and the last admin cannot be deleted. Announced as `user.deleted`.
 
 ## As built (polish phase)
-`chat/client.json` and `mud/client.json`: the settings the Chat and MUD clients keep on the account (highlight words and ignored nicks; the MUD client's aliases, triggers, timers, keys, buttons, variables, saved command history and options). They come back with "Bring back an export" (the part "Your chat and MUD client settings") and are erased with the account.
+`chat/client.json` and `desktop/client.json` and `mud/client.json`: the settings the Chat and MUD clients keep on the account (highlight words and ignored nicks; the MUD client's aliases, triggers, timers, keys, buttons, variables, saved command history and options). They come back with "Bring back an export" (the part "Your chat and MUD client settings") and are erased with the account.
 
 ## Whose content is it?
 - A user's export includes **what they authored**. Others' posts in their threads are not

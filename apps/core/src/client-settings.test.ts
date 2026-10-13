@@ -46,6 +46,19 @@ describe.skipIf(!dbAvailable)('chat and MUD client settings on the account', () 
     expect((await client(ctx.app).get('/api/v1/me/client-settings/mud')).status).toBe(401);
   });
 
+  it('keeps the desktop layout, refuses hiding Settings and nonsense positions, and puts it in the export', async () => {
+    const layout = { positions: { boards: { col: 2, row: 1 }, 'app:todo': { col: 0, row: 0 } }, phone_order: ['mail', 'boards'], hidden: ['files'] };
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: layout })).status).toBe(200);
+    expect((await c.get('/api/v1/me/client-settings/desktop')).body.settings).toMatchObject(layout);
+    // A new person starts with nothing moved or hidden.
+    expect((await client(ctx.app).get('/api/v1/me/client-settings/desktop')).status).toBe(401);
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { hidden: ['settings'] } })).status).toBe(400);
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { positions: { boards: { col: 99, row: 0 } } } })).status).toBe(400);
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { positions: { '<script>': { col: 0, row: 0 } } } })).status).toBe(400);
+    // What was saved is still there after the refusals.
+    expect((await c.get('/api/v1/me/client-settings/desktop')).body.settings.hidden).toEqual(['files']);
+  });
+
   it('is in the export, and goes with the account', async () => {
     expect((await c.post('/api/v1/me/export', { password: TEST_PASSWORD })).status).toBe(202);
     await processNext(ctx.deps);
@@ -53,6 +66,7 @@ describe.skipIf(!dbAvailable)('chat and MUD client settings on the account', () 
     const files = unzipSync(new Uint8Array(readFileSync(join(ctx.deps.exportsDir, `${x.id}.zip`))));
     expect(JSON.parse(strFromU8(files['mud/client.json']!)).aliases[0].send).toBe('kill $1');
     expect(JSON.parse(strFromU8(files['chat/client.json']!)).ignore).toEqual(['spammer']);
+    expect(JSON.parse(strFromU8(files['desktop/client.json']!)).hidden).toEqual(['files']);
     expect((await c.post('/api/v1/me/delete', { password: TEST_PASSWORD, confirm_handle: (await c.get('/api/v1/me')).body.user.handle, posts: 'keep' })).status).toBeLessThan(300);
     expect((await db.query(`SELECT count(*)::int AS n FROM client_settings WHERE user_id = $1`, [id])).rows[0]!.n).toBe(0);
   });

@@ -66,7 +66,22 @@ export const mudClientSchema = z.object({
 }).prefault({});
 export type MudClient = z.infer<typeof mudClientSchema>;
 
-export const CLIENT_SCHEMAS = { chat: chatClientSchema, mud: mudClientSchema } as const;
+// ---------------------------------------------------------------- desktop
+// Where the icons sit and what the person has hidden (docs/10). An item key is an app id ('boards', 'app:todo'); later
+// shortcuts and widgets add their own keys. Nothing here is code: positions, ids and a few words.
+export const DESKTOP_MAX_COL = 5;
+export const DESKTOP_MAX_ROW = 39;
+const itemKey = z.string().regex(/^[A-Za-z0-9:_.-]{1,64}$/);
+export const desktopClientSchema = z.object({
+  positions: z.record(itemKey, z.object({ col: z.number().int().min(0).max(DESKTOP_MAX_COL), row: z.number().int().min(0).max(DESKTOP_MAX_ROW) })).default({})
+    .refine((p) => Object.keys(p).length <= 100, 'Too many icons are placed.'),   // big screens: where each icon sits
+  phone_order: z.array(itemKey).max(100).default([]),                              // phones: the order of the app grid
+  hidden: z.array(itemKey).max(100).default([])                                    // apps left off the desktop and the phone grid
+    .refine((h) => !h.includes('settings'), 'Settings cannot be hidden, so there is always a way back.'),
+}).prefault({});
+export type DesktopClient = z.infer<typeof desktopClientSchema>;
+
+export const CLIENT_SCHEMAS = { chat: chatClientSchema, mud: mudClientSchema, desktop: desktopClientSchema } as const;
 export type ClientName = keyof typeof CLIENT_SCHEMAS;
 export const CLIENT_NAMES = Object.keys(CLIENT_SCHEMAS) as ClientName[];
 export const CLIENT_SETTINGS_MAX_BYTES = 262_144;
