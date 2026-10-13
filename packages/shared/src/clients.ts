@@ -72,12 +72,27 @@ export type MudClient = z.infer<typeof mudClientSchema>;
 export const DESKTOP_MAX_COL = 5;
 export const DESKTOP_MAX_ROW = 39;
 const itemKey = z.string().regex(/^[A-Za-z0-9:_.-]{1,64}$/);
+// Where a shortcut leads: a bookmark (by its id, never by its address), or a place inside an app (the app and the path the app
+// itself understands, like 'general/t/p_123'). The path is plain: no scheme, no '//', no '..', so it can only ever be an address
+// inside the shell.
+const placePath = z.string().max(300).regex(/^[A-Za-z0-9._~:@%+/-]*$/, 'That is not a place in an app.').refine((p) => !p.includes('//') && !p.includes('..'), 'That is not a place in an app.');
+export const desktopShortcutSchema = z.object({
+  id: z.string().regex(/^s_[a-z0-9]{6,20}$/),
+  label: z.string().trim().min(1).max(60),
+  target: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('bookmark'), bookmark_id: z.string().regex(/^bm_[0-9A-Z]{26}$/) }),
+    z.object({ type: z.literal('place'), app: z.string().regex(/^(app:)?[a-z0-9-]{1,40}$/), path: placePath.default('') }),
+  ]),
+});
+export type DesktopShortcut = z.infer<typeof desktopShortcutSchema>;
+export const DESKTOP_MAX_SHORTCUTS = 60;
 export const desktopClientSchema = z.object({
   positions: z.record(itemKey, z.object({ col: z.number().int().min(0).max(DESKTOP_MAX_COL), row: z.number().int().min(0).max(DESKTOP_MAX_ROW) })).default({})
     .refine((p) => Object.keys(p).length <= 100, 'Too many icons are placed.'),   // big screens: where each icon sits
   phone_order: z.array(itemKey).max(100).default([]),                              // phones: the order of the app grid
   hidden: z.array(itemKey).max(100).default([])                                    // apps left off the desktop and the phone grid
     .refine((h) => !h.includes('settings'), 'Settings cannot be hidden, so there is always a way back.'),
+  shortcuts: z.array(desktopShortcutSchema).max(DESKTOP_MAX_SHORTCUTS).default([]),  // icons that open a bookmark or a place; item key 'sc:<id>'
 }).prefault({});
 export type DesktopClient = z.infer<typeof desktopClientSchema>;
 

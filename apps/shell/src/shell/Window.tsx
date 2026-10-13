@@ -7,6 +7,8 @@ import { useT } from '../hooks';
 import { WindowNav } from '../nav';
 import { appById, appName } from './apps';
 import { AppIcon } from './icons';
+import { placePath } from './desktopLayout.logic';
+import { addToDesktop } from './shortcuts';
 import { resizeFrom, snapZone, useWindows, type Edge, type Win } from './windows';
 
 const STEP = 16;
@@ -36,6 +38,7 @@ export function Window({ win, focused }: { win: Win; focused: boolean }) {
     { label: t('window.snapTopRight'), onSelect: () => snap(win.id, 'top-right') },
     { label: t('window.snapBottomLeft'), onSelect: () => snap(win.id, 'bottom-left') },
     { label: t('window.snapBottomRight'), onSelect: () => snap(win.id, 'bottom-right') },
+    { label: t('desktop.shortcut.add'), onSelect: () => void addToDesktop(useWindows.getState().subtitles[win.id] || title, { type: 'place', app: win.id, path: placePath(win.path) }), separator: true },
     { label: t('window.close', { app: title }), onSelect: () => { close(win.id); focusFront(win.id); }, danger: true },
   ];
   const ctx = useContextMenu(items);

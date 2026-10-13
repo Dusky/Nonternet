@@ -531,5 +531,13 @@ What the browser review of every app found, and how the shell now behaves:
 - **Where it is kept.** On the account as a third client document (`desktop`, next to `chat` and `mud`): `positions`, `phone_order`,
   `hidden`. It follows the person to any browser, is in the export (`desktop/client.json`), is restored by import and erased
   with the account. Nothing is saved before the first load, so defaults never overwrite an arrangement.
+- **Shortcuts (2026-10-13).** A shortcut is an icon with a small arrow that opens a bookmark or a place inside an app.
+  "Add to the desktop" is in every window's title-bar menu (the place is the app and the screen it is on, like a board thread
+  or a wiki page) and on each bookmark row. A bookmark shortcut shows the site's icon and opens the address in a new tab
+  (`noopener noreferrer`); it never opens on the shell's origin. Adding the same target twice says it is already there; up to 60.
+  Shortcuts are dragged, moved, renamed and removed like icons, show on the phone home screen (in the same phone order) and are
+  listed in Settings → Appearance → "Desktop and home screen" with Remove. If the bookmark is deleted or the app is no longer
+  available, the shortcut stays, marked "Missing", so it can be removed. "Put the desktop back as it was" keeps shortcuts.
+  A place is stored as app plus a plain path (no scheme, no `//`, no `..`), and a bookmark by its id, never by address.
 - Next in the plan: shortcuts on the desktop (to bookmarks and to places such as a thread or a person) and widgets (the home
   panel's boxes made choosable).

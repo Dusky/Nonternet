@@ -1,4 +1,4 @@
-import { DESKTOP_MAX_COL, DESKTOP_MAX_ROW, type DesktopClient } from '@app/shared';
+import { DESKTOP_MAX_COL, DESKTOP_MAX_ROW, type DesktopClient, type DesktopShortcut } from '@app/shared';
 
 // Where icons sit on the desktop grid (docs/10). Pure functions, so the rules are easy to test: saved positions are kept,
 // anything without a (free) place fills the first free cells in the default order, and a drop on an occupied cell swaps.
@@ -77,3 +77,15 @@ export function shiftPhone(items: { id: string }[], saved: string[], id: string,
 }
 
 export const NEVER_HIDDEN = ['settings'];
+
+// Shortcuts: an icon that opens a bookmark or a place inside an app. On the grid it is keyed 'sc:<id>' (apps use their own id).
+export const shortcutKey = (id: string) => `sc:${id}`;
+export type ShortcutTarget = DesktopShortcut['target'];
+export const sameTarget = (a: ShortcutTarget, b: ShortcutTarget): boolean =>
+  a.type === 'bookmark' ? b.type === 'bookmark' && a.bookmark_id === b.bookmark_id : b.type === 'place' && a.app === b.app && a.path === b.path;
+// A window's current screen as a place the server accepts: no query, no leading slash; anything odd means "the app's first screen".
+export function placePath(path: string): string {
+  const p = (path.split(/[?#]/)[0] ?? '').replace(/^\/+|\/+$/g, '');
+  return p.length <= 300 && /^[A-Za-z0-9._~:@%+/-]*$/.test(p) && !p.includes('//') && !p.includes('..') ? p : '';
+}
+export const newShortcutId = (): string => `s_${Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')}`;

@@ -311,6 +311,11 @@ button.badge.tag:hover { background: var(--accent-soft); }
 .icons { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 96px); grid-auto-rows: 104px; gap: var(--space-2); align-content: start; flex: none; }
 .desktop .icons > li { min-width: 0; }
 .desktop .icon { touch-action: none; height: 100%; }
+.shortcut-tile { position: relative; display: inline-flex; }
+.shortcut-arrow { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; width: 18px; height: 18px; font-size: 12px; line-height: 1; font-weight: 700; background: var(--surface); color: var(--text); border: var(--control-line) solid var(--line-strong); border-radius: 50%; }
+.icon.is-missing { opacity: .6; }
+.icon.is-missing .icon-label { text-decoration: line-through; }
+.shortcut-tile img { border-radius: 4px; }
 .icon.is-dragging { position: relative; z-index: 20; opacity: .85; cursor: grabbing; box-shadow: var(--shadow-card); background: var(--surface); }
 .icon {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-3) var(--space-1); min-height: 44px;

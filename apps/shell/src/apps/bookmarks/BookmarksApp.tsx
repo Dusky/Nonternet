@@ -8,12 +8,13 @@ import { undoable, useToast } from '../../components/feedback';
 import { errorText, useT } from '../../hooks';
 import { AppLink, useAppNav } from '../../nav';
 import { fieldMessages } from '../../components/Form';
+import { addToDesktop } from '../../shell/shortcuts';
+import { iconUrl } from './icon';
 
 // Bookmarks (docs/21): links a person saved, private for now. The list, a screen to add one (the bookmarklet and the
 // palette open it with the address filled in), and the bookmarklet itself.
 
 export const splitTags = (s: string): string[] => s.split(/[\s,]+/).map((x) => x.replace(/^#/, '').toLowerCase()).filter(Boolean);
-export const iconUrl = (b: BookmarkView) => `/api/v1/bookmarks/${b.id}/icon?v=${encodeURIComponent(b.updated_at)}`;
 
 // The add screen's address and title, from its own path (in a window: "add?url=…") or the page address (on its own page).
 function prefill(path: string): { url: string; title: string } {
@@ -144,6 +145,7 @@ function ListScreen() {
                     <button type="button" className="btn btn-quiet btn-small" aria-pressed={b.pinned} aria-label={`${b.pinned ? t('bookmarks.unpin') : t('bookmarks.pin')}: ${b.title}`} onClick={() => pin.mutate(b)}>
                       {b.pinned ? t('bookmarks.unpin') : t('bookmarks.pin')}
                     </button>
+                    <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('desktop.shortcut.add')}: ${b.title}`} onClick={() => void addToDesktop(b.title, { type: 'bookmark', bookmark_id: b.id })}>{t('desktop.shortcut.add')}</button>
                     <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('bookmarks.check')}: ${b.title}`} disabled={check.isPending && check.variables?.id === b.id} onClick={() => check.mutate(b)}>
                       {check.isPending && check.variables?.id === b.id ? t('bookmarks.checking') : t('bookmarks.check')}
                     </button>

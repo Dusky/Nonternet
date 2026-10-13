@@ -299,5 +299,14 @@ one process, this moves to the job queue.
   MUD client settings, rather than per device: a person's desktop is the same wherever they sign in, and it is part of their
   export. A separate phone order exists because a phone grid is a list, not a plane.
 - Settings can never be hidden. Hiding an app only removes its icon; the Apps menu, the palette and its own address still work.
-- Not decided here and not built yet: shortcuts to bookmarks and places, widgets, folders. They are the next steps in the same
+- Not decided here and not built yet: widgets, folders. They are the next steps in the same
   document (see the plan in the repository's planning notes), not OPEN questions.
+
+## 2026-10-13 (later): desktop shortcuts
+
+- **DECIDED by the owner's go-ahead on the desktop plan:** shortcuts live in the same `desktop` client document. A shortcut points
+  at a bookmark (by id) or at a place in an app (app id plus a plain path). Off-site bookmarks are allowed and open in a new tab;
+  nothing is ever framed or run on the shell's origin. People as shortcut targets were dropped from the plan: a handle can
+  change, and a place path for a profile (`people/<handle>`) is enough and gets the same "Missing" treatment if it stops working.
+- Reset keeps shortcuts (they are things a person made, not an arrangement); each can be removed, with Undo on add.
+- No audit entry: a person's own settings, same rule as the rest of the desktop document.

@@ -55,6 +55,16 @@ describe.skipIf(!dbAvailable)('chat and MUD client settings on the account', () 
     expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { hidden: ['settings'] } })).status).toBe(400);
     expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { positions: { boards: { col: 99, row: 0 } } } })).status).toBe(400);
     expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { positions: { '<script>': { col: 0, row: 0 } } } })).status).toBe(400);
+    // Shortcuts point at a bookmark by id or at a place inside an app, and nothing else.
+    const sc = (target: object) => ({ settings: { shortcuts: [{ id: 's_abc123', label: 'x', target }] } });
+    expect((await c.put('/api/v1/me/client-settings/desktop', sc({ type: 'place', app: 'boards', path: 'general/t/p_123' }))).status).toBe(200);
+    expect((await c.put('/api/v1/me/client-settings/desktop', sc({ type: 'bookmark', bookmark_id: 'bm_01HZZZZZZZZZZZZZZZZZZZZZZZ' }))).status).toBe(200);
+    for (const bad of [{ type: 'place', app: 'boards', path: 'javascript:alert(1)' }, { type: 'place', app: 'boards', path: '//evil.example/x' }, { type: 'place', app: 'boards', path: '../admin' },
+      { type: 'url', href: 'https://example.org' }, { type: 'bookmark', bookmark_id: 'https://example.org' }]) {
+      expect((await c.put('/api/v1/me/client-settings/desktop', sc(bad))).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: { shortcuts: Array.from({ length: 61 }, (_, i) => ({ id: `s_abc${100 + i}`, label: 'x', target: { type: 'place', app: 'boards', path: '' } })) } })).status).toBe(400);
+    expect((await c.put('/api/v1/me/client-settings/desktop', { settings: layout })).status).toBe(200);
     // What was saved is still there after the refusals.
     expect((await c.get('/api/v1/me/client-settings/desktop')).body.settings.hidden).toEqual(['files']);
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gridSize, moveTo, neighbour, phoneOrder, place, shiftPhone } from './desktopLayout.logic';
+import { gridSize, moveTo, neighbour, newShortcutId, phoneOrder, place, placePath, sameTarget, shiftPhone, shortcutKey } from './desktopLayout.logic';
 
 const keys = ['a', 'b', 'c', 'd', 'e'];
 
@@ -66,5 +66,32 @@ describe('phone order', () => {
     expect(shiftPhone(items, [], 'c', -1)).toEqual(['a', 'c', 'b', 'd', 'e']);
     expect(shiftPhone(items, [], 'a', -1)).toEqual(keys);
     expect(shiftPhone(items, [], 'e', 1)).toEqual(keys);
+  });
+});
+
+describe('shortcuts', () => {
+  it('keys shortcuts apart from apps and places them like any icon', () => {
+    expect(shortcutKey('s_abc123')).toBe('sc:s_abc123');
+    const l = place(['boards', shortcutKey('s_abc123')], { 'sc:s_abc123': { col: 3, row: 2 } });
+    expect(l.get('sc:s_abc123')).toEqual({ col: 3, row: 2 });
+    expect(l.get('boards')).toEqual({ col: 0, row: 0 });
+  });
+  it('knows when two shortcuts point at the same thing', () => {
+    expect(sameTarget({ type: 'bookmark', bookmark_id: 'bm_1' }, { type: 'bookmark', bookmark_id: 'bm_1' })).toBe(true);
+    expect(sameTarget({ type: 'bookmark', bookmark_id: 'bm_1' }, { type: 'bookmark', bookmark_id: 'bm_2' })).toBe(false);
+    expect(sameTarget({ type: 'place', app: 'boards', path: 'a' }, { type: 'place', app: 'boards', path: 'a' })).toBe(true);
+    expect(sameTarget({ type: 'place', app: 'boards', path: 'a' }, { type: 'place', app: 'wiki', path: 'a' })).toBe(false);
+    expect(sameTarget({ type: 'place', app: 'boards', path: '' }, { type: 'bookmark', bookmark_id: 'bm_1' })).toBe(false);
+  });
+  it('keeps only a plain place from a window path', () => {
+    expect(placePath('general/t/p_123')).toBe('general/t/p_123');
+    expect(placePath('/wiki/page/')).toBe('wiki/page');
+    expect(placePath('add?url=https://x.example&title=y')).toBe('add');
+    expect(placePath('a//b')).toBe('');
+    expect(placePath('../admin')).toBe('');
+    expect(placePath('javascript:alert(1)')).toBe('');
+  });
+  it('makes ids the server accepts', () => {
+    expect(newShortcutId()).toMatch(/^s_[a-z0-9]{6,20}$/);
   });
 });

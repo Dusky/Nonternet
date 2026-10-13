@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { en } from '@app/strings';
-import { desktopClientSchema, type DesktopClient } from '@app/shared';
+import { DESKTOP_MAX_SHORTCUTS, desktopClientSchema, type DesktopClient } from '@app/shared';
 import { api } from '../api';
 import { toast } from '../components/feedback';
-import { NEVER_HIDDEN, phoneOrder, shiftPhone } from './desktopLayout.logic';
+import { NEVER_HIDDEN, newShortcutId, phoneOrder, sameTarget, shiftPhone, shortcutKey, type ShortcutTarget } from './desktopLayout.logic';
 
 // The desktop layout as the account keeps it (docs/10): where icons sit, what is hidden, the phone order. Loaded once after
 // sign-in; changes show at once and are saved a moment later, and nothing is saved before the first load, so the defaults can
@@ -16,6 +16,10 @@ interface State {
   hide: (id: string) => void;
   show: (id: string) => void;
   shiftPhone: (items: { id: string }[], id: string, by: -1 | 1) => void;
+  // Adds a shortcut, or says which one already points there. 'full' when there are as many as allowed.
+  addShortcut: (label: string, target: ShortcutTarget) => { id: string; added: boolean } | 'full' | null;
+  removeShortcut: (id: string) => void;
+  renameShortcut: (id: string, label: string) => void;
   reset: () => DesktopClient;
   restore: (s: DesktopClient) => void;
 }
@@ -43,7 +47,29 @@ export const useDesktopLayout = create<State>((set, get) => {
     hide: (id) => { if (NEVER_HIDDEN.includes(id) || !get().loaded) return; const s = get().settings; if (!s.hidden.includes(id)) apply({ ...s, hidden: [...s.hidden, id] }); },
     show: (id) => { if (!get().loaded) return; const s = get().settings; apply({ ...s, hidden: s.hidden.filter((h) => h !== id) }); },
     shiftPhone: (items, id, by) => { if (get().loaded) apply({ ...get().settings, phone_order: shiftPhone(items, get().settings.phone_order, id, by) }); },
-    reset: () => { const before = get().settings; if (get().loaded) apply(empty()); return before; },
+    addShortcut: (label, target) => {
+      if (!get().loaded) return null;
+      const s = get().settings;
+      const found = s.shortcuts.find((x) => sameTarget(x.target, target));
+      if (found) return { id: found.id, added: false };
+      if (s.shortcuts.length >= DESKTOP_MAX_SHORTCUTS) return 'full';
+      const id = newShortcutId();
+      apply({ ...s, shortcuts: [...s.shortcuts, { id, label: label.trim().slice(0, 60) || '…', target }] });
+      return { id, added: true };
+    },
+    removeShortcut: (id) => {
+      if (!get().loaded) return;
+      const s = get().settings;
+      const { [shortcutKey(id)]: _gone, ...positions } = s.positions;
+      apply({ ...s, shortcuts: s.shortcuts.filter((x) => x.id !== id), positions, phone_order: s.phone_order.filter((k) => k !== shortcutKey(id)) });
+    },
+    renameShortcut: (id, label) => {
+      const l = label.trim().slice(0, 60);
+      if (!get().loaded || !l) return;
+      const s = get().settings;
+      apply({ ...s, shortcuts: s.shortcuts.map((x) => (x.id === id ? { ...x, label: l } : x)) });
+    },
+    reset: () => { const before = get().settings; if (get().loaded) apply({ ...empty(), shortcuts: before.shortcuts }); return before; },
     restore: (s) => { if (get().loaded) apply(s); },
   };
 });
