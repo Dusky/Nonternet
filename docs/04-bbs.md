@@ -157,3 +157,11 @@ Thread lists mark pinned threads `[pinned]`; posts show `(edited)` and reaction 
 
 ## As built (wiki, 2026-10-05)
 Main menu `K` (art pack action `wiki`) reads the site wiki: it opens on the home page, shows each wiki link as `text[n]` with the links listed at the foot, and follows one when you type its number. `M` brings up a menu with all pages, search and recent changes. A ring with its wiki switched on gets `W` on its ring screen. The terminal only reads; pages are written on the web (`20`). Code `apps/bbs/src/screens/wiki.ts`; test in `bbs.test.ts`.
+
+## As built (narrow screens, 2026-10-16)
+
+- Lists with columns (who's online, last callers, boards, threads, mail, rings) use one helper (`screens/util.ts` `tableHead` /
+  `tableRow`). When the caller's terminal is wide enough they look exactly as before. On a narrow one (a phone is about 33
+  columns) each row becomes two lines: the main item (number, name or subject) and, indented and dim, the rest with short
+  labels ("node 1 · Reading boards (web)"). Nothing wraps into the next row. The width comes from the terminal (NAWS), so a
+  telnet or SSH client on a small screen gets the same.

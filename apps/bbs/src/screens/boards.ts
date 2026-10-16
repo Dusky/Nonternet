@@ -2,7 +2,7 @@ import { describeImages, type BoardSummary, type PostPreview, type PostView, typ
 import { editMessage } from '../editor';
 import type { Session } from '../session';
 import { page } from './pager';
-import { bold, cut, dim, heading, pad, when, wrap } from './util';
+import { bold, cut, dim, heading, pad, when, wrap , tableHead, tableRow, type Column } from './util';
 
 // Boards in the terminal (docs/04, 05): the same boards, threads and read pointers as the web, through the
 // same API. Reading here moves the read pointer, so the web's unread counts follow.
@@ -19,8 +19,9 @@ export async function boards(s: Session): Promise<void> {
     s.at('Boards');
     const list = await listBoards(s);
     t.line(heading('Boards', t.cols));
-    t.line(dim(`${pad('#', 4)}${pad('Board', 34)}${pad('Unread', 8)}Threads`));
-    list.forEach((b, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(b.name + (b.archived ? ' (archived)' : ''), 33), 34)}${pad(b.unread ? bold(String(b.unread)) : '-', 8)}${b.thread_count}`));
+    const cols: Column[] = [{ label: '#', width: 4, main: true }, { label: 'Board', width: 34, main: true }, { label: 'Unread', width: 8, narrowLabel: 'unread' }, { label: 'Threads', width: 8, narrowLabel: 'threads' }];
+    t.line(tableHead(t.cols, cols));
+    list.forEach((b, i) => tableRow(t.cols, cols, [String(i + 1), b.name + (b.archived ? ' (archived)' : ''), b.unread ? bold(String(b.unread)) : '-', String(b.thread_count)]).forEach((l) => t.line(l)));
     if (!list.length) t.line('There are no boards you can read yet.');
     t.write(`\nBoard number, ${bold('N')}ew scan, or ${bold('Q')} to go back: `);
     const answer = (await t.pick('nq'))?.trim().toLowerCase();
@@ -41,11 +42,12 @@ export async function board(s: Session, b: BoardSummary): Promise<void> {
     const r = await s.api.get<{ threads: ThreadSummary[]; next: number | null }>(`/boards/${b.slug}/threads?limit=${Math.max(5, Math.min(20, t.rows - 6))}${before ? `&before=${before}` : ''}`);
     t.line(heading(b.name, t.cols));
     if (b.description) t.line(dim(cut(b.description, t.cols - 1)));
-    t.line(dim(`${pad('#', 4)}${pad('Subject', 40)}${pad('By', 16)}Replies`));
+    const cols: Column[] = [{ label: '#', width: 4, main: true }, { label: 'Subject', width: 40, main: true }, { label: 'By', width: 16, narrowLabel: 'by' }, { label: 'Replies', width: 8, narrowLabel: 'replies' }];
+    t.line(tableHead(t.cols, cols));
     r.threads.forEach((th, i) => {
       const mark = th.unread ? bold('*') : ' ';
       const subject = th.state === 'ok' || th.state === 'hidden' ? th.subject : `[${th.state}]`;
-      t.line(`${pad(String(i + 1), 3)}${mark}${pad(cut(subject + (th.pinned ? ' [pinned]' : '') + (th.locked ? ' [locked]' : ''), 39), 40)}${pad(cut(th.author?.handle ?? '-', 15), 16)}${th.reply_count}`);
+      tableRow(t.cols, cols, [`${pad(String(i + 1), 3)}${mark}`, subject + (th.pinned ? ' [pinned]' : '') + (th.locked ? ' [locked]' : ''), th.author?.handle ?? '-', String(th.reply_count)]).forEach((l) => t.line(l));
     });
     if (!r.threads.length) t.line('No threads yet.');
     const keys = [`Number to read`, b.can_post && !b.archived ? `${bold('P')}ost` : '', r.next ? `${bold('M')}ore` : '', stack.length ? `${bold('B')}ack a page` : '', `${bold('A')}ll read`, `${bold('Q')}uit`].filter(Boolean);

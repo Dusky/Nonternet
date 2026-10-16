@@ -11,6 +11,7 @@ import { useToast } from '../../components/feedback';
 import { errorText, useSite, useT } from '../../hooks';
 import { useSubtitle } from '../../nav';
 import { OpenAppLink } from '../../shell/OpenAppLink';
+import { MenuButton } from '../../components/Menu';
 import { backoffMs, wasDropped } from '../../reconnect';
 import { playChime } from '../../alerts';
 import { terminalPalette, ANSI_NAMES } from '@app/ui-themes';
@@ -288,7 +289,15 @@ export default function TerminalApp() {
         <button type="button" className="btn btn-small" onClick={() => void paste()} aria-keyshortcuts="Control+Shift+V">{t('terminal.paste')}</button>
         <button type="button" className="btn btn-small" aria-pressed={finding} onClick={() => setFinding(!finding)} aria-keyshortcuts="Control+Shift+F">{t('terminal.find')}</button>
         <span className="spacer" />
-        <button type="button" className="btn btn-small" onClick={fullscreen}>{t('terminal.fullscreen')}</button>
+        <button type="button" className="btn btn-small terminal-full" onClick={fullscreen}>{t('terminal.fullscreen')}</button>
+        {/* On a phone the screen needs the room: the two less used choices live here instead of under the keys. */}
+        <span className="terminal-more">
+          <MenuButton label={t('terminal.more')} className="btn btn-small" placement="bottom end" items={[
+            { label: t('terminal.fullscreen'), onSelect: fullscreen },
+            { label: t('terminal.reader'), checked: prefs.reader, separator: true, onSelect: () => setPrefs({ reader: !prefs.reader }) },
+            { label: t('terminal.nativeTitle'), onSelect: () => { setHelp(true); requestAnimationFrame(() => frame.current?.querySelector('.terminal-native')?.scrollIntoView({ block: 'nearest' })); } },
+          ]} />
+        </span>
       </div>
       {finding && (
         <form className="row terminal-find" role="search" onSubmit={(e) => { e.preventDefault(); find(); }}>
@@ -311,8 +320,10 @@ export default function TerminalApp() {
           {FKEYS.map((seq, i) => <button key={seq} type="button" className="btn btn-quiet" onClick={() => { send({ t: 'in', d: seq }); term.current?.focus(); }}>F{i + 1}</button>)}
         </details>
       </div>
-      <label className="check switch"><input type="checkbox" role="switch" checked={prefs.reader} onChange={(e) => setPrefs({ reader: e.target.checked })} /><span>{t('terminal.reader')}</span></label>
-      <button type="button" className="link" aria-expanded={help} onClick={() => setHelp(!help)}>{t('terminal.nativeTitle')}</button>
+      <div className="terminal-extras">
+        <label className="check switch"><input type="checkbox" role="switch" checked={prefs.reader} onChange={(e) => setPrefs({ reader: e.target.checked })} /><span>{t('terminal.reader')}</span></label>
+        <button type="button" className="link" aria-expanded={help} onClick={() => setHelp(!help)}>{t('terminal.nativeTitle')}</button>
+      </div>
       {help && <NativeHelp />}
     </div>
   );
@@ -322,7 +333,7 @@ function NativeHelp() {
   const t = useT();
   const site = useSite();
   return (
-    <div className="panel">
+    <div className="panel terminal-native">
       <p>{t('terminal.native', { host: site.bbs.host, telnet: site.bbs.telnet_port, ssh: site.bbs.ssh_port })}</p>
       <p><code>telnet {site.bbs.host} {site.bbs.telnet_port}</code></p>
       <p><code>ssh -p {site.bbs.ssh_port} yourhandle@{site.bbs.host}</code></p>

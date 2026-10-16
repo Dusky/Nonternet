@@ -3,7 +3,7 @@ import type { Session } from '../session';
 import { board } from './boards';
 import { page } from './pager';
 import { wiki } from './wiki';
-import { bold, cut, dim, heading, pad, wrap } from './util';
+import { bold, cut, dim, heading, pad, wrap , tableHead, tableRow, type Column } from './util';
 
 // Rings in the terminal (docs/06): browse, read about one, join or leave, and go to its board.
 export async function rings(s: Session): Promise<void> {
@@ -14,8 +14,9 @@ export async function rings(s: Session): Promise<void> {
     const per = Math.max(5, Math.min(20, t.rows - 6));
     const r = await s.api.get<{ rings: RingSummary[]; next: number | null }>(`/rings?sort=active&limit=${per}&offset=${offset}`);
     t.line(heading('Rings', t.cols));
-    t.line(dim(`${pad('#', 4)}${pad('Ring', 30)}${pad('Members', 9)}You`));
-    r.rings.forEach((g, i) => t.line(`${pad(String(i + 1), 4)}${pad(cut(g.name, 29), 30)}${pad(String(g.member_count), 9)}${g.me?.status === 'member' ? (g.me.is_op ? 'op' : 'member') : g.me?.status ?? ''}`));
+    const cols: Column[] = [{ label: '#', width: 4, main: true }, { label: 'Ring', width: 30, main: true }, { label: 'Members', width: 9, narrowLabel: 'members' }, { label: 'You', width: 8 }];
+    t.line(tableHead(t.cols, cols));
+    r.rings.forEach((g, i) => tableRow(t.cols, cols, [String(i + 1), g.name, String(g.member_count), g.me?.status === 'member' ? (g.me.is_op ? 'op' : 'member') : g.me?.status ?? '']).forEach((l) => t.line(l)));
     if (!r.rings.length) t.line('There are no rings yet. Start one on the web.');
     t.write(`\nRing number, ${r.next !== null ? `${bold('M')}ore, ` : ''}${offset ? `${bold('B')}ack a page, ` : ''}or ${bold('Q')} to go back: `);
     const a = (await t.pick('mbq'))?.trim().toLowerCase();

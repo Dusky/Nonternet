@@ -1091,6 +1091,17 @@ select option { color: var(--text); background: var(--surface); }
 
 /* ---- Terminal (P3) */
 .terminal-tools { margin: 0; }
+.terminal-more { display: none; }
+/* Phones: the screen keeps the room. The extra keys are one row that scrolls sideways, and screen reader mode and "your own
+   program" move into the toolbar's More menu. */
+@media (max-width: 899px) {
+  .terminal-keys { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .terminal-keys > .btn, .terminal-fkeys > summary { flex: none; }
+  .terminal-fkeys { flex-wrap: nowrap; }
+  .terminal-more { display: inline-flex; }
+  .terminal-full { display: none; }
+  .terminal-extras { display: none; }
+}
 .terminal-status { display: flex; align-items: center; gap: var(--space-2); min-height: 2rem; font-size: var(--step--1); color: var(--muted); }
 .terminal-status.is-error { color: var(--danger); }
 .terminal-find { margin: 0; }

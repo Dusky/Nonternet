@@ -27,9 +27,22 @@ test('the Terminal window calls the BBS with no login prompt, and the console se
   await page.keyboard.type('w');
   // The list pages when many people are on (it is a shared test site), so the screen's title is the proof the key got through.
   await expect(screen).toContainText(/Who's online|press a key/); // a long list pages, and on a short phone screen the title has scrolled off
+  // On a narrow screen the BBS lays its tables out in two lines per row instead of wrapping 80 columns.
+  if (isMobile) await expect(screen).toContainText(/node \d+ ·/);
   // The key bar sends keys a phone lacks.
   await page.getByRole('button', { name: 'Enter' }).click();
-  await page.getByRole('button', { name: 'Use your own terminal program' }).click();
+  if (isMobile) {
+    // The screen has the room: the keys are one row, and the less used choices are in the toolbar's More menu.
+    const keys = page.getByRole('group', { name: 'Extra keys' });
+    const one = (await keys.getByRole('button', { name: 'Enter' }).boundingBox())!.height;
+    expect((await keys.boundingBox())!.height).toBeLessThan(one * 1.8);
+    expect((await page.locator('.terminal-screen').boundingBox())!.height).toBeGreaterThan(page.viewportSize()!.height * 0.4);
+    const tools = page.getByRole('toolbar', { name: 'Terminal tools' });
+    expect((await tools.boundingBox())!.height).toBeLessThan((await tools.getByRole('button', { name: 'Copy' }).boundingBox())!.height * 1.8); // one row
+    await page.getByRole('toolbar', { name: 'Terminal tools' }).getByRole('button', { name: 'More' }).click();
+    await expect(page.getByRole('menuitem', { name: /Screen reader mode/ })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Use your own terminal program' }).click();
+  } else await page.getByRole('button', { name: 'Use your own terminal program' }).click();
   await expect(page.getByText(/telnet 127\.0\.0\.1 \d+/)).toBeVisible();
 
   const admin = await makeAdmin(page);

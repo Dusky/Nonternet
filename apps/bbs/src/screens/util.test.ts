@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bold, cut, pad, width, wrap } from './util';
+import { bold, cut, pad, tableHead, tableRow, width, wrap, type Column } from './util';
 
 describe('wrapping text for the terminal', () => {
   it('wraps at word boundaries, keeps blank lines, and breaks words longer than a line', () => {
@@ -18,5 +18,25 @@ describe('measuring coloured text', () => {
     expect(pad(bold('abcdef'), 3)).toBe('\x1b[1mabc\x1b[0m');
     expect(cut(`${bold('hello')} world`, 4)).toBe('\x1b[1mhel\x1b[0m…');
     expect(pad('plain', 3)).toBe('pla');
+  });
+});
+
+describe('tables that fit the screen', () => {
+  const cols: Column[] = [{ label: 'Node', width: 6, narrowLabel: 'node' }, { label: 'Handle', width: 20, main: true }, { label: 'Where', width: 50 }];
+  const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
+  it('keeps the usual columns at 80', () => {
+    expect(strip(tableHead(80, cols))).toBe(`${'Node'.padEnd(6)}${'Handle'.padEnd(20)}Where`);
+    expect(tableRow(80, cols, ['1', 'ada', 'Reading boards (web)'])).toEqual([`1     ada                 Reading boards (web)`]);
+  });
+  it('turns each row into two lines on a phone, nothing wider than the screen', () => {
+    const lines = tableRow(33, cols, ['1', 'person05f67c', "Who's online (web)"]);
+    expect(lines.map(strip)).toEqual(['person05f67c', "   node 1 · Who's online (web)"]);
+    for (const l of lines) expect(width(l)).toBeLessThanOrEqual(32);
+    expect(strip(tableHead(33, cols))).toBe('Handle, then Node · Where');
+    // Long text is cut, never wrapped into the next row.
+    const long = tableRow(33, cols, ['2', 'h'.repeat(40), 'w'.repeat(80)]);
+    for (const l of long) expect(width(l)).toBeLessThanOrEqual(32);
+    // Empty and "-" details are left out.
+    expect(tableRow(33, cols, ['-', 'bob', 'on the web']).map(strip)).toEqual(['bob', '   on the web']);
   });
 });

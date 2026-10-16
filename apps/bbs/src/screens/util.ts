@@ -51,3 +51,30 @@ export function wrap(text: string, w: number): string[] {
   }
   return out;
 }
+
+// A table that fits the screen (docs/04). Wide enough: the usual fixed columns, the last one taking what is left. On a
+// narrow screen (a phone is about 33 columns) each row becomes two lines, the `main` cells first and the rest indented and
+// dim below, so nothing wraps into the next row's place.
+export interface Column { label: string; width: number; main?: boolean; narrowLabel?: string }
+export const tableIsWide = (cols: number, columns: Column[]) => columns.slice(0, -1).reduce((n, c) => n + c.width, 0) + 8 <= cols - 1;
+export function tableHead(cols: number, columns: Column[]): string {
+  if (tableIsWide(cols, columns)) return dim(columns.map((c, i) => (i === columns.length - 1 ? c.label : pad(c.label, c.width))).join(''));
+  const main = columns.filter((c) => c.main).map((c) => c.label).join(' ');
+  const rest = columns.filter((c) => !c.main).map((c) => c.label).join(' · ');
+  return dim(cut(rest ? `${main}, then ${rest}` : main, cols - 1));
+}
+export function tableRow(cols: number, columns: Column[], cells: string[]): string[] {
+  if (tableIsWide(cols, columns)) {
+    let used = 0;
+    return [cells.map((cell, i) => {
+      const c = columns[i]!;
+      if (i === columns.length - 1) return cut(cell, Math.max(4, cols - 1 - used));
+      used += c.width;
+      return width(cell) <= c.width ? pad(cell, c.width) : pad(cut(cell, c.width - 1), c.width);
+    }).join('')];
+  }
+  const main = cells.filter((_, i) => columns[i]!.main).map((x) => x.trim()).filter(Boolean).join(' ');
+  const rest = cells.map((x, i) => ({ x: x.trim(), c: columns[i]! })).filter(({ x, c }) => !c.main && x && x !== '-')
+    .map(({ x, c }) => (c.narrowLabel ? `${c.narrowLabel} ${x}` : x)).join(' · ');
+  return [cut(main, cols - 1), ...(rest ? [`   ${dim(cut(rest, cols - 4))}`] : [])];
+}

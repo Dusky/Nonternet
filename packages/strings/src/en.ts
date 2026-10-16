@@ -2583,6 +2583,7 @@ export const en = {
   'settings.terminal.bell.sound': 'Play a short chime',
   'terminal.reader': 'Screen reader mode',
   'terminal.nativeTitle': 'Use your own terminal program',
+  'terminal.more': 'More',
   'terminal.native': 'Connect to {host} by telnet on port {telnet}, or by SSH on port {ssh}. Log in with your handle and your terminal password, or an SSH key.',
   'terminal.nativeSettings': 'Set your terminal password or add an SSH key',
   'admin.tab.bbs': 'BBS',

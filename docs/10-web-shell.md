@@ -561,3 +561,6 @@ What the browser review of every app found, and how the shell now behaves:
   writing mail, Send stays in reach above the tab bar.
 - **Terminal font (2026-10-16).** Settings → Terminal → Font: Modern (IBM Plex Mono) or Old PC (VGA 8x16, sharpest at
   16 or 32 px). Kept on the device. The old PC font ships with the site (CC BY-SA 4.0, credited in that setting).
+- **Terminal on phones (2026-10-16).** The extra keys are one row that scrolls sideways, and Full screen, Screen reader mode and
+  "Use your own terminal program" are in the toolbar's More menu, so the screen gets most of the height (about 17 rows on a
+  Pixel 5, was 8). BBS tables lay out in two lines per row there (docs/04).

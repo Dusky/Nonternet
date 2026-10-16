@@ -156,7 +156,7 @@
 | V7 | ~~Ergo: accounts, SASL, external auth, history, WebSocket~~ Verified 2026-09-30 against Ergo 2.19.1 (source and tests in `apps/core/src/irc/*.test.ts` run the real server). Found: opers can't follow accounts, unregistering needs a confirmation code, the network name can't hold spaces | 08 |
 | V8 | ~~Evennia: auth backend, web client embedding~~ Verified 2026-09-30 against Evennia 5.0.1 (`spikes/m6-evennia.md`): login can be handed to core, stable ids and roles map, ticket login works over WebSocket; its WebSocket sends Evennia markup, not ANSI | 09 |
 | V9 | xterm.js screen reader support | 10 |
-| V10 | Licences of bundled GIFs, fonts, any embedded clients. Ergo and irc-framework are MIT (checked 2026-09-30). Fonts bundled for the themes (Bricolage Grotesque, Space Mono, VT323, IBM Plex Mono and Sans, Pixelify Sans, Nunito Sans, Silkscreen, via @fontsource 5.3) are all OFL-1.1 (checked 2026-10-02) | 07, 08, 10 |
+| V10 | Licences of bundled GIFs, fonts, any embedded clients. Ergo and irc-framework are MIT (checked 2026-09-30). Fonts bundled for the themes (Bricolage Grotesque, Space Mono, VT323, IBM Plex Mono and Sans, Pixelify Sans, Nunito Sans, Silkscreen, via @fontsource 5.3) are all OFL-1.1 (checked 2026-10-02). The Terminal's optional old PC font (VileR, Web437 IBM VGA 8x16) is CC BY-SA 4.0, unmodified and credited (checked 2026-10-16) | 07, 08, 10 |
 | V11 | Caddy on-demand TLS with ask endpoint. The `ask` endpoint and `Caddyfile.prod` are written and the endpoint is tested; Caddy itself has not been run against a real domain | 07, 15 |
 | V12 | Node telnet and SSH server libraries (e.g. `ssh2`): pty, public-key auth, terminal-type and window-size negotiation, xterm.js over WebSocket | 04 |
 
@@ -351,3 +351,9 @@ one process, this moves to the job queue.
   PC Font Pack v2.2, **CC BY-SA 4.0** (verified on int10h.org 2026-10-16), shipped unmodified in
   `apps/shell/src/assets/fonts/vga/` with its licence, and credited beside the choice. It is the one font not under the OFL
   (V10); bundling an unmodified font with attribution is what the licence asks.
+
+## 2026-10-16 (later): Terminal on phones
+
+- Built the round-2 item: one-row extra keys, a More menu for the less used choices, and BBS tables that fit narrow screens
+  (two lines per row; unchanged at 80 columns). "Fit 80 columns" (shrinking the font so 80 always fit) is still OPEN: the narrow
+  tables make it less needed, and on a phone it would make text too small to read.

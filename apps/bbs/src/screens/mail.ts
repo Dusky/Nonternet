@@ -2,7 +2,7 @@ import { describeImages, type MailThreadSummary, type MailThreadView } from '@ap
 import { editMessage } from '../editor';
 import type { Session } from '../session';
 import { page } from './pager';
-import { bold, cut, dim, heading, pad, when, wrap } from './util';
+import { bold, cut, dim, heading, pad, when, wrap , tableHead, tableRow, type Column } from './util';
 
 // Private mail in the terminal (docs/10; owners 2026-09-30): the same conversations as the web Mail app.
 export async function mail(s: Session): Promise<void> {
@@ -11,11 +11,12 @@ export async function mail(s: Session): Promise<void> {
     s.at('Mail');
     const r = await s.api.get<{ threads: MailThreadSummary[]; unread: number }>('/mail');
     t.line(heading(`Mail${r.unread ? ` (${r.unread} new)` : ''}`, t.cols));
-    t.line(dim(`${pad('#', 4)}${pad('Subject', 36)}${pad('With', 24)}Last`));
+    const cols: Column[] = [{ label: '#', width: 4, main: true }, { label: 'Subject', width: 36, main: true }, { label: 'With', width: 24, narrowLabel: 'with' }, { label: 'Last', width: 10 }];
+    t.line(tableHead(t.cols, cols));
     const shown = r.threads.slice(0, Math.max(5, t.rows - 7));
     shown.forEach((th, i) => {
       const who = th.people.map((p) => p.handle ?? 'deleted').join(', ') || 'nobody else';
-      t.line(`${pad(String(i + 1), 3)}${th.unread ? bold('*') : ' '}${pad(cut(th.subject + (th.left ? ' (left)' : ''), 35), 36)}${pad(cut(who, 23), 24)}${th.last_message_at.slice(0, 10)}`);
+      tableRow(t.cols, cols, [`${pad(String(i + 1), 3)}${th.unread ? bold('*') : ' '}`, th.subject + (th.left ? ' (left)' : ''), who, th.last_message_at.slice(0, 10)]).forEach((l) => t.line(l));
     });
     if (!r.threads.length) t.line('No mail yet.');
     t.write(`\nNumber to read, ${bold('W')}rite a new message, or ${bold('Q')} to go back: `);
