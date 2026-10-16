@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Browser, Page } from '@playwright/test';
 import { BASE_URL } from '../support/stack';
-import { makeAdmin, makeUser, PASSWORD, signIn, totp } from '../support/helpers';
+import { makeAdmin, makeUser, PASSWORD, signIn, totp, bell } from '../support/helpers';
 
 async function signedInPage(browser: Browser, handle: string): Promise<Page> {
   const ctx = await browser.newContext({ baseURL: BASE_URL });
@@ -45,7 +45,7 @@ test.describe('mail', () => {
 
     // b sees it unread, in the taskbar and the inbox, and replies.
     const bp = await signedInPage(browser, b.handle);
-    await expect(bp.getByRole('button', { name: 'Mail, 1 unread', exact: true })).toBeVisible();
+    await expect(bell(bp, 'Mail, 1 unread')).toBeVisible();
     await bp.goto('/mail');
     const row = bp.getByRole('listitem').filter({ has: bp.getByRole('link', { name: 'Board games' }) });
     await expect(row.getByText('new', { exact: true })).toBeVisible();

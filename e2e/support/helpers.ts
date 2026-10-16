@@ -159,3 +159,8 @@ export async function confirmDialog(page: Page, button: string) {
 export async function settled(page: Page): Promise<void> {
   await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || !Number.isFinite(a.effect?.getComputedTiming().endTime as number)));
 }
+
+// The notifications bell: a button in the top bar on a big screen, a link in the tab bar on a phone (the top bar no longer
+// repeats it there). `name` is its accessible name, like 'Notifications' or 'Notifications, 1 unread'.
+export const bell = (page: import('@playwright/test').Page, name = 'Notifications') =>
+  page.getByRole('button', { name, exact: true }).or(page.getByRole('navigation', { name: 'Main sections' }).getByRole('link', { name, exact: true }));

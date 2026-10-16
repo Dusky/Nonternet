@@ -31,11 +31,20 @@ interface State {
 const empty = (): DesktopClient => desktopClientSchema.parse({});
 let timer: ReturnType<typeof setTimeout> | undefined;
 let loading: Promise<void> | null = null;
+let pending: (() => void) | null = null;
+// A change made just before leaving the page (a reload, closing the tab) is still sent: keepalive outlives the page.
+if (typeof window !== 'undefined') window.addEventListener('pagehide', () => { pending?.(); });
 
 export const useDesktopLayout = create<State>((set, get) => {
   const save = () => {
     clearTimeout(timer);
+    pending = () => {
+      clearTimeout(timer); pending = null;
+      if (!get().loaded) return;
+      void fetch('/api/v1/me/client-settings/desktop', { method: 'PUT', keepalive: true, credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ settings: get().settings }) });
+    };
     timer = setTimeout(() => {
+      pending = null;
       if (!get().loaded) return;
       api.put('/me/client-settings/desktop', { settings: get().settings }).catch(() => toast(en['desktop.saveFailed'], 'error'));
     }, 800);

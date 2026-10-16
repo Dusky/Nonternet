@@ -1,6 +1,6 @@
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
+import { makeUser, PASSWORD, setRole, signIn, uniq, bell } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // Live updates (M9, docs/10): a change shows up in a tab that is already open, with no reload. The slow
@@ -25,14 +25,14 @@ test('a reply and a mail reach an open tab without a reload', async ({ page, bro
   const t = await (await op.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: `Live ${slug}`, body: 'Anyone there?' }, headers: h })).json();
 
   await op.goto('/');
-  await expect(op.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible(); // nothing unread yet; the stream is open
+  await expect(bell(op)).toBeVisible(); // nothing unread yet; the stream is open
 
   await signIn(page, other.handle, PASSWORD);
   await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `Yes, hello @${owner.handle}`, reply_to: t.id }, headers: h });
-  await expect(op.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible({ timeout: 8000 });
+  await expect(bell(op, 'Notifications, 1 unread')).toBeVisible({ timeout: 8000 });
 
   await page.request.post('/api/v1/mail', { data: { to: [owner.handle], subject: 'Live mail', body: 'Hello.' }, headers: h });
-  await expect(op.getByRole('button', { name: 'Mail, 1 unread', exact: true })).toBeVisible({ timeout: 8000 });
+  await expect(bell(op, 'Mail, 1 unread')).toBeVisible({ timeout: 8000 });
   await op.context().close();
 });
 

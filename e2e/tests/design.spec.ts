@@ -69,10 +69,10 @@ test.describe('on a big screen', () => {
     await expect(page.getByRole('option', { name: /Settings/ }).first()).toBeVisible();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog', { name: 'Settings window' })).toBeVisible();
-    // A handle becomes "Profile of …".
+    // A handle becomes "Look for someone called …".
     await page.keyboard.press('Control+k');
     await box.fill(u.handle);
-    await page.getByRole('option', { name: `Profile of ${u.handle}` }).click();
+    await page.getByRole('option', { name: `Look for someone called ${u.handle}` }).click();
     await expect(page.getByRole('dialog', { name: 'People window' })).toBeVisible();
   });
 

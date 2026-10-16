@@ -133,7 +133,7 @@ function Compose({ to: initial }: { to: string }) {
         <Editor label={t('mail.body')} value={body} onChange={setBody} maxLength={MAIL_BODY_MAX} draftKey="mail:new" mentions pictures required
           onSubmit={() => { if (to.trim() && subject.trim() && body.trim() && !send.isPending) send.mutate(); }}><FormatHelp /></Editor>
         {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
-        <button type="submit" className="btn btn-primary" disabled={send.isPending}>{t('mail.send')}</button>
+        <div className="compose-send"><button type="submit" className="btn btn-primary" disabled={send.isPending}>{t('mail.send')}</button></div>
       </form>
     </>
   );
@@ -284,7 +284,7 @@ function Conversation({ id }: { id: string }) {
               <FormatHelp />
             </Editor>
             {sendError && <Alert kind="error">{sendError}</Alert>}
-            <button type="submit" className="btn btn-primary" disabled={!body.trim()}>{t('mail.replySend')}</button>
+            <div className="compose-send"><button type="submit" className="btn btn-primary" disabled={!body.trim()}>{t('mail.replySend')}</button></div>
           </form>
           <details className="panel">
           <summary>{t('mail.manage')}</summary>

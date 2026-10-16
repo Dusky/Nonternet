@@ -132,7 +132,7 @@ export const en = {
   'palette.placeholder': 'Type to search',
   'palette.results': 'Results',
   'palette.none': 'Nothing matches.',
-  'palette.person': 'Profile of {handle}',
+  'palette.person': 'Look for someone called {handle}',
   'palette.kind.app': 'App',
   'palette.kind.board': 'Board',
   'palette.kind.person': 'Person',

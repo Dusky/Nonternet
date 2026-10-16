@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Browser, Page } from '@playwright/test';
 import { BASE_URL } from '../support/stack';
-import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
+import { makeUser, PASSWORD, setRole, signIn, uniq, bell } from '../support/helpers';
 
 async function signedInPage(browser: Browser, handle: string): Promise<Page> {
   const ctx = await browser.newContext({ baseURL: BASE_URL });
@@ -247,13 +247,13 @@ test.describe('boards', () => {
     await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: `Yes, hello @${owner.handle}`, reply_to: t.id }, headers: h });
 
     await op.goto('/');
-    await expect(op.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible();
-    await op.getByRole('button', { name: 'Notifications, 1 unread', exact: true }).click();
+    await expect(bell(op, 'Notifications, 1 unread')).toBeVisible();
+    await bell(op, 'Notifications, 1 unread').click();
     await expect(op.getByText(`${other.handle} replied to you`)).toBeVisible();
     await op.getByRole('link', { name: `${other.handle} replied to you` }).click();
     await expect(op.getByRole('heading', { level: 2, name: subject, exact: true })).toBeVisible();
     await expect(op.getByText(`Yes, hello @${owner.handle}`)).toBeVisible();
-    await expect(op.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible(); // no count once it is read
+    await expect(bell(op)).toBeVisible(); // no count once it is read
     await op.context().close();
   });
 

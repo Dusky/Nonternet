@@ -147,25 +147,27 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
               <Icon name="search" size={22} />
             </button>
           )}
-          {confirmed && (
+          {confirmed && desktop && (
             <button type="button" className="btn btn-quiet bell" onClick={() => launch('mail')}
               aria-label={unreadMail > 0 ? t('mail.bellCount', { count: unreadMail }) : t('mail.bell')}>
               <AppIcon id="mail" size={22} />
               {unreadMail > 0 && <span className="badge" aria-hidden="true">{unreadMail > 99 ? t('common.lots') : unreadMail}</span>}
             </button>
           )}
-          <button type="button" className="btn btn-quiet bell" onClick={() => launch('notifications')}
-            aria-label={unread > 0 ? t('notifications.bellCount', { count: unread }) : t('notifications.bell')}>
-            <AppIcon id="notifications" size={22} />
-            {unread > 0 && <span className="badge" aria-hidden="true">{unread > 99 ? t('common.lots') : unread}</span>}
-          </button>
+          {desktop && (
+            <button type="button" className="btn btn-quiet bell" onClick={() => launch('notifications')}
+              aria-label={unread > 0 ? t('notifications.bellCount', { count: unread }) : t('notifications.bell')}>
+              <AppIcon id="notifications" size={22} />
+              {unread > 0 && <span className="badge" aria-hidden="true">{unread > 99 ? t('common.lots') : unread}</span>}
+            </button>
+          )}
           <MenuButton
             label={t('nav.account', { handle: me.handle })} ariaLabel={t('nav.account', { handle: me.handle })} className="btn btn-quiet person" placement="bottom end"
             items={[
               { label: t('nav.profile'), icon: <Icon name="user" />, onSelect: () => launch('people', me.handle) },
               { label: t('app.settings'), icon: <AppIcon id="settings" size={22} />, onSelect: () => launch('settings') },
-              { label: t('shortcuts.menuItem'), onSelect: () => setShortcuts(true) },
-              { label: t('nav.logout'), onSelect: () => void logout(), separator: true },
+              ...(desktop ? [{ label: t('shortcuts.menuItem'), icon: <Icon name="keyboard" size={22} />, onSelect: () => setShortcuts(true) }] : []), // no keyboard on a phone
+              { label: t('nav.logout'), icon: <Icon name="logout" size={22} />, onSelect: () => void logout(), separator: true },
             ]}
           >
             <Avatar id={me.id} name={me.display_name || me.handle} size="sm" />{desktop && me.handle}

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
+import { makeUser, PASSWORD, setRole, signIn, uniq, bell } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // Notifications beyond board posts (docs/23, E2): mail, reactions and ring news arrive in the list and on the bell,
@@ -36,13 +36,13 @@ test('mail and reactions show up as notifications, grouped, and opening them cle
   const mailLine = page.getByRole('link', { name: /wrote to you \(2 new\)|and others wrote to you/ });
   await expect(mailLine).toBeVisible();
   await expect(page.getByRole('link', { name: `${bob.handle} reacted to your post` })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Notifications, 2 unread', exact: true })).toBeVisible();
+  await expect(bell(page, 'Notifications, 2 unread')).toBeVisible();
   await scan(page, 'the notifications list');
 
   // Opening the conversation answers it.
   await mailLine.click();
   await expect(page.getByRole('heading', { name: subject }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible();
+  await expect(bell(page, 'Notifications, 1 unread')).toBeVisible();
   await ctx.close();
 });
 

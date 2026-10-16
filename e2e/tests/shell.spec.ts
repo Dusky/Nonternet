@@ -1,7 +1,7 @@
 import { expect, test } from '../support/fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { BASE_URL } from '../support/stack';
-import { makeAdmin, makeUser, PASSWORD, signIn } from '../support/helpers';
+import { makeAdmin, makeUser, PASSWORD, signIn, bell } from '../support/helpers';
 
 const box = async (l: Locator) => (await l.boundingBox())!;
 const z = (l: Locator) => l.evaluate((el) => Number(getComputedStyle(el).zIndex));
@@ -219,7 +219,7 @@ test.describe('the note about the new look', () => {
     else await expect(page.getByRole('dialog', { name: 'Settings window' }).getByRole('radio', { name: /^Webring/ })).toBeVisible();
     await expect(note).toHaveCount(0);
     await page.goto('/');
-    await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+    await expect(bell(page)).toBeVisible();
     await expect(page.getByTestId('new-look')).toHaveCount(0); // not again on this device
   });
 
@@ -233,7 +233,7 @@ test.describe('the note about the new look', () => {
       expect(nb.height).toBeLessThan(90);
       return;
     }
-    await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+    await bell(page).click();
     const win = page.getByRole('dialog', { name: 'Notifications window' });
     await expect(win).toBeVisible();
     const title = (await win.getByRole('button', { name: /^Close/ }).boundingBox())!;
@@ -247,7 +247,7 @@ test.describe('the note about the new look', () => {
     await page.getByRole('button', { name: 'Dismiss the note about the new look' }).click();
     await expect(page.getByTestId('new-look')).toHaveCount(0);
     await page.reload();
-    await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+    await expect(bell(page)).toBeVisible();
     await expect(page.getByTestId('new-look')).toHaveCount(0);
   });
 });
@@ -287,4 +287,29 @@ test.describe('on a phone', () => {
     await page.goto('/settings/two-factor');
     await expect(page.getByText('Two-factor authentication is off.')).toBeVisible();
   });
+});
+
+test('on a phone the top bar does not repeat the tab bar, the account menu has no keyboard items, and Send stays in reach', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'phone layout');
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  const banner = page.getByRole('banner');
+  await expect(banner.getByRole('button', { name: /^Account menu/ })).toBeVisible();
+  await expect(banner.getByRole('button', { name: /^(Mail|Notifications)/ })).toHaveCount(0); // they are in the tab bar
+  await expect(page.getByRole('navigation', { name: 'Main sections' }).getByRole('link', { name: 'Notifications', exact: true })).toBeVisible();
+  await banner.getByRole('button', { name: /^Account menu/ }).click();
+  await expect(page.getByRole('menuitem', { name: 'Log out' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Keyboard shortcuts' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // The palette has no key hints on a touch screen.
+  await banner.getByRole('button', { name: 'Search and jump' }).click();
+  await expect(page.locator('.palette-hint')).toBeHidden();
+  await page.keyboard.press('Escape');
+  // Writing a long message, Send is on screen above the tab bar.
+  await page.goto('/mail/new');
+  await page.getByLabel('Message').fill('line\n'.repeat(40));
+  const send = page.getByRole('button', { name: 'Send', exact: true });
+  await expect(send).toBeInViewport();
+  const tabTop = (await page.getByRole('navigation', { name: 'Main sections' }).boundingBox())!.y;
+  expect((await send.boundingBox())!.y + (await send.boundingBox())!.height).toBeLessThanOrEqual(tabTop + 1);
 });

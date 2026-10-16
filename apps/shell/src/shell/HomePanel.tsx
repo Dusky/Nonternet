@@ -87,7 +87,7 @@ export function HomePanel({ me }: { me: Me }) {
       <section className="panel home-start" aria-labelledby="home-start">
         <div className="panel-head">
           <h3 id="home-start">{t('home.start.title')}</h3>
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => change((l) => hideWidget(l, 'start'))}>{t('home.start.hide')}</button>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => { try { window.localStorage.setItem(DISMISS_KEY, '1'); } catch { /* a convenience */ } change((l) => hideWidget(l, 'start')); }}>{t('home.start.hide')}</button>
         </div>
         <ul className="checklist">
           {steps.map((s) => (

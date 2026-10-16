@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
-import { makeUser, PASSWORD, signIn, uniq } from '../support/helpers';
+import { makeUser, PASSWORD, signIn, uniq, bell } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // Mail depth (docs/23, E4): star, archive with Undo, mark unread, and renaming a group.
@@ -53,6 +53,6 @@ test('stars, archives with undo, marks unread, and renames a group', async ({ pa
   await expect(page.getByText(`renamed this conversation to "${renamed}"`)).toBeVisible();
   await page.getByRole('button', { name: 'Mark unread' }).click();
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Mail, 1 unread', exact: true })).toBeVisible();
+  await expect(bell(page, 'Mail, 1 unread')).toBeVisible();
   await ctx.close();
 });

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
-import { makeUser, PASSWORD, setRole, signIn, uniq } from '../support/helpers';
+import { makeUser, PASSWORD, setRole, signIn, uniq, bell } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 // Boards depth (docs/23, E3a): board rules, sorting and filtering threads, and following a thread.
@@ -41,6 +41,6 @@ test('rules show, threads sort and filter, and following a thread brings its rep
   await expect(rp.getByRole('button', { name: 'Unfollow' })).toBeVisible();
   await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { body: 'anyone there?', reply_to: lonely.id }, headers: h });
   await rp.goto('/');
-  await expect(rp.getByRole('button', { name: 'Notifications, 1 unread', exact: true })).toBeVisible();
+  await expect(bell(rp, 'Notifications, 1 unread')).toBeVisible();
   await ctx.close();
 });
