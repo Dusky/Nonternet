@@ -4,7 +4,7 @@ import { AVATAR_MAX_BYTES, PLAN_MAX, PREF_KINDS, PROFILE_LINKS_MAX, type ChatCli
 import { api } from '../../api';
 import { Avatar, Alert, TextField } from '../../components/ui';
 import { useToast } from '../../components/feedback';
-import { BELLS, FONT_SIZES, SCROLLBACKS, usePrefs } from '../../devicePrefs';
+import { BELLS, FONT_SIZES, SCROLLBACKS, TERMINAL_FONTS, usePrefs, type TerminalFont } from '../../devicePrefs';
 import { Section } from './Section';
 import { errorText, useT } from '../../hooks';
 
@@ -204,6 +204,13 @@ export function TerminalDisplay() {
         <select id="term-size" value={prefs.fontSize} onChange={(e) => set({ fontSize: Number(e.target.value) })}>
           {FONT_SIZES.map((n) => <option key={n} value={n}>{n}px</option>)}
         </select>
+      </div>
+      <div className="field">
+        <label htmlFor="term-font">{t('settings.terminal.font')}</label>
+        <select id="term-font" value={prefs.font} onChange={(e) => set({ font: e.target.value as TerminalFont })} aria-describedby="term-font-hint">
+          {TERMINAL_FONTS.map((f) => <option key={f} value={f}>{t(`settings.terminal.font.${f}`)}</option>)}
+        </select>
+        <p className="hint" id="term-font-hint">{t('settings.terminal.fontCredit')}</p>
       </div>
       <div className="field">
         <label htmlFor="term-scrollback">{t('settings.terminal.scrollback')}</label>

@@ -6,7 +6,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { api, ApiError } from '../../api';
-import { readPrefs, usePrefs } from '../../devicePrefs';
+import { readPrefs, usePrefs, type TerminalFont } from '../../devicePrefs';
 import { useToast } from '../../components/feedback';
 import { errorText, useSite, useT } from '../../hooks';
 import { useSubtitle } from '../../nav';
@@ -169,7 +169,7 @@ export default function TerminalApp() {
     const p = readPrefs('terminal');
     const x = new Terminal({
       convertEol: false, cursorBlink: true, allowProposedApi: true, theme: xtermTheme(), fontSize: p.fontSize, scrollback: p.scrollback, screenReaderMode: p.reader,
-      fontFamily: '"Px437 IBM VGA 8x16", "Web437 IBM VGA 8x16", "IBM Plex Mono", ui-monospace, monospace',
+      fontFamily: terminalFontFamily(p.font),
     });
     const fit = new FitAddon();
     const finder = new SearchAddon();
@@ -240,6 +240,14 @@ export default function TerminalApp() {
     window.addEventListener('ui:theme', onTheme);
     return () => window.removeEventListener('ui:theme', onTheme);
   }, []);
+  // A new font, too: the old PC one is loaded first so the cells are measured with it, then the screen is re-fitted.
+  useEffect(() => {
+    const x = term.current;
+    const family = terminalFontFamily(prefs.font);
+    if (!x || x.options.fontFamily === family) return;
+    const apply = () => { if (!term.current) return; x.options.fontFamily = family; refit.current?.(); };
+    if (prefs.font === 'vga' && document.fonts?.load) void document.fonts.load(`16px "${VGA}"`).then(apply, apply); else apply();
+  }, [prefs.font]);
   // A new text size is applied at once and the screen is re-fitted, so the BBS gets the new column count.
   useEffect(() => {
     const x = term.current;
@@ -321,4 +329,10 @@ function NativeHelp() {
       <p><OpenAppLink app="settings" to="terminal">{t('terminal.nativeSettings')}</OpenAppLink></p>
     </div>
   );
+}
+
+// The Terminal's fonts (Settings → Terminal): modern by default, or the old PC (VGA) one shipped with the site.
+const VGA = 'Web437 IBM VGA 8x16';
+export function terminalFontFamily(font: TerminalFont): string {
+  return font === 'vga' ? `"${VGA}", "Px437 IBM VGA 8x16", "IBM Plex Mono", ui-monospace, monospace` : '"IBM Plex Mono", ui-monospace, monospace';
 }

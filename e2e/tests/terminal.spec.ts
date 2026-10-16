@@ -96,3 +96,18 @@ test('the call state sits in one line: hang up, keys while not connected are not
   await page.getByRole('button', { name: 'Call again' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Connected to the BBS.' })).toBeVisible({ timeout: 15_000 });
 });
+
+test('the old PC font is an option in Settings, credited, and the screen switches to it', async ({ page }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/settings/terminal');
+  const font = page.getByLabel('Font', { exact: true });
+  await expect(font).toHaveValue('modern');
+  await expect(page.getByText(/Ultimate Oldschool PC Font Pack by VileR \(CC BY-SA 4\.0\)/)).toBeVisible();
+  await font.selectOption('vga');
+  await page.goto('/terminal');
+  const rows = page.locator('.xterm-rows');
+  await expect(rows).toContainText(/\S/, { timeout: 15_000 });
+  await expect.poll(() => rows.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Web437 IBM VGA 8x16');
+  expect(await page.evaluate(() => document.fonts.check('16px "Web437 IBM VGA 8x16"'))).toBe(true); // shipped with the site, not looked for on the device
+});

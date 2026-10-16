@@ -15,3 +15,5 @@ import '@fontsource/nunito-sans/400.css';
 import '@fontsource/nunito-sans/700.css';
 import '@fontsource/nunito-sans/800.css';
 import '@fontsource/silkscreen/400.css';
+// The Terminal's optional old PC font: CC BY-SA 4.0, not OFL; see assets/fonts/vga/README.md.
+import './assets/fonts/vga/vga.css';

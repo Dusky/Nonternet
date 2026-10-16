@@ -346,4 +346,8 @@ one process, this moves to the job queue.
   (`app_installs.granted`, migration 0057; `PUT /me/apps/:id {granted}` and `PUT /me/apps/:id/permissions`). Core and the
   bridge both check it. Installs made before this keep what their app asked for at the time. No audit entry (own settings).
   Q18 stays OPEN for the rest (outside authors, review, signing, take-downs).
-- **DECIDED (owner):** the Terminal gets an old PC (VGA-style) font as an option (see docs/10 when built).
+- **DECIDED (owner):** the Terminal gets an old PC (VGA-style) font as an option. Built: Settings → Terminal → Font (Modern
+  or Old PC), kept on the device like the text size. The font is `Web437_IBM_VGA_8x16.woff` from VileR's Ultimate Oldschool
+  PC Font Pack v2.2, **CC BY-SA 4.0** (verified on int10h.org 2026-10-16), shipped unmodified in
+  `apps/shell/src/assets/fonts/vga/` with its licence, and credited beside the choice. It is the one font not under the OFL
+  (V10); bundling an unmodified font with attribution is what the licence asks.
