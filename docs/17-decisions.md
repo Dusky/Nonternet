@@ -316,4 +316,15 @@ one process, this moves to the job queue.
 - The home panel is a per-account list of widgets (`desktop` client document: `widgets`, `widgets_set`). Untouched accounts follow
   the default list, so new widgets arrive for them; the first change makes the list theirs. No audit entry (own settings).
 - Widgets from installed apps and a calendar are not built (they would need a widget entry point in the app bridge: a later design).
-- NEXT (owner, 2026-10-13): fix the MUD browser client's menus and controls, which are reported broken.
+- NEXT (owner, 2026-10-13): fix the MUD browser client's menus and controls, which are reported broken. Started 2026-10-16, see below.
+
+## 2026-10-16: MUD browser client, first fixes
+
+- Reproduced in a browser (desktop window, desktop page, phone). The menus themselves opened and their choices worked; what
+  was broken was the layout around them: in a window, and on a phone with the side panel off, the game log shrank to a sliver
+  or to nothing whenever the first-run card, the rules editor or the find bar took room. Now the game area keeps at least
+  about 20 rem and the MUD scrolls as a whole; the log keeps room to read. The rules editor's tabs are one scrolling row, and
+  the "New here?" tip no longer repeats the first-run card.
+- Game: when the random character name was already taken the name was blanked and the screen said "Your character is called
+  ." and offered to keep it. Chargen now rolls other names first and, if none is free, asks plainly for one.
+- Still to check with the owner: anything else they meant by "menus and stuff" that this did not cover.

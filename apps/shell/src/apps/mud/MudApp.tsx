@@ -37,7 +37,7 @@ export default function MudApp() {
           {showPanel && <Side />}
         </div>
       )}
-      {!inWorld && <div className="mud-tips"><pre className="mud-tower" aria-hidden="true">{TOWER}</pre><p className="hint">{t('mud.tips')}</p></div>}
+      {!inWorld && status !== 'playing' && <div className="mud-tips"><pre className="mud-tower" aria-hidden="true">{TOWER}</pre><p className="hint">{t('mud.tips')}</p></div>}
       <button type="button" className="link" aria-expanded={help} onClick={() => setHelp(!help)}>{t('mud.nativeTitle')}</button>
       {help && <NativeHelp />}
     </div>

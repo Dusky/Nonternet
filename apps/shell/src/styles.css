@@ -1062,7 +1062,7 @@ li.new-divider::before, li.new-divider::after { border-top: var(--line-width) so
   .app-page .app-fill .chat-buffers > ul { min-height: max-content; }
   .app-page .app-fill .chat-log { height: auto; flex: 1; min-height: 5rem; }
   .app-page .app-fill > .terminal-screen { min-height: 8rem; }
-  .app-page .app-fill > .mud-layout { flex: 1; height: auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+  .app-page .app-fill > .mud-layout { flex: 1 0 auto; height: auto; min-height: 20rem; grid-template-rows: minmax(0, 1fr); }
   /* With the side panel open the page flows and scrolls, as before: the log keeps a sensible height and the panel follows it. */
   .app-page .app-fill > .mud-layout.has-panel { flex: none; height: auto; grid-template-rows: none; }
   .app-page .app-fill > .mud-layout.has-panel > .mud-screen { height: min(60dvh, 30rem); }
@@ -1126,7 +1126,7 @@ button.chat-person:hover { text-decoration: underline; }
 .mud-layout.has-panel { grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem); }
 /* On its own page the client is a fixed height and the log scrolls inside it; in a window it fills the window. */
 .mud-layout { height: min(74vh, 46rem); min-height: 20rem; }
-.window-body > .boundary > .app-fill > .mud-layout { flex: 1; height: auto; min-height: 12rem; }
+.window-body > .boundary > .app-fill > .mud-layout { flex: 1 0 auto; height: auto; min-height: 22rem; }
 .mud-layout > .mud-screen { height: auto; min-height: 0; }
 .mud-layout > .mud-screen { min-width: 0; }
 .mud-screen { position: relative; }
@@ -1374,6 +1374,14 @@ div.post-body.rich-text { white-space: normal; }
 @media (max-width: 639px) { .ring-orbit { height: 5.5rem; } }
 
 .mud-tips { display: flex; gap: var(--space-3); align-items: center; }
+/* The game never gets squeezed away: the first-run card, the rules editor and the find bar push the MUD down and it scrolls
+   as a whole, while the log keeps room to read (a window, a page, a phone with or without the side panel). */
+.app-fill.mud { overflow-y: auto; }
+.app-fill.mud > .mud-layout { flex: 1 0 auto; min-height: 22rem; }
+.app-fill.mud .mud-log { min-height: 7rem; }
+.mud-editor .tabs { flex-wrap: nowrap; overflow-x: auto; margin-bottom: var(--space-2); scrollbar-width: thin; }
+.mud-editor .tabs [role=tab] { flex: none; }
+.mud-editor .tab-help { margin: calc(-1 * var(--space-1)) 0 0; }
 .mud-first { margin-bottom: var(--space-3); }
 .mud-first h2 { margin-top: 0; }
 .mud-import-sends { margin: 0 0 var(--space-2); padding-left: var(--space-4); max-height: 10rem; overflow-y: auto; }

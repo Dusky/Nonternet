@@ -226,3 +226,22 @@ class WorldTest(BaseEvenniaCommandTest):
             self.says(CmdUnsign(), "2", "strike entry #2")  # mine: nothing to report
         self.assertEqual([(m["action"], m["actor"], m["target"], m["text"]) for m in sent],
                          [("mud.note_removed", "u_TEST", "u_OTHER", "buy my stuff"), ("mud.guestbook_removed", "u_TEST", "u_OTHER", "rude words")])
+
+
+@GAME
+class NameTest(BaseEvenniaCommandTest):
+    def test_a_taken_random_name_rolls_another_and_says_so_plainly_when_none_is_free(self):
+        from world import chargen
+
+        taken = CharacterSheet()
+        taken.name = "Wren"
+        taken.apply(self.account)
+        with patch.object(chargen.ev.dice, "roll_random_table", side_effect=["Wren", "Wren", "Moss"]):
+            self.assertEqual(chargen.free_name(self.account), "Moss")
+        with patch.object(chargen.ev.dice, "roll_random_table", return_value="Wren"):
+            self.assertEqual(chargen.free_name(self.account, tries=3), "")
+        sheet = CharacterSheet()
+        sheet.name = ""
+        text, _ = chargen.node_change_name(self.account, "", tmp_character=sheet)
+        self.assertIn("needs a name", text)
+        self.assertNotIn("called", text)

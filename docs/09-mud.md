@@ -109,3 +109,6 @@ leave them out. Deleting an account deletes its characters.
 MUD tab: who is playing, as which character and where, how they connected; busiest rooms; counts of
 accounts, characters, rooms and things; builders (appoint and remove, audited). Not built: builder
 activity, recent logins, world snapshots in the console (the world is in the nightly backup, `15`).
+
+- **Layout (2026-10-16).** The game area keeps a minimum height (about 20 rem); with the first-run card, the rules editor or
+  the find bar open, the MUD scrolls as a whole instead of shrinking the log.

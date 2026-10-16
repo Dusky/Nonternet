@@ -81,8 +81,21 @@ def _update_name(caller, raw_string, **kwargs):
     return "node_chargen", kwargs
 
 
+def free_name(caller, tries=12):
+    """A random name nobody has yet, or "" when every try was taken (the person then picks one)."""
+    for _ in range(tries):
+        name = ev.dice.roll_random_table("1d282", ev.chargen_tables["name"])
+        if not name_problem(name, caller):
+            return name
+    return ""
+
+
 def node_change_name(caller, raw_string, **kwargs):
-    text = f"Your character is called |w{kwargs['tmp_character'].name}|n. Type a new name, or press Enter to keep it."
+    name = kwargs["tmp_character"].name
+    if not name:
+        text = "Your character needs a name. Type one: 2 to 20 letters, starting with a letter."
+    else:
+        text = f"Your character is called |w{name}|n. Type a new name, or press Enter to keep it."
     return text, {"key": "_default", "goto": (_update_name, kwargs)}
 
 
@@ -103,7 +116,7 @@ def node_apply_character(caller, raw_string, **kwargs):
 def start_chargen(caller, session=None):
     sheet = CharacterSheet()
     if name_problem(sheet.name, caller):
-        sheet.name = ""  # the random name was taken; they pick one
+        sheet.name = free_name(caller)  # the random name was taken: roll another, or they pick one
     EvMenu(
         caller,
         {"node_chargen": ev.node_chargen, "node_change_name": node_change_name,

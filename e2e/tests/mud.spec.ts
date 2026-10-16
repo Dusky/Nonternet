@@ -55,6 +55,32 @@ test.describe('the MUD', () => {
     await expect(page.getByRole('heading', { name: 'Client rules' }).first()).toBeVisible();
   });
 
+  test('the game log keeps room to read with the first-run card, the rules editor and Find open', async ({ page, isMobile }) => {
+    const u = await makeUser(page);
+    await signIn(page, u.handle, PASSWORD);
+    if (isMobile) await page.goto('/mud');
+    else {
+      await page.locator('[data-app-icon="mud"]').click();
+      await expect(page.getByRole('dialog', { name: 'MUD window' })).toBeVisible();
+    }
+    await expect(page.getByLabel('Type a command, like look or north')).toBeEnabled({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'Welcome. First, a character.' })).toBeVisible();
+    if (isMobile) await page.getByRole('toolbar', { name: 'MUD tools' }).getByRole('button', { name: 'Side panel' }).click(); // off: the log alone
+    await tool(page, 'Client rules');
+    await expect(page.getByRole('heading', { name: 'Client rules' }).first()).toBeVisible();
+    await page.getByRole('toolbar', { name: 'MUD tools' }).getByRole('button', { name: 'Find' }).click();
+    // Everything above pushes the game down; it is never squeezed to a sliver.
+    const log = world(page);
+    await log.scrollIntoViewIfNeeded();
+    expect((await log.boundingBox())!.height).toBeGreaterThan(100);
+    await expect(log.getByText('charcreate').first()).toBeInViewport();
+    // The rules editor's tabs are one row.
+    const tabs = page.getByRole('tablist', { name: 'Client rules' });
+    const first = (await tabs.getByRole('tab').first().boundingBox())!;
+    expect((await tabs.boundingBox())!.height).toBeLessThan(first.height * 1.8);
+    await scan(page, 'the MUD with the rules editor and Find open');
+  });
+
   test('rules from someone else arrive switched off, with what they would send, and a pattern that could hang is refused', async ({ page }) => {
     const u = await makeUser(page);
     await signIn(page, u.handle, PASSWORD);
