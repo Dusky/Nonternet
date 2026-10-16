@@ -49,7 +49,7 @@ export function SettingsPanel() {
         <section key={g.name} aria-labelledby={`settings-${g.name}`}>
           <h3 id={`settings-${g.name}`} className="settings-group">{groupName(g.name)}</h3>
           {/* Keyed by version, so a rollback or "use the file's value" shows the new value, not the one typed before. */}
-          {g.rows.map((s) => <Setting key={`${s.key}:${s.version}:${s.overridden}`} s={s} />)}
+          {g.rows.map((s) => <Setting key={s.key} s={s} />)}
         </section>
       ))}
     </>
@@ -60,6 +60,13 @@ function Setting({ s }: { s: SettingRow }) {
   const t = useT();
   const qc = useQueryClient();
   const [value, setValue] = useState(String(s.value));
+  // When the setting changes on the server (saved here, rolled back, "use the file's value again", another admin), an
+  // untouched field follows it; something being typed is never thrown away, and "Saved" stays on screen.
+  const [base, setBase] = useState(String(s.value));
+  if (String(s.value) !== base) {
+    setBase(String(s.value));
+    if (value === base) setValue(String(s.value));
+  }
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
