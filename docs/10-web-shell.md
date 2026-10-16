@@ -553,3 +553,6 @@ What the browser review of every app found, and how the shell now behaves:
   "hide" flag (kept on the device) still counts until then. "Put the desktop back as it was" restores the default list.
 - Phones use the same list (one column, so no Wide).
 - Not here: widgets from installed apps, a calendar widget.
+- **Phones (2026-10-16).** The top bar holds the brand, search and the account menu; Mail and Notifications live in the tab
+  bar only. The account menu leaves out Keyboard shortcuts, and the palette hides its key hints on touch screens. While
+  writing mail, Send stays in reach above the tab bar.

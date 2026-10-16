@@ -328,3 +328,14 @@ one process, this moves to the job queue.
 - Game: when the random character name was already taken the name was blanked and the screen said "Your character is called
   ." and offered to keep it. Chargen now rolls other names first and, if none is free, asks plainly for one.
 - Still to check with the owner: anything else they meant by "menus and stuff" that this did not cover.
+
+## 2026-10-16 (later): round-2 review fixes closed
+
+- The last round-2 items are built: Send stays above the tab bar while writing mail on a phone; phones no longer show Mail
+  and Notifications twice (top bar and tab bar), Keyboard shortcuts in the account menu, or the palette's key hints; every
+  account menu item has an icon. Person results in the palette read "Look for someone called …".
+- A full browser run (desktop and phone) after the desktop and MUD work: 540 passed, 1 failed. The failure was a real bug in
+  the admin Settings page (a refetch remounted each setting's form, wiping what was typed and the "Saved" message), now fixed.
+  Export and import passed, so their earlier failures were the stale MUD process, as suspected.
+- Left for the owners to pick (not started): Rings Manage tabs and member banners, an admin Status hub, the Terminal on phones
+  and narrow BBS tables, editing file areas, Add apps window sizing. The OPEN questions listed under 2026-10-12 stay open.
