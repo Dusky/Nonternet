@@ -76,6 +76,8 @@ README.txt               # human explanation of the archive
 
 ## Apps people add (built 2026-10-04, docs/10)
 - `apps/installed.json`: the ids of the apps the person has added.
+- `apps/permissions.json`: what each added app was allowed to do. Import restores it; an older export without it allows
+  what each app asks for.
 - `apps/{app}/{collection}.json`: everything each app kept for them, as `[{ id, data, updated_at }]`, whether or not the app is still added or still offered. Apps keep data only in core's one generic store (`app_data`), so every app's data is in the export and erased with the account without each app having to remember.
 
 ## Bringing back an export (built 2026-10-02)

@@ -21,6 +21,11 @@ test('add Todo, keep a list in it, remove it and add it back with the list still
   await expect(page.getByText('Keeps its own things on your account. They are in your export.')).toBeVisible();
   await scan(page, 'Add apps');
   await page.getByRole('button', { name: 'Add Todo' }).click();
+  // Adding asks first what it may do, everything it asks for ticked.
+  const consent = page.getByRole('group', { name: 'What Todo may do' });
+  await expect(consent.getByRole('checkbox', { name: 'Keeps its own things on your account. They are in your export.' })).toBeChecked();
+  await scan(page, 'Add apps, asking what Todo may do');
+  await consent.getByRole('button', { name: 'Add Todo' }).click();
   await expect(page.getByText('Todo added.')).toBeVisible();
   await page.getByRole('link', { name: 'Open Todo' }).click();
   if (!isMobile) await expect(page.getByRole('dialog', { name: 'Todo window' })).toBeVisible();
@@ -67,6 +72,8 @@ test('add Todo, keep a list in it, remove it and add it back with the list still
     await page.goto('/add-apps');
   }
   await page.getByRole('button', { name: 'Add Todo' }).click();
+  await page.getByRole('group', { name: 'What Todo may do' }).getByRole('button', { name: 'Add Todo' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Todo' })).toBeVisible();
   await page.goto('/apps/todo');
   await expect(todo(page).getByText('Call Sam')).toBeVisible();
   if (!isMobile) {
@@ -122,4 +129,24 @@ test('an admin withdraws Todo and it leaves Add apps; offering it again brings i
   await p.goto('/add-apps');
   await expect(p.getByRole('button', { name: 'Add Todo' })).toBeVisible();
   await ctx.close();
+});
+
+test('an app added without keeping things can be allowed later in Settings', async ({ page }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/add-apps');
+  await page.getByRole('button', { name: 'Add Todo' }).click();
+  const consent = page.getByRole('group', { name: 'What Todo may do' });
+  await consent.getByRole('checkbox', { name: /Keeps its own things/ }).uncheck();
+  await consent.getByRole('button', { name: 'Add Todo' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Todo' })).toBeVisible();
+  const granted = async () => (await (await page.request.get('/api/v1/me/apps')).json()).apps.find((a: { id: string }) => a.id === 'todo').granted as string[];
+  expect(await granted()).not.toContain('storage');
+  await page.goto('/settings/data');
+  const sw = page.getByRole('group', { name: 'Todo' }).getByRole('switch', { name: /Keeps its own things/ });
+  await expect(sw).not.toBeChecked();
+  await scan(page, 'Settings with the apps you added');
+  await sw.check();
+  await expect(sw).toBeChecked();
+  await expect.poll(granted).toContain('storage');
 });

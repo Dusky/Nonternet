@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AppPermission, CatalogApp } from '@app/shared';
 import type { StringKey } from '@app/strings';
@@ -24,9 +25,11 @@ export default function AddAppsApp() {
   };
   // The list changes at once; the server catches up behind it.
   const patch = (id: string, change: Partial<CatalogApp>) => qc.setQueryData<{ apps: CatalogApp[] }>(['apps', 'catalog'], (d) => d && { apps: d.apps.map((a) => (a.id === id ? { ...a, ...change } : a)) });
+  // Adding asks first what the app may do (decided 2026-10-16); it can be changed later in Settings.
+  const [asking, setAsking] = useState<{ id: string; granted: AppPermission[] } | null>(null);
   const add = useMutation({
-    mutationFn: (a: CatalogApp) => api.put(`/me/apps/${a.id}`, {}),
-    onMutate: (a) => patch(a.id, { installed: true }),
+    mutationFn: (a: CatalogApp & { chosen?: AppPermission[] }) => api.put(`/me/apps/${a.id}`, { granted: a.chosen ?? a.granted }),
+    onMutate: (a) => { setAsking(null); patch(a.id, { installed: true }); },
     onSuccess: (_d, a) => { toast(t('apps.added', { app: a.name })); },
     onError: (e, a) => { patch(a.id, { installed: false }); toast(errorText(e), 'error'); },
     onSettled: () => void refresh(),
@@ -74,12 +77,29 @@ export default function AddAppsApp() {
                   <button type="button" className="btn" onClick={() => remove.mutate(a)} aria-label={t('apps.removeLabel', { app: a.name })}>{t('apps.remove')}</button>
                 </>
               ) : (
-                <button type="button" className="btn btn-primary" onClick={() => add.mutate(a)} aria-label={t('apps.addLabel', { app: a.name })}>{t('apps.add')}</button>
+                asking?.id !== a.id && <button type="button" className="btn btn-primary" onClick={() => (a.permissions.length ? setAsking({ id: a.id, granted: [...a.permissions] }) : add.mutate({ ...a, chosen: [] }))} aria-label={t('apps.addLabel', { app: a.name })}>{t('apps.add')}</button>
               )}
               {!a.installed && a.has_data && (
                 <button type="button" className="btn btn-quiet btn-danger" onClick={() => deleteData(a)} aria-label={t('apps.deleteDataLabel', { app: a.name })}>{t('apps.deleteData')}</button>
               )}
             </div>
+            {asking?.id === a.id && (
+              <fieldset className="app-consent">
+                <legend>{t('apps.consent.title', { app: a.name })}</legend>
+                {a.permissions.map((p) => (
+                  <label key={p} className="check">
+                    <input type="checkbox" checked={asking.granted.includes(p)}
+                      onChange={(e) => setAsking({ id: a.id, granted: e.target.checked ? [...asking.granted, p] : asking.granted.filter((x) => x !== p) })} />
+                    {t(`apps.perm.${p.replace(':', '_')}` as StringKey)}
+                  </label>
+                ))}
+                <p className="hint">{t('apps.consent.later')}</p>
+                <div className="actions">
+                  <button type="button" className="btn btn-primary" onClick={() => add.mutate({ ...a, chosen: asking.granted })}>{t('apps.addLabel', { app: a.name })}</button>
+                  <button type="button" className="btn btn-quiet" onClick={() => setAsking(null)}>{t('common.cancel')}</button>
+                </div>
+              </fieldset>
+            )}
           </li>
         ))}
       </ul>

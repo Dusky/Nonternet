@@ -75,6 +75,22 @@ describe.skipIf(!dbAvailable)('installable apps', () => {
     expect((await alice.c.get('/api/v1/me/apps/todo/data/items')).body.docs).toHaveLength(1);
   });
 
+  it('does only what the person allowed when adding it, and that can be changed later', async () => {
+    const carol = await makeUser(ctx); const c = await loginAs(ctx, carol.handle);
+    const added = (await c.put('/api/v1/me/apps/todo', { granted: [] })).body.app;
+    expect(added).toMatchObject({ installed: true, permissions: ['storage'], granted: [] });
+    expect((await c.put('/api/v1/me/apps/todo/data/items/a', { data: 1 })).body.error.code).toBe('not_permitted');
+    // Asking for something the app never asked for gives nothing extra.
+    expect((await c.put('/api/v1/me/apps/todo/permissions', { granted: ['storage', 'notify'] })).body.app.granted).toEqual(['storage']);
+    expect((await c.put('/api/v1/me/apps/todo/data/items/a', { data: 1 })).status).toBe(200);
+    expect((await c.put('/api/v1/me/apps/todo/permissions', { granted: [] })).body.app.granted).toEqual([]);
+    expect((await c.get('/api/v1/me/apps/todo/data/items')).status).toBe(403);
+    expect((await c.put('/api/v1/me/apps/todo/permissions', { granted: ['bogus'] })).status).toBe(400);
+    expect((await c.put('/api/v1/me/apps/clock/permissions', { granted: [] })).body.error.code).toBe('not_installed');
+    expect((await c.get('/api/v1/me/apps')).body.apps[0].granted).toEqual([]);
+    await c.delete('/api/v1/me/apps/todo'); // later tests count who has it
+  });
+
   it('refuses a piece over 64 KB and stops an app at 5 MB per person', async () => {
     const big = 'x'.repeat(65 * 1024);
     expect((await alice.c.put('/api/v1/me/apps/todo/data/items/big', { data: big })).status).toBe(413);
@@ -144,6 +160,7 @@ describe.skipIf(!dbAvailable)('installable apps', () => {
     const zip = readFileSync(join(ctx.deps.exportsDir, `${x.id}.zip`));
     const files = unzipSync(new Uint8Array(zip));
     expect(JSON.parse(strFromU8(files['apps/installed.json']!))).toEqual(['clock', 'todo']);
+    expect(JSON.parse(strFromU8(files['apps/permissions.json']!))).toEqual({ clock: [], todo: ['storage'] });
     expect(JSON.parse(strFromU8(files['apps/todo/items.json']!)).map((d: { id: string; data: { text: string } }) => d.data.text)).toEqual(['Buy milk']);
 
     // She loses them, then brings them back.
@@ -156,6 +173,7 @@ describe.skipIf(!dbAvailable)('installable apps', () => {
     expect(applied.status).toBe(200);
     expect(applied.body.parts).toEqual([{ part: 'apps', restored: 1, issues: [] }]);
     expect((await alice.c.get('/api/v1/me/apps/todo/data/items')).body.docs[0].data.text).toBe('Buy milk');
+    expect((await alice.c.get('/api/v1/me/apps')).body.apps.find((a: { id: string }) => a.id === 'todo').granted).toEqual(['storage']); // what she had allowed
 
     expect((await alice.c.post('/api/v1/me/delete', { password: TEST_PASSWORD, confirm_handle: alice.handle, posts: 'keep' })).status).toBeLessThan(300);
     for (const t of ['app_data', 'app_installs']) expect((await db.query(`SELECT count(*)::int AS n FROM ${t} WHERE user_id = $1`, [alice.id])).rows[0]!.n, t).toBe(0);

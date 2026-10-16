@@ -2,7 +2,7 @@ import { createHash, createPublicKey, verify } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { unzipSync } from 'fflate';
-import { CLIENT_NAMES, PREF_KINDS, bookmarkKey, homepageSettingsSchema, profileUpdateSchema, wallpaperUpdateSchema } from '@app/shared';
+import { APP_PERMISSIONS, type AppPermission, CLIENT_NAMES, PREF_KINDS, bookmarkKey, homepageSettingsSchema, profileUpdateSchema, wallpaperUpdateSchema } from '@app/shared';
 import { putClientSettings } from './client-settings';
 import { importAppData } from './apps';
 import { audit } from './audit';
@@ -292,7 +292,7 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
     return { restored, codes };
   });
 
-  await run('apps', async () => importAppData(deps, v, appInstallsOf(a), appDocsOf(a)));
+  await run('apps', async () => importAppData(deps, v, appInstallsOf(a), appDocsOf(a), appGrantsOf(a)));
   await run('memos', async () => importMemos(deps, v, json<unknown[]>(a, 'memos.json') ?? []));
   await run('bookmarks', async () => importBookmarks(deps, v, json<unknown[]>(a, 'bookmarks.json') ?? []));
 
@@ -309,6 +309,14 @@ export async function applyImport(deps: AppDeps, v: SessionUser, id: string, inp
 function appInstallsOf(a: Archive): string[] {
   const list = json<unknown>(a, 'apps/installed.json');
   return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
+}
+// apps/permissions.json: what each app was allowed. Anything unknown is dropped; an export without it allows what each app asks.
+function appGrantsOf(a: Archive): Record<string, AppPermission[]> {
+  const raw = json<unknown>(a, 'apps/permissions.json');
+  const out: Record<string, AppPermission[]> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [app, list] of Object.entries(raw)) if (Array.isArray(list)) out[app] = list.filter((p): p is AppPermission => (APP_PERMISSIONS as readonly unknown[]).includes(p));
+  return out;
 }
 function appDocsOf(a: Archive): { app: string; collection: string; id: string; data: unknown }[] {
   const out: { app: string; collection: string; id: string; data: unknown }[] = [];

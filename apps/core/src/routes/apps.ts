@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { APP_DOC_MAX_BYTES, appCollectionSchema, appDocIdSchema, appIdSchema } from '@app/shared';
+import { APP_DOC_MAX_BYTES, appCollectionSchema, appDocIdSchema, appGrantSchema, appIdSchema } from '@app/shared';
 import * as apps from '../apps';
 import type { AppDeps } from '../deps';
 import { ctxOf, requireAdmin, requireUser } from '../http';
@@ -15,7 +15,11 @@ const writes = { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } };
 export function appsRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/apps', async (req) => ({ apps: await apps.listCatalog(deps, requireUser(req)) }));
   app.get('/api/v1/me/apps', async (req) => ({ apps: await apps.listInstalled(deps, requireUser(req)) }));
-  app.put('/api/v1/me/apps/:id', writes, async (req) => ({ app: await apps.installApp(deps, requireUser(req), appParam.parse(req.params).id) }));
+  app.put('/api/v1/me/apps/:id', writes, async (req) => {
+    const body = req.body && typeof req.body === 'object' && 'granted' in req.body ? appGrantSchema.parse(req.body).granted : undefined;
+    return { app: await apps.installApp(deps, requireUser(req), appParam.parse(req.params).id, body) };
+  });
+  app.put('/api/v1/me/apps/:id/permissions', writes, async (req) => ({ app: await apps.setGrants(deps, requireUser(req), appParam.parse(req.params).id, appGrantSchema.parse(req.body).granted) }));
   app.delete('/api/v1/me/apps/:id', writes, async (req, reply) => {
     await apps.removeApp(deps, requireUser(req), appParam.parse(req.params).id);
     return reply.code(204).send();

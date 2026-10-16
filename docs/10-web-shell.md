@@ -328,6 +328,9 @@ The format is built for outside authors later (Q18), but only the site's own pac
   a launcher tile, an apps menu entry, a palette entry, a window, and its own page at `/apps/{id}`, like a built-in app.
   Windows for an app that is removed or withdrawn close themselves; session restore waits for the list of added apps.
 - **Add apps** (a built-in app at `/add-apps`) lists what the site offers with each app's permissions in plain words
+  Adding an app asks first what it may do: each permission it asks for is a tick box, all ticked, and only the ticked ones
+  are allowed (decided 2026-10-16). Settings → Your data → "Apps you added" changes them later with a switch each. A
+  permission an app adds in a later version stays off until the person switches it on.
   ("Keeps its own things on your account. They are in your export."). Add, Open, Remove (with Undo). Removing keeps the app's
   data, so adding it again brings it back; "Delete what it kept" is separate, and waits a few seconds for an Undo.
 - **Admin console → Apps**: each package with its version and how many people have it, and an "Offer" checkbox

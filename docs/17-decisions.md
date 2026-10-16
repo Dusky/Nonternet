@@ -74,7 +74,7 @@
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
-| Q18 | Outside authors for installable apps: who may publish, how apps are reviewed, signed, reported and taken down, and how a sandboxed frame is kept from carrying data out by navigating itself (docs/15). The format is ready for it; nothing is decided | before anyone but the site publishes an app |
+| Q18 | (Per-install consent DECIDED 2026-10-16: asked when adding, changeable in Settings.) Outside authors for installable apps: who may publish, how apps are reviewed, signed, reported and taken down, and how a sandboxed frame is kept from carrying data out by navigating itself (docs/15). The format is ready for it; nothing is decided | before anyone but the site publishes an app |
 | Q17 | Should boards or homepages federate over ActivityPub (e.g. Fedify), so people on Mastodon can follow them? Raised 2026-10-04 | not scheduled |
 
 ## Implementation notes
@@ -339,3 +339,11 @@ one process, this moves to the job queue.
   Export and import passed, so their earlier failures were the stale MUD process, as suspected.
 - Left for the owners to pick (not started): Rings Manage tabs and member banners, an admin Status hub, the Terminal on phones
   and narrow BBS tables, editing file areas, Add apps window sizing. The OPEN questions listed under 2026-10-12 stay open.
+
+## 2026-10-16 (later): app permissions asked when adding; Terminal old PC font
+
+- **DECIDED (owner):** adding an app asks what it may do, permission by permission, and Settings can change it later
+  (`app_installs.granted`, migration 0057; `PUT /me/apps/:id {granted}` and `PUT /me/apps/:id/permissions`). Core and the
+  bridge both check it. Installs made before this keep what their app asked for at the time. No audit entry (own settings).
+  Q18 stays OPEN for the rest (outside authors, review, signing, take-downs).
+- **DECIDED (owner):** the Terminal gets an old PC (VGA-style) font as an option (see docs/10 when built).

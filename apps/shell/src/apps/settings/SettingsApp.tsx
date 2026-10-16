@@ -3,6 +3,7 @@ import { SideNav } from '../../components/ui';
 import { useMe, useSite, useT } from '../../hooks';
 import { matchRoute, useAppNav } from '../../nav';
 import { YourData } from './YourData';
+import { AppPermissions } from './AppPermissions';
 import { Blocks } from './Blocks';
 import { OfflineMail, SshKeys, TerminalPassword } from './Terminal';
 import { BoardSettings, ChatAccountSettings, ChatSettings, NotificationChoices, PersonalProfile, TerminalDisplay } from './PersonalSettings';
@@ -49,7 +50,7 @@ export default function SettingsApp() {
       {route?.pattern === 'passkeys' && <Passkeys />}
       {route?.pattern === 'sessions' && <Sessions />}
       {route?.pattern === 'terminal' && <><TerminalDisplay /><TerminalPassword />{site.services.bbs && me.role !== 'guest' && <><SshKeys /><OfflineMail /></>}</>}
-      {route?.pattern === 'data' && <YourData me={me} />}
+      {route?.pattern === 'data' && <><AppPermissions /><YourData me={me} /></>}
       {route?.pattern === 'blocked' && <Blocks />}
       {route?.pattern === 'appearance' && <Appearance me={me} />}
       {route?.pattern === 'notifications' && <>{me.role !== 'guest' && <NotificationChoices />}<DeviceAlerts /><DevicePush /></>}

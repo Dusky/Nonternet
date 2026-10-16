@@ -32,7 +32,8 @@ export interface CatalogApp {
   description: string;
   icon: string;
   sticker: number;
-  permissions: AppPermission[];
+  permissions: AppPermission[];  // what the app asks for
+  granted: AppPermission[];      // what this person allowed it (only for apps they added; empty otherwise)
   url: string;           // where the app's page is, on the homes origin
   installed: boolean;
   offered: boolean;      // false only in the admin view, for apps an admin has withdrawn
@@ -44,5 +45,8 @@ export const APP_DOC_MAX_BYTES = 64 * 1024;
 export const APP_DATA_MAX_BYTES = 5 * 1024 * 1024;
 export const appCollectionSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/);
 export const appDocIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
+// Adding an app, and changing later what it may do: the permissions the person allows, out of those it asks for.
+export const appGrantSchema = z.object({ granted: z.array(z.enum(APP_PERMISSIONS)).max(APP_PERMISSIONS.length) });
 
 export interface AppDoc { id: string; data: unknown; updated_at: string }

@@ -5,14 +5,15 @@ import { bridgeFor } from './AppHost';
 
 // The bridge (docs/15) is the only way an added app reaches anything: it does only what the manifest asked for,
 // checks what it is given, and keeps the app inside its own data.
-const app = (permissions: CatalogApp['permissions']): CatalogApp => ({
-  id: 'todo', name: 'Todo', version: '1.0.0', description: 'x', icon: 'M0 0h1v1z', sticker: 1, permissions, url: 'https://h/apps/todo@1.0.0/index.html', installed: true, offered: true,
+const app = (permissions: CatalogApp['permissions'], granted: CatalogApp['granted'] = permissions): CatalogApp => ({
+  id: 'todo', name: 'Todo', version: '1.0.0', description: 'x', icon: 'M0 0h1v1z', sticker: 1, permissions, granted, url: 'https://h/apps/todo@1.0.0/index.html', installed: true, offered: true,
 });
 const deps = () => ({
   me: () => ({ id: 'u_1', handle: 'alice', display_name: 'Alice' }),
   setTitle: vi.fn(),
   toast: vi.fn(async () => true),
   refused: 'This app did not ask to do that.',
+  notAllowed: 'You have not allowed this app to do that.',
 });
 const calls: { url: string; method: string; body?: string }[] = [];
 afterEach(() => { calls.length = 0; vi.unstubAllGlobals(); });
@@ -24,6 +25,14 @@ function stubFetch(reply: unknown) {
 }
 
 describe('the app bridge', () => {
+  it('refuses what the app asked for but the person did not allow', async () => {
+    stubFetch({ docs: [] });
+    const b = bridgeFor(app(['storage', 'profile:read'], ['profile:read']), deps());
+    await expect(b.storageList('items')).rejects.toThrow('You have not allowed this app to do that.');
+    expect(calls).toHaveLength(0);
+    expect(await b.profileGet()).toMatchObject({ handle: 'alice' });
+  });
+
   it('keeps data only for an app that asked for storage, under its own id', async () => {
     stubFetch({ docs: [{ id: 'a', data: 1, updated_at: 'now' }], doc: { id: 'a', data: 1, updated_at: 'now' } });
     const b = bridgeFor(app(['storage']), deps());

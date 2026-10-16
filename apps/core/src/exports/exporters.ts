@@ -328,14 +328,15 @@ const wikiExporter: Exporter = {
   },
 };
 
-// What apps people added kept for them (docs/10): apps/installed.json, and apps/{app}/{collection}.json for every
+// What apps people added kept for them (docs/10): apps/installed.json, apps/permissions.json, and apps/{app}/{collection}.json for every
 // app with data, whether or not it is still added or still offered.
 const appsData: Exporter = {
   id: 'apps',
   tables: ['app_installs', 'app_data'],
   async run({ deps, user, add }) {
-    const { installed, data } = await exportAppData(deps.db, user.id);
+    const { installed, granted, data } = await exportAppData(deps.db, user.id);
     if (installed.length) add('apps/installed.json', json(installed));
+    if (installed.length) add('apps/permissions.json', json(granted)); // what each app was allowed to do
     for (const [app, cols] of data) for (const [col, docs] of cols) add(`apps/${app}/${col}.json`, json(docs));
   },
 };

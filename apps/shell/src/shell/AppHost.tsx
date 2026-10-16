@@ -39,8 +39,13 @@ export function bridgeFor(app: CatalogApp, deps: {
   setTitle: (t: string | null) => void;
   toast: (text: string, o: { undo?: boolean; error?: boolean }) => Promise<boolean>;
   refused: string;
+  notAllowed?: string;
 }) {
-  const need = (p: AppPermission) => { if (!app.permissions.includes(p)) throw new Refused(deps.refused); };
+  // Only what the app asked for AND the person allowed (when adding it, or later in Settings).
+  const need = (p: AppPermission) => {
+    if (!app.permissions.includes(p)) throw new Refused(deps.refused);
+    if (!app.granted.includes(p)) throw new Refused(deps.notAllowed ?? deps.refused);
+  };
   const base = `/me/apps/${encodeURIComponent(app.id)}/data`;
   const wrap = <A extends unknown[], R>(fn: (...a: A) => Promise<R>) => async (...a: A): Promise<R> => {
     try { return await fn(...a); } catch (e) { throw new Error(plain(e)); }
@@ -103,6 +108,7 @@ export default function AppHost({ appId }: { appId: string }) {
       setTitle: (title) => setSubtitle(key, title),
       toast: (text, o) => appToast(text, o, t('common.undo')),
       refused: t('apps.refused'),
+      notAllowed: t('apps.notAllowed'),
     });
     // The frame's origin is opaque ("null"), so the origin can't be named; Penpal still only listens to this
     // frame's window, and after the handshake both sides use a private MessageChannel.

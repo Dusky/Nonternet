@@ -48,11 +48,14 @@ export async function syncCatalog(deps: AppDeps, log: (m: string) => void = () =
   });
 }
 
-interface Row { app_id: string; version: string; manifest: AppManifest; offered: boolean; present: boolean }
+interface Row { app_id: string; version: string; manifest: AppManifest; offered: boolean; present: boolean; granted?: string[] | null }
+
+// Only what the app still asks for: a permission dropped by a new version is gone, a new one waits for the person.
+const allowed = (manifest: AppManifest, granted: readonly string[] | null | undefined): AppPermission[] => manifest.permissions.filter((p) => granted?.includes(p));
 
 const view = (deps: AppDeps, r: Row, installed: boolean, hasData?: boolean): CatalogApp => ({
   id: r.app_id, name: r.manifest.name, version: r.version, description: r.manifest.description, icon: r.manifest.icon,
-  sticker: r.manifest.sticker, permissions: r.manifest.permissions,
+  sticker: r.manifest.sticker, permissions: r.manifest.permissions, granted: installed ? allowed(r.manifest, r.granted) : [],
   url: deps.appsUrl(`${r.app_id}@${r.version}/${r.manifest.entry}`), installed, offered: r.offered,
   ...(hasData === undefined ? {} : { has_data: hasData }),
 });
@@ -62,6 +65,7 @@ export async function listCatalog(deps: AppDeps, v: SessionUser): Promise<Catalo
   const r = await deps.db.query<Row & { installed: boolean; has_data: boolean }>(
     `SELECT c.app_id, c.version, c.manifest, c.offered, c.present,
             EXISTS (SELECT 1 FROM app_installs i WHERE i.user_id = $1 AND i.app_id = c.app_id) AS installed,
+            (SELECT i.granted FROM app_installs i WHERE i.user_id = $1 AND i.app_id = c.app_id) AS granted,
             EXISTS (SELECT 1 FROM app_data d WHERE d.user_id = $1 AND d.app_id = c.app_id) AS has_data
      FROM app_catalog c WHERE c.offered AND c.present ORDER BY c.manifest->>'name'`, [v.userId]);
   return r.rows.map((x) => view(deps, x, x.installed, x.has_data));
@@ -70,7 +74,7 @@ export async function listCatalog(deps: AppDeps, v: SessionUser): Promise<Catalo
 // The apps this person has added that are still offered: what the shell puts on their desktop.
 export async function listInstalled(deps: AppDeps, v: SessionUser): Promise<CatalogApp[]> {
   const r = await deps.db.query<Row>(
-    `SELECT c.app_id, c.version, c.manifest, c.offered, c.present FROM app_installs i JOIN app_catalog c ON c.app_id = i.app_id
+    `SELECT c.app_id, c.version, c.manifest, c.offered, c.present, i.granted FROM app_installs i JOIN app_catalog c ON c.app_id = i.app_id
      WHERE i.user_id = $1 AND c.offered AND c.present ORDER BY i.installed_at`, [v.userId]);
   return r.rows.map((x) => view(deps, x, true));
 }
@@ -82,10 +86,22 @@ async function offered(q: Queryable, appId: string): Promise<Row> {
   return row;
 }
 
-export async function installApp(deps: AppDeps, v: SessionUser, appId: string): Promise<CatalogApp> {
+// Adding an app with what the person allowed it to do (out of what it asks for). Without a list, everything it asks for:
+// an older client, or bringing back an export made before permissions were asked.
+export async function installApp(deps: AppDeps, v: SessionUser, appId: string, granted?: AppPermission[]): Promise<CatalogApp> {
   const row = await offered(deps.db, appId);
-  await deps.db.query(`INSERT INTO app_installs (user_id, app_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [v.userId, appId]);
-  return view(deps, row, true);
+  const g = allowed(row.manifest, granted ?? row.manifest.permissions);
+  await deps.db.query(`INSERT INTO app_installs (user_id, app_id, granted) VALUES ($1, $2, $3) ON CONFLICT (user_id, app_id) DO UPDATE SET granted = EXCLUDED.granted`, [v.userId, appId, g]);
+  return view(deps, { ...row, granted: g }, true);
+}
+
+// Settings: change what an app already added may do.
+export async function setGrants(deps: AppDeps, v: SessionUser, appId: string, granted: AppPermission[]): Promise<CatalogApp> {
+  const row = await offered(deps.db, appId);
+  const g = allowed(row.manifest, granted);
+  const r = await deps.db.query(`UPDATE app_installs SET granted = $3 WHERE user_id = $1 AND app_id = $2`, [v.userId, appId, g]);
+  if (!r.rowCount) throw new ApiError(403, 'not_installed', 'Add this app first.');
+  return view(deps, { ...row, granted: g }, true);
 }
 
 // Removing an app keeps what it kept: adding it again brings it back. Deleting the data is its own choice.
@@ -102,9 +118,10 @@ export async function deleteAppData(deps: AppDeps, v: SessionUser, appId: string
 // only while the site offers it, and only if its manifest asked for storage.
 async function usable(q: Queryable, v: SessionUser, appId: string, need: AppPermission): Promise<void> {
   const row = await offered(q, appId);
-  const r = await q.query(`SELECT 1 FROM app_installs WHERE user_id = $1 AND app_id = $2`, [v.userId, appId]);
-  if (!r.rowCount) throw new ApiError(403, 'not_installed', 'Add this app first.');
+  const r = await q.query<{ granted: string[] }>(`SELECT granted FROM app_installs WHERE user_id = $1 AND app_id = $2`, [v.userId, appId]);
+  if (!r.rows[0]) throw new ApiError(403, 'not_installed', 'Add this app first.');
   if (!row.manifest.permissions.includes(need)) throw new ApiError(403, 'not_permitted', 'This app did not ask to keep anything.');
+  if (!r.rows[0].granted.includes(need)) throw new ApiError(403, 'not_permitted', 'You have not allowed this app to keep anything. You can change that in Settings.');
 }
 
 export async function listDocs(deps: AppDeps, v: SessionUser, appId: string, collection: string): Promise<AppDoc[]> {
@@ -172,8 +189,8 @@ export async function setOffered(deps: AppDeps, v: SessionUser, appId: string, o
 // ---------------------------------------------------------------- export and import (docs/12)
 
 // Everything every app kept for a person, by app and collection, whether or not the app is still added or offered.
-export async function exportAppData(q: Queryable, userId: string): Promise<{ installed: string[]; data: Map<string, Map<string, { id: string; data: unknown; updated_at: string }[]>> }> {
-  const inst = await q.query<{ app_id: string }>(`SELECT app_id FROM app_installs WHERE user_id = $1 ORDER BY installed_at`, [userId]);
+export async function exportAppData(q: Queryable, userId: string): Promise<{ installed: string[]; granted: Record<string, string[]>; data: Map<string, Map<string, { id: string; data: unknown; updated_at: string }[]>> }> {
+  const inst = await q.query<{ app_id: string; granted: string[] }>(`SELECT app_id, granted FROM app_installs WHERE user_id = $1 ORDER BY installed_at`, [userId]);
   const r = await q.query<{ app_id: string; collection: string; doc_id: string; data: unknown; updated_at: Date }>(
     `SELECT app_id, collection, doc_id, data, updated_at FROM app_data WHERE user_id = $1 ORDER BY app_id, collection, doc_id`, [userId]);
   const data = new Map<string, Map<string, { id: string; data: unknown; updated_at: string }[]>>();
@@ -184,17 +201,17 @@ export async function exportAppData(q: Queryable, userId: string): Promise<{ ins
     app.set(d.collection, col);
     col.push({ id: d.doc_id, data: d.data, updated_at: d.updated_at.toISOString() });
   }
-  return { installed: inst.rows.map((x) => x.app_id), data };
+  return { installed: inst.rows.map((x) => x.app_id), granted: Object.fromEntries(inst.rows.map((x) => [x.app_id, x.granted])), data };
 }
 
 // Bringing an export back (docs/12): data for apps this site has, and the apps the person had added, if still
 // offered. Data for an app this site doesn't have is left in the archive (it has nowhere to go).
-export async function importAppData(deps: AppDeps, v: SessionUser, installed: string[], data: { app: string; collection: string; id: string; data: unknown }[]): Promise<{ restored: number; codes: string[] }> {
+export async function importAppData(deps: AppDeps, v: SessionUser, installed: string[], data: { app: string; collection: string; id: string; data: unknown }[], granted: Record<string, AppPermission[]> = {}): Promise<{ restored: number; codes: string[] }> {
   const codes: string[] = [];
   let restored = 0;
   const known = new Map((await deps.db.query<{ app_id: string; offered: boolean }>(`SELECT app_id, offered FROM app_catalog WHERE present`)).rows.map((r) => [r.app_id, r.offered]));
   for (const appId of installed) {
-    if (known.get(appId)) await deps.db.query(`INSERT INTO app_installs (user_id, app_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [v.userId, appId]);
+    if (known.get(appId)) await installApp(deps, v, appId, granted[appId]); // what they had allowed, or (an older export) all it asks
     else codes.push('app_missing');
   }
   for (const d of data) {
