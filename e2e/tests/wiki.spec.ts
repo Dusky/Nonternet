@@ -25,6 +25,7 @@ async function ringWithWiki(page: Page) {
   const slug = uniq('wr');
   expect((await page.request.post('/api/v1/rings', { data: { slug, name: `Ring ${slug}` }, headers: h })).ok()).toBe(true);
   await page.goto(`/rings/${slug}`);
+  await page.getByRole('tab', { name: 'Details' }).click();
   await page.getByRole('switch', { name: 'This ring has a wiki' }).check();
   await expect(page.getByRole('link', { name: 'Wiki', exact: true })).toBeVisible();
   return slug;

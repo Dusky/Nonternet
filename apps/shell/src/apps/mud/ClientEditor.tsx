@@ -34,16 +34,15 @@ export default function ClientEditor({ onClose }: { onClose: () => void }) {
         <TabList className="tabs" aria-label={t('mud.ed.title')}>
           {TABS.map((k) => <Tab key={k} id={k}>{t(`mud.ed.tab.${k}` as StringKey)}</Tab>)}
         </TabList>
-        <TabPanel id={tab} className="mud-editor-body">
-          {tab === 'aliases' && <Aliases />}
-          {tab === 'triggers' && <Triggers />}
-          {tab === 'timers' && <Timers />}
-          {tab === 'keys' && <Keys />}
-          {tab === 'buttons' && <Buttons />}
-          {tab === 'variables' && <Variables />}
-          {tab === 'options' && <Options />}
-          {tab === 'share' && <Share />}
-        </TabPanel>
+        {/* One panel per tab, so each tab points at its own panel (only the open one is drawn). */}
+        <TabPanel id="aliases" className="mud-editor-body"><Aliases /></TabPanel>
+        <TabPanel id="triggers" className="mud-editor-body"><Triggers /></TabPanel>
+        <TabPanel id="timers" className="mud-editor-body"><Timers /></TabPanel>
+        <TabPanel id="keys" className="mud-editor-body"><Keys /></TabPanel>
+        <TabPanel id="buttons" className="mud-editor-body"><Buttons /></TabPanel>
+        <TabPanel id="variables" className="mud-editor-body"><Variables /></TabPanel>
+        <TabPanel id="options" className="mud-editor-body"><Options /></TabPanel>
+        <TabPanel id="share" className="mud-editor-body"><Share /></TabPanel>
       </Tabs>
     </section>
   );

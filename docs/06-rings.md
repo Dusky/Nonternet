@@ -95,3 +95,16 @@ removed or banned, their bookmarks in it go back to private. A trigger on `ring_
 
 ## As built (ring wikis, 2026-10-05)
 A ring op can switch on a wiki for the ring (ring page → "This ring has a wiki"; audited). Anyone can read it, as with ring boards. It is edited by the ring's trusted members, its ops and admins, and moderated by its ops. When it is switched off, it disappears for everyone except those who could switch it back on. See `20`.
+
+## As built (ring page and Manage, 2026-10-17)
+
+- **Manage is in tabs** for ops: Requests (waiting and invited, with Approve, Decline and Withdraw, and the invite box),
+  Members (a filter, the nav-bar order, Remove and Ban, the banned list; lists page past the old 200 cap), Ops (adding ops
+  and, apart, handing the ring over), Details (name, description, about, tags, who can join, the wiki switch, and, apart,
+  archiving, which now asks first), and Banners. A "Manage the ring" button at the top takes an op straight there.
+  Removing, declining, withdrawing and banning still need a reason (audit log); the reason form has Cancel.
+- **Every member gets the banners**: the pictures with the HTML to paste into their own page. Uploading, replacing and
+  removing stay with ops, and ops (not only admins) can take a picture down with a reason, as core already allowed.
+  Each banner button says which size it acts on.
+- Members see "You are in this ring" (ops: "You help run this ring"); ops and members are linked to their profiles.
+- The details form follows changes made elsewhere while untouched, and keeps what is being typed.

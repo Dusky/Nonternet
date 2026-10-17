@@ -445,7 +445,7 @@ function Windows() {
             </Tab>
           ))}
         </TabList>
-        {current && <TabPanel id={current}><CaptureList lines={windows[current]!} name={current} /></TabPanel>}
+        {names.map((n) => <TabPanel key={n} id={n}><CaptureList lines={windows[n]!} name={n} /></TabPanel>)}
       </Tabs>
     </section>
   );

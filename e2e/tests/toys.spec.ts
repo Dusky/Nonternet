@@ -66,6 +66,7 @@ test('a ring op uploads banners that anyone can see, and an upload that is not a
   const slug = uniq('banner');
   expect((await page.request.post('/api/v1/rings', { data: { slug, name: 'Banner ring', description: 'x', tags: [] }, headers: h })).ok()).toBe(true);
   await page.goto(`/rings/${slug}`);
+  await page.getByRole('tab', { name: 'Banners' }).click();
   await page.getByLabel('Upload 468x60 banner').setInputFiles({ name: 'b.png', mimeType: 'image/png', buffer: PNG });
   await expect(page.getByRole('img', { name: 'This ring’s banner' }).first()).toBeVisible();
   await expect(page.getByRole('group', { name: 'Snippet for the 468x60 banner' })).toContainText('/banner/468x60');
@@ -77,4 +78,29 @@ test('a ring op uploads banners that anyone can see, and an upload that is not a
   await vp.goto(`/rings/${slug}`);
   await expect(vp.getByRole('img', { name: 'This ring’s banner' })).toBeVisible();
   await vc.close();
+
+  // A member gets the picture and the HTML for their own page, and none of the ops' buttons.
+  const m = await makeUser(page);
+  const mc = await browser.newContext({ baseURL: BASE_URL });
+  const mp = await mc.newPage();
+  await signIn(mp, m.handle, PASSWORD);
+  await mp.goto(`/rings/${slug}`);
+  await mp.getByRole('button', { name: 'Join this ring' }).click();
+  await expect(mp.getByText('You are in this ring')).toBeVisible();
+  const banners = mp.getByRole('region', { name: 'Banners' });
+  await expect(banners.getByRole('group', { name: 'Snippet for the 468x60 banner' })).toContainText('/banner/468x60');
+  await expect(banners.getByRole('button', { name: 'Copy the 468x60 HTML' })).toBeVisible();
+  await expect(banners.getByText(/Replace the|Upload/)).toHaveCount(0);
+  await expect(mp.getByRole('button', { name: 'Manage the ring' })).toHaveCount(0);
+  await scan(mp, 'a ring page for a member, with the banner to copy');
+  await mc.close();
+
+  // The op can take a banner down from the page (not only admins), with a reason.
+  await page.reload();
+  await page.getByRole('tab', { name: 'Banners' }).click();
+  await page.getByRole('button', { name: 'Take down the 468x60 picture' }).click();
+  await page.getByLabel('Reason', { exact: true }).fill('Wrong picture');
+  await page.getByRole('button', { name: 'Take down the 468x60 picture' }).last().click();
+  await expect(page.getByText('Taken down')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Put the 468x60 picture back' })).toBeVisible();
 });

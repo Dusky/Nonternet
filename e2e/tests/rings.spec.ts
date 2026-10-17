@@ -20,6 +20,51 @@ async function pageWithBar(page: Page, slug: string, title: string) {
 }
 
 test.describe('rings', () => {
+  test('Manage is in tabs: approve a request, withdraw an invitation, and archiving asks first', async ({ page, browser }) => {
+    const founder = await makeUser(page);
+    await setRole(founder.handle, 'trusted');
+    await signIn(page, founder.handle, PASSWORD);
+    const slug = uniq('tabs');
+    expect((await page.request.post('/api/v1/rings', { data: { slug, name: `Tabs ${slug}`, description: 'x', tags: [], join_policy: 'approval' }, headers: h })).ok()).toBe(true);
+    const asker = await makeUser(page);
+    const invitee = await makeUser(page);
+    const ac = await browser.newContext({ baseURL: BASE_URL });
+    const ap = await ac.newPage();
+    await signIn(ap, asker.handle, PASSWORD);
+    expect((await ap.request.post(`/api/v1/rings/${slug}/join`, { data: {}, headers: h })).ok()).toBe(true);
+    await ac.close();
+
+    await page.goto(`/rings/${slug}`);
+    const tabs = page.getByRole('tablist', { name: 'Manage the ring' });
+    await expect(tabs.getByRole('tab', { name: 'Requests (1)' })).toHaveAttribute('aria-selected', 'true');
+    await scan(page, 'Manage, Requests tab');
+    await page.getByRole('button', { name: `Approve ${asker.handle}` }).click();
+    await expect(page.getByText('Nobody is waiting.')).toBeVisible();
+    // Invite, then withdraw with a reason.
+    await page.getByLabel('Invite someone (handle)').fill(invitee.handle);
+    await page.getByRole('button', { name: 'Send invitation' }).click();
+    await page.getByRole('button', { name: `Withdraw the invitation to ${invitee.handle}` }).click();
+    const form = page.getByRole('form', { name: `Withdraw the invitation to ${invitee.handle}` });
+    await form.getByLabel('Reason', { exact: true }).fill('Sent by mistake');
+    await form.getByRole('button', { name: `Withdraw the invitation to ${invitee.handle}` }).click();
+    await expect(page.getByText('No open invitations.')).toBeVisible();
+    // Members: the one approved is there, and the filter finds them.
+    await tabs.getByRole('tab', { name: 'Members' }).click();
+    await page.getByLabel('Find a member').fill(asker.handle.slice(0, 8));
+    await expect(page.getByRole('button', { name: `Remove ${asker.handle}` })).toBeVisible();
+    await scan(page, 'Manage, Members tab');
+    // Details: archiving asks first; cancelling changes nothing.
+    await tabs.getByRole('tab', { name: 'Details' }).click();
+    await page.getByRole('button', { name: 'Archive the ring' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+    expect((await (await page.request.get(`/api/v1/rings/${slug}`)).json()).archived).toBe(false);
+    await page.getByRole('button', { name: 'Archive the ring' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Archive the ring' }).click();
+    await expect(page.getByRole('button', { name: 'Bring the ring back' })).toBeVisible();
+    await page.getByRole('button', { name: 'Bring the ring back' }).click();
+    await expect(page.getByRole('button', { name: 'Archive the ring' })).toBeVisible();
+  });
+
   test('a trusted user founds a ring; members join, get a working nav bar, and a removed member drops out of it', async ({ page, browser }) => {
     const founder = await makeUser(page);
     await setRole(founder.handle, 'trusted');
@@ -71,9 +116,13 @@ test.describe('rings', () => {
 
     // The founder removes the second member: their bar says so, and the others skip them.
     await page.goto(`/rings/${slug}`);
+    await page.getByRole('button', { name: 'Manage the ring' }).click();
+    await expect(page.getByRole('heading', { name: 'Manage the ring' })).toBeFocused();
+    await page.getByRole('tab', { name: 'Members' }).click();
     await page.getByRole('button', { name: `Remove ${two.handle}` }).first().click();
-    await page.getByLabel('Reason', { exact: true }).fill('Left the scene');
-    await page.getByRole('button', { name: 'Confirm' }).click();
+    const form = page.getByRole('form', { name: `Remove ${two.handle}` });
+    await form.getByLabel('Reason', { exact: true }).fill('Left the scene');
+    await form.getByRole('button', { name: `Remove ${two.handle}` }).click();
     await expect(page.getByRole('button', { name: `Remove ${two.handle}` })).toHaveCount(0);
     await visitor.goto(home(two.handle));
     await expect(visitor.getByText(`This page is not part of ${name} at the moment.`)).toBeVisible();
@@ -108,6 +157,7 @@ test.describe('rings', () => {
 
     // The founder switches the wiki on, and the link shows up for the member.
     await page.goto(`/rings/${slug}`);
+    await page.getByRole('tab', { name: 'Details' }).click();
     await page.getByRole('switch', { name: 'This ring has a wiki' }).check();
     await expect(page.getByRole('link', { name: 'Wiki', exact: true })).toBeVisible();
     await member.reload();

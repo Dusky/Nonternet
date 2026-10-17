@@ -1528,3 +1528,14 @@ button.badge.tag[aria-pressed="true"] { background: var(--fill); color: var(--fi
 
 .app-consent { grid-column: 1 / -1; border: var(--line-width) solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); margin: var(--space-2) 0 0; display: grid; gap: var(--space-2); }
 .app-consent legend { font-weight: 700; padding: 0 var(--space-1); }
+
+/* Rings: Manage in tabs, one job each; the actions that cannot easily be undone sit apart. */
+.ring-manage-tabs { flex-wrap: nowrap; overflow-x: auto; margin-bottom: var(--space-3); scrollbar-width: thin; }
+.ring-manage-tabs [role=tab] { flex: none; }
+.ring-manage-body { display: grid; gap: var(--space-3); }
+.ring-manage-body h4 { margin: var(--space-2) 0 0; }
+.ring-manage-form { display: grid; gap: var(--space-2); }
+.danger-zone { border: var(--line-width) dashed var(--danger); border-radius: var(--radius-sm); padding: var(--space-3); display: grid; gap: var(--space-2); margin-top: var(--space-3); }
+.danger-zone h4 { margin: 0; }
+.ring-you { display: inline-block; }
+.ring-members-manage .row-actions { flex-wrap: wrap; }
