@@ -19,7 +19,8 @@ export const contentDisposition = (name: string) =>
 // File areas (docs/05, M7).
 export function fileRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.get('/api/v1/files', async (req) => ({ areas: await files.listAreas(deps, viewer(req.session)) }));
-  app.get('/api/v1/files/areas/:slug', async (req) => files.areaWithFiles(deps, viewer(req.session), areaSlug.parse(req.params).slug));
+  app.get('/api/v1/files/areas/:slug', async (req) => files.areaWithFiles(deps, viewer(req.session), areaSlug.parse(req.params).slug,
+    z.object({ offset: z.coerce.number().int().min(0).max(1_000_000).optional() }).parse(req.query).offset));
   app.get('/api/v1/files/:id', async (req) => files.getFile(deps, viewer(req.session), fileId.parse(req.params).id));
   app.get('/api/v1/me/files', async (req) => files.usage(deps, requireUser(req)));
 

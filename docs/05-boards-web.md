@@ -202,3 +202,15 @@ page's "How to connect" lists, as with Gopher.
     on the profile. With no plan text, finger shows just the memos; with neither, "No plan." as before. The mirrors read as a
     logged-out visitor, so private and ring memos never reach them. Feeds: `/feeds/people/{handle}/memos.atom` (public memos
     only) and `/feeds/people/{handle}/bookmarks.atom`.
+
+## As built (editing file areas, 2026-10-17)
+
+- Admins edit an area from its page: name, description, who can see it and who can upload ("Edit this area"; audited
+  `file_area.updated` with before and after, as before). Archiving sits apart and asks first; bringing an area back does not.
+- The make-an-area form opens from a "Make a file area" button. The empty list says who makes areas (admins) and, to an admin,
+  points at that button.
+- An area's files come a page at a time (200), newest first, with "Show more files"; the old silent 500 cap is gone
+  (`GET /files/areas/:slug?offset=`, returns `next`).
+- Wording follows docs/00: "Everyone, including guests", "Signed-in users only", "Any user".
+- Still OPEN (docs/17): whether archived areas stay listed for everyone. Unchanged: they leave the list for all but admins and
+  a direct link still works.

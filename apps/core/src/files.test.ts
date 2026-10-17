@@ -136,4 +136,26 @@ describe.skipIf(!dbAvailable)('file areas', () => {
     expect(existsSync(join(ctx.deps.filesDir, f.id))).toBe(false);
     expect((await db.query(`SELECT uploader_id, deleted_at IS NOT NULL AS gone FROM files WHERE id = $1`, [f.id])).rows[0]).toEqual({ uploader_id: null, gone: true });
   });
+
+  it('lets an admin change an area (audited, nobody else), and pages a long area', async () => {
+    const t = await person('trusted');
+    await admin.client.post('/api/v1/admin/files/areas', { slug: 'edit-me', name: 'Before' });
+    expect((await t.c.patch('/api/v1/admin/files/areas/edit-me', { name: 'Mine now' })).status).toBe(403);
+    const after = (await admin.client.patch('/api/v1/admin/files/areas/edit-me', { name: 'After', description: 'New words', visibility: 'members', upload_role: 'user' })).body;
+    expect(after).toMatchObject({ name: 'After', description: 'New words', visibility: 'members', upload_role: 'user' });
+    expect((await client(ctx.app).get('/api/v1/files/areas/edit-me')).status).toBe(404); // users only now: guests no longer see it
+    const a = await db.query(`SELECT before, after FROM audit_log WHERE action = 'file_area.updated' ORDER BY id DESC LIMIT 1`);
+    expect(a.rows[0].before).toMatchObject({ name: 'Before', visibility: 'public' });
+    // More files than one page: the first page says where the next starts, and the pages add up.
+    const area = (await db.query<{ id: string }>(`SELECT id FROM file_areas WHERE slug = 'edit-me'`)).rows[0]!.id;
+    await db.query(`INSERT INTO files (id, area_id, name, title, description, size_bytes, sha256, uploader_id, created_at)
+      SELECT 'f_page' || lpad(g::text, 22, '0'), $1, 'f' || g || '.txt', '', '', 1, repeat('0', 64), $2, now() - (g || ' seconds')::interval FROM generate_series(1, 205) g`, [area, t.id]);
+    const p1 = (await t.c.get('/api/v1/files/areas/edit-me')).body;
+    expect(p1.files).toHaveLength(200);
+    expect(p1.next).toBe(200);
+    const p2 = (await t.c.get(`/api/v1/files/areas/edit-me?offset=${p1.next}`)).body;
+    expect(p2.files).toHaveLength(5);
+    expect(p2.next).toBeNull();
+    expect(new Set([...p1.files, ...p2.files].map((f: { id: string }) => f.id)).size).toBe(205);
+  });
 });

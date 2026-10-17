@@ -14,12 +14,25 @@ test('an admin makes a file area, a trusted person uploads, and a visitor downlo
   const admin = await makeAdmin(page);
   await signIn(page, admin.handle, admin.password, { totp: await totp(admin.secret, 1) });
   await page.goto('/files');
+  await page.getByRole('button', { name: 'Make a file area' }).click();
   await page.getByLabel('Address').fill(slug);
   await page.getByLabel('Name', { exact: true }).fill(`Demos ${slug}`);
   await page.getByLabel('Description').fill('Small programs to try.');
   await scan(page, 'the file areas list');
-  await page.getByRole('button', { name: 'Make area' }).click();
+  await page.getByRole('button', { name: 'Make the area' }).click();
   await expect(page.getByRole('link', { name: `Demos ${slug}` })).toBeVisible();
+
+  // The admin changes it later: name, description, who can upload. Archiving asks first.
+  await page.getByRole('link', { name: `Demos ${slug}` }).click();
+  await page.getByRole('button', { name: 'Edit this area' }).click();
+  await page.getByLabel('Name', { exact: true }).fill(`Demos and tools ${slug}`);
+  await page.getByLabel('Who can upload').selectOption('trusted');
+  await scan(page, 'editing a file area');
+  await page.getByRole('button', { name: 'Save the area' }).click();
+  await expect(page.getByRole('heading', { level: 2, name: `Demos and tools ${slug}` })).toBeVisible();
+  await page.getByRole('button', { name: 'Archive this area' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('button', { name: 'Archive this area' })).toBeVisible(); // nothing changed
 
   const up = await makeUser(page);
   await setRole(up.handle, 'trusted');

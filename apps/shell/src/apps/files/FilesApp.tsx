@@ -1,6 +1,6 @@
 import { useConfirm, undoable } from '../../components/feedback';
 import { useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FILE_AREA_VISIBILITIES, FILE_UPLOAD_ROLES, REPORT_CATEGORIES, type FileAreaView, type FileUsage, type FileView } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
@@ -27,9 +27,11 @@ function Areas() {
     <>
       <h2>{t('files.areas')}</h2>
       {q.isError && <Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert>}
-      {q.data && q.data.areas.length === 0 && <EmptyState art="folder">{t('files.noAreas')}</EmptyState>}
+      {q.data && q.data.areas.length === 0 && (
+        <EmptyState art="folder">{t('files.noAreas')} {me?.role === 'admin' ? t('files.noAreasAdmin') : t('files.noAreasWho')}</EmptyState>
+      )}
       {q.isPending && <Loading rows={3} />}
-      <ul className="rows">
+      {(q.data?.areas.length ?? 0) > 0 && <ul className="rows">
         {q.data?.areas.map((a) => (
           <li key={a.id}>
             <div className="row-head">
@@ -41,7 +43,7 @@ function Areas() {
             <p className="row-meta">{t('files.count', { count: a.file_count })}{a.last_upload_at ? <> · <RelativeTime iso={a.last_upload_at} /></> : null}</p>
           </li>
         ))}
-      </ul>
+      </ul>}
       {me?.role === 'admin' && <NewArea />}
     </>
   );
@@ -55,10 +57,17 @@ function NewArea() {
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<(typeof FILE_AREA_VISIBILITIES)[number]>('public');
   const [uploadRole, setUploadRole] = useState<(typeof FILE_UPLOAD_ROLES)[number]>('trusted');
+  const [open, setOpen] = useState(false);
   const make = useMutation({
     mutationFn: () => api.post('/admin/files/areas', { slug, name, description, visibility, upload_role: uploadRole }),
-    onSuccess: () => { setSlug(''); setName(''); setDescription(''); void qc.invalidateQueries({ queryKey: ['files'] }); },
+    onSuccess: () => { setSlug(''); setName(''); setDescription(''); setOpen(false); void qc.invalidateQueries({ queryKey: ['files'] }); },
   });
+  if (!open) return (
+    <div className="actions">
+      <button type="button" className="btn" onClick={() => setOpen(true)}>{t('files.newArea')}</button>
+      {make.isSuccess && <span role="status" className="hint">{t('files.areaMade')}</span>}
+    </div>
+  );
   return (
     <form className="panel" aria-labelledby="new-area-h" onSubmit={(e) => { e.preventDefault(); make.mutate(); }}>
       <h3 id="new-area-h">{t('files.newArea')}</h3>
@@ -78,8 +87,10 @@ function NewArea() {
         </select>
       </div>
       {make.isError && <Alert kind="error">{errorText(make.error)}</Alert>}
-      {make.isSuccess && <p role="status" className="hint">{t('files.areaMade')}</p>}
-      <button type="submit" className="btn btn-primary" disabled={make.isPending}>{t('files.makeArea')}</button>
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={make.isPending}>{t('files.makeArea')}</button>
+        <button type="button" className="btn btn-quiet" onClick={() => setOpen(false)}>{t('common.cancel')}</button>
+      </div>
     </form>
   );
 }
@@ -88,22 +99,31 @@ function Area({ slug }: { slug: string }) {
   const t = useT();
   const me = useMe().data;
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['files', 'area', slug, me?.id ?? null], queryFn: () => api.get<{ area: FileAreaView; files: FileView[] }>(`/files/areas/${encodeURIComponent(slug)}`) });
+  const confirm = useConfirm();
+  const [editing, setEditing] = useState(false);
+  const q = useInfiniteQuery({
+    queryKey: ['files', 'area', slug, me?.id ?? null],
+    queryFn: ({ pageParam }) => api.get<{ area: FileAreaView; files: FileView[]; next: number | null }>(`/files/areas/${encodeURIComponent(slug)}${pageParam ? `?offset=${pageParam}` : ''}`),
+    initialPageParam: 0,
+    getNextPageParam: (last) => last.next ?? undefined,
+  });
   const archive = useMutation({
     mutationFn: (archived: boolean) => api.patch(`/admin/files/areas/${slug}`, { archived }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['files'] }),
   });
+  const allFiles = useMemo(() => q.data?.pages.flatMap((p) => p.files) ?? [], [q.data]);
   const [find, setFind] = useState('');
   const [sort, setSort] = useState<'new' | 'name' | 'size' | 'downloads'>('new');
   const shown = useMemo(() => {
     const needle = find.trim().toLowerCase();
-    const list = (q.data?.files ?? []).filter((f) => !needle || `${f.name} ${f.title} ${f.description}`.toLowerCase().includes(needle));
+    const list = allFiles.filter((f) => !needle || `${f.name} ${f.title} ${f.description}`.toLowerCase().includes(needle));
     return list.sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       : sort === 'size' ? b.size_bytes - a.size_bytes : sort === 'downloads' ? b.downloads - a.downloads : Date.parse(b.uploaded_at) - Date.parse(a.uploaded_at));
-  }, [q.data, find, sort]);
+  }, [allFiles, find, sort]);
   if (q.isError) return <><BackLink to="">{t('files.back')}</BackLink><Alert kind="error" retry={() => void q.refetch()}>{errorText(q.error)}</Alert></>;
   if (!q.data) return <Loading rows={4} />;
-  const { area, files } = q.data;
+  const area = q.data.pages[0]!.area;
+  const files = allFiles;
   return (
     <>
       <BackLink to="">{t('files.back')}</BackLink>
@@ -123,12 +143,64 @@ function Area({ slug }: { slug: string }) {
       {files.length === 0 ? <EmptyState art="folder">{t('files.empty')}</EmptyState> : shown.length === 0 ? <EmptyState>{t('files.noMatch')}</EmptyState> : (
         <ul className="rows file-rows">{shown.map((f) => <FileRow key={f.id} f={f} />)}</ul>
       )}
+      {q.hasNextPage && <button type="button" className="btn" onClick={() => void q.fetchNextPage()} disabled={q.isFetchingNextPage}>{t('files.more')}</button>}
       {area.can_upload && <Upload slug={slug} />}
       {me?.role === 'admin' && (
-        <p><button type="button" className="btn btn-quiet" onClick={() => archive.mutate(!area.archived)} disabled={archive.isPending}>{area.archived ? t('files.unarchive') : t('files.archive')}</button></p>
+        <section className="panel" aria-labelledby="area-admin-h">
+          <h3 id="area-admin-h">{t('files.editArea')}</h3>
+          {editing ? <EditArea area={area} onDone={() => setEditing(false)} /> : (
+            <div className="actions"><button type="button" className="btn" onClick={() => setEditing(true)}>{t('files.editArea')}</button></div>
+          )}
+          <section className="danger-zone" aria-labelledby="area-archive-h">
+            <h4 id="area-archive-h">{t('files.archiveTitle')}</h4>
+            <div className="actions">
+              {area.archived
+                ? <button type="button" className="btn" onClick={() => archive.mutate(false)} disabled={archive.isPending}>{t('files.unarchive')}</button>
+                : <button type="button" className="btn btn-danger" disabled={archive.isPending}
+                    onClick={() => void confirm({ message: t('files.archiveConfirm'), confirmLabel: t('files.archive'), danger: true }).then((ok) => ok && archive.mutate(true))}>{t('files.archive')}</button>}
+            </div>
+            {archive.isError && <Alert kind="error">{errorText(archive.error)}</Alert>}
+          </section>
+        </section>
       )}
-      {archive.isError && <Alert kind="error">{errorText(archive.error)}</Alert>}
     </>
+  );
+}
+
+// An admin changes an area: its name, description, who can see it and who can upload (audited in core).
+function EditArea({ area, onDone }: { area: FileAreaView; onDone: () => void }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [name, setName] = useState(area.name);
+  const [description, setDescription] = useState(area.description);
+  const [visibility, setVisibility] = useState(area.visibility);
+  const [uploadRole, setUploadRole] = useState(area.upload_role);
+  const save = useMutation({
+    mutationFn: () => api.patch(`/admin/files/areas/${area.slug}`, { name, description, visibility, upload_role: uploadRole }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['files'] }); onDone(); },
+  });
+  return (
+    <form className="ring-manage-form" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+      <TextField label={t('files.area.name')} value={name} onChange={setName} maxLength={60} required />
+      <TextField label={t('files.area.description')} value={description} onChange={setDescription} maxLength={500} multiline />
+      <div className="field">
+        <label htmlFor="area-vis-edit">{t('files.area.visibility')}</label>
+        <select id="area-vis-edit" value={visibility} onChange={(e) => setVisibility(e.target.value as typeof visibility)}>
+          {FILE_AREA_VISIBILITIES.map((v) => <option key={v} value={v}>{t(`files.visibility.${v}` as StringKey)}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="area-up-edit">{t('files.area.uploadRole')}</label>
+        <select id="area-up-edit" value={uploadRole} onChange={(e) => setUploadRole(e.target.value as typeof uploadRole)}>
+          {FILE_UPLOAD_ROLES.map((r) => <option key={r} value={r}>{t(`files.uploadRole.${r}` as StringKey)}</option>)}
+        </select>
+      </div>
+      {save.isError && <Alert kind="error">{errorText(save.error)}</Alert>}
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={save.isPending}>{t('files.editArea.save')}</button>
+        <button type="button" className="btn btn-quiet" onClick={onDone}>{t('common.cancel')}</button>
+      </div>
+    </form>
   );
 }
 

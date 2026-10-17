@@ -61,10 +61,12 @@ const fileView = (v: Viewer, f: FileRow): FileView => ({
 const visible = (v: Viewer) => (v?.role === 'admin' ? '($2::text IS NULL OR TRUE)' : `(f.hidden_at IS NULL OR f.uploader_id = $2)`);
 const vid = (v: Viewer) => v?.userId ?? null;
 
-export async function areaWithFiles(deps: AppDeps, v: Viewer, slug: string): Promise<{ area: FileAreaView; files: FileView[] }> {
+// The newest files first, a page at a time (`next` is the offset of the following page, or null).
+export const FILES_PAGE = 200;
+export async function areaWithFiles(deps: AppDeps, v: Viewer, slug: string, offset = 0): Promise<{ area: FileAreaView; files: FileView[]; next: number | null }> {
   const a = await loadArea(deps.db, v, slug);
-  const r = await deps.db.query<FileRow>(`${FILE_SELECT} WHERE f.area_id = $1 AND f.deleted_at IS NULL AND ${visible(v)} ORDER BY f.created_at DESC LIMIT 500`, [a.id, vid(v)]);
-  return { area: areaView(v, a), files: r.rows.map((f) => fileView(v, f)) };
+  const r = await deps.db.query<FileRow>(`${FILE_SELECT} WHERE f.area_id = $1 AND f.deleted_at IS NULL AND ${visible(v)} ORDER BY f.created_at DESC, f.id DESC OFFSET $3 LIMIT $4`, [a.id, vid(v), offset, FILES_PAGE + 1]);
+  return { area: areaView(v, a), files: r.rows.slice(0, FILES_PAGE).map((f) => fileView(v, f)), next: r.rows.length > FILES_PAGE ? offset + FILES_PAGE : null };
 }
 
 async function loadFile(q: Queryable, v: Viewer, id: string): Promise<FileRow & { area_id: string; visibility: string }> {
