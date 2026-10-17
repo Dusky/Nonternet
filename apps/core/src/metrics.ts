@@ -2,6 +2,22 @@ import { promises as fs } from 'node:fs';
 import type { AppDeps } from './deps';
 import { pruneActivity } from './activity';
 import { summary as backupSummary } from './backups';
+import { listPages as legalPages } from './legal';
+import { opsStatus } from './ops';
+import { mudStatus } from './mud/sync';
+import { overview as ircOverview } from './irc/admin';
+
+// A service that does not answer in time counts as not answering; the status board must never wait on one.
+const within = <T>(p: Promise<T>, ms = 2000): Promise<T> => Promise.race([p, new Promise<T>((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+async function serviceChecks(deps: AppDeps) {
+  const [mud, irc, ops, legal] = await Promise.all([
+    deps.mud ? within(mudStatus(deps)).then(() => true, () => false) : Promise.resolve(null),
+    deps.irc ? within(ircOverview(deps)).then((o) => o.reachable, () => false) : Promise.resolve(null),
+    opsStatus(deps).catch(() => null),
+    legalPages(deps).catch(() => []),
+  ]);
+  return { mud, irc, agent: ops?.configured ? ops.agent.alive : null, legal_placeholders: legal.filter((p) => p.placeholder).length };
+}
 
 // Hourly numbers for the status board (docs/11). Counters are worked out from the real tables for each
 // hour, so collecting the same hour twice gives the same answer. Gauges are a reading taken now.
@@ -80,7 +96,7 @@ export async function getStatus(deps: AppDeps) {
   await deps.db.query('SELECT 1');
   const dbMs = Date.now() - t0;
   const one = async <T extends Record<string, string | number | null>>(sql: string, params: unknown[] = []) => (await deps.db.query<T>(sql, params)).rows[0]!;
-  const [users, posts, content, homepages, reports, outbox, exportsQ, backups, redis, homesDisk, exportsDisk] = await Promise.all([
+  const [users, posts, content, homepages, reports, outbox, exportsQ, backups, redis, homesDisk, exportsDisk, services] = await Promise.all([
     one<{ total: string; active: string; suspended: string; fresh: string; admins_no_2fa: string }>(`SELECT count(*) FILTER (WHERE status <> 'deleted') AS total, count(*) FILTER (WHERE status = 'active') AS active, count(*) FILTER (WHERE status = 'suspended') AS suspended, count(*) FILTER (WHERE created_at > $1) AS fresh, count(*) FILTER (WHERE status = 'active' AND role = 'admin' AND totp_enabled_at IS NULL) AS admins_no_2fa FROM users`, [new Date(now - 86_400_000)]),
     one<{ n: string }>(`SELECT count(*) AS n FROM posts WHERE posted_at > $1 AND deleted_at IS NULL`, [new Date(now - 86_400_000)]),
     one<{ boards: string; rings: string }>(`SELECT (SELECT count(*) FROM boards WHERE archived_at IS NULL) AS boards, (SELECT count(*) FROM rings WHERE archived_at IS NULL) AS rings`),
@@ -92,6 +108,7 @@ export async function getStatus(deps: AppDeps) {
     redisPing(),
     disk(deps.homes.root),
     disk(deps.exportsDir),
+    serviceChecks(deps),
   ]);
   const status = {
     at: new Date(now).toISOString(), uptime_s: Math.round((Date.now() - startedAt) / 1000),
@@ -108,7 +125,11 @@ export async function getStatus(deps: AppDeps) {
     backups,
     // Not a warning (two-factor is optional, docs/02): the console mentions it quietly.
     security: { require_admin_2fa: deps.config.security.require_admin_2fa, admins_without_2fa: Number(users.admins_no_2fa) },
+    // The other services (null: not part of this site). Their own pages say more; the board links there.
+    services,
     warnings: [] as string[],
+    // Things to see to that are not breakage: they show quietly under the warnings, each linked to its page.
+    notes: [] as string[],
   };
   // Plain codes; the console words them.
   if (dbMs > 500) status.warnings.push('db_slow');
@@ -119,5 +140,10 @@ export async function getStatus(deps: AppDeps) {
   if (backups.backupOverdue) status.warnings.push('backup_overdue');
   if (backups.restoreTestOverdue) status.warnings.push('restore_test_overdue');
   for (const d of [homesDisk, exportsDisk]) if (d && d.free_bytes / d.total_bytes < 0.1) { status.warnings.push('disk_low'); break; }
+  if (services.mud === false) status.warnings.push('mud_down');
+  if (services.irc === false) status.warnings.push('irc_down');
+  if (services.agent === false) status.notes.push('agent_down');
+  if (services.legal_placeholders > 0) status.notes.push('legal_placeholder');
+  if (status.security.admins_without_2fa > 0) status.notes.push('admins_without_2fa');
   return status;
 }

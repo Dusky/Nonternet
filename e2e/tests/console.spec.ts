@@ -142,8 +142,8 @@ test('the admin settings page is grouped, searchable, and can show only what was
   await row.getByLabel('New value').fill(now === '18' ? '19' : '18');
   await row.getByLabel('Reason').fill('testing the filter');
   await row.getByRole('button', { name: 'Review change' }).click();
-  const confirm = row.getByRole('button', { name: 'Make this change' });
-  if (await confirm.isVisible().catch(() => false)) await confirm.click();
+  // A risky setting asks to confirm; wait for that question rather than glancing for it once.
+  await row.getByRole('button', { name: 'Make this change' }).click({ timeout: 5000 }).catch(() => undefined);
   await expect(row.getByText(/version \d+/i)).toBeVisible(); // versions keep counting across the desktop and phone runs
   await page.getByLabel('Only the ones I have changed').check();
   await expect(page.getByRole('region', { name: /^Minimum age/ })).toBeVisible();
@@ -153,8 +153,7 @@ test('the admin settings page is grouped, searchable, and can show only what was
   await row.getByLabel('New value').fill(now);
   await row.getByLabel('Reason').fill('putting it back after the test');
   await row.getByRole('button', { name: 'Review change' }).click();
-  const back = row.getByRole('button', { name: 'Make this change' });
-  if (await back.isVisible().catch(() => false)) await back.click();
+  await row.getByRole('button', { name: 'Make this change' }).click({ timeout: 5000 }).catch(() => undefined);
   await expect.poll(async () => (await (await page.request.get('/api/v1/admin/settings')).json()).settings.find((s: { key: string }) => s.key === 'signup.minimum_age').value).toBe(Number(now));
 });
 

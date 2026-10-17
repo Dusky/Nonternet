@@ -3,6 +3,7 @@ import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { Alert, Loading, EmptyState } from '../../components/ui';
 import { errorText, formatWhen, useT } from '../../hooks';
+import { AppLink } from '../../nav';
 
 interface Status {
   at: string; db: { ok: boolean; ms: number }; redis: { configured: boolean; ok: boolean; ms: number | null };
@@ -11,17 +12,27 @@ interface Status {
   counts: { users: { total: number; active: number; suspended: number; new_24h: number }; posts_24h: number; boards: number; rings: number; homepages: { count: number; bytes: number }; reports: { open: number; escalated: number } };
   backups: { lastBackup: { at: string; size_bytes: number | null } | null; backupOverdue: boolean; backupGrace: boolean; lastRestoreTest: { at: string; ok: boolean } | null; restoreTestOverdue: boolean; restoreTestGrace: boolean };
   security: { require_admin_2fa: boolean; admins_without_2fa: number };
+  services: { mud: boolean | null; irc: boolean | null; agent: boolean | null; legal_placeholders: number };
   warnings: string[];
+  notes: string[];
 }
+
+// Where each warning, note and tile is dealt with (docs/11: every number links to the list behind it).
+const WHERE: Record<string, string> = {
+  reports_waiting: 'reports', backup_overdue: 'backups', restore_test_overdue: 'backups', disk_low: 'backups',
+  mud_down: 'mud', irc_down: 'irc', agent_down: 'updates', legal_placeholder: 'legal', admins_without_2fa: 'users',
+  exports_failing: 'audit',
+};
 interface Series { metric: string; points: { at: string; value: number }[] }
 
 const size = (n: number) => (n >= 1073741824 ? `${(n / 1073741824).toFixed(1)} GB` : n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(0, Math.round(n / 1024))} KB`);
 const age = (s: number) => (s >= 3600 ? `${Math.round(s / 3600)} h` : s >= 60 ? `${Math.round(s / 60)} min` : `${s} s`);
 
-function Tile({ title, value, detail, bad }: { title: string; value: string; detail?: string; bad?: boolean }) {
+// A number on the board. With `to`, the whole tile opens the page behind it (the title is the link).
+function Tile({ title, value, detail, bad, to }: { title: string; value: string; detail?: string; bad?: boolean; to?: string }) {
   return (
-    <div className={`tile${bad ? ' tile-bad' : ''}`} role="group" aria-label={title}>
-      <h3>{title}</h3>
+    <div className={`tile${bad ? ' tile-bad' : ''}${to ? ' tile-link' : ''}`} role="group" aria-label={title}>
+      <h3>{to ? <AppLink to={to}>{title}</AppLink> : title}</h3>
       <p className="tile-value">{value}</p>
       {detail && <p className="hint">{detail}</p>}
     </div>
@@ -61,27 +72,39 @@ export function StatusPanel() {
       <h2>{t('admin.status.title')}</h2>
       {s.warnings.length === 0
         ? <Alert kind="success">{t('admin.status.allGood')}</Alert>
-        : <div role="alert" className="alert alert-error"><strong>{t('admin.status.attention')}</strong><ul>{s.warnings.map((w) => <li key={w}>{t(`admin.status.warn.${w}` as StringKey)}</li>)}</ul></div>}
-      {s.security.admins_without_2fa > 0 && <Alert kind="info">{t('admin.status.no2fa', { count: s.security.admins_without_2fa })}</Alert>}
+        : <div role="alert" className="alert alert-error"><strong>{t('admin.status.attention')}</strong><ul>{s.warnings.map((w) => <li key={w}><Said code={w} kind="warn" s={s} /></li>)}</ul></div>}
+      {s.notes.length > 0 && (
+        <div className="alert alert-info status-notes"><strong>{t('admin.status.toSeeTo')}</strong><ul>{s.notes.map((n) => <li key={n}><Said code={n} kind="note" s={s} /></li>)}</ul></div>
+      )}
       <div className="tiles">
-        <Tile title={t('admin.status.tile.users')} value={String(c.users.total)} detail={t('admin.status.tile.usersDetail', { active: c.users.active, suspended: c.users.suspended, fresh: c.users.new_24h })} />
-        <Tile title={t('admin.status.tile.posts')} value={String(c.posts_24h)} />
-        <Tile title={t('admin.status.tile.content')} value={String(c.boards + c.rings)} detail={`${t('admin.status.tile.boards', { count: c.boards })}, ${t('admin.status.tile.rings', { count: c.rings })}`} />
-        <Tile title={t('admin.status.tile.homepages')} value={String(c.homepages.count)} detail={t('admin.status.tile.homepagesDetail', { size: size(c.homepages.bytes) })} />
-        <Tile title={t('admin.status.tile.reports')} value={String(c.reports.open)} detail={t('admin.status.tile.reportsDetail', { count: c.reports.escalated })} bad={c.reports.escalated > 0} />
+        <Tile to="users" title={t('admin.status.tile.users')} value={String(c.users.total)} detail={t('admin.status.tile.usersDetail', { active: c.users.active, suspended: c.users.suspended, fresh: c.users.new_24h })} />
+        <Tile to="boards" title={t('admin.status.tile.posts')} value={String(c.posts_24h)} />
+        <Tile to="boards" title={t('admin.status.tile.content')} value={String(c.boards + c.rings)} detail={`${t('admin.status.tile.boards', { count: c.boards })}, ${t('admin.status.tile.rings', { count: c.rings })}`} />
+        <Tile to="homepages" title={t('admin.status.tile.homepages')} value={String(c.homepages.count)} detail={t('admin.status.tile.homepagesDetail', { size: size(c.homepages.bytes) })} />
+        <Tile to="reports" title={t('admin.status.tile.reports')} value={String(c.reports.open)} detail={t('admin.status.tile.reportsDetail', { count: c.reports.escalated })} bad={c.reports.escalated > 0} />
         <Tile title={t('admin.status.tile.database')} value={s.db.ok ? t('admin.status.ok') : t('admin.status.problem')} detail={t('admin.status.tile.databaseDetail', { ms: s.db.ms })} bad={s.warnings.includes('db_slow')} />
         <Tile title={t('admin.status.tile.redis')} value={s.redis.configured ? (s.redis.ok ? t('admin.status.ok') : t('admin.status.problem')) : '–'} detail={s.redis.configured ? (s.redis.ok ? t('admin.status.tile.redisOk', { ms: s.redis.ms ?? 0 }) : t('admin.status.tile.redisDown')) : t('admin.status.tile.redisOff')} bad={s.redis.configured && !s.redis.ok} />
         <Tile title={t('admin.status.tile.events')} value={String(s.outbox.backlog)} detail={s.outbox.oldest_age_s === null ? t('admin.status.tile.eventsEmpty') : t('admin.status.tile.eventsDetail', { age: age(s.outbox.oldest_age_s) })} bad={s.warnings.includes('outbox_backlog')} />
         <Tile title={t('admin.status.tile.exports')} value={String(s.exports.queued + s.exports.running)} detail={t('admin.status.tile.exportsDetail', { queued: s.exports.queued, running: s.exports.running, failed: s.exports.failed_24h })} bad={s.exports.failed_24h > 0} />
-        <Tile title={t('admin.status.tile.disk')} value={free(s.disk.homes)} detail={t('admin.status.tile.diskDetail', { homes: free(s.disk.homes), homesTotal: total(s.disk.homes), exports: free(s.disk.exports), exportsTotal: total(s.disk.exports) })} bad={s.warnings.includes('disk_low')} />
-        <Tile title={t('admin.status.tile.backup')} value={s.backups.lastBackup ? formatWhen(s.backups.lastBackup.at) ?? '' : t(s.backups.backupGrace ? 'admin.status.tile.backupSoon' : 'admin.status.tile.backupNever')} detail={!s.backups.lastBackup && s.backups.backupGrace ? t('admin.status.tile.backupSoonDetail') : undefined} bad={s.backups.backupOverdue} />
-        <Tile title={t('admin.status.tile.restore')} value={s.backups.lastRestoreTest ? t(s.backups.lastRestoreTest.ok ? 'admin.status.tile.restoreOk' : 'admin.status.tile.restoreFailed', { when: formatWhen(s.backups.lastRestoreTest.at) ?? '' }) : t(s.backups.restoreTestGrace ? 'admin.status.tile.restoreSoon' : 'admin.status.tile.restoreNever')} detail={!s.backups.lastRestoreTest && s.backups.restoreTestGrace ? t('admin.status.tile.restoreSoonDetail') : undefined} bad={s.backups.restoreTestOverdue} />
+        <Tile to="backups" title={t('admin.status.tile.disk')} value={free(s.disk.homes)} detail={t('admin.status.tile.diskDetail', { homes: free(s.disk.homes), homesTotal: total(s.disk.homes), exports: free(s.disk.exports), exportsTotal: total(s.disk.exports) })} bad={s.warnings.includes('disk_low')} />
+        <Tile to="backups" title={t('admin.status.tile.backup')} value={s.backups.lastBackup ? formatWhen(s.backups.lastBackup.at) ?? '' : t(s.backups.backupGrace ? 'admin.status.tile.backupSoon' : 'admin.status.tile.backupNever')} detail={!s.backups.lastBackup && s.backups.backupGrace ? t('admin.status.tile.backupSoonDetail') : undefined} bad={s.backups.backupOverdue} />
+        <Tile to="backups" title={t('admin.status.tile.restore')} value={s.backups.lastRestoreTest ? t(s.backups.lastRestoreTest.ok ? 'admin.status.tile.restoreOk' : 'admin.status.tile.restoreFailed', { when: formatWhen(s.backups.lastRestoreTest.at) ?? '' }) : t(s.backups.restoreTestGrace ? 'admin.status.tile.restoreSoon' : 'admin.status.tile.restoreNever')} detail={!s.backups.lastRestoreTest && s.backups.restoreTestGrace ? t('admin.status.tile.restoreSoonDetail') : undefined} bad={s.backups.restoreTestOverdue} />
       </div>
       <div className="sparks"><Spark metric="posts" /><Spark metric="signups" /></div>
       <p className="hint">{t('admin.status.chartsNote')}</p>
       <p className="hint">{t('admin.status.refreshed', { when: formatWhen(s.at) ?? '' })}</p>
     </>
   );
+}
+
+// One warning or note, worded, with a link to the page that deals with it.
+function Said({ code, kind, s }: { code: string; kind: 'warn' | 'note'; s: Status }) {
+  const t = useT();
+  const text = code === 'admins_without_2fa' ? t('admin.status.no2fa', { count: s.security.admins_without_2fa })
+    : code === 'legal_placeholder' ? t('admin.status.note.legal_placeholder', { count: s.services.legal_placeholders })
+    : t(`admin.status.${kind}.${code}` as StringKey);
+  const to = WHERE[code];
+  return <>{text}{to && <>{' '}<AppLink to={to}>{t(`admin.status.go.${to}` as StringKey)}</AppLink></>}</>;
 }
 
 // ---------------------------------------------------------------- backups

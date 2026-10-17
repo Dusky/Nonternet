@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../api';
 import { SideNav } from '../../components/ui';
 import { useMe, useSite, useT } from '../../hooks';
 import { matchRoute, useAppNav } from '../../nav';
@@ -27,6 +29,10 @@ export default function AdminApp() {
   const route = matchRoute(nav.path, ROUTES);
   useEffect(() => { if (!route) nav.go('status', { replace: true }); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
   const waiting = useApplications(me?.role === 'admin').data?.applications.length ?? 0;
+  // The nav says where something is waiting, from the same status the Status page shows (one request, shared).
+  const status = useQuery({ queryKey: ['admin', 'status'], queryFn: () => api.get<{ counts: { reports: { open: number } }; warnings: string[] }>('/admin/status'), enabled: me?.role === 'admin', refetchInterval: 60_000 }).data;
+  const openReports = status?.counts.reports.open ?? 0;
+  const down = (w: string) => Boolean(status?.warnings.includes(w));
   if (me?.role !== 'admin') return <p className="pad">{t('admin.forbidden')}</p>;
   return (
     <SideNav label={t('app.admin')} groups={[
@@ -45,15 +51,15 @@ export default function AdminApp() {
         { to: 'vouches', label: t('admin.tab.vouches') },
       ] },
       { label: t('admin.group.content'), items: [
-        { to: 'reports', label: t('admin.tab.moderation') },
+        { to: 'reports', label: openReports ? t('admin.tab.moderationCount', { count: openReports }) : t('admin.tab.moderation') },
         { to: 'boards', label: t('admin.tab.boards') },
         { to: 'rings', label: t('admin.tab.rings') },
         { to: 'homepages', label: t('admin.tab.homepages') },
         { to: 'apps', label: t('admin.tab.apps') },
       ] },
       ...(site.services.irc || site.services.mud || site.services.bbs ? [{ label: t('admin.group.services'), items: [
-        ...(site.services.irc ? [{ to: 'irc', label: t('admin.tab.irc') }] : []),
-        ...(site.services.mud ? [{ to: 'mud', label: t('admin.tab.mud') }] : []),
+        ...(site.services.irc ? [{ to: 'irc', label: down('irc_down') ? t('admin.tab.down', { name: t('admin.tab.irc') }) : t('admin.tab.irc') }] : []),
+        ...(site.services.mud ? [{ to: 'mud', label: down('mud_down') ? t('admin.tab.down', { name: t('admin.tab.mud') }) : t('admin.tab.mud') }] : []),
         ...(site.services.bbs ? [{ to: 'bbs', label: t('admin.tab.bbs') }] : []),
       ] }] : []),
       { label: t('admin.group.records'), items: [

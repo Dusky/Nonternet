@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { collectMetrics, getStatus, series } from './metrics';
+import { mudSecrets } from './mud/secrets';
 import { summary } from './backups';
 import { client, createTestDb, dbAvailable, loginAs, makeAdmin, makeApp, makeUser } from './test/harness';
 
@@ -78,6 +79,20 @@ describe.skipIf(!dbAvailable)('status board and metrics', () => {
     const s = await summary(ctx.deps);
     expect(s.lastRestoreTest).toMatchObject({ ok: false });
     expect(s.restoreTestOverdue).toBe(true);
+  });
+
+  it('gathers what the other pages would say: a MUD that does not answer, placeholder legal pages', async () => {
+    const before = await getStatus(ctx.deps);
+    expect(before.notes).toContain('legal_placeholder'); // a new site has not written its legal pages
+    expect(before.services.mud).toBeNull();               // no MUD on this site: nothing to say
+    expect(before.warnings).not.toContain('mud_down');
+    const saved = ctx.deps.mud;
+    ctx.deps.mud = { secrets: mudSecrets('x'.repeat(40)), url: 'http://127.0.0.1:1' };
+    try {
+      const s = await getStatus(ctx.deps);
+      expect(s.services.mud).toBe(false);
+      expect(s.warnings).toContain('mud_down');
+    } finally { ctx.deps.mud = saved; }
   });
 
   it('warns about a growing event backlog, waiting reports and failing exports', async () => {

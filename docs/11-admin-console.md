@@ -158,3 +158,14 @@ The audit log, replay and a person's history name who or what each entry is abou
   menu to file it (ring boards are grouped under their ring instead). Audited as `board.category_created`,
   `_renamed`, `_moved` and `_deleted`; routes `PATCH|DELETE /admin/board-categories/:id` and
   `POST /admin/board-categories/:id/move {direction}`.
+
+## As built (Status as the hub, 2026-10-17)
+
+- Status gathers what the other pages would say. Warnings (red) now include "The MUD is not answering" and "The IRC server
+  is not answering", from a quick check with a two-second limit so the board never waits on a service. Below them, a quieter
+  "To see to" list: the updates helper on the server is not running, legal pages still placeholder text, admins without
+  two-factor sign-in. Each warning and note links to the page that deals with it.
+- Every count tile opens the list behind it (Users, Posts and Boards and rings → Boards, Homepages, Open reports →
+  Reports, disk, backup and restore tiles → Backups). The tile's title is the link and covers the whole tile.
+- The side nav counts open reports ("Reports (2)") and marks the MUD or IRC page "(not answering)", from the same status.
+- Core: `GET /admin/status` gains `services` ({ mud, irc, agent: true/false/null, legal_placeholders }) and `notes`.

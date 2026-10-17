@@ -130,4 +130,34 @@ test.describe('status board', () => {
     await page.getByRole('link', { name: 'Backups', exact: true }).click();
     await expect(page.getByRole('heading', { level: 2, name: 'Backups and restore tests' })).toBeVisible();
   });
+
+  test('the board is the hub: tiles open the page behind them, notes link where to act, and the nav counts open reports', async ({ page }) => {
+    await adminPage(page);
+    // Something to report, so the nav has a count.
+    const u = await makeUser(page);
+    const h = { origin: BASE_URL };
+    const slug = uniq('hub');
+    expect((await page.request.post('/api/v1/boards', { data: { slug, name: `Hub ${slug}`, visibility: 'public' }, headers: h })).ok()).toBe(true);
+    const post = (await (await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: `Hub ${slug}`, body: 'x' }, headers: h })).json()).id as string;
+    const rc = await page.context().browser()!.newContext({ baseURL: BASE_URL });
+    const rp = await rc.newPage();
+    await signIn(rp, u.handle, PASSWORD);
+    expect((await rp.request.post('/api/v1/reports', { data: { post_id: post, category: 'spam' }, headers: h })).ok()).toBe(true);
+    await rc.close();
+
+    await page.goto('/admin/status');
+    await expect(page.getByRole('link', { name: /^Reports \(\d+\)$/ })).toBeVisible();
+    // A tile opens its list.
+    await page.getByRole('group', { name: 'Users' }).getByRole('link', { name: 'Users' }).click();
+    await expect(page).toHaveURL(/\/admin\/users$/);
+    await page.goBack();
+    // What other pages would say shows here, with the way to it.
+    const notes = page.locator('.status-notes');
+    if (await notes.getByText(/placeholder text/).count()) {
+      await notes.getByRole('link', { name: 'Open Legal' }).click();
+      await expect(page).toHaveURL(/\/admin\/legal$/);
+      await page.goBack();
+    }
+    await scan(page, 'the status board as the hub');
+  });
 });
