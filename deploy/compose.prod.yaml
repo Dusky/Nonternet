@@ -93,8 +93,15 @@ services:
 
   mud:
     <<: *prod
+    environment:
+      # Used only when the site config turns on mud.tls: the certificate Caddy keeps for mud.<domain> (see Caddyfile.prod).
+      MUD_TLS_CERT: /caddy/certificates/acme-v02.api.letsencrypt.org-directory/mud.${SITE_DOMAIN}/mud.${SITE_DOMAIN}.crt
+      MUD_TLS_KEY: /caddy/certificates/acme-v02.api.letsencrypt.org-directory/mud.${SITE_DOMAIN}/mud.${SITE_DOMAIN}.key
+    volumes:
+      - caddy-data:/caddy:ro
     ports: !override
       - "4000:4000"
+      - "4003:4003"
 
   irc-config:
     environment:

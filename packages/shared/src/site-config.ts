@@ -89,6 +89,8 @@ export const siteConfigSchema = z
         // Where native MUD clients connect (telnet); default mud.{site.domain}.
         public_host: hostname.optional(),
         public_port: z.number().int().min(1).max(65535).default(4000),
+        // Telnet over TLS for native clients: off until an admin turns it on (docs/09, 17 2026-10-18).
+        tls: z.object({ enabled: z.boolean().default(false), port: z.number().int().min(1).max(65535).default(4003) }).prefault({}),
       })
       .prefault({}),
     // The look people get until they pick one in Settings → Appearance (docs/10). Admin-editable.
@@ -201,7 +203,7 @@ export const publicSiteSchema = z.object({
   signup_mode: z.enum(['open', 'invite', 'application']),
   minimum_age: z.number().int(),
   irc: z.object({ host: z.string(), port: z.number().int(), lobby: z.string() }),
-  mud: z.object({ host: z.string(), port: z.number().int() }),
+  mud: z.object({ host: z.string(), port: z.number().int(), tls_port: z.number().int().nullable().default(null) }),
   bbs: z.object({ host: z.string(), telnet_port: z.number().int(), ssh_port: z.number().int() }),
   services: z.object({ bbs: z.boolean(), irc: z.boolean(), mud: z.boolean(), gopher: z.boolean(), finger: z.boolean(), gemini: z.boolean() }),
   gopher: z.object({ host: z.string(), port: z.number().int() }),
@@ -222,7 +224,7 @@ export function toPublicSite(cfg: SiteConfig): PublicSite {
     signup_mode: cfg.signup.mode,
     minimum_age: cfg.signup.minimum_age,
     irc: { host: cfg.irc.public_host ?? `irc.${cfg.site.domain}`, port: cfg.irc.public_port, lobby: cfg.irc.official_channels[0]! },
-    mud: { host: cfg.mud.public_host ?? `mud.${cfg.site.domain}`, port: cfg.mud.public_port },
+    mud: { host: cfg.mud.public_host ?? `mud.${cfg.site.domain}`, port: cfg.mud.public_port, tls_port: cfg.mud.tls.enabled ? cfg.mud.tls.port : null },
     bbs: { host: cfg.bbs.host ?? `bbs.${cfg.site.domain}`, telnet_port: cfg.bbs.telnet_port, ssh_port: cfg.bbs.ssh_port },
     services: cfg.services,
     gopher: { host: cfg.gopher.host ?? cfg.site.domain, port: cfg.gopher.port },

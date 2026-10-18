@@ -65,7 +65,7 @@ function NativeHelp() {
   const site = useSite();
   return (
     <div className="panel">
-      <p>{t('mud.native', { host: site.mud.host, port: site.mud.port })}</p>
+      <p>{t('mud.native', { host: site.mud.host, port: site.mud.port })}{site.mud.tls_port ? ` ${t('mud.nativeTls', { port: site.mud.tls_port })}` : ''}</p>
       <p>{t('mud.nativeGmcp')}</p>
       <p><OpenAppLink app="settings" to="terminal">{t('chat.nativeSettings')}</OpenAppLink></p>
     </div>

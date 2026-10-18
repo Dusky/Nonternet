@@ -1,3 +1,6 @@
 # The MUD (docs/09). Pinned: upgrades run the MUD tests first (docs/15).
 evennia==5.0.1
 psycopg[binary]==3.2.10
+# Telnet over TLS (Twisted needs both when the site turns it on).
+pyOpenSSL==26.4.0
+service-identity==26.1.0

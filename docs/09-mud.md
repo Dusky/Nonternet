@@ -112,3 +112,12 @@ activity, recent logins, world snapshots in the console (the world is in the nig
 
 - **Layout (2026-10-16).** The game area keeps a minimum height (about 20 rem); with the first-run card, the rules editor or
   the find bar open, the MUD scrolls as a whole instead of shrinking the log.
+
+## Telnet over TLS (2026-10-18)
+Off by default; an admin turns it on in the site config (`mud.tls.enabled`, port `mud.tls.port`, default 4003). Evennia 5.0.1
+serves it (`SSL_ENABLED`, `SSL_PORTS`; VERIFIED in its portal code) with Twisted's TLS, which needs `pyOpenSSL` and
+`service-identity` (pinned in `requirements.txt`). `server/conf/tls.py` puts the key and certificate where Evennia reads them:
+the site's own certificate when `MUD_TLS_CERT`/`MUD_TLS_KEY` point at one (production uses the one Caddy keeps for
+`mud.<domain>`), otherwise a self-signed one made once and kept. The MUD reads it at start, so `sitectl tls-reload` restarts
+the MUD when TLS is on. The web client and plain telnet are unchanged; the landing page and the MUD app name the TLS port when
+it is on.

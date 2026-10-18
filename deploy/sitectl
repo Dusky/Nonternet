@@ -260,7 +260,9 @@ case "${1:-help}" in
     git -C .. pull --ff-only
     "${COMPOSE[@]}" up -d --build --wait
     curl -fsS --max-time 20 "https://$(envval SITE_DOMAIN)/readyz" >/dev/null && say "Upgraded, and the site answers." || { say "The site does not answer after the upgrade: ./sitectl logs core"; exit 1; } ;;
-  irc-reload|tls-reload) "${COMPOSE[@]}" kill -s HUP ergo; "${COMPOSE[@]}" kill -s HUP gemini 2>/dev/null || true ;;
+  irc-reload|tls-reload) "${COMPOSE[@]}" kill -s HUP ergo; "${COMPOSE[@]}" kill -s HUP gemini 2>/dev/null || true
+    # The MUD reads its certificate at start, so restart it, but only when telnet over TLS is on (its certificate file exists).
+    if "${COMPOSE[@]}" exec -T mud test -f /game/server/ssl.cert 2>/dev/null; then "${COMPOSE[@]}" restart mud; fi ;;
   gemini-fingerprint) "${COMPOSE[@]}" logs --no-log-prefix gemini 2>/dev/null | grep -o "gemini certificate[^:]*: SHA256:[0-9A-F:]*" | tail -1 ;;
   agent) shift; agent "$@" ;;
   install-agent) install_agent ;;

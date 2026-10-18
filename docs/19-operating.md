@@ -11,7 +11,7 @@ Everything here uses `deploy/sitectl`, run from `deploy/` on the server.
 - DNS: `A`/`AAAA` for `example.net` and `irc.example.net`, and a wildcard `*.example-homes.net`, all pointing at
   the server. Optional names for people's clients: `bbs.`, `mud.` (same address).
 - Outgoing mail (SMTP) for sign-up confirmations and password resets.
-- Open ports: 80 and 443 (web), 6697 (IRC over TLS), 23 and 2222 (BBS telnet and SSH), 4000 (MUD), 70 (Gopher), 79 (finger), 1965 (Gemini).
+- Open ports: 80 and 443 (web), 6697 (IRC over TLS), 23 and 2222 (BBS telnet and SSH), 4000 (MUD; 4003 for its telnet over TLS when `mud.tls.enabled` is on), 70 (Gopher), 79 (finger), 1965 (Gemini).
   Leave out any service you turn off in the site config.
 
 ## Installing with the wizard (2026-10-11)

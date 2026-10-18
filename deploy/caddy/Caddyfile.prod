@@ -83,6 +83,13 @@ irc.{$SITE_DOMAIN} {
 	respond "Chat is on port 6697 (TLS), or in the web app." 200
 }
 
+# mud.<domain>: named so Caddy keeps a certificate for it, which the MUD uses for telnet over TLS when the site config
+# turns that on (mud.tls). The MUD reads it at start; `sitectl tls-reload` restarts it when TLS is on.
+mud.{$SITE_DOMAIN} {
+	import site_headers
+	respond "The MUD is on port 4000 (telnet), or in the web app." 200
+}
+
 https:// {
 	tls {
 		on_demand

@@ -10,6 +10,7 @@ environment and the site config, so nothing here names the site:
   MUD_UPSTREAM_IPS   comma-separated addresses of the reverse proxy (Caddy); their X-Forwarded-For is trusted.
                      VERIFIED: Evennia 5.0.1 matches these exactly, so give Caddy a fixed address.
   MUD_LOGIN_THROTTLE_LIMIT  failed logins per address before a pause (default Evennia's 5; tests raise it)
+  MUD_TLS_CERT / MUD_TLS_KEY  the certificate for telnet over TLS, when the site config turns it on (mud.tls); see tls.py
 """
 import base64
 import hashlib
@@ -56,6 +57,12 @@ BASE_CHARACTER_TYPECLASS = "typeclasses.characters.Character"
 BASE_ROOM_TYPECLASS = "typeclasses.rooms.Room"
 
 TELNET_PORTS = [int(os.environ.get("MUD_TELNET_PORT", 4000))]
+# Telnet over TLS, only when an admin turns it on in the site config (docs/17, 2026-10-18).
+from server.conf.tls import tls_settings  # noqa: E402
+
+SSL_ENABLED, _tls_port = tls_settings(_site, os.environ, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if SSL_ENABLED:
+    SSL_PORTS = [_tls_port]
 # GMCP and MSDP for telnet clients like Mudlet, so they get the same vitals and room_info as the web client (docs/09).
 TELNET_OOB_ENABLED = True
 WEBSERVER_PORTS = [(int(os.environ.get("MUD_WEB_PORT", 4001)), int(os.environ.get("MUD_WEB_INTERNAL_PORT", 4005)))]

@@ -81,6 +81,9 @@ irc:
 mud:
   # public_host: mud.example.net   # default mud.{site.domain}
   public_port: 4000                # telnet for native MUD clients
+  tls:                             # telnet over TLS, for clients that support it (off until you turn it on)
+    enabled: false
+    port: 4003
 
 # Two-factor sign-in is optional; set true to require it for admins (also in the console under Settings).
 security:
