@@ -150,3 +150,31 @@ test('an app added without keeping things can be allowed later in Settings', asy
   await expect(sw).toBeChecked();
   await expect.poll(granted).toContain('storage');
 });
+
+test('on a page the frame fits the app, and an app that does not start can be tried again', async ({ page, isMobile }) => {
+  test.setTimeout(90_000);
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  await page.goto('/add-apps');
+  await page.getByRole('button', { name: 'Add Todo' }).click();
+  await page.getByRole('group', { name: 'What Todo may do' }).getByRole('button', { name: 'Add Todo' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Todo' })).toBeVisible();
+  // The frame takes the app's height (an empty list is short), within bounds, not a fixed 60% of the screen.
+  await page.goto('/apps/todo');
+  await expect(todo(page).getByPlaceholder(/Add a task/)).toBeVisible();
+  const frame = page.locator('iframe[title="Todo"]');
+  const vh = page.viewportSize()!.height;
+  await expect.poll(async () => (await frame.boundingBox())!.height).toBeLessThan(vh * 0.55);
+  expect((await frame.boundingBox())!.height).toBeGreaterThanOrEqual(14 * 16 - 1);
+  if (!isMobile) expect((await frame.boundingBox())!.width).toBeLessThanOrEqual(56 * 16 + 1);
+
+  // A frame that never answers: "Starting…", then a plain failure with Try again, which works once it can load.
+  await page.context().route(/\/apps\/todo@/, (r) => r.abort());
+  await page.reload();
+  await expect(page.getByText('Starting Todo…')).toBeVisible();
+  await expect(page.getByText('Todo did not start.')).toBeVisible({ timeout: 25_000 });
+  await page.context().unroute(/\/apps\/todo@/);
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(todo(page).getByPlaceholder(/Add a task/)).toBeVisible();
+  await expect(page.getByText('Todo did not start.')).toHaveCount(0);
+});

@@ -128,7 +128,7 @@ plain, a "what's new" home, and the full landing page. No new themes.
 - **Widgets come from libraries, styled by us** (2026-10-04): menus, context menus, tabs and the
   confirm dialog use React Aria Components (`components/Menu.tsx`, `feedback.tsx`); toasts use Sonner,
   and a toast can carry an Undo button (`toast(text, 'ok', { undo })`), so a reversible action can act
-  at once instead of asking first; the palette uses cmdk. All are unstyled and take our CSS, so the
+  at once instead of asking first; the palette uses cmdk. On a phone toasts sit above the tab bar. All are unstyled and take our CSS, so the
   themes are unchanged. Keep `confirm()` for what can't be taken back.
 - **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
   person by handle; letters in order match, so "stng" finds Settings). Alt+` brings the next window
@@ -324,6 +324,10 @@ The format is built for outside authors later (Q18), but only the site's own pac
   `toast(text, { undo })`, which uses the shell's own notes and resolves true if Undo was pressed. The shell pushes
   the theme as CSS custom properties (`--bg`, `--surface`, `--text`, `--accent`, `--font-body`…) on connect and on
   every theme change, so apps match all five themes.
+- **Frame size and start** (2026-10-18): the SDK measures the app's content and tells the shell (`ui.setHeight`, on
+  by default, `connectToHost({ autoHeight: false })` turns it off). On a page the frame is as tall as the app, between
+  14rem and 80% of the screen, and no wider than 56rem; in a window it fills the window. While the app starts the shell
+  says "Starting {app}…"; if it doesn't answer, "{app} did not start." with **Try again**, which loads it afresh.
 - **In the shell** an added app is `app:{id}` in the registry (`shell/apps.tsx`, `shell/installed.ts`). It gets a desktop icon,
   a launcher tile, an apps menu entry, a palette entry, a window, and its own page at `/apps/{id}`, like a built-in app.
   Windows for an app that is removed or withdrawn close themselves; session restore waits for the list of added apps.

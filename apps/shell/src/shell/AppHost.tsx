@@ -37,6 +37,7 @@ const plain = (e: unknown) => (e instanceof ApiError || e instanceof Refused ? e
 export function bridgeFor(app: CatalogApp, deps: {
   me: () => { id: string; handle: string; display_name: string | null } | null;
   setTitle: (t: string | null) => void;
+  setHeight?: (px: number) => void;
   toast: (text: string, o: { undo?: boolean; error?: boolean }) => Promise<boolean>;
   refused: string;
   notAllowed?: string;
@@ -71,6 +72,8 @@ export function bridgeFor(app: CatalogApp, deps: {
       return { id: m.id, handle: m.handle, display_name: m.display_name };
     }),
     uiSetTitle: wrap(async (title: unknown) => { deps.setTitle(str(title, 80).trim() || null); }),
+    // Only a size, so no permission: the shell clamps it and uses it to fit the frame on a page of its own.
+    uiSetHeight: wrap(async (px: unknown) => { if (typeof px !== 'number' || !Number.isFinite(px) || px < 0) throw new Refused(deps.refused); deps.setHeight?.(Math.min(10_000, Math.round(px))); }),
     uiToast: wrap(async (text: unknown, o?: unknown) => {
       need('notify'); // "Can show you short notes" is what the person agreed to
       const opts = (o && typeof o === 'object' ? o : {}) as { undo?: unknown; error?: unknown };
@@ -96,6 +99,9 @@ export default function AppHost({ appId }: { appId: string }) {
   const setSubtitle = useWindows((s) => s.setSubtitle);
   const frame = useRef<HTMLIFrameElement>(null);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [height, setHeight] = useState<number | null>(null);
+  const [attempt, setAttempt] = useState(0); // Retry remounts the frame and connects again
   const meRef = useRef(me);
   meRef.current = me;
 
@@ -106,6 +112,7 @@ export default function AppHost({ appId }: { appId: string }) {
     const methods = bridgeFor(app, {
       me: () => (meRef.current ? { id: meRef.current.id, handle: meRef.current.handle, display_name: meRef.current.display_name ?? null } : null),
       setTitle: (title) => setSubtitle(key, title),
+      setHeight,
       toast: (text, o) => appToast(text, o, t('common.undo')),
       refused: t('apps.refused'),
       notAllowed: t('apps.notAllowed'),
@@ -118,20 +125,26 @@ export default function AppHost({ appId }: { appId: string }) {
     });
     let alive = true;
     const pushTheme = () => { void conn.promise.then((r) => { const th = themeNow(); return r.setTheme(th.vars, th.scheme); }).catch(() => undefined); };
-    conn.promise.then(() => { if (alive) pushTheme(); }, () => { if (alive) setFailed(true); });
+    conn.promise.then(() => { if (alive) { setReady(true); pushTheme(); } }, () => { if (alive) setFailed(true); });
     window.addEventListener('ui:theme', pushTheme);
     return () => { alive = false; window.removeEventListener('ui:theme', pushTheme); conn.destroy(); setSubtitle(key, null); };
-  }, [app?.id, app?.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [app?.id, app?.version, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!app) {
     return <Alert kind="info">{t('apps.notAdded')} <OpenAppLink app="addapps" to="" className="link">{t('app.addapps')}</OpenAppLink></Alert>;
   }
   const src = `${app.url}#host=${encodeURIComponent(window.location.origin)}`;
   return (
-    <div className="app-fill app-host">
-      {failed && <Alert kind="error">{t('apps.failed', { app: app.name })}</Alert>}
+    <div className="app-fill app-host" style={height ? { ['--app-h' as string]: `${height}px` } : undefined}>
+      {!ready && !failed && <p className="hint" role="status">{t('apps.starting', { app: app.name })}</p>}
+      {failed && (
+        <Alert kind="error">
+          {t('apps.failed', { app: app.name })}{' '}
+          <button type="button" className="btn btn-small" onClick={() => { setFailed(false); setReady(false); setHeight(null); setAttempt((n) => n + 1); }}>{t('apps.retry')}</button>
+        </Alert>
+      )}
       <iframe
-        ref={frame} key={`${app.id}@${app.version}`} src={src} title={app.name} className="app-sandbox"
+        ref={frame} key={`${app.id}@${app.version}#${attempt}`} src={src} title={app.name} className={`app-sandbox${ready ? '' : ' is-starting'}`}
         sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" allow=""
       />
     </div>

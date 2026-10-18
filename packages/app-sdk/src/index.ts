@@ -17,6 +17,8 @@ export type HostMethods = {
   storageDelete(collection: string, id: string): Promise<void>;
   profileGet(): Promise<Profile>;
   uiSetTitle(title: string): Promise<void>;
+  // How tall the app's content is, in CSS pixels, so the shell can fit the frame to it (needs no permission).
+  uiSetHeight(px: number): Promise<void>;
   // Resolves true if the person pressed Undo before the note went away.
   uiToast(text: string, options?: { undo?: boolean; error?: boolean }): Promise<boolean>;
 };
@@ -33,6 +35,7 @@ export interface Host {
   };
   profile(): Promise<Profile>;
   setTitle(title: string): Promise<void>;
+  setHeight(px: number): Promise<void>;
   toast(text: string, options?: { undo?: boolean; error?: boolean }): Promise<boolean>;
 }
 
@@ -50,7 +53,9 @@ function hostOrigin(): string {
   return fromHash && /^https?:\/\/[^/]+$/.test(fromHash) ? fromHash : '*';
 }
 
-export async function connectToHost(opts: { onTheme?: (vars: ThemeVars, scheme: 'light' | 'dark') => void; timeout?: number } = {}): Promise<Host> {
+// `autoHeight` (on unless set to false) tells the shell how tall the app is whenever that changes, so on a page of its own
+// the frame fits the app instead of leaving a big empty box. In a window the frame fills the window either way.
+export async function connectToHost(opts: { onTheme?: (vars: ThemeVars, scheme: 'light' | 'dark') => void; timeout?: number; autoHeight?: boolean } = {}): Promise<Host> {
   const methods: AppMethods = {
     setTheme(vars, scheme) { applyTheme(vars, scheme); opts.onTheme?.(vars, scheme); },
   };
@@ -60,6 +65,30 @@ export async function connectToHost(opts: { onTheme?: (vars: ThemeVars, scheme: 
     timeout: opts.timeout ?? 10_000,
   });
   const remote = (await conn.promise) as RemoteProxy<HostMethods>;
+  if (opts.autoHeight !== false && typeof ResizeObserver !== 'undefined') {
+    // The content's own height: the bottom of the last thing on the page. (The page itself often fills the frame, so its
+    // height would only ever say "as tall as I am now".)
+    let last = -1; let raf = 0;
+    const measure = () => {
+      let bottom = 0;
+      for (const el of Array.from(document.body.children)) {
+        if (el instanceof HTMLScriptElement) continue;
+        const box = el.getBoundingClientRect();
+        const mb = parseFloat(getComputedStyle(el).marginBottom) || 0;
+        bottom = Math.max(bottom, box.bottom + mb + window.scrollY);
+      }
+      return Math.ceil(bottom);
+    };
+    const report = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
+      const h = measure();
+      if (h > 0 && Math.abs(h - last) > 2) { last = h; void remote.uiSetHeight(h).catch(() => undefined); }
+    }); };
+    const ro = new ResizeObserver(report);
+    const watch = () => { ro.disconnect(); ro.observe(document.body); for (const el of Array.from(document.body.children)) ro.observe(el); };
+    watch();
+    new MutationObserver(() => { watch(); report(); }).observe(document.body, { childList: true });
+    report();
+  }
   return {
     storage: {
       list: (c) => remote.storageList(c) as Promise<never>,
@@ -68,6 +97,7 @@ export async function connectToHost(opts: { onTheme?: (vars: ThemeVars, scheme: 
     },
     profile: () => remote.profileGet(),
     setTitle: (t) => remote.uiSetTitle(t),
+    setHeight: (px) => remote.uiSetHeight(px),
     toast: (t, o) => remote.uiToast(t, o),
   };
 }

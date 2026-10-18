@@ -90,6 +90,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       <Mounted />
       <Toaster
         position="bottom-center" visibleToasts={3} containerAriaLabel={t('toast.region')}
+        mobileOffset={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }} /* above the phone's tab bar */
         toastOptions={{ unstyled: true, closeButton: true, closeButtonAriaLabel: t('common.dismiss'), classNames: { toast: 'toast', error: 'toast-error', actionButton: 'btn btn-small', closeButton: 'toast-close', title: 'toast-text' } }}
       />
     </Ctx.Provider>

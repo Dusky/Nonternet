@@ -171,6 +171,11 @@ test('shortcuts show on the phone home screen and can be removed in Settings', a
   await page.goto('/settings/appearance');
   await page.getByRole('button', { name: 'Remove this shortcut: Board talk' }).click();
   await expect(page.getByRole('button', { name: 'Remove this shortcut: Board talk' })).toHaveCount(0);
+  // The note that says so sits above the tab bar, not under it.
+  const note = page.getByText('Shortcut removed.');
+  await expect(note).toBeVisible();
+  const tabs = (await page.getByRole('navigation', { name: 'Main sections' }).boundingBox())!;
+  await expect.poll(async () => { const box = (await note.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(tabs.y); // once it has slid in
   await page.waitForTimeout(1200);
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'Open Board talk (shortcut)' })).toHaveCount(0);

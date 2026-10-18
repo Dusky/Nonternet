@@ -25,6 +25,16 @@ function stubFetch(reply: unknown) {
 }
 
 describe('the app bridge', () => {
+  it('takes the app\'s height without any permission, and refuses anything that is not a size', async () => {
+    const heights: number[] = [];
+    const b = bridgeFor(app([]), { ...deps(), setHeight: (px: number) => heights.push(px) });
+    await b.uiSetHeight(321.4);
+    await b.uiSetHeight(99_999);
+    expect(heights).toEqual([321, 10_000]);
+    await expect(b.uiSetHeight('tall' as unknown as number)).rejects.toThrow();
+    await expect(b.uiSetHeight(-5)).rejects.toThrow();
+  });
+
   it('refuses what the app asked for but the person did not allow', async () => {
     stubFetch({ docs: [] });
     const b = bridgeFor(app(['storage', 'profile:read'], ['profile:read']), deps());
