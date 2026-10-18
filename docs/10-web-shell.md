@@ -211,6 +211,9 @@ plain, a "what's new" home, and the full landing page. No new themes.
   versions on click; six word reactions; pin/unpin for ops; "Copy link" per post (`#p_…` scrolls to it);
   a "New since your last visit" divider, from a per-thread, per-device seen mark (`ui:seen:<user>:<thread>`);
   a "N new replies" pill when replies arrive over the live channel while the thread is open.
+  Laid out as on the design board (2026-10-18): the opening post is the loud card and replies are quieter (second
+  surface, thinner edge, shadow in the divider colour); reactions, the person's actions and a moderator's tools share
+  one row under each post; Flat and Threaded are one joined switch.
 - **Boards search** lives in the address (`search/<words>`), with a board filter and relative times.
 - **People hover card** (`components/HoverCard.tsx`): avatar, name, role, short bio, rings and "Send mail", after a
   short hover or on focus; Escape closes it. Shown on `PersonLink` to signed-in people only.

@@ -512,8 +512,6 @@ html[data-theme="terminal"][data-boxes="none"] .tile, html[data-theme="terminal"
 .post-when > span + span::before, .post-when::before { content: "·"; margin-right: var(--space-2); }
 .post-nested { margin-left: calc(min(var(--depth), 6) * 1.25rem); }
 @media (max-width: 699px) {
-  .post-head { flex-direction: column; align-items: flex-start; }
-  .post-when::before { content: none; }
   .post-nested { margin-left: calc(min(var(--depth), 3) * .75rem); }
 }
 .post-head strong { font-size: var(--step-0); }
@@ -984,6 +982,31 @@ ul.wall li .link { font-size: var(--step--1); }
 .chip { border: var(--control-line) solid var(--line-strong); font-family: var(--font-label); font-weight: 700; font-size: var(--step--2); }
 .chip:hover:not(:disabled) { border-color: var(--line-strong); background: var(--accent-soft); }
 .chip.is-on { background: var(--fill); color: var(--fill-text); border-color: var(--line-strong); }
+/* Matching the design board (2026-10-18): the opening post is the loud one and replies are quieter; reactions and
+   actions share one row under the post; the view switch is one joined control. */
+.posts > li:not(:first-child):not(.new-divider) > .post:not([data-state="deleted"], [data-state="removed"], [data-state="hidden"]) {
+  background: var(--surface2); border-width: var(--control-line); box-shadow: 4px 4px 0 var(--border);
+}
+:root[data-chrome="terminal"] .posts > li > .post { box-shadow: none; }
+.post-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); margin-top: var(--space-2); }
+.post-foot > .reactions { margin: 0; }
+.post-foot > .post-actions { margin: 0 0 0 auto; }
+.post-foot > .mod-tools { margin: 0; padding: 0 0 0 var(--space-4); border-top: 0; border-left: 1px dashed var(--border); }
+.post-foot form { flex: 1 0 100%; }
+.post-foot > .mod-tools:has(form) { flex-basis: 100%; padding-left: 0; border-left: 0; }
+.segmented { display: inline-flex; }
+.segmented > .btn { box-shadow: none; }
+.segmented > .btn + .btn { margin-left: calc(-1 * var(--control-line)); }
+.segmented > .btn[aria-pressed="true"] { background: var(--fill); color: var(--fill-text); border-color: var(--line-strong); position: relative; }
+:root[data-chrome="zine"] .home-greeting h2 { color: var(--line-strong); }
+:root[data-chrome="zine"] .home-stats li:nth-child(4n+2) > * { box-shadow: 5px 5px 0 var(--sticker-2); }
+:root[data-chrome="zine"] .home-stats li:nth-child(4n+3) > * { box-shadow: 5px 5px 0 var(--sticker-3); }
+:root[data-chrome="zine"] .home-stats li:nth-child(4n+4) > * { box-shadow: 5px 5px 0 var(--sticker-4); }
+:root[data-theme="after-dark"] .wall-panel, :root[data-mode="dark"][data-chrome="zine"] .wall-panel {
+  background: var(--surface); color: var(--text); border-color: var(--pop); box-shadow: 5px 5px 0 var(--pop);
+}
+:root[data-theme="after-dark"] .wall-panel > .panel-head:first-child, :root[data-mode="dark"][data-chrome="zine"] .wall-panel > .panel-head:first-child { color: var(--pop); }
+@media (max-width: 699px) { .post-foot > .post-actions { margin-left: 0; } }
 li.new-divider { color: var(--text); font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; }
 li.new-divider::before, li.new-divider::after { border-top: var(--line-width) solid var(--pop); }
 

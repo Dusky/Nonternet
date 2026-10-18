@@ -186,8 +186,10 @@ export function ThreadView({ slug, id, focusPost }: { slug: string; id: string; 
       <h2 className="thread-title">{subject} {posts[0]?.pinned && <span className="badge sticker">{t('pin.badge')}</span>} {locked && <span className="badge">{t('boards.badge.locked')}</span>}</h2>
       {pollId && <ThreadPoll id={pollId} />}
       <div className="toolbar" role="group" aria-label={t('boards.view.label')}>
-        <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
-        <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>
+        <span className="segmented">
+          <button type="button" className={`btn btn-quiet${view === 'flat' ? ' is-active' : ''}`} aria-pressed={view === 'flat'} onClick={() => setView('flat')}>{t('boards.view.flat')}</button>
+          <button type="button" className={`btn btn-quiet${view === 'threaded' ? ' is-active' : ''}`} aria-pressed={view === 'threaded'} onClick={() => setView('threaded')}>{t('boards.view.threaded')}</button>
+        </span>
         {me && me.role !== 'guest' && <button type="button" className="btn btn-quiet" aria-pressed={following} onClick={() => follow.mutate(!following)}>{following ? t('boards.unfollow') : t('boards.follow')}</button>}
         {board.can_moderate && posts[0] && <button type="button" className="btn btn-quiet" disabled={pin.isPending} onClick={() => pin.mutate(!posts[0]!.pinned)}>{posts[0].pinned ? t('pin.unpin') : t('pin.pin')}</button>}
         {board.visibility === 'public' && <FeedLink href={`/feeds/boards/${slug}/threads/${id}.atom`} title={subject} />}
@@ -230,6 +232,8 @@ export function ThreadView({ slug, id, focusPost }: { slug: string; id: string; 
                 {editing === post.id
                   ? <EditPost post={post} slug={slug} isStart={post.id === id} asMod={editable.asMod} onDone={() => setEditing(null)} />
                   : post.body !== null && <div data-post-body={post.id}><RichText body={post.body} className="post-body" /></div>}
+                {/* One row under the post, as on the design board: reactions, then the person's actions, then the moderator's. */}
+                <div className="post-foot">
                 {post.state === 'ok' && boardPrefs.reactions && <ReactionBar post={post} slug={slug} signedIn={Boolean(me)} canReact={!board.archived} />}
                 <footer className="post-actions">
                   {post.state === 'ok' && <button type="button" className="link" onClick={() => { void copy(`${window.location.origin}${nav.href(`${slug}/t/${id}`)}#${post.id}`); setCopiedId(post.id); }}>{copied && copiedId === post.id ? t('common.copied') : t('post.copyLink')}</button>}
@@ -241,6 +245,7 @@ export function ThreadView({ slug, id, focusPost }: { slug: string; id: string; 
                   )}
                 </footer>
                 {board.can_moderate && <PostModTools board={board} post={post} isThreadStart={post.id === id} locked={locked} />}
+                </div>
               </article>
             </li>
             </Fragment>

@@ -357,3 +357,13 @@ one process, this moves to the job queue.
 - Built the round-2 item: one-row extra keys, a More menu for the less used choices, and BBS tables that fit narrow screens
   (two lines per row; unchanged at 80 columns). "Fit 80 columns" (shrinking the font so 80 always fit) is still OPEN: the narrow
   tables make it less needed, and on a phone it would make text too small to read.
+
+## 2026-10-18: matching the design board, and two new directions
+
+- Compared the live site with the board's proposal screens (After dark and Webring, desktop and phone) and closed the
+  gaps that were in our control: quieter replies under a loud opening post, reactions and actions on one row, a joined
+  Flat/Threaded switch, the amber greeting and coloured stat-tile shadows in the zine themes, and the wall as a quiet card
+  with a pink edge in After dark (it stays a pink sticker in light Webring). Phones keep 44 px reaction targets, larger
+  than the board's chips, on purpose.
+- Two new directions are on the board for the owner to judge, not built: Teletext (page numbers per app, coloured keys)
+  and Pocket LCD (four greens, pixel type). Picking one would make a sixth theme; until then nothing changes.
