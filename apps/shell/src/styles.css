@@ -378,6 +378,17 @@ button.badge.tag:hover { background: var(--accent-soft); }
 .folder-panel .dialog-body { min-width: min(28rem, 90vw); }
 .folder-items { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
 .folder-items li { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.desktop-notes { display: flex; flex-direction: column; gap: var(--space-3); width: 15rem; flex: 0 0 15rem; }
+.note { --note: var(--sticker-1); padding: var(--space-3); background: var(--note); color: var(--sticker-text); border: var(--control-line) solid var(--line-strong); box-shadow: var(--shadow-hard); transform: rotate(var(--tilt)); }
+.note:nth-child(even) { transform: rotate(calc(var(--tilt) * -1)); }
+.note[data-colour="pink"] { --note: var(--sticker-3); }
+.note[data-colour="blue"] { --note: var(--sticker-2); }
+.note[data-colour="green"] { --note: var(--sticker-4); }
+.note-body { margin: 0 0 var(--space-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; overflow: auto; }
+.note textarea { width: 100%; font: inherit; color: var(--text); background: var(--surface); }
+.note-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.note .link { color: inherit; }
+@media (prefers-reduced-motion: reduce) { .note, .note:nth-child(even) { transform: none; } }
 .launcher-recent { margin: 0 0 var(--space-4); }
 .launcher-recent h2 { font-size: var(--step--1); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--space-2); }
 .launcher-recent ul { list-style: none; margin: 0 0 var(--space-1); padding: 0; display: grid; gap: var(--space-1); }

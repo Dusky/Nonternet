@@ -20,6 +20,7 @@ import { useShortcutView } from './ShortcutIcon';
 import { DESKTOP_MAX_COL, DESKTOP_MAX_ROW, type DesktopShortcut } from '@app/shared';
 import { dropLink, linkFromDrop } from './dropLink';
 import { FolderPanel, FolderTile, folderMenu, folderOwnMenu } from './Folders';
+import { DesktopNotes } from './Notes';
 import type { DesktopFolder } from '@app/shared';
 
 // A drag that carries a link (the address is only readable on drop).
@@ -137,6 +138,7 @@ export function Desktop({ me }: { me: Me }) {
         </ul>
         <p className="visually-hidden" role="status">{said}</p>
         <HomePanel me={me} />
+        <DesktopNotes />
       </div>
       {snapPreview && <div className="snap-preview" aria-hidden="true" style={{ left: snapGeometry(snapPreview, viewport).x, top: snapGeometry(snapPreview, viewport).y, width: snapGeometry(snapPreview, viewport).w, height: snapGeometry(snapPreview, viewport).h }} />}
       {wins.map((w) => <Window key={w.id} win={w} focused={top?.id === w.id} />)}

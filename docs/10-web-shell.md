@@ -150,6 +150,10 @@ plain, a "what's new" home, and the full landing page. No new themes.
   like an icon (drag it, move it, rename it, delete it; deleting puts what was in it back), and on the phone home screen; it
   opens as a small dialog where each item opens on a click or can be taken out. Stored in the desktop settings document
   (`folders`, up to 20, each item in one folder at most), so it follows the account and is in the export with the layout.
+- **Sticky notes** (2026-10-18): "Put on the desktop" on a memo (big screens) shows it as a note beside the home panel, up to
+  8. A note can be edited in place (it saves the memo), recoloured, or unpinned with Undo; the memo itself stays. The desktop
+  settings keep only which memo and what colour (`notes`), so the text is owned, searched and exported as the memo it is. A
+  deleted memo leaves a "This memo is gone" note to remove.
 - **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
   person by handle; letters in order match, so "stng" finds Settings). Alt+` brings the next window
   forward, minimized ones included. In a focused title bar, Alt+Left and Alt+Right snap the window to

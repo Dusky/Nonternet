@@ -246,3 +246,26 @@ test('folders: put an app in a new folder, open it, take it out again', async ({
   await panel.getByRole('button', { name: 'Close' }).click();
   await expect(page.locator('[data-app-icon="wiki"]')).toBeVisible();
 });
+
+test('a memo pinned to the desktop shows as a note that can be edited and unpinned', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'notes sit on the big-screen desktop');
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  const memo = await (await page.request.post('/api/v1/memos', { headers: h, data: { body: 'Buy patch cables' } })).json();
+  await page.goto('/memos');
+  await page.getByRole('button', { name: 'Put on the desktop: Buy patch cables' }).click();
+  await expect(page.getByText('Pinned to the desktop.')).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.goto('/');
+  const note = page.locator(`[data-note="${memo.id}"]`);
+  await expect(note).toContainText('Buy patch cables');
+  await scan(page, 'a note on the desktop');
+  await note.getByRole('button', { name: 'Edit this note' }).click();
+  await note.getByLabel('The note').fill('Buy patch cables and a new case');
+  await note.getByRole('button', { name: 'Save' }).click();
+  await expect(note).toContainText('and a new case');
+  expect((await (await page.request.get(`/api/v1/memos/${memo.id}`)).json()).body).toBe('Buy patch cables and a new case');
+  await note.getByRole('button', { name: /Take this note off the desktop/ }).click();
+  await expect(note).toHaveCount(0);
+  expect((await page.request.get(`/api/v1/memos/${memo.id}`)).ok()).toBe(true); // the memo stays
+});

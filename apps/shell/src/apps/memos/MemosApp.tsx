@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { pinMemoToDesktop } from '../../shell/Notes';
 import { MEMO_MAX, type MemoPage, type MemoView } from '@app/shared';
 import { api } from '../../api';
 import { Alert, EmptyState, Loading, RelativeTime, TextField } from '../../components/ui';
@@ -11,7 +12,7 @@ import { useAppNav, AppLink } from '../../nav';
 import { RichText } from '../../components/RichText';
 import { Icon } from '../../components/Icon';
 import { undoable, useConfirm } from '../../components/feedback';
-import { errorText, useMe, useT } from '../../hooks';
+import { errorText, useIsDesktop, useMe, useT } from '../../hooks';
 
 // Memos (docs/22): short notes in a timeline. Write at the top (Ctrl+Enter posts), newest first, pins first. For now every
 // memo is private to its writer.
@@ -24,6 +25,7 @@ export default function MemosApp() {
 }
 
 function Timeline() {
+  const desktop = useIsDesktop();
   const t = useT();
   const qc = useQueryClient();
   const [q, setQ] = useState('');
@@ -101,6 +103,7 @@ function Timeline() {
                   <div className="memo-actions">
                     <button type="button" className="btn btn-quiet btn-small" aria-pressed={m.pinned} aria-label={`${m.pinned ? t('memos.unpin') : t('memos.pin')}: ${preview(m.body)}`} onClick={() => pin.mutate(m)}>{m.pinned ? t('memos.unpin') : t('memos.pin')}</button>
                     <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('memos.edit')}: ${preview(m.body)}`} onClick={() => setEditing(m.id)}>{t('memos.edit')}</button>
+                    {desktop && <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('notes.pinToDesktop')}: ${preview(m.body)}`} onClick={() => void pinMemoToDesktop(m.id, t)}>{t('notes.pinToDesktop')}</button>}
                     <button type="button" className="btn btn-quiet btn-small" aria-label={`${t('memos.delete')}: ${preview(m.body)}`} onClick={() => remove(m)}>{t('memos.delete')}</button>
                   </div>
                 </>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { en } from '@app/strings';
-import { DESKTOP_MAX_FOLDERS, DESKTOP_MAX_SHORTCUTS, desktopClientSchema, type DesktopClient, type WidgetChoice } from '@app/shared';
+import { DESKTOP_MAX_FOLDERS, DESKTOP_MAX_NOTES, DESKTOP_MAX_SHORTCUTS, desktopClientSchema, type DesktopNote, type DesktopClient, type WidgetChoice } from '@app/shared';
 import { api } from '../api';
 import { toast } from '../components/feedback';
 import { folderKey, newFolderId, placeInFolder } from './desktopLayout.logic';
@@ -26,6 +26,10 @@ interface State {
   renameFolder: (id: string, name: string) => void;
   deleteFolder: (id: string) => void;
   moveToFolder: (key: string, folderId: string | null) => void;
+  // Sticky notes: memos shown on the desktop. 'full' when there are as many as allowed.
+  pinNote: (memoId: string) => 'added' | 'already' | 'full' | null;
+  unpinNote: (memoId: string) => void;
+  colourNote: (memoId: string, colour: DesktopNote['colour']) => void;
   // The home panel's widgets. The first change turns the default list into the person's own.
   editingHome: boolean;
   setEditingHome: (on: boolean) => void;
@@ -117,6 +121,16 @@ export const useDesktopLayout = create<State>((set, get) => {
       const { [key]: _cell, ...positions } = s.positions;
       apply({ ...s, folders: placeInFolder(s.folders, key, folderId), positions: folderId ? positions : s.positions });
     },
+    pinNote: (memoId) => {
+      if (!get().loaded) return null;
+      const s = get().settings;
+      if (s.notes.some((n) => n.memo_id === memoId)) return 'already';
+      if (s.notes.length >= DESKTOP_MAX_NOTES) return 'full';
+      apply({ ...s, notes: [...s.notes, { memo_id: memoId, colour: 'yellow' }] });
+      return 'added';
+    },
+    unpinNote: (memoId) => { if (get().loaded) { const s = get().settings; apply({ ...s, notes: s.notes.filter((n) => n.memo_id !== memoId) }); } },
+    colourNote: (memoId, colour) => { if (get().loaded) { const s = get().settings; apply({ ...s, notes: s.notes.map((n) => (n.memo_id === memoId ? { ...n, colour } : n)) }); } },
     editingHome: false,
     setEditingHome: (editingHome) => set({ editingHome }),
     changeWidgets: (fn, legacy = false) => {
@@ -124,7 +138,7 @@ export const useDesktopLayout = create<State>((set, get) => {
       const s = get().settings;
       apply({ ...s, widgets_set: true, widgets: fn(resolveWidgets(s, legacy)) });
     },
-    reset: () => { const before = get().settings; if (get().loaded) apply({ ...empty(), shortcuts: before.shortcuts, folders: before.folders }); return before; },
+    reset: () => { const before = get().settings; if (get().loaded) apply({ ...empty(), shortcuts: before.shortcuts, folders: before.folders, notes: before.notes }); return before; },
     restore: (s) => { if (get().loaded) apply(s); },
   };
 });

@@ -94,6 +94,11 @@ export const desktopFolderSchema = z.object({
 });
 export type DesktopFolder = z.infer<typeof desktopFolderSchema>;
 export const DESKTOP_MAX_FOLDERS = 20;
+// A memo pinned to the desktop as a sticky note (docs/10, 2026-10-18). The text stays the memo's; this is only which and what colour.
+export const NOTE_COLOURS = ['yellow', 'pink', 'blue', 'green'] as const;
+export const desktopNoteSchema = z.object({ memo_id: z.string().regex(/^mm_[0-9A-Z]{26}$/), colour: z.enum(NOTE_COLOURS).default('yellow') });
+export type DesktopNote = z.infer<typeof desktopNoteSchema>;
+export const DESKTOP_MAX_NOTES = 8;
 // The home panel is made of widgets (docs/10). The list is the person's choice of which, in what order, and how wide.
 export const WIDGET_IDS = ['stats', 'start', 'wall', 'tower', 'memos', 'bookmarks', 'new', 'online', 'links'] as const;
 export type WidgetId = (typeof WIDGET_IDS)[number];
@@ -112,6 +117,8 @@ export const desktopClientSchema = z.object({
   shortcuts: z.array(desktopShortcutSchema).max(DESKTOP_MAX_SHORTCUTS).default([]),  // icons that open a bookmark or a place; item key 'sc:<id>'
   folders: z.array(desktopFolderSchema).max(DESKTOP_MAX_FOLDERS).default([])          // item key 'fd:<id>'; an item is in one folder at most
     .refine((f) => { const all = f.flatMap((x) => x.items); return new Set(all).size === all.length; }, 'An item can be in one folder only.'),
+  notes: z.array(desktopNoteSchema).max(DESKTOP_MAX_NOTES).default([])                // memos shown as sticky notes beside the home panel
+    .refine((n) => new Set(n.map((x) => x.memo_id)).size === n.length, 'A memo can be pinned once.'),
 }).prefault({});
 export type DesktopClient = z.infer<typeof desktopClientSchema>;
 
