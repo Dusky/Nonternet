@@ -32,17 +32,19 @@ const AREA_SELECT = `SELECT a.id, a.slug, a.name, a.description, a.visibility, a
   (SELECT max(created_at) FROM files f WHERE f.area_id = a.id AND f.deleted_at IS NULL AND f.hidden_at IS NULL) AS last_upload_at
   FROM file_areas a`;
 
-// Which areas a viewer may read: public ones for everyone, members-only ones for confirmed users.
-const readable = (v: Viewer) => (member(v) ? `TRUE` : `a.visibility = 'public'`);
+// Which areas a viewer may read: public ones for everyone, members-only ones for confirmed users. An archived area stays
+// readable by admins and by the people who uploaded to it, who see only their own files there (docs/17, 2026-10-18).
+// `p` is the placeholder holding the viewer's ID (or NULL).
+const readable = (v: Viewer, p: string) =>
+  `${member(v) ? 'TRUE' : `a.visibility = 'public'`} AND (a.archived_at IS NULL OR ${v?.role === 'admin' ? `(${p}::text IS NULL OR TRUE)` : `EXISTS (SELECT 1 FROM files mine WHERE mine.area_id = a.id AND mine.uploader_id = ${p}::text AND mine.deleted_at IS NULL)`})`;
 
 export async function listAreas(deps: AppDeps, v: Viewer): Promise<FileAreaView[]> {
-  const admin = v?.role === 'admin';
-  const r = await deps.db.query<AreaRow>(`${AREA_SELECT} WHERE ${readable(v)} ${admin ? '' : 'AND a.archived_at IS NULL'} ORDER BY a.name`);
+  const r = await deps.db.query<AreaRow>(`${AREA_SELECT} WHERE ${readable(v, '$1')} ORDER BY a.archived_at IS NOT NULL, a.name`, [vid(v)]);
   return r.rows.map((a) => areaView(v, a));
 }
 
 async function loadArea(q: Queryable, v: Viewer, slug: string): Promise<AreaRow> {
-  const r = await q.query<AreaRow>(`${AREA_SELECT} WHERE a.slug = $1 AND ${readable(v)}`, [slug.toLowerCase()]);
+  const r = await q.query<AreaRow>(`${AREA_SELECT} WHERE a.slug = $1 AND ${readable(v, '$2')}`, [slug.toLowerCase(), vid(v)]);
   const a = r.rows[0];
   if (!a) throw new ApiError(404, 'not_found', 'No such file area.');
   return a;
@@ -58,7 +60,8 @@ const fileView = (v: Viewer, f: FileRow): FileView => ({
 });
 // A hidden file is still there for its uploader and admins, and nobody else.
 // `$2` is always the viewer's ID (or NULL).
-const visible = (v: Viewer) => (v?.role === 'admin' ? '($2::text IS NULL OR TRUE)' : `(f.hidden_at IS NULL OR f.uploader_id = $2)`);
+const visible = (v: Viewer) => (v?.role === 'admin' ? '($2::text IS NULL OR TRUE)' : `(f.hidden_at IS NULL OR f.uploader_id = $2)
+  AND (f.uploader_id = $2 OR NOT EXISTS (SELECT 1 FROM file_areas arch WHERE arch.id = f.area_id AND arch.archived_at IS NOT NULL))`);
 const vid = (v: Viewer) => v?.userId ?? null;
 
 // The newest files first, a page at a time (`next` is the offset of the following page, or null).
@@ -72,7 +75,7 @@ export async function areaWithFiles(deps: AppDeps, v: Viewer, slug: string, offs
 async function loadFile(q: Queryable, v: Viewer, id: string): Promise<FileRow & { area_id: string; visibility: string }> {
   const r = await q.query<FileRow & { area_id: string; visibility: string }>(
     `SELECT x.*, f.area_id, a.visibility FROM (${FILE_SELECT} WHERE f.id = $1 AND f.deleted_at IS NULL AND ${visible(v)}) x
-     JOIN files f ON f.id = x.id JOIN file_areas a ON a.id = f.area_id WHERE ${readable(v)}`, [id, vid(v)]);
+     JOIN files f ON f.id = x.id JOIN file_areas a ON a.id = f.area_id WHERE ${readable(v, '$2')}`, [id, vid(v)]);
   const f = r.rows[0];
   if (!f) throw new ApiError(404, 'not_found', 'No such file.');
   return f;

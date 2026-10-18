@@ -289,7 +289,7 @@ one process, this moves to the job queue.
   the editor's shortcut note were made consistent. Details in `10` ("As built (hands-on review fixes)").
 - **Offline user kept in session storage, for the tab only.** It is not a login: the server still decides every request, and a
   401 or signing out clears it.
-- **OPEN, logged here as round 1 asked and not decided:** whether the telnet door needs TLS (the MUD and BBS speak plain
+- **Was OPEN, decided 2026-10-18 (see that entry):** whether the telnet door needs TLS (the MUD and BBS speak plain
   telnet); suspension expiry; sign-up abuse tools; admin notes on people; whether archived file areas stay readable
   (`05` says readable, the code hides them).
 
@@ -380,3 +380,20 @@ one process, this moves to the job queue.
   list and other device preferences (docs/10).
 - Dropping a link on the desktop saves outside addresses as private bookmarks (owned and exported as bookmarks already
   are) and links to this site as place shortcuts. Drop position is not kept: the shortcut takes the first free cell.
+
+## 2026-10-18 (later): the open list, answered by the owner
+
+- **Archived file areas** (DECIDED, built): admins see an archived area whole; a person who uploaded to it still sees it,
+  read-only, with only their own files, and can download them. Everyone else gets "no such area". Before this an archived
+  area was only left out of the list and could still be opened by its address.
+- **Terminal "fit 80 columns"** (DECIDED): no. The narrow BBS tables cover phones.
+- **Suspensions that end by themselves, sign-up abuse tools, admin notes** (DECIDED, to build): suspend for a day, a week, a
+  month or until lifted; a proof-of-work check at sign-up (no third party); sign-up limits per network; email-domain
+  rules (a disposable-domain list plus admin allow and deny lists); private admin notes on a person.
+- **Outside app authors** (DECIDED, closes Q18, to build): trusted people submit an app package; it is private to them until
+  an admin reviews and offers it; each new version is reviewed again; apps can be reported and withdrawn.
+- **MUD telnet over TLS** (DECIDED, to build): off by default, an admin switches it on.
+- **Desktop** (DECIDED, to build): folders, sticky notes from memos, an admin-set default layout, widgets from added apps,
+  and a dropped link landing where it is dropped.
+- **Research pass** (asked): an app-wide look for open-source libraries, plugins or middleware that could replace or improve
+  hand-rolled code, the terminal included; reported for the owner to pick from, nothing adopted without a pick.

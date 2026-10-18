@@ -127,7 +127,7 @@ a text fallback ("[image: filename]").
 Built on the web first; the BBS will show the same areas later (`04`). Gopher lists public areas read-only.
 - **Areas** are made by admins: address, name, description, who can see them (everyone, or signed-in
   members) and who can upload (any member, trusted people — the default — or admins only). An area can be
-  archived: still readable, nothing new goes in. Audited (`file_area.created`, `file_area.updated`).
+  archived: readable by admins and its uploaders (their own files), nothing new goes in. Audited (`file_area.created`, `file_area.updated`).
 - **Uploads** send the file itself as the request body, with its name, title and description in the query
   string. Names are one plain segment (letters, digits, `_ . ( ) + ~ -`), unique per area. Limits:
   `limits.file_max_mb` per file (default 25) and `limits.file_quota_mb` per uploader (default 250; admins
@@ -212,5 +212,5 @@ page's "How to connect" lists, as with Gopher.
 - An area's files come a page at a time (200), newest first, with "Show more files"; the old silent 500 cap is gone
   (`GET /files/areas/:slug?offset=`, returns `next`).
 - Wording follows docs/00: "Everyone, including guests", "Signed-in users only", "Any user".
-- Still OPEN (docs/17): whether archived areas stay listed for everyone. Unchanged: they leave the list for all but admins and
-  a direct link still works.
+- Archived areas (DECIDED 2026-10-18, docs/17): admins see them whole; people who uploaded there see them with only their
+  own files; for everyone else they are gone, list and direct link alike.

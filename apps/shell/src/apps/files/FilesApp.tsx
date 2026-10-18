@@ -129,7 +129,9 @@ function Area({ slug }: { slug: string }) {
       <BackLink to="">{t('files.back')}</BackLink>
       <h2>{area.name} {area.archived && <span className="badge">{t('files.archived')}</span>}</h2>
       {area.description && <p>{area.description}</p>}
-      <p className="hint">{t(`files.uploadRole.${area.upload_role}.who` as StringKey)}</p>
+      {area.archived
+        ? <p className="hint">{me?.role === 'admin' ? t('files.archivedNote.admin') : t('files.archivedNote.yours')}</p>
+        : <p className="hint">{t(`files.uploadRole.${area.upload_role}.who` as StringKey)}</p>}
       {files.length > 3 && (
         <div className="toolbar">
           <input type="search" aria-label={t('files.search')} placeholder={t('files.search')} value={find} onChange={(e) => setFind(e.target.value)} />

@@ -2488,6 +2488,8 @@ export const en = {
   'files.more': 'Show more files',
   'files.membersOnly': 'users only',
   'files.archived': 'archived',
+  'files.archivedNote.admin': 'This area is archived. Only admins and the people who uploaded here can see it, and nothing new can go in.',
+  'files.archivedNote.yours': 'This area is archived. You can still see and download the files you put here.',
   'files.count': '{count} file|{count} files',
   'files.last': 'last upload {when}',
   'files.back': 'All file areas',

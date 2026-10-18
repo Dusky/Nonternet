@@ -137,6 +137,27 @@ describe.skipIf(!dbAvailable)('file areas', () => {
     expect((await db.query(`SELECT uploader_id, deleted_at IS NOT NULL AS gone FROM files WHERE id = $1`, [f.id])).rows[0]).toEqual({ uploader_id: null, gone: true });
   });
 
+  it('keeps an archived area readable by admins, and by its uploaders for their own files only', async () => {
+    const a1 = await person('trusted'); const a2 = await person('trusted'); const other = await person();
+    await admin.client.post('/api/v1/admin/files/areas', { slug: 'attic', name: 'Attic' });
+    const mine = (await upload(a1.c, 'attic', 'mine.txt', 'x')).json();
+    const theirs = (await upload(a2.c, 'attic', 'theirs.txt', 'y')).json();
+    await admin.client.patch('/api/v1/admin/files/areas/attic', { archived: true });
+    const files = async (c: typeof a1.c | null) => {
+      const r = await (c ?? client(ctx.app)).get('/api/v1/files/areas/attic');
+      return r.status === 200 ? (r.body.files as { id: string }[]).map((f) => f.id).sort() : r.status;
+    };
+    expect(await files(admin.client)).toEqual([mine.id, theirs.id].sort());
+    expect(await files(a1.c)).toEqual([mine.id]);
+    expect(await files(other.c)).toBe(404);
+    expect(await files(null)).toBe(404);
+    expect((await a1.c.get('/api/v1/files')).body.areas.find((x: { slug: string }) => x.slug === 'attic')).toMatchObject({ archived: true, can_upload: false });
+    expect((await other.c.get('/api/v1/files')).body.areas.map((x: { slug: string }) => x.slug)).not.toContain('attic');
+    expect((await download(a1.c, mine.id)).statusCode).toBe(200);
+    expect((await download(a1.c, theirs.id)).statusCode).toBe(404);
+    expect((await download(other.c, mine.id)).statusCode).toBe(404);
+  });
+
   it('lets an admin change an area (audited, nobody else), and pages a long area', async () => {
     const t = await person('trusted');
     await admin.client.post('/api/v1/admin/files/areas', { slug: 'edit-me', name: 'Before' });
