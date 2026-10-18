@@ -12,6 +12,7 @@ describe('fitting art to a narrow screen', () => {
     expect(cut.endsWith('\x1b[0m')).toBe(true);
     expect(clipLine('short', 30)).toBe('short');
     expect(clipLine('\x1b[1mbold\x1b[0m', 4)).toBe('\x1b[1mbold\x1b[0m'); // fits exactly: nothing lost
+    expect(visible(clipLine('漢字漢字漢字', 7))).toBe('漢字漢 '); // wide characters count as two columns
   });
   it('keeps a heading on one line on a phone-sized terminal and full length on a wide one', () => {
     expect([...visible(heading('Voting booth', 35))].length).toBeLessThanOrEqual(35);

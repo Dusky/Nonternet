@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
+import { pad, width } from './screens/util';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { z } from 'zod';
@@ -54,22 +55,11 @@ export class ArtPack {
   }
 }
 
-// Cuts a line to `cols` visible characters, counting only what is drawn (colour codes take no room) and closing any colour it cut inside.
+// Cuts a line to `cols` columns, counting only what is drawn (colour codes take no room, wide characters take two) and
+// closing any colour it cut inside.
 export function clipLine(line: string, cols: number): string {
-  let shown = 0;
-  let out = '';
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === '\x1b') {
-      const m = /^\x1b\[[0-9;]*[A-Za-z]/.exec(line.slice(i));
-      if (m) { out += m[0]; i += m[0].length - 1; continue; }
-    }
-    const cp = line.codePointAt(i)!;
-    if (shown >= cols) return `${out}\x1b[0m`;
-    out += String.fromCodePoint(cp);
-    if (cp > 0xffff) i++;
-    shown++;
-  }
-  return out;
+  if (width(line) <= cols) return line;
+  return `${pad(line, cols)}\x1b[0m`;
 }
 
 export function fill(text: string, vars: Record<string, string>, color = true): string {

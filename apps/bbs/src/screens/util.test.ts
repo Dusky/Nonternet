@@ -39,4 +39,16 @@ describe('tables that fit the screen', () => {
     // Empty and "-" details are left out.
     expect(tableRow(33, cols, ['-', 'bob', 'on the web']).map(strip)).toEqual(['bob', '   on the web']);
   });
+
+  it('measures wide characters as two columns and never splits one', () => {
+    expect(width('日本語')).toBe(6);
+    expect(width('héllo')).toBe(5);
+    expect(width('👍🏽')).toBe(2);
+    expect(width('\x1b[1m漢字\x1b[0m')).toBe(4);
+    expect(pad('日本語', 5)).toBe('日本 ');      // the third would only half fit: dropped, and a space keeps the column
+    expect(width(pad('日本語', 5))).toBe(5);
+    expect(cut('こんにちは世界', 8)).toBe('こんに…');
+    expect(wrap('日本語の文章', 5).every((l) => width(l) <= 5)).toBe(true);
+    expect(wrap('日本語の文章', 5).join('')).toBe('日本語の文章');
+  });
 });

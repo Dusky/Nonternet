@@ -110,7 +110,9 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
 - **Terminal window** (shell app `terminal`, shown when `services.bbs` is on): xterm.js over `/ws/bbs`, signed
   in by a one-use ticket; a key bar (Esc, Tab, Ctrl-C, arrows, Enter) for phones; a screen-reader mode
   (xterm.js's own); how to connect with your own telnet or SSH program. The VGA font is used if the viewer
-  has one installed ("Px437 IBM VGA 8x16"); none is bundled (licence to check first).
+  has one installed ("Px437 IBM VGA 8x16"); none is bundled (licence to check first). It draws with xterm.js's WebGL
+  renderer when the browser has WebGL (`@xterm/addon-webgl`, loaded only with the Terminal), so box and block
+  characters join up into seamless ANSI art; without WebGL, or if the GPU drops it, the built-in renderer takes over.
 - **Console:** a BBS tab with live nodes (from the last node report), last callers, and Disconnect (revokes
   the person's BBS sessions, audited as `bbs.disconnected`). The message of the day is the `bbs.motd`
   setting (Config), shown after login. Live announcements are shown after login and passed to everyone
@@ -137,6 +139,9 @@ The spike (`docs/spikes/m0-enigma.md`) is kept as a record. What still applies:
   - A screen that ends with something still to read (a list, a message, an error) waits for "press a key for the menu", so the menu doesn't scroll it away at once.
   - At list prompts ("Number to read, Post, Quit:") a letter acts at once, like the menus; only numbers need Enter.
   - Column widths ignore colour codes, so a code is never cut in half (that swallowed the next characters and left bold on).
+  - Widths are the columns a terminal draws (`string-width`, 2026-10-18): Chinese, Japanese, Korean and most emoji take
+    two, a flag or family emoji counts once, and a wide character that would only half fit is left out with a space in
+    its place, so padding, cutting, wrapping and art clipping line up in SyncTERM and the Terminal window alike.
 - Compose: service `bbs` (telnet 2323, SSH 2222 locally), Caddy routes `/ws/bbs`. Tests: `apps/bbs/src/*.test.ts`; `e2e/tests/terminal-menus.spec.ts` uses every main-menu option from the Terminal window
   (telnet, terminal, and a live test over real sockets against core), `apps/core/src/bbs/bbs.test.ts`.
 

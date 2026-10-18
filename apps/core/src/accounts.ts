@@ -72,6 +72,25 @@ async function sendVerification(deps: AppDeps, user: { email: string; handle: st
   await deps.mailer.send({ to: user.email, subject: t('email.verify.subject'), text: t('email.verify.body', { handle: user.handle, link, code: v.code }) });
 }
 
+// Guessing a website password is slowed per account, not only per address (an address is easy to change): after
+// LOGIN_MAX_FAILURES wrong passwords in the window, the account refuses password logins until it passes. A passkey and
+// a password reset still work, so the owner is never locked out by someone else's guessing. The terminals have the
+// same rule for terminal passwords (irc/auth.ts).
+const LOGIN_MAX_FAILURES = 10;
+const LOGIN_FAILURE_WINDOW_MS = 15 * 60_000;
+const loginFailures = new Map<string, { n: number; until: number }>();
+function tooManyFailures(userId: string, now: number): boolean {
+  const f = loginFailures.get(userId);
+  if (f && f.until < now) { loginFailures.delete(userId); return false; }
+  return Boolean(f && f.n >= LOGIN_MAX_FAILURES);
+}
+function loginFailed(userId: string, now: number): void {
+  const f = loginFailures.get(userId);
+  if (!f || f.until < now) loginFailures.set(userId, { n: 1, until: now + LOGIN_FAILURE_WINDOW_MS });
+  else f.n++;
+  if (loginFailures.size > 100_000) for (const [k, v] of loginFailures) if (v.until < now) loginFailures.delete(k);
+}
+
 export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin: 'web' | 'bbs' = 'web'): Promise<{ id: string; handle: string }> {
   const { mode } = deps.config.signup;
   if (mode === 'application' && !input.application) throw new ApiError(400, 'application_required', 'Tell the admins a little about why you want to join.');
@@ -227,7 +246,11 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   const u = found.rows[0];
 
   if (!u) { await burnPasswordCheck(input.password); throw bad; }
-  if (!(await verifyPassword(u.password_hash, input.password))) throw bad;
+  if (tooManyFailures(u.id, deps.now())) {
+    throw new ApiError(429, 'too_many_attempts', 'Too many wrong passwords for this account. Wait 15 minutes, or reset your password, or sign in with a passkey.');
+  }
+  if (!(await verifyPassword(u.password_hash, input.password))) { loginFailed(u.id, deps.now()); throw bad; }
+  loginFailures.delete(u.id);
   if (u.status === 'deleted') throw bad;
   if (u.status === 'suspended') {
     // The end date is given in UTC so it reads the same in every client, the BBS included.
@@ -583,8 +606,9 @@ export async function resetPassword(deps: AppDeps, token: string, password: stri
     // Whoever had the old password, or a stolen session, is signed out.
     await revokeAllSessions(q, row.user_id, 'password_reset');
     await audit(q, { actorId: row.user_id, actorKind: 'user', action: 'user.password_reset', targetType: 'user', targetId: row.user_id, origin: 'web', ipHash: ctx.ipHash });
-    return account;
+    return { ...account, id: row.user_id };
   });
+  loginFailures.delete(user.id); // a new password starts with a clean slate
   const t = makeT(toPublicSite(deps.config));
   void deps.mailer.send({ to: user.email, subject: t('email.passwordChanged.subject'), text: t('email.passwordChanged.body', { handle: user.handle }) }).catch(onError);
 }

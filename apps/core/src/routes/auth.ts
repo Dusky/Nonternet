@@ -4,6 +4,7 @@ import { z } from 'zod';
 import * as accounts from '../accounts';
 import * as passkeys from '../passkeys';
 import { signupChallenge } from '../signup-guard';
+import { ipKey } from '../crypto';
 import { COOKIE, ctxOf, requireUser, setSessionCookie } from '../http';
 import type { AppDeps } from '../deps';
 
@@ -28,7 +29,7 @@ export function authRoutes(app: FastifyInstance, deps: AppDeps): void {
       rateLimit: {
         max: 8, timeWindow: '1 minute', hook: 'preHandler',
         // Per address and account together, so one account can't be hammered from one place.
-        keyGenerator: (req: { ip: string; body?: unknown }) => `${req.ip}:${String((req.body as { identifier?: string } | undefined)?.identifier ?? '').toLowerCase()}`,
+        keyGenerator: (req: { ip: string; body?: unknown }) => `${ipKey(req.ip)}:${String((req.body as { identifier?: string } | undefined)?.identifier ?? '').toLowerCase()}`,
       },
     },
   }, async (req, reply) => {
@@ -71,7 +72,7 @@ export function authRoutes(app: FastifyInstance, deps: AppDeps): void {
     config: {
       rateLimit: {
         max: 3, timeWindow: '1 hour', hook: 'preHandler',
-        keyGenerator: (req: { ip: string; body?: unknown }) => `${req.ip}:${String((req.body as { email?: string } | undefined)?.email ?? '').toLowerCase()}`,
+        keyGenerator: (req: { ip: string; body?: unknown }) => `${ipKey(req.ip)}:${String((req.body as { email?: string } | undefined)?.email ?? '').toLowerCase()}`,
       },
     },
   }, async (req, reply) => {

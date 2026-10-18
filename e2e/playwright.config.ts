@@ -14,7 +14,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   globalSetup: './support/global-setup.ts',
-  use: { launchOptions: { args: ['--host-resolver-rules=MAP *.e2e-homes.test 127.0.0.1, MAP e2e-homes.test 127.0.0.1, MAP *.e2e-custom.test 127.0.0.1'] }, baseURL: `http://127.0.0.1:${port}`, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
+  // WebGL is off in the test browser so the Terminal draws with its built-in renderer, whose text the tests can read;
+  // tests/terminal-webgl.spec.ts turns it back on to check the WebGL renderer takes over.
+  use: { launchOptions: { args: ['--host-resolver-rules=MAP *.e2e-homes.test 127.0.0.1, MAP e2e-homes.test 127.0.0.1, MAP *.e2e-custom.test 127.0.0.1', '--disable-webgl', '--disable-webgl2'] }, baseURL: `http://127.0.0.1:${port}`, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     { name: 'phone', use: { ...devices['Pixel 5'] } },

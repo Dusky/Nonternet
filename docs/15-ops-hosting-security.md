@@ -112,7 +112,11 @@ Pinned versions of Ergo and the MUD engine; integration suite must pass before b
 ## Security checklist
 - Homepages on a separate origin; shell cookies host-only, Secure, HttpOnly, SameSite=Lax.
 - Strict CSP on the shell; CSRF protection on state-changing requests.
-- Rate limits: login, signup, posts, guestbook, ring joins, tickets, exports, custom domains.
+- Rate limits: login, signup, posts, guestbook, ring joins, tickets, exports, custom domains. IPv6 addresses count per
+  /64, in the limiter and in every stored IP hash, since one host usually holds a whole /64 (2026-10-18). Website
+  password logins are also limited per account: 10 wrong passwords in 15 minutes and that account refuses password
+  logins until the window passes, from any address. A passkey or a password reset still gets the owner in, so nobody can
+  lock someone else out for good. (The terminals already had the same rule for terminal passwords.)
 - `RATE_LIMIT=off` turns off login and signup rate limits for the end-to-end suite. Core exits at start-up if it is set with `NODE_ENV=production`.
 - Telnet is cleartext → separate terminal password; SSH encouraged; telnet can be disabled.
 - Internal APIs and service hooks only on the private network with shared secrets.

@@ -59,6 +59,11 @@ with `before=<last_seq>`, threads with `after=<seq>`, search with `offset`. Even
 `POST /boards/:slug/posts {subject, body, reply_to?}` · `POST /boards/:slug/posts/preview`
 `DELETE /posts/:id` · `PUT /boards/:slug/read-pointer` · `GET /search?q=&board=`
 
+Search is forgiving (2026-10-18): besides full-text matches on the text, a query of three or more letters also finds
+thread subjects, wiki page titles, memos and bookmark titles and addresses that contain it, differ by a letter, or differ
+only in accents ("postg", "cafe", "lumire"). Postgres `pg_trgm` and `unaccent` (migration 0063), with one folding
+function, `f_search()`, and a closeness cut-off of 0.5.
+
 ## Rings
 `GET /rings?tag=&sort=` · `POST /rings` (trusted+) · `GET/PATCH /rings/:slug`
 `POST /rings/:slug/join` · `POST /rings/:slug/leave`

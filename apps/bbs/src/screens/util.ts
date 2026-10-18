@@ -1,26 +1,41 @@
-// Small text helpers for fixed-width screens. Widths count characters, not bytes.
+import stringWidth from 'string-width';
+
+// Small text helpers for fixed-width screens. Widths are the columns a terminal draws: most characters take one,
+// Chinese, Japanese, Korean and most emoji take two (as xterm with Unicode 11 and SyncTERM draw them), and a character
+// built from several code points (a flag, a family emoji) is measured as one.
 // Colour codes take no room on screen, so they are skipped when measuring and never cut in half: a code cut short
 // swallows the characters after it.
 const ANSI = /\x1b\[[0-9;]*[A-Za-z]/y;
-const visible = (s: string): { text: string; ansi: boolean }[] => {
-  const out: { text: string; ansi: boolean }[] = [];
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+const visible = (s: string): { text: string; cols: number }[] => {
+  const out: { text: string; cols: number }[] = [];
+  let run = '';
+  const flush = () => { for (const g of graphemes.segment(run)) out.push({ text: g.segment, cols: stringWidth(g.segment) }); run = ''; };
   for (let i = 0; i < s.length;) {
     ANSI.lastIndex = i;
     const m = ANSI.exec(s);
-    if (m) { out.push({ text: m[0], ansi: true }); i += m[0].length; continue; }
-    const ch = String.fromCodePoint(s.codePointAt(i)!);
-    out.push({ text: ch, ansi: false });
-    i += ch.length;
+    if (m) { flush(); out.push({ text: m[0], cols: 0 }); i += m[0].length; continue; }
+    run += s[i];
+    i += 1;
   }
+  flush();
   return out;
 };
-// The first `w` visible characters, keeping every colour code (so a colour that was turned on is turned off again).
+// As much as fits in `w` columns, keeping every colour code (so a colour that was turned on is turned off again).
+// A wide character that would only half fit is left out, so the line never spills over.
 const take = (s: string, w: number) => {
   let n = 0;
-  return visible(s).filter((p) => p.ansi || n++ < w).map((p) => p.text).join('');
+  return visible(s).filter((p) => { if (p.cols === 0 && p.text.startsWith('\x1b')) return true; if (n + p.cols > w) { n = w + 1; return false; } n += p.cols; return true; }).map((p) => p.text).join('');
 };
-export const width = (s: string) => visible(s).filter((p) => !p.ansi).length;
-export const pad = (s: string, w: number) => { const n = width(s); return n >= w ? take(s, w) : s + ' '.repeat(w - n); };
+// Splits plain text (no colour codes) at `w` columns, never inside a character.
+const splitAt = (s: string, w: number): [string, string] => {
+  let n = 0;
+  let i = 0;
+  for (const g of graphemes.segment(s)) { const c = stringWidth(g.segment); if (n + c > w) break; n += c; i = g.index + g.segment.length; }
+  return [s.slice(0, i), s.slice(i)];
+};
+export const width = (s: string) => visible(s).reduce((n, p) => n + p.cols, 0);
+export const pad = (s: string, w: number) => { const t = width(s) > w ? take(s, w) : s; return t + ' '.repeat(Math.max(0, w - width(t))); };
 export const cut = (s: string, w: number) => (width(s) <= w ? s : `${take(s, Math.max(0, w - 1))}…`);
 export const when = (iso: string) => `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
 export const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
@@ -40,8 +55,11 @@ export function wrap(text: string, w: number): string[] {
       while (width(word) > w) {
         const room = w - width(line);
         if (room <= 0) { out.push(line.trimEnd()); line = ''; continue; }
-        out.push(line + [...word].slice(0, room).join(''));
-        word = [...word].slice(room).join('');
+        const [head, rest] = splitAt(word, room);
+        // A wide character never fits a one-column gap: start it on the next line.
+        if (!head) { out.push(line.trimEnd()); line = ''; if (room === w) { out.push(rest.slice(0, 1)); word = rest.slice(1); } continue; }
+        out.push(line + head);
+        word = rest;
         line = '';
       }
       if (width(line) + width(word) > w) { out.push(line.trimEnd()); line = word; }

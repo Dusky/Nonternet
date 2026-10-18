@@ -412,3 +412,19 @@ one process, this moves to the job queue.
   and a dropped link landing where it is dropped.
 - **Research pass** (asked): an app-wide look for open-source libraries, plugins or middleware that could replace or improve
   hand-rolled code, the terminal included; reported for the owner to pick from, nothing adopted without a pick.
+
+## 2026-10-18 (later still): four research picks adopted (owner's pick)
+- **Terminal WebGL renderer** (`@xterm/addon-webgl` 0.19.0, MIT): loaded with the Terminal only, built-in renderer as the
+  fallback. The test browser runs with WebGL off so the suite can read the screen's text; one test turns it on.
+- **Login limits a changing address can't escape:** IPv6 counts per /64 in the login and password-reset limiters
+  (the rate-limit plugin's own `normalizeIP`) and in every stored IP hash; a per-account limit on wrong website
+  passwords (10 in 15 minutes). In memory, like the terminals' one, so a restart clears it; a passkey or a reset
+  always gets the owner in.
+- **Forgiving search:** `pg_trgm` + `unaccent` (bundled with Postgres, trusted extensions). Applied to thread subjects,
+  wiki titles, memos and bookmark titles and addresses, beside full-text search. No trigram indexes yet: every search is
+  already scoped (one person's things, one wiki, readable boards) on a small site; `f_search()` is immutable so they can
+  be added if a site grows. Swapped letters in short words often fall under the 0.5 cut-off; missing, extra or changed
+  letters are found.
+- **Wide characters in the BBS** (`string-width` 8.3.0, MIT, with `Intl.Segmenter` for whole characters): all
+  measuring in `screens/util.ts` and art clipping use terminal columns. `slice-ansi` was not needed.
+

@@ -1,4 +1,5 @@
 import { MEMOS_PER_PERSON, REACTIONS, extractTags, type MemoPage, type MemoView, type MemoVisibility, type ProfileMemo, type ReactionName } from '@app/shared';
+import { fuzzy, isFuzzy } from './search';
 import type { z } from 'zod';
 import type { memoCreateSchema, memoListQuerySchema, memoUpdateSchema } from '@app/shared';
 import type { Ctx, SessionUser } from './accounts';
@@ -141,7 +142,11 @@ export async function listMemos(deps: AppDeps, v: SessionUser, query: z.infer<ty
   const params: unknown[] = [v.userId];
   const add = (sql: string, val: unknown) => { params.push(val); where.push(sql.replace('?', `$${params.length}`)); };
   if (query.tag) add('EXISTS (SELECT 1 FROM memo_tags t WHERE t.memo_id = m.id AND t.tag = ?)', query.tag);
-  if (query.q) add(`m.body_tsv @@ websearch_to_tsquery('simple', ?)`, query.q);
+  if (query.q) {
+    params.push(query.q);
+    const p = `$${params.length}`;
+    where.push(isFuzzy(query.q) ? `(m.body_tsv @@ websearch_to_tsquery('simple', ${p}) OR ${fuzzy('m.body', p)})` : `m.body_tsv @@ websearch_to_tsquery('simple', ${p})`);
+  }
   const total = Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM memos m WHERE ${where.join(' AND ')}`, params)).rows[0]!.n);
   const firstPage = !query.before;
   let pinned: Row[] = [];

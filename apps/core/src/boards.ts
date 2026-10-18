@@ -1,4 +1,5 @@
 import { MAX_PINNED_THREADS, NOTIFICATION_KINDS, POST_EDIT_WINDOW_MINUTES, REACTIONS, type BoardSummary, type NotificationKind, type BoardVisibility, type PostEdit, type PostRevisionView, type PostView, type ReactionName, type ThreadFilter, type ThreadSort, type ThreadSummary } from '@app/shared';
+import { closeness, fuzzy, isFuzzy } from './search';
 import { audit } from './audit';
 import { attachImages, removeFiles } from './images';
 import { newId } from './crypto';
@@ -735,9 +736,9 @@ export async function search(deps: AppDeps, v: Viewer, q: string, opts: { board?
          'StartSel=\u0002, StopSel=\u0003, MaxWords=30, MinWords=12, MaxFragments=1') AS snippet
      FROM posts p JOIN boards b ON b.id = p.board_id LEFT JOIN users u ON u.id = p.author_id
        LEFT JOIN mud_characters fc ON fc.id = u.featured_character_id AND fc.user_id = u.id
-     WHERE p.body_tsv @@ websearch_to_tsquery('english', $${n}) AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND ${acc.sql}
+     WHERE (p.body_tsv @@ websearch_to_tsquery('english', $${n})${isFuzzy(q) ? ` OR (p.thread_root_id IS NULL AND ${fuzzy('p.subject', `$${n}`)})` : ''}) AND p.deleted_at IS NULL AND p.hidden_at IS NULL AND ${acc.sql}
        AND ($${n + 1}::text IS NULL OR b.slug = $${n + 1})
-     ORDER BY ts_rank(p.body_tsv, websearch_to_tsquery('english', $${n})) DESC, p.seq DESC
+     ORDER BY ts_rank(p.body_tsv, websearch_to_tsquery('english', $${n})) DESC${isFuzzy(q) ? `, ${closeness('p.subject', `$${n}`)} DESC` : ''}, p.seq DESC
      OFFSET $${n + 2} LIMIT $${n + 3}`,
     [...acc.params, q, opts.board ?? null, offset, limit + 1]);
   const page = r.rows.slice(0, limit);

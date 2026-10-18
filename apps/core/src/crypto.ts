@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt } from 'node:crypto';
+import { normalizeIP } from '@fastify/rate-limit';
 import { ulid } from 'ulid';
 
 // Stable prefixed IDs (docs/13): u_ users, s_ sessions.
@@ -46,6 +47,10 @@ export function decryptSecret(key: Buffer, stored: string): string {
   return Buffer.concat([decipher.update(Buffer.from(body, 'base64')), decipher.final()]).toString('utf8');
 }
 
+// The part of an address that stands for one machine or home: the whole IPv4 address, or the /64 of an IPv6 one (a
+// single host is usually handed a whole /64, so counting full IPv6 addresses would let it start afresh at will).
+export const ipKey = (ip: string): string => normalizeIP(ip, 64);
+
 // IP addresses are only ever stored hashed (docs/15), keyed so the hash can't be reversed by
-// brute-forcing the small IPv4 space.
-export const hashIp = (key: Buffer, ip: string): string => createHash('sha256').update(key).update(ip).digest('hex');
+// brute-forcing the small IPv4 space. IPv6 is hashed per /64, so every count built on the hash works per host.
+export const hashIp = (key: Buffer, ip: string): string => createHash('sha256').update(key).update(ipKey(ip)).digest('hex');

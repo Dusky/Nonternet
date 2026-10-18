@@ -1,4 +1,5 @@
 import { WIKI_BODY_MAX, wikiLinks, wikiSlug, type WikiChange, type WikiInfo, type WikiPageSummary, type WikiPageView, type WikiRevisionView, type WikiSearchHit } from '@app/shared';
+import { closeness, fuzzy, isFuzzy } from './search';
 import type { Ctx, SessionUser } from './accounts';
 import { audit } from './audit';
 import type { Viewer } from './boards';
@@ -345,10 +346,12 @@ export async function linksHere(deps: AppDeps, v: Viewer, ref: string, slug: str
 export async function search(deps: AppDeps, v: Viewer, ref: string, q: string): Promise<WikiSearchHit[]> {
   const w = await loadWiki(deps.db, v, ref);
   if (!w.id) return [];
+  // Words in the text, or a title that loosely matches (part of a word, a typo, no accents: docs/14).
+  const loose = isFuzzy(q) ? `OR ${fuzzy('title', '$2')}` : '';
   const r = await deps.db.query<{ slug: string; title: string; snippet: string }>(
     `SELECT slug, title, ts_headline('simple', body, websearch_to_tsquery('simple', $2), 'StartSel=\u0002, StopSel=\u0003, MaxWords=30, MinWords=12, MaxFragments=1') AS snippet
-       FROM wiki_pages WHERE wiki_id = $1 AND deleted_at IS NULL AND hidden_at IS NULL AND body_tsv @@ websearch_to_tsquery('simple', $2)
-      ORDER BY ts_rank(body_tsv, websearch_to_tsquery('simple', $2)) DESC, title LIMIT 50`, [w.id, q]);
+       FROM wiki_pages WHERE wiki_id = $1 AND deleted_at IS NULL AND hidden_at IS NULL AND (body_tsv @@ websearch_to_tsquery('simple', $2) ${loose})
+      ORDER BY ts_rank(body_tsv, websearch_to_tsquery('simple', $2)) DESC${loose ? `, ${closeness('title', '$2')} DESC` : ''}, title LIMIT 50`, [w.id, q]);
   return r.rows;
 }
 

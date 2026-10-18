@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { fuzzy, isFuzzy } from './search';
 import {
   BOOKMARKS_MAX, BOOKMARK_DESCRIPTION_MAX, BOOKMARK_TITLE_MAX, bookmarkKey,
   type BookmarkPage, type BookmarkView, type BookmarkVisibility, type SharedBookmarkPage, type SharedBookmarkView,
@@ -276,7 +277,12 @@ export async function listBookmarks(deps: AppDeps, v: SessionUser, query: z.infe
   if (query.tags?.length) add('b.tags @> ?::text[]', query.tags);
   if (query.pinned !== undefined) add('b.pinned = ?', query.pinned);
   if (query.broken) where.push('b.link_ok = false');
-  if (query.q) add(`b.search @@ websearch_to_tsquery('simple', ?)`, query.q);
+  if (query.q) {
+    params.push(query.q);
+    const p = `$${params.length}`;
+    // The words, or a loose match on the title and address (part of a word, a typo, no accents: docs/14).
+    where.push(isFuzzy(query.q) ? `(b.search @@ websearch_to_tsquery('simple', ${p}) OR ${fuzzy(`coalesce(b.title, '') || ' ' || b.url`, p)})` : `b.search @@ websearch_to_tsquery('simple', ${p})`);
+  }
   const total = Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM bookmarks b WHERE ${where.join(' AND ')}`, params)).rows[0]!.n);
   // Each order is a tuple read in one direction, so the cursor is "after this tuple".
   const order = SORTS[query.sort];

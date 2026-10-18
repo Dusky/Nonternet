@@ -183,6 +183,19 @@ export default function TerminalApp() {
     x.loadAddon(new WebLinksAddon((_e, uri) => { if (/^https?:\/\//i.test(uri)) window.open(uri, '_blank', 'noopener,noreferrer'); }));
     x.open(host.current!);
     term.current = x;
+    // The WebGL renderer draws box and block characters as seamless shapes, so ANSI art has no gaps; it is fetched only
+    // here, and the built-in renderer stays if WebGL is missing or the GPU drops the context.
+    let webgl: { dispose(): void } | null = null;
+    void import('@xterm/addon-webgl').then(({ WebglAddon }) => {
+      if (term.current !== x) return;
+      try {
+        const addon = new WebglAddon();
+        addon.onContextLoss(() => { addon.dispose(); webgl = null; x.element?.removeAttribute('data-renderer'); });
+        x.loadAddon(addon);
+        webgl = addon;
+        x.element?.setAttribute('data-renderer', 'webgl');
+      } catch { /* no WebGL2: the built-in renderer stays */ }
+    }).catch(() => undefined);
     search.current = finder;
     // Fit to the box; tell the BBS only when the size really changed, and at most once a frame while a window is dragged.
     let sent = '';
@@ -228,7 +241,7 @@ export default function TerminalApp() {
     void connect();
     return () => {
       clearTimeout(retry.current); clearInterval(keepalive); ro.disconnect(); cancelAnimationFrame(frameId); document.fonts?.removeEventListener?.('loadingdone', onFonts); data.dispose(); sel.dispose(); bell.dispose(); titled.dispose();
-      const sock = ws.current; ws.current = null; sock?.close(); x.dispose(); term.current = null; refit.current = null;
+      const sock = ws.current; ws.current = null; sock?.close(); webgl?.dispose(); x.dispose(); term.current = null; refit.current = null;
     };
   }, [connect, send, type, copy, paste]);
 
