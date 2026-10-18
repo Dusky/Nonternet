@@ -83,7 +83,8 @@ search. Built in, its pages live in core's Postgres like posts, and get:
 - **Web:** the Wiki app (`10`).
   - The site wiki is at `/wiki/…`, a ring's at `/wiki/r/{ring}/…`.
   - Screens: page, edit (live preview, a tab on phones, drafts kept on the device), history, compare (line diff,
-    marked by text as well as colour), recent changes, all pages, wanted pages, what links here and search.
+    marked by text as well as colour; changed lines with three lines around them, longer unchanged stretches folded
+    into one row with "Show the whole page", and the changed words within a changed line marked, 2026-10-18), recent changes, all pages, wanted pages, what links here and search.
   - Ring pages get a "Wiki" link, and ops get the switch.
 - **BBS** (`04`), read only: main menu key `K` (in the art pack).
   - A page is wrapped to the screen, with each wiki link shown as `text[n]` and listed at the foot. Type the number to

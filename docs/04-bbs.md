@@ -34,7 +34,9 @@ updates live sessions within 5 s.
   cursor and device queries. Classic clients and xterm.js both need this.
 - **Encoding.** UTF-8 by default. A CP437 mode for classic clients (detected from terminal
   type) transcodes at the edge. Characters that can't be shown become `?`, and the web
-  composer warns about them in its preview (`05`).
+  composer warns about them in its preview (`05`). The PC symbols in CP437's control range (☺ ♥ ♪ ► ↑ ⌂ and the rest) are
+  read and written as symbols, not control codes, for door games and art (`cp437.ts`, 2026-10-18); bell, backspace, tab,
+  line feed, form feed, carriage return and escape stay codes.
 - **Screens.** ANSI art from a replaceable art pack, templated with `site.name` (see the
   placeholder rule in `CLAUDE.md`). Menus are declarative config, not code.
 - **Editor.** A simple line editor first; a full-screen editor later.

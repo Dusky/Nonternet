@@ -30,6 +30,7 @@ describe('reading a page for a bookmark', () => {
     expect(p.icons).toEqual(['https://example.com/favicon.ico']);
     expect(plainText('&#0; &#xD800; &bogus; ok', 50)).toBe('&bogus; ok');
     expect(plainText('x'.repeat(500), 10)).toHaveLength(10);
+    expect(plainText('Caf&eacute; &laquo;Lumi&egrave;re&raquo; &frac12; price &euro;5 &amp more', 100)).toBe('Café «Lumière» ½ price €5 & more');
   });
   it('spots the same address without its fragment or tracking parameters', () => {
     expect(bookmarkKey('https://Example.com/a?utm_source=x&id=3&fbclid=9#top')).toBe('https://example.com/a?id=3');

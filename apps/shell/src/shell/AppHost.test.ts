@@ -78,4 +78,15 @@ describe('the app bridge', () => {
     await b.uiSetTitle('  2 left ');
     expect(d.setTitle).toHaveBeenCalledWith('2 left');
   });
+
+  it('in an admin\'s preview, what the app keeps stays in the page and never reaches the server', async () => {
+    stubFetch({});
+    const b = bridgeFor(app(['storage']), { ...deps(), scratch: true });
+    await b.storagePut('items', 'a', { text: 'Sow peas' });
+    expect(await b.storageList('items')).toEqual([expect.objectContaining({ id: 'a', data: { text: 'Sow peas' } })]);
+    await b.storageDelete('items', 'a');
+    expect(await b.storageList('items')).toEqual([]);
+    expect(calls).toHaveLength(0);
+  });
 });
+

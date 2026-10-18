@@ -1,4 +1,5 @@
 import { StringDecoder } from 'node:string_decoder';
+import { encodeCp437 } from './cp437';
 import iconv from 'iconv-lite';
 
 // One caller's terminal, whatever it came in over (telnet, SSH, the web). It turns bytes into keys and
@@ -56,7 +57,7 @@ export class Term {
   private echo(text: string): void { if (!this.closed) this.send(text); }
   private send(text: string): void {
     const s = text.replace(/\r?\n/g, '\r\n');
-    this.t.write(this.encoding === 'cp437' ? iconv.encode(s.replace(/[\u{10000}-\u{10FFFF}]/gu, '?'), 'cp437') : Buffer.from(s, 'utf8'));
+    this.t.write(this.encoding === 'cp437' ? encodeCp437(s.replace(/[\u{10000}-\u{10FFFF}]/gu, '?')) : Buffer.from(s, 'utf8'));
   }
   line(text = ''): void { this.write(`${text}\n`); }
   clear(): void { this.write('\x1b[2J\x1b[H'); }

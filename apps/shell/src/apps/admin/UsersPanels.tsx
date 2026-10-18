@@ -146,7 +146,7 @@ export function UserPage({ myId, id }: { myId: string; id: string }) {
         <li>{invite ? t('admin.user.invitedBy', { name: invite.created_by ?? '?', code: invite.code }) : t('admin.user.noInvite')}</li>
       </ul>
       {own && <Alert kind="info">{t('admin.user.ownAccount')}</Alert>}
-      {user.status === 'suspended' && <Alert kind="info">{user.suspended_until ? t('admin.user.suspendedUntil', { when: new Date(user.suspended_until).toLocaleString() }) : t('admin.user.suspendedNote')}</Alert>}
+      {user.status === 'suspended' && <Alert kind="info">{user.suspended_until ? t('admin.user.suspendedUntil', { when: formatWhen(user.suspended_until) ?? '' }) : t('admin.user.suspendedNote')}</Alert>}
 
       <RoleForm userId={id} current={user.role} disabled={own} onDone={refresh} />
       <RenameForm userId={id} current={user.handle} onDone={refresh} />

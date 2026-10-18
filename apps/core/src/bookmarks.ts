@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { decodeHTML } from 'entities';
 import { fuzzy, isFuzzy } from './search';
 import {
   BOOKMARKS_MAX, BOOKMARK_DESCRIPTION_MAX, BOOKMARK_TITLE_MAX, bookmarkKey,
@@ -65,20 +66,12 @@ const notFound = () => new ApiError(404, 'not_found', 'There is no such bookmark
 
 // ---------------------------------------------------------------- reading the page
 
-// Plain text only: entities decoded, tags and control characters gone, spaces squeezed.
-const NAMED: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', mdash: '—', ndash: '–', hellip: '…', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“', middot: '·', copy: '©', reg: '®', trade: '™' };
+// Plain text only: entities decoded (every HTML named and numeric entity, by the `entities` library, the way a browser
+// reads them), tags, control characters and broken characters gone, spaces squeezed.
 export function plainText(s: string, max: number): string {
-  const decoded = s
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
-      if (e[0] === '#') {
-        const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-        return n > 0 && n < 0x110000 && !(n >= 0xd800 && n < 0xe000) ? String.fromCodePoint(n) : ' ';
-      }
-      return NAMED[e.toLowerCase()] ?? m;
-    });
+  const decoded = decodeHTML(s.replace(/<[^>]*>/g, ' '));
   // eslint-disable-next-line no-control-regex
-  const clean = decoded.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, ' ').replace(/\s+/g, ' ').trim();
+  const clean = decoded.replace(/[\ufffd\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, ' ').replace(/\s+/g, ' ').trim();
   return [...clean].slice(0, max).join('');
 }
 

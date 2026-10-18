@@ -433,3 +433,13 @@ one process, this moves to the job queue.
 - **Reliable email** (mail through the graphile-worker queue, with retries): later. The 2026-10-05 rule stays (only push
   uses the queue) until then. OPEN, deferred.
 
+## 2026-10-18 (night): more research picks, and a look at the day's new screens (owner: "do it")
+- Adopted: Studio language modes (`@codemirror/lang-json` 6.0.2, `lang-markdown` 6.5.2, `lang-xml` 6.1.0, MIT); every
+  HTML entity decoded in bookmark titles (`entities` 8.1.0, BSD-2-Clause; broken characters dropped); the wiki compare
+  view with context, folding and word marks (`diff`, already used); CP437 control-range symbols (a small table, no library).
+- The round-2 items offered again (Rings Manage tabs, Status hub, Terminal on phones, file area editing, Add apps sizing)
+  were already built; none needed doing.
+- Fixed from looking at the new screens: the app review card had no padding; "Try it here" now gives the app a
+  throwaway store in the page and a stand-in profile (it showed "couldn't reach your list" before, with nothing
+  allowed); the report form in Add apps spans the card; the suspension end date drops the seconds.
+

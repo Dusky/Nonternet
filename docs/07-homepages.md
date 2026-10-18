@@ -130,3 +130,9 @@ published, never exported (the saved file is), and the same headers apply as for
   first); the preview loads that page under the draft's token, so the draft stylesheet is used in place of the saved one.
 - **Undo for delete:** deleting a file goes at once with Undo for a few seconds (the delete is sent when the note goes).
   Deleting a whole folder still asks first, since it can't come back.
+
+## Studio language modes (2026-10-18)
+JSON files are checked as you type (`@codemirror/lang-json`, with its parse linter); Markdown has its own mode
+(`lang-markdown`); SVG and XML use the XML mode (`lang-xml`) instead of the HTML one, whose rules about void elements and
+alt text are wrong for them. HTML keeps its completions, Emmet and lint. All MIT, loaded only with the editor.
+

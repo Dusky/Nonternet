@@ -1,7 +1,7 @@
 import { FeedLink } from '../../components/FeedLink';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { diffLines } from 'diff';
+import { compareRows } from './diffView';
 import { REPORT_CATEGORIES, WIKI_SUMMARY_MAX, WIKI_TITLE_MAX, wikiSlug, type WikiChange, type WikiInfo, type WikiPageSummary, type WikiPageView, type WikiRevisionView, type WikiSearchHit } from '@app/shared';
 import { api, ApiError } from '../../api';
 import { clearDraft, loadDraft } from '../../drafts';
@@ -408,16 +408,18 @@ function RevisionScreen({ info, base, slug, revision }: Props & { slug: string; 
   );
 }
 
-// Two revisions, line by line. Added and removed lines are marked with words and a sign as well as colour.
+// Two revisions, line by line: changed lines with three lines around them (long unchanged stretches folded, with a way to
+// see everything), and within a changed line the words that changed. Added and removed lines are marked with words and
+// a sign as well as colour.
 function Compare({ info, base, slug, from, to }: Props & { slug: string; from: number; to: number }) {
   const t = useT();
   const a = useRevision(info.ref, slug, from);
   const b = useRevision(info.ref, slug, to);
   const ready = a.data && b.data;
   const hidden = ready && (a.data!.body === null || b.data!.body === null);
-  const parts = ready && !hidden ? diffLines(a.data!.body!, b.data!.body!) : [];
-  const added = parts.filter((p) => p.added).reduce((n, p) => n + (p.count ?? 0), 0);
-  const removed = parts.filter((p) => p.removed).reduce((n, p) => n + (p.count ?? 0), 0);
+  const [all, setAll] = useState(false);
+  const { rows, added, removed } = ready && !hidden ? compareRows(a.data!.body!, b.data!.body!, all ? Number.MAX_SAFE_INTEGER : 3) : { rows: [], added: 0, removed: 0 };
+  const folded = rows.some((r) => r.kind === 'gap');
   return (
     <section aria-labelledby="wiki-cmp-h">
       <BackLink to={`${base}p/${slug}/history`}>{t('wiki.backToHistory')}</BackLink>
@@ -429,14 +431,19 @@ function Compare({ info, base, slug, from, to }: Props & { slug: string; from: n
         <>
           <p className="row-meta">{t('wiki.diffCount', { added, removed })}{b.data!.summary ? ` · ${b.data!.summary}` : ''}</p>
           {a.data!.title !== b.data!.title && <p>{t('wiki.titleChanged', { a: a.data!.title, b: b.data!.title })}</p>}
+          {(folded || all) && (added > 0 || removed > 0) && (
+            <button type="button" className="btn btn-small" aria-pressed={all} onClick={() => setAll((v) => !v)}>{all ? t('wiki.diffChangesOnly') : t('wiki.diffShowAll')}</button>
+          )}
           <ol className="wiki-diff" aria-label={t('wiki.changesList')}>
-            {parts.flatMap((p, i) => p.value.replace(/\n$/, '').split('\n').map((line, j) => (
-              <li key={`${i}-${j}`} className={p.added ? 'is-added' : p.removed ? 'is-removed' : 'is-same'}>
-                <span className="wiki-diff-sign" aria-hidden="true">{p.added ? '+' : p.removed ? '−' : ' '}</span>
-                {(p.added || p.removed) && <span className="visually-hidden">{p.added ? t('wiki.added') : t('wiki.removed')}: </span>}
-                <span>{line || ' '}</span>
+            {rows.map((r, i) => r.kind === 'gap' ? (
+              <li key={i} className="is-gap">{t('wiki.diffUnchanged', { count: r.lines })}</li>
+            ) : (
+              <li key={i} className={r.kind === 'added' ? 'is-added' : r.kind === 'removed' ? 'is-removed' : 'is-same'}>
+                <span className="wiki-diff-sign" aria-hidden="true">{r.kind === 'added' ? '+' : r.kind === 'removed' ? '−' : ' '}</span>
+                {r.kind !== 'same' && <span className="visually-hidden">{r.kind === 'added' ? t('wiki.added') : t('wiki.removed')}: </span>}
+                <span>{r.kind === 'same' || r.pieces.length === 1 ? (r.text || ' ') : r.pieces.map((p, k) => (p.changed ? (r.kind === 'added' ? <ins key={k}>{p.text}</ins> : <del key={k}>{p.text}</del>) : <span key={k}>{p.text}</span>))}</span>
               </li>
-            )))}
+            ))}
           </ol>
           {added === 0 && removed === 0 && <p>{t('wiki.noTextChange')}</p>}
         </>

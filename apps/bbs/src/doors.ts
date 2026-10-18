@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
+import { decodeCp437, encodeCp437 } from './cp437';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import iconv from 'iconv-lite';
 import type { SiteConfig } from '@app/shared';
 import type { Session } from './session';
 
@@ -63,15 +63,15 @@ export function runDoor(s: Session, door: Door, wrapper: string[]): Promise<'exi
     const timer = setTimeout(() => { outcome = 'time'; kill(); }, door.time_limit_minutes * 60_000);
     // What the door writes, in the caller's character set.
     const toCaller = (b: Buffer) => {
-      if (door.encoding === 'cp437' && t.encoding === 'utf8') t.writeRaw(Buffer.from(iconv.decode(b, 'cp437'), 'utf8'));
-      else if (door.encoding === 'utf8' && t.encoding === 'cp437') t.writeRaw(iconv.encode(b.toString('utf8'), 'cp437'));
+      if (door.encoding === 'cp437' && t.encoding === 'utf8') t.writeRaw(Buffer.from(decodeCp437(b), 'utf8'));
+      else if (door.encoding === 'utf8' && t.encoding === 'cp437') t.writeRaw(encodeCp437(b.toString('utf8')));
       else t.writeRaw(b);
     };
     child.stdout.on('data', toCaller);
     child.stderr.on('data', () => undefined);
     child.stdin.on('error', () => undefined);
     t.passthrough((b) => {
-      if (door.encoding === 'cp437' && t.encoding === 'utf8') child.stdin.write(iconv.encode(b.toString('utf8'), 'cp437'));
+      if (door.encoding === 'cp437' && t.encoding === 'utf8') child.stdin.write(encodeCp437(b.toString('utf8')));
       else child.stdin.write(b);
     });
     const onGone = setInterval(() => { if (t.closed) { outcome = 'gone'; kill(); } }, 500);

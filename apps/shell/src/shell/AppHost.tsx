@@ -41,6 +41,8 @@ export function bridgeFor(app: CatalogApp, deps: {
   toast: (text: string, o: { undo?: boolean; error?: boolean }) => Promise<boolean>;
   refused: string;
   notAllowed?: string;
+  // An admin's preview of an app under review: what it keeps lives in this page only and is gone when it closes.
+  scratch?: boolean;
 }) {
   // Only what the app asked for AND the person allowed (when adding it, or later in Settings).
   const need = (p: AppPermission) => {
@@ -52,17 +54,27 @@ export function bridgeFor(app: CatalogApp, deps: {
     try { return await fn(...a); } catch (e) { throw new Error(plain(e)); }
   };
   const str = (v: unknown, max: number) => { if (typeof v !== 'string' || v.length > max) throw new Refused(deps.refused); return v; };
+  const scratch = new Map<string, Map<string, { id: string; data: unknown; updated_at: string }>>();
+  const shelf = (c: string) => { let m = scratch.get(c); if (!m) { m = new Map(); scratch.set(c, m); } return m; };
   return {
     storageList: wrap(async (collection: unknown) => {
       need('storage');
+      if (deps.scratch) return [...shelf(str(collection, 32)).values()];
       return (await api.get<{ docs: unknown[] }>(`${base}/${encodeURIComponent(str(collection, 32))}`)).docs;
     }),
     storagePut: wrap(async (collection: unknown, id: unknown, data: unknown) => {
       need('storage');
+      if (deps.scratch) {
+        const doc = { id: str(id, 64), data: structuredClone(data), updated_at: new Date().toISOString() };
+        if (JSON.stringify(data ?? null).length > 64 * 1024) throw new Refused(deps.refused);
+        shelf(str(collection, 32)).set(doc.id, doc);
+        return doc;
+      }
       return (await api.put<{ doc: unknown }>(`${base}/${encodeURIComponent(str(collection, 32))}/${encodeURIComponent(str(id, 64))}`, { data })).doc;
     }),
     storageDelete: wrap(async (collection: unknown, id: unknown) => {
       need('storage');
+      if (deps.scratch) { shelf(str(collection, 32)).delete(str(id, 64)); return; }
       await api.del(`${base}/${encodeURIComponent(str(collection, 32))}/${encodeURIComponent(str(id, 64))}`);
     }),
     profileGet: wrap(async () => {
@@ -93,12 +105,13 @@ function appToast(text: string, o: { undo?: boolean; error?: boolean }, undoLabe
 }
 
 // `widget` runs the app's small home-panel page instead of the app itself (docs/10): same sandbox, same bridge, no window title.
-// `preview` runs an app nobody has added, for an admin reviewing it: the same sandbox, and nothing allowed, so it keeps nothing.
+// `preview` runs an app nobody has added, for an admin reviewing it: the same sandbox, everything it asks for allowed, but
+// what it keeps stays in this page (gone when the preview closes) and it sees a stand-in profile, not the admin's.
 export default function AppHost({ appId, widget = false, preview }: { appId: string; widget?: boolean; preview?: CatalogApp }) {
   const t = useT();
   const me = useMe().data;
   const installed = useInstalled((s) => s.apps.find((a) => a.id === appId));
-  const app = preview ? { ...preview, granted: [] } : installed;
+  const app = preview ? { ...preview, granted: preview.permissions } : installed;
   const titled = !widget && !preview;
   const setSubtitle = useWindows((s) => s.setSubtitle);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -114,7 +127,9 @@ export default function AppHost({ appId, widget = false, preview }: { appId: str
     if (!app || !win) return;
     const key = appKey(app.id);
     const methods = bridgeFor(app, {
-      me: () => (meRef.current ? { id: meRef.current.id, handle: meRef.current.handle, display_name: meRef.current.display_name ?? null } : null),
+      me: () => (preview ? { id: 'u_preview', handle: 'preview', display_name: t('apps.previewPerson') }
+        : meRef.current ? { id: meRef.current.id, handle: meRef.current.handle, display_name: meRef.current.display_name ?? null } : null),
+      scratch: !!preview,
       setTitle: (title) => { if (titled) setSubtitle(key, title); },
       setHeight,
       toast: (text, o) => appToast(text, o, t('common.undo')),

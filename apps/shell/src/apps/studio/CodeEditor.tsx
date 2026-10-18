@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { json, jsonParseLinter } from '@codemirror/lang-json';
+import { markdown } from '@codemirror/lang-markdown';
+import { xml } from '@codemirror/lang-xml';
 import { currentMode } from '../../theme';
 import { basicSetup, EditorView } from 'codemirror';
 import { EditorState, type Extension } from '@codemirror/state';
@@ -8,7 +11,7 @@ import { tags as t } from '@lezer/highlight';
 import { css } from '@codemirror/lang-css';
 import { html } from '@codemirror/lang-html';
 import { javascript } from '@codemirror/lang-javascript';
-import { lintGutter } from '@codemirror/lint';
+import { linter, lintGutter } from '@codemirror/lint';
 import { abbreviationTracker, emmetCompletionSource } from '@emmetio/codemirror6-plugin';
 import { htmlLinter, widgetCompletions } from './editorExtras';
 
@@ -61,7 +64,12 @@ const language = (path: string, widgets?: Widgets): Extension => {
   const ext = path.split('.').pop()?.toLowerCase();
   if (ext === 'css') { const c = css(); return [c, emmet(), c.language.data.of({ autocomplete: emmetCompletionSource })]; }
   if (ext === 'js' || ext === 'mjs') return javascript();
-  if (['html', 'htm', 'svg', 'xml'].includes(ext ?? '')) {
+  // JSON is checked as you type; Markdown gets its own mode; SVG and XML get the XML mode (not the HTML one, whose rules
+  // about void elements and alt text are wrong for them).
+  if (ext === 'json') return [json(), linter(jsonParseLinter()), lintGutter()];
+  if (ext === 'md') return markdown();
+  if (ext === 'svg' || ext === 'xml') return xml();
+  if (ext === 'html' || ext === 'htm') {
     const h = html();
     return [
       h, emmet(), h.language.data.of({ autocomplete: emmetCompletionSource }),
