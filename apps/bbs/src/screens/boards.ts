@@ -21,13 +21,15 @@ export async function boards(s: Session): Promise<void> {
     t.line(heading('Boards', t.cols));
     const cols: Column[] = [{ label: '#', width: 4, main: true }, { label: 'Board', width: 34, main: true }, { label: 'Unread', width: 8, narrowLabel: 'unread' }, { label: 'Threads', width: 8, narrowLabel: 'threads' }];
     t.line(tableHead(t.cols, cols));
-    list.forEach((b, i) => tableRow(t.cols, cols, [String(i + 1), b.name + (b.archived ? ' (archived)' : ''), b.unread ? bold(String(b.unread)) : '-', String(b.thread_count)]).forEach((l) => t.line(l)));
+    list.forEach((b, i) => tableRow(t.cols, cols, [String(i + 1), b.name + (b.page ? ` p${b.page}` : '') + (b.archived ? ' (archived)' : ''), b.unread ? bold(String(b.unread)) : '-', String(b.thread_count)]).forEach((l) => t.line(l)));
     if (!list.length) t.line('There are no boards you can read yet.');
     t.write(`\nBoard number, ${bold('N')}ew scan, or ${bold('Q')} to go back: `);
     const answer = (await t.pick('nq'))?.trim().toLowerCase();
     if (answer === undefined || answer === null || answer === 'q' || answer === '') return;
     if (answer === 'n') { await newscan(s); continue; }
-    const b = list[Number(answer) - 1];
+    // The list number, or the board's page number (201…), the same one the web shows.
+    const n = Number(answer);
+    const b = n >= 100 ? list.find((x) => x.page === n) : list[n - 1];
     if (!b) { t.line('There is no board with that number.'); continue; }
     await board(s, b);
   }

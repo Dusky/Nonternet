@@ -17,6 +17,8 @@ export interface MenuEntry {
   checked?: boolean;
   /** A line above this item. */
   separator?: boolean;
+  /** A page number shown before the label (docs/10). */
+  page?: number | null;
 }
 
 function Items({ items }: { items: MenuEntry[] }) {
@@ -28,7 +30,7 @@ function Items({ items }: { items: MenuEntry[] }) {
         <AriaMenuItem
           key={it.label} id={it.label} textValue={it.label} isDisabled={it.disabled} onAction={it.onSelect}
           className={`menu-item${it.danger ? ' is-danger' : ''}`}
-        >{it.icon}{it.checked && <span className="menu-check" aria-hidden="true">✓ </span>}{it.label}{it.checked && <span className="visually-hidden">({t('menu.selected')})</span>}</AriaMenuItem>,
+        >{it.icon}{it.page ? <span className="page-no" aria-hidden="true">{it.page}</span> : null}{it.checked && <span className="menu-check" aria-hidden="true">✓ </span>}{it.label}{it.page ? <span className="visually-hidden">, {t('nav.page', { page: it.page })}</span> : null}{it.checked && <span className="visually-hidden">({t('menu.selected')})</span>}</AriaMenuItem>,
       ])}
     </>
   );

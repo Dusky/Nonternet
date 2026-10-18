@@ -1,5 +1,5 @@
 import { clearAllDrafts } from '../drafts';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { CatalogApp, Me, NotificationCounts } from '@app/shared';
@@ -14,6 +14,8 @@ import { pollMs, useLive, useLiveEvents } from '../live';
 import { clockPref } from '../theme';
 import { APPS, appById, appName, useVisibleApps } from './apps';
 import { CommandPalette } from './CommandPalette';
+import { appPage } from './pages';
+import { useRecent } from './recent';
 import type { OnlinePerson } from './HomePanel';
 import { AppIcon, AppTile } from './icons';
 import { AppBadge, useAppLabel } from '../components/AppBadge';
@@ -40,6 +42,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const { wins, open, cycle } = useWindows();
   const top = focusedWindow(wins);
   const [palette, setPalette] = useState(false);
+  const [seed, setSeed] = useState('');
   const [shortcuts, setShortcuts] = useState(false);
   const confirmed = me.role !== 'guest';
   // Something arrived while the tab is in the background: a chime and/or a desktop notification, if turned on.
@@ -54,6 +57,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const counts = useQuery({ queryKey: ['notifications', 'count', me.id], queryFn: () => api.get<NotificationCounts>('/notifications/count'), refetchInterval: poll, staleTime: 15_000 }).data;
   const unread = counts?.unread ?? 0;
   useInstalledSync(me.id);
+  useLayoutEffect(() => { useRecent.getState().setUser(me.id); }, [me.id]);
   const online = useQuery({ queryKey: ['online'], queryFn: () => api.get<{ people: OnlinePerson[] }>('/online'), refetchInterval: 60_000, enabled: confirmed && desktop }).data?.people;
 
   // The tab says where you are and what is waiting.
@@ -82,7 +86,9 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(true); return; }
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setSeed(''); setPalette(true); return; }
+      // A digit outside a text field starts typing a page number (docs/10).
+      if (/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && !editable(e.target) && !document.querySelector('dialog[open]')) { e.preventDefault(); setSeed(e.key); setPalette(true); return; }
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !editable(e.target)) { e.preventDefault(); setShortcuts(true); return; }
       if (desktop && e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'Backquote' && !editable(e.target)) {
         e.preventDefault();
@@ -116,10 +122,11 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
 
         {desktop && (
           <div className="taskbar-apps">
-            <MenuButton label={t('nav.apps')} menuClassName="menu-grid" items={apps.map((a) => ({ label: appName(a, t), icon: <span className="badge-wrap"><AppTile id={a.id} /><AppBadge id={a.id} /></span>, onSelect: () => launch(a.id) }))}>
+            <MenuButton label={t('nav.apps')} menuClassName="menu-grid" items={apps.map((a) => ({ label: appName(a, t), page: appPage(a.id), icon: <span className="badge-wrap"><AppTile id={a.id} /><AppBadge id={a.id} /></span>, onSelect: () => launch(a.id) }))}>
               <Icon name="grid" />{t('nav.apps')}
             </MenuButton>
-            <button type="button" className="btn btn-quiet btn-icon" onClick={() => setPalette(true)} aria-label={t('palette.open')} aria-keyshortcuts="Control+K Meta+K" title={`${t('palette.open')} (Ctrl+K)`}><Icon name="search" /></button>
+            <RecentMenu launch={launch} />
+            <button type="button" className="btn btn-quiet btn-icon" onClick={() => { setSeed(''); setPalette(true); }} aria-label={t('palette.open')} aria-keyshortcuts="Control+K Meta+K" title={`${t('palette.open')} (Ctrl+K)`}><Icon name="search" /></button>
             <ul className="taskbar-windows" aria-label={t('nav.openWindows')}>
               {wins.map((w) => <li key={w.id}><TaskbarWindow win={w} front={top?.id === w.id} /></li>)}
             </ul>
@@ -143,7 +150,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
             </span>
           )}
           {!desktop && (
-            <button type="button" className="btn btn-quiet bell" onClick={() => setPalette(true)} aria-label={t('palette.open')}>
+            <button type="button" className="btn btn-quiet bell" onClick={() => { setSeed(''); setPalette(true); }} aria-label={t('palette.open')}>
               <Icon name="search" size={22} />
             </button>
           )}
@@ -179,7 +186,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
       <AnnouncementBanner lookNote />
       <main id="main" tabIndex={-1} className="stage">{children}</main>
       {!desktop && <TabBar me={me} />}
-      <CommandPalette me={me} open={palette} onClose={() => setPalette(false)} />
+      <CommandPalette me={me} open={palette} seed={seed} onClose={() => { setPalette(false); setSeed(''); }} />
       <ShortcutsSheet open={shortcuts} onClose={() => setShortcuts(false)} />
     </div>
   );
@@ -284,11 +291,21 @@ function TaskbarWindow({ win, front }: { win: Win; front: boolean }) {
   return (
     <>
       <button
-        type="button" className={`btn btn-quiet${front ? ' is-active' : ''}${nudge ? ' is-nudged' : ''}`}
+        type="button" className={`btn btn-quiet${front ? ' is-active' : ''}${nudge ? ' is-nudged' : ''}`} data-page={appPage(win.id) ?? undefined}
         aria-label={t('window.focus', { app: named })} aria-pressed={front}
         onClick={() => (front ? minimize(win.id) : focus(win.id))} {...ctx.bind}
       ><AppIcon id={win.id} size={18} />{title}<AppBadge id={win.id} /></button>
       {ctx.menu}
     </>
   );
+}
+
+// Places opened lately (docs/10), newest first, kept on this device; the last item clears the list.
+function RecentMenu({ launch }: { launch: (id: AppId, path?: string) => void }) {
+  const t = useT();
+  const places = useRecent((r) => r.places);
+  const items = places.length
+    ? [...places.map((r) => ({ label: r.label, icon: <AppTile id={r.app} />, onSelect: () => launch(r.app, r.path) })), { label: t('nav.recentClear'), separator: true, onSelect: () => useRecent.getState().clear() }]
+    : [{ label: t('nav.recentNone'), disabled: true, onSelect: () => undefined }];
+  return <MenuButton label={t('nav.recent')} items={items}><Icon name="clock" />{t('nav.recent')}</MenuButton>;
 }

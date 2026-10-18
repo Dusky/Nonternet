@@ -370,3 +370,13 @@ one process, this moves to the job queue.
   look with no light version; Pocket LCD has a dark (backlit) version. Both pass the same contrast tests as the others.
   Not built from the board: Teletext's page numbers per app and "type a page number" (they would need a real page index;
   a later idea, not an open question). No migration: the theme list lives in code, and saved choices stay valid.
+
+## 2026-10-18 (later): page numbers, recent places, links dropped on the desktop
+
+- Page numbers in every theme (owner): apps have fixed numbers in code; boards get theirs from a database trigger in the
+  order they are made (201–299, then 2100–2999), kept for good while the board exists, so links and habits don't break.
+  The BBS shows and accepts the same numbers. Added apps have no number.
+- Recent places are a device convenience (per person on that device, not exported), the same rule as the palette's old
+  list and other device preferences (docs/10).
+- Dropping a link on the desktop saves outside addresses as private bookmarks (owned and exported as bookmarks already
+  are) and links to this site as place shortcuts. Drop position is not kept: the shortcut takes the first free cell.

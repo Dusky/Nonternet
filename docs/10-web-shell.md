@@ -132,6 +132,20 @@ plain, a "what's new" home, and the full landing page. No new themes.
   and a toast can carry an Undo button (`toast(text, 'ok', { undo })`), so a reversible action can act
   at once instead of asking first; the palette uses cmdk. On a phone toasts sit above the tab bar. All are unstyled and take our CSS, so the
   themes are unchanged. Keep `confirm()` for what can't be taken back.
+- **Page numbers** (2026-10-18, after Teletext): every app has a fixed number (100 Home, 200 Boards, 300 Mail, 350 Chat,
+  400 People, 450 Rings, 500 Wiki, 550 Memos, 600 Bookmarks, 650 Files, 700 Homepages, 750 Studio, 800 Terminal, 820 MUD,
+  850 Notifications, 870 Add apps, 900 Settings with 901–908 for its pages, 990 Admin; `shell/pages.ts`), and each board has
+  one from core (201, 202, … in the order boards were made, then 2100–2999; kept for good, `boards.page`). They show in
+  every theme in the Apps menu, the phone launcher and the board list; Teletext also shows `P200` on the taskbar. Typing a
+  digit outside a text field opens the palette with it, and a three- or four-digit number there goes straight to the page.
+  Added apps have no number.
+- **Recent** (2026-10-18): the last 12 places opened (a thread, a wiki page, a person…) are kept on this device for each
+  person (`ui:recent:<user>`, not exported, like other device conveniences) and shown in the taskbar's Recent menu, a row
+  on the phone launcher and the palette before you type. "Clear recent" empties it. It replaced the palette's own list.
+- **Dropping a link on the desktop** (2026-10-18): a link to this site becomes a shortcut to that place; any other web
+  address is saved as a private bookmark (the usual `POST /bookmarks`) with a shortcut, and Undo takes both back. Guests
+  are asked to sign up. The shortcut takes the first free cell. The keyboard ways stay (a bookmark's "Add to the desktop",
+  the palette's "Save this link").
 - **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
   person by handle; letters in order match, so "stng" finds Settings). Alt+` brings the next window
   forward, minimized ones included. In a focused title bar, Alt+Left and Alt+Right snap the window to

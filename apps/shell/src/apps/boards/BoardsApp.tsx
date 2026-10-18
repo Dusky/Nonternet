@@ -121,7 +121,7 @@ function BoardList() {
             {g.boards.map((b) => (
               <li key={b.id}>
                 <div className="row-head">
-                  <span><AppLink to={b.slug} data-nav className="board-link"><strong>{b.name}</strong></AppLink> <Badges board={b} /></span>
+                  <span><AppLink to={b.slug} data-nav className="board-link"><strong>{b.name}</strong></AppLink> {b.page && <span className="page-no" title={t('nav.page', { page: b.page })}>{b.page}</span>} <Badges board={b} /></span>
                   {b.unread ? <span className="badge badge-accent">{t('boards.unread', { count: b.unread })}</span> : null}
                 </div>
                 {b.description && <p>{b.description}</p>}

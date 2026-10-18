@@ -9,15 +9,8 @@ import { useIsDesktop, useSite, useT } from '../hooks';
 import { appById, appName, useVisibleApps } from './apps';
 import { AppIcon } from './icons';
 import { useWindows, type AppId } from './windows';
-
-const RECENT_KEY = 'ui:palette:recent';
-type Recent = { key: string; label: string; kind: string; app: AppId; path: string };
-function loadRecent(): Recent[] {
-  try { return (JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as Recent[]).filter((r) => r && typeof r.key === 'string' && typeof r.label === 'string').slice(0, 6); } catch { return []; }
-}
-function remember(r: Recent) {
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify([r, ...loadRecent().filter((x) => x.key !== r.key)].slice(0, 6))); } catch { /* a convenience */ }
-}
+import { appPage, asPageNumber, pageOf, pageTarget, type PageTarget } from './pages';
+import { useRecent } from './recent';
 
 interface Item { key: string; label: string; kind: string; icon: ReactNode; run: () => void }
 
@@ -25,7 +18,7 @@ interface Item { key: string; label: string; kind: string; icon: ReactNode; run:
 // person's profile. A quicker way around for keyboard users; everything here is also reachable by
 // clicking. It searches only what this person can already see. Letters in order match, so "brd" finds
 // Boards; cmdk provides the scorer, the arrow keys and the screen reader wiring.
-export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; onClose: () => void }) {
+export function CommandPalette({ me, open, seed = '', onClose }: { me: Me; open: boolean; seed?: string; onClose: () => void }) {
   const t = useT();
   const site = useSite();
   const desktop = useIsDesktop();
@@ -56,27 +49,41 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
     queryKey: ['mail', 'palette'], enabled: open && me.role !== 'guest', staleTime: 60_000,
     queryFn: () => api.get<{ threads: MailThreadSummary[] }>('/mail?limit=50'),
   }).data?.threads ?? [];
-  const [recent, setRecent] = useState<{ key: string; label: string; kind: string; app: AppId; path: string }[]>(() => loadRecent());
+  const recent = useRecent((r) => r.places);
 
-  const go = (app: AppId, path = '') => {
+  const go = (app: AppId | 'home', path = '') => {
     onClose();
+    if (app === 'home') { if (desktop) useWindows.getState().toggleShowDesktop(); navigate('/'); return; }
     if (desktop) { openWin(app, path); navigate('/'); } else navigate(`${appById(app).path}${path ? `/${path}` : ''}`);
   };
 
   const apps = useVisibleApps(me, site);
   const items = useMemo<Item[]>(() => {
+    const page = (n: number | null) => (n ? ` · ${n}` : '');
     const all: Item[] = [
-      ...apps.map((a) => ({ key: `app:${a.id}`, label: appName(a, t), kind: t('palette.kind.app'), icon: <AppIcon id={a.id} size={20} />, run: () => go(a.id) })),
-      ...boards.map((b) => ({ key: `board:${b.slug}`, label: b.name, kind: t('palette.kind.board'), icon: <AppIcon id="boards" size={20} />, run: () => go('boards', b.slug) })),
+      ...apps.map((a) => ({ key: `app:${a.id}`, label: appName(a, t), kind: `${t('palette.kind.app')}${page(appPage(a.id))}`, icon: <AppIcon id={a.id} size={20} />, run: () => go(a.id) })),
+      ...boards.map((b) => ({ key: `board:${b.slug}`, label: b.name, kind: `${t('palette.kind.board')}${page(b.page)}`, icon: <AppIcon id="boards" size={20} />, run: () => go('boards', b.slug) })),
       ...(['profile', 'appearance', 'password', 'two-factor', 'passkeys', 'terminal', 'data'] as const).map((s) => ({
-        key: `settings:${s}`, label: t(`settings.tab.${s === 'two-factor' ? 'twofa' : s}`), kind: t('app.settings'), icon: <AppIcon id="settings" size={20} />, run: () => go('settings', s),
+        key: `settings:${s}`, label: t(`settings.tab.${s === 'two-factor' ? 'twofa' : s}`), kind: `${t('app.settings')}${page(pageOf('settings', s, boards))}`, icon: <AppIcon id="settings" size={20} />, run: () => go('settings', s),
       })),
     ];
-    const remembered = (r: (typeof recent)[number]): Item => ({ key: `recent:${r.key}`, label: r.label, kind: r.kind, icon: <AppIcon id={r.app} size={20} />, run: () => { remember(r); go(r.app, r.path); } });
+    const remembered = recent.map((r): Item => ({
+      key: `recent:${r.app}:${r.path}`, label: r.label, kind: `${t('palette.kind.recent')}${page(pageOf(r.app, r.path, boards))}`,
+      icon: <AppIcon id={r.app} size={20} />, run: () => go(r.app, r.path),
+    }));
     // Letters in order match (cmdk's scorer), best first; what the server found and a guessed handle follow.
     const scored = (list: Item[]) => list.map((i) => ({ i, s: defaultFilter(i.label, term) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).map((x) => x.i);
-    const found = term ? scored(all) : [...recent.map(remembered), ...all.filter((i) => !recent.some((r) => `recent:${r.key}` === i.key || r.key === i.key)).slice(0, Math.max(4, 12 - recent.length))];
-    const pick = (key: string, label: string, kind: string, app: AppId, path: string): Item => ({ key, label, kind, icon: <AppIcon id={app} size={20} />, run: () => { const r = { key, label, kind, app, path }; remember(r); setRecent(loadRecent()); go(app, path); } });
+    const found = term ? scored(all) : [...remembered.slice(0, 6), ...all.slice(0, Math.max(4, 12 - Math.min(6, remembered.length)))];
+    const pick = (key: string, label: string, kind: string, app: AppId, path: string): Item => ({ key, label, kind, icon: <AppIcon id={app} size={20} />, run: () => go(app, path) });
+    // A page number (Teletext's way, docs/10): straight to it, first in the list.
+    const n = asPageNumber(q);
+    if (n !== null) {
+      const to: PageTarget | null = pageTarget(n, boards);
+      const name = !to ? '' : to.app === 'home' ? t('tabbar.home') : to.app === 'boards' && to.path ? boards.find((b) => b.slug === to.path)?.name ?? '' : to.app === 'settings' && to.path ? t(`settings.tab.${to.path === 'two-factor' ? 'twofa' : to.path}` as 'settings.tab.profile') : appName(appById(to.app), t);
+      found.unshift(to
+        ? { key: `page:${n}`, label: t('palette.page', { page: n, name }), kind: t('palette.kind.page'), icon: to.app === 'home' ? <Icon name="home" size={20} /> : <AppIcon id={to.app} size={20} />, run: () => go(to.app, to.path) }
+        : { key: `page:${n}`, label: t('palette.noPage', { page: n }), kind: t('palette.kind.page'), icon: <Icon name="search" size={20} />, run: () => undefined });
+    }
     if (term) {
       for (const h of threads) found.push(pick(`thread:${h.post.thread_id}`, h.post.subject || '…', `${t('palette.kind.thread')} · ${h.board.name}`, 'boards', `${h.board.slug}/t/${h.post.thread_id}`));
       for (const r of rings) found.push(pick(`ring:${r.slug}`, r.name, t('palette.kind.ring'), 'rings', r.slug));
@@ -101,7 +108,7 @@ export function CommandPalette({ me, open, onClose }: { me: Me; open: boolean; o
     const d = dialog.current;
     if (!d) return;
     // cmdk's root takes tabindex=-1, so showModal() would focus it rather than the input.
-    if (open && !d.open) { setQ(''); d.showModal(); d.querySelector<HTMLInputElement>('[cmdk-input]')?.focus(); }
+    if (open && !d.open) { setQ(seed); d.showModal(); d.querySelector<HTMLInputElement>('[cmdk-input]')?.focus(); }
     if (!open && d.open) d.close();
   }, [open]);
 

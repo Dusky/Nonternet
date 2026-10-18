@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
+import { appPage } from './pages';
+import { useRecent } from './recent';
 import { Link } from 'react-router-dom';
 import type { DesktopShortcut, Me } from '@app/shared';
 import { useSite, useT } from '../hooks';
 import { appById, appName, useVisibleApps, type AppDef } from './apps';
 import { HomePanel } from './HomePanel';
 import { AppBadge, useAppLabel } from '../components/AppBadge';
-import { AppTile } from './icons';
+import { AppIcon, AppTile } from './icons';
 import { shownApps, useDesktopLayout } from './desktopLayout';
 import { shortcutKey } from './desktopLayout.logic';
 import { useShortcutView } from './ShortcutIcon';
@@ -27,6 +29,7 @@ export function Launcher({ me }: { me: Me }) {
   return (
     <div className="launcher">
       <HomePanel me={me} />
+      <RecentRow />
       <nav className="launcher-apps" aria-labelledby="launcher-apps">
         <h2 id="launcher-apps">{t('nav.apps')}</h2>
         <ul>
@@ -46,8 +49,26 @@ function LauncherIcon({ app }: { app: AppDef }) {
   return (
     <Link to={app.path} className="icon" aria-label={named}>
       <AppTile id={app.id} /><AppBadge id={app.id} />
-      <span className="icon-label">{title}</span>
+      <span className="icon-label">{appPage(app.id) && <span className="page-no" aria-hidden="true">{appPage(app.id)}</span>}{title}</span>
     </Link>
+  );
+}
+
+// The last few places opened on this device (docs/10), as a row above the apps.
+function RecentRow() {
+  const t = useT();
+  const places = useRecent((r) => r.places).slice(0, 5);
+  if (!places.length) return null;
+  return (
+    <nav className="launcher-recent" aria-labelledby="launcher-recent">
+      <h2 id="launcher-recent">{t('nav.recent')}</h2>
+      <ul>
+        {places.map((r) => (
+          <li key={`${r.app}:${r.path}`}><Link to={`${appById(r.app).path}/${r.path}`}><AppIcon id={r.app} size={20} /><span>{r.label}</span></Link></li>
+        ))}
+      </ul>
+      <button type="button" className="link" onClick={() => useRecent.getState().clear()}>{t('nav.recentClear')}</button>
+    </nav>
   );
 }
 

@@ -224,6 +224,27 @@ describe.skipIf(!dbAvailable)('the BBS', { timeout: 30_000 }, () => {
     s.destroy();
   });
 
+  it('opens a board by its page number, the one the web shows', async () => {
+    const owner = await makeUser(ctx, { role: 'trusted' });
+    const oc = await loginAs(ctx, owner.handle);
+    const slug = `pg${Date.now() % 100000}`;
+    const page = (await oc.post('/api/v1/boards', { slug, name: 'Paged board', visibility: 'public' })).body.page as number;
+    expect(page).toBeGreaterThan(200);
+    const u = await person();
+    const { s, screen, type } = telnet();
+    await screen.until(/Handle:/);
+    type(`${u.handle}\rterminal pass 1\r`);
+    await screen.until(/Main menu \[/);
+    type('b');
+    await screen.until(/Board number/);
+    expect(screen.text).toContain(`Paged board p${page}`);
+    screen.text = '';
+    type(`${page}\r`);
+    await screen.until(/Paged board/);
+    expect(screen.text).not.toContain('There is no board with that number.');
+    s.destroy();
+  });
+
   it('round-trips a post between a CP437 client and a UTF-8 one', async () => {
     const owner = await makeUser(ctx, { role: 'trusted' });
     const oc = await loginAs(ctx, owner.handle);

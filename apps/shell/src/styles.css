@@ -364,6 +364,19 @@ button.badge.tag:hover { background: var(--accent-soft); }
 .launcher { padding: var(--space-4); display: grid; gap: var(--space-5); }
 .launcher-apps ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: var(--space-3); }
 .launcher-apps .icon { padding: var(--space-3) var(--space-1); }
+/* Page numbers (docs/10): small, in the label face, before or after a name. */
+.page-no { display: inline-block; margin-right: .4em; font-family: var(--font-label); font-size: .8em; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.board-link + .page-no { margin: 0 0 0 .25em; }
+.menu-item .page-no { min-width: 2.2em; }
+:root[data-chrome="teletext"] .page-no { color: var(--accent); }
+:root[data-chrome="teletext"] .taskbar-windows .btn.is-active[data-page]::before { content: "P" attr(data-page); margin-right: .4em; }
+.desktop-layout.is-drop { position: relative; outline: 3px dashed var(--focus); outline-offset: -6px; }
+.desktop-layout.is-drop::after { content: attr(data-drop-hint); position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); padding: var(--space-1) var(--space-3); background: var(--surface); color: var(--text); border: var(--control-line) solid var(--line-strong); pointer-events: none; }
+.launcher-recent { margin: 0 0 var(--space-4); }
+.launcher-recent h2 { font-size: var(--step--1); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--space-2); }
+.launcher-recent ul { list-style: none; margin: 0 0 var(--space-1); padding: 0; display: grid; gap: var(--space-1); }
+.launcher-recent a { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; color: var(--text); text-decoration: none; overflow: hidden; }
+.launcher-recent a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .launcher-apps h2 { font-size: var(--step--1); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--space-2); }
 
 /* ---- home panel (the "what's new" side of the desktop, and the top of the phone launcher) */

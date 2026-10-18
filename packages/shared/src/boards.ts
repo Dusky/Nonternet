@@ -58,6 +58,7 @@ export const categoryCreateSchema = z.object({ name: z.string().trim().min(2).ma
 
 export interface BoardSummary {
   id: string; slug: string; name: string; description: string; visibility: BoardVisibility;
+  page: number | null;                           // its page number (201, 202, …), kept for good (docs/10)
   rules: string;                                 // plain text shown above the threads (E3a)
   category: { id: string; name: string } | null;
   ring: { slug: string; name: string } | null;   // set on a ring's board

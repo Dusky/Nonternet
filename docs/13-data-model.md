@@ -49,6 +49,7 @@ admin_notes (id, user_id fk, author_id fk, body)                   -- append-onl
 board_categories (id, name, sort)
 boards (
   id text pk, slug text unique, name, description,
+  page int unique,                            -- 201, 202, … then 2100–2999, set by a trigger, kept for good (0058)
   category_id fk null, ring_id fk null,
   owner_id fk users,
   visibility text not null,                   -- public|members|ring|private

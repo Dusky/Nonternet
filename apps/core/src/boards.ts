@@ -44,14 +44,14 @@ export const canModerate = (v: Viewer, b: { id: string; owner_id: string; ring_i
   Boolean(v && (v.role === 'admin' || v.userId === b.owner_id || v.ops.includes(`board:${b.id}`) || (b.ring_id && v.ops.includes(`ring:${b.ring_id}`))));
 
 export interface BoardRow {
-  id: string; slug: string; name: string; description: string; rules: string; visibility: BoardVisibility; owner_id: string; owner_handle: string;
+  id: string; slug: string; page: number | null; name: string; description: string; rules: string; visibility: BoardVisibility; owner_id: string; owner_handle: string;
   ring_id: string | null; ring_slug: string | null; ring_name: string | null; ring_member: boolean;
   category_id: string | null; category_name: string | null; archived_at: Date | null; hidden_at: Date | null;
   thread_count: string; post_count: string; last_post_at: Date | null; unread: string | null; watching: boolean; member: boolean;
 }
 
 const SUMMARY_SQL = `
-  SELECT b.id, b.slug, b.name, b.description, b.rules, b.visibility, b.owner_id, u.handle AS owner_handle,
+  SELECT b.id, b.slug, b.page, b.name, b.description, b.rules, b.visibility, b.owner_id, u.handle AS owner_handle,
     b.ring_id, rg.slug AS ring_slug, rg.name AS ring_name,
     EXISTS (SELECT 1 FROM ring_members rm WHERE rm.ring_id = b.ring_id AND rm.user_id = $1 AND rm.status = 'member') AS ring_member,
     b.category_id, c.name AS category_name, b.archived_at, b.hidden_at,
@@ -74,7 +74,7 @@ export function canPost(v: Viewer, r: BoardRow): boolean {
 
 function toSummary(v: Viewer, r: BoardRow): BoardSummary {
   return {
-    id: r.id, slug: r.slug, name: r.name, description: r.description, rules: r.rules, visibility: r.visibility,
+    id: r.id, slug: r.slug, page: r.page, name: r.name, description: r.description, rules: r.rules, visibility: r.visibility,
     category: r.category_id ? { id: r.category_id, name: r.category_name! } : null,
     ring: r.ring_id ? { slug: r.ring_slug!, name: r.ring_name! } : null,
     owner: { id: r.owner_id, handle: r.owner_handle },

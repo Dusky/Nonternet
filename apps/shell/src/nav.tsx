@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, type AnchorHTMLAttribute
 import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWindows, type AppId } from './shell/windows';
+import { useRecent } from './shell/recent';
 
 // How an app moves between its own screens. An app is shown two ways: on a page of its own (its
 // screens follow the address bar) and inside a desktop window (its screens must not touch the
@@ -106,10 +107,12 @@ export function AppNavLink({ to, ...rest }: LinkProps) {
 // Says where in the app you are, for the window title and the browser tab: "Boards — Synths and modular".
 // Pass null (or nothing yet) when it isn't known; it is cleared when the screen goes away.
 export function useSubtitle(text: string | null | undefined): void {
-  const { id } = useAppNav();
+  const { id, path } = useAppNav();
   const set = useWindows((s) => s.setSubtitle);
   useEffect(() => {
     set(id, text || null);
     return () => set(id, null);
   }, [id, text, set]);
+  // A named place inside an app goes on the person's recent list (docs/10).
+  useEffect(() => { if (text && path) useRecent.getState().visit({ app: id, path, label: text }); }, [id, path, text]);
 }

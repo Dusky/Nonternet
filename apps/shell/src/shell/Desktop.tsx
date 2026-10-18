@@ -18,6 +18,10 @@ import { shownApps, useDesktopLayout } from './desktopLayout';
 import { DIRS, gridSize, moveTo, neighbour, place, shortcutKey, type Dir, type Pos } from './desktopLayout.logic';
 import { useShortcutView } from './ShortcutIcon';
 import type { DesktopShortcut } from '@app/shared';
+import { dropLink, linkFromDrop } from './dropLink';
+
+// A drag that carries a link (the address is only readable on drop).
+const canTakeLink = (dt: DataTransfer) => ['text/uri-list', 'text/x-moz-url', 'text/plain'].some((x) => dt.types.includes(x));
 
 // The icon grid: fixed cells, so a drop can be turned into a column and a row (and the CSS and the maths agree).
 const CELL_W = 96; const CELL_H = 104; const GAP = 8;
@@ -28,6 +32,7 @@ export function Desktop({ me }: { me: Me }) {
   const site = useSite();
   const { wins, setViewport, snapPreview, viewport } = useWindows();
   const top = focusedWindow(wins);
+  const [dropping, setDropping] = useState(false);
   const open = useWindows((s) => s.open);
   // Right-click (or Shift+F10) on the bare desktop: the things people reach for most.
   const layoutState = useDesktopLayout((st) => st.settings);
@@ -79,7 +84,10 @@ export function Desktop({ me }: { me: Me }) {
 
   return (
     <div className="desktop" aria-label={t('nav.desktop')}>
-      <div className="desktop-layout" tabIndex={-1}
+      <div className={`desktop-layout${dropping ? ' is-drop' : ''}`} tabIndex={-1} data-drop-hint={t('desktop.drop.hint')}
+        onDragOver={(e) => { if (canTakeLink(e.dataTransfer)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDropping(true); } }}
+        onDragLeave={(e) => { if (e.target === e.currentTarget) setDropping(false); }}
+        onDrop={(e) => { setDropping(false); const link = linkFromDrop(e.dataTransfer); if (link) { e.preventDefault(); void dropLink(link, me); } }}
         onContextMenu={(e) => { if (e.target === e.currentTarget) ctx.bind.onContextMenu(e); }}
         onKeyDown={(e) => { if (e.target === e.currentTarget) ctx.bind.onKeyDown(e); }}>
         <ul className="icons" aria-label={t('nav.apps')} ref={grid}
