@@ -372,6 +372,12 @@ button.badge.tag:hover { background: var(--accent-soft); }
 :root[data-chrome="teletext"] .taskbar-windows .btn.is-active[data-page]::before { content: "P" attr(data-page); margin-right: .4em; }
 .desktop-layout.is-drop { position: relative; outline: 3px dashed var(--focus); outline-offset: -6px; }
 .desktop-layout.is-drop::after { content: attr(data-drop-hint); position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); padding: var(--space-1) var(--space-3); background: var(--surface); color: var(--text); border: var(--control-line) solid var(--line-strong); pointer-events: none; }
+.folder-tile { position: relative; background: var(--sticker-5); }
+.folder-tile::before { content: ""; position: absolute; left: 18%; top: 26%; width: 64%; height: 52%; border: var(--control-line) solid var(--sticker-text); border-top-width: calc(var(--control-line) * 3); }
+.folder-count { position: absolute; right: 4px; bottom: 2px; font: 700 .7rem var(--font-label); color: var(--sticker-text); }
+.folder-panel .dialog-body { min-width: min(28rem, 90vw); }
+.folder-items { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
+.folder-items li { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 .launcher-recent { margin: 0 0 var(--space-4); }
 .launcher-recent h2 { font-size: var(--step--1); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--space-2); }
 .launcher-recent ul { list-style: none; margin: 0 0 var(--space-1); padding: 0; display: grid; gap: var(--space-1); }

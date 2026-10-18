@@ -15,10 +15,12 @@ import type { AppDef } from './apps';
 import { MODES, saveModePref, modePref } from '../theme';
 import { toast } from '../components/feedback';
 import { shownApps, useDesktopLayout } from './desktopLayout';
-import { DIRS, gridSize, moveTo, neighbour, place, shortcutKey, type Dir, type Pos } from './desktopLayout.logic';
+import { DIRS, folderKey, foldered, gridSize, moveTo, neighbour, place, shortcutKey, type Dir, type Pos } from './desktopLayout.logic';
 import { useShortcutView } from './ShortcutIcon';
 import { DESKTOP_MAX_COL, DESKTOP_MAX_ROW, type DesktopShortcut } from '@app/shared';
 import { dropLink, linkFromDrop } from './dropLink';
+import { FolderPanel, FolderTile, folderMenu, folderOwnMenu } from './Folders';
+import type { DesktopFolder } from '@app/shared';
 
 // A drag that carries a link (the address is only readable on drop).
 const canTakeLink = (dt: DataTransfer) => ['text/uri-list', 'text/x-moz-url', 'text/plain'].some((x) => dt.types.includes(x));
@@ -64,7 +66,11 @@ export function Desktop({ me }: { me: Me }) {
   useEffect(() => { void useDesktopLayout.getState().load(); }, []);
   const settings = useDesktopLayout((st) => st.settings);
   const apps = shownApps(allApps, settings, false);
-  const keys = useMemo(() => [...apps.map((a) => a.id as string), ...settings.shortcuts.map((x) => shortcutKey(x.id))], [apps, settings.shortcuts]);
+  const inFolders = useMemo(() => foldered(settings), [settings]);
+  const gridApps = apps.filter((a) => !inFolders.has(a.id));
+  const gridShortcuts = settings.shortcuts.filter((x) => !inFolders.has(shortcutKey(x.id)));
+  const keys = useMemo(() => [...gridApps.map((a) => a.id as string), ...gridShortcuts.map((x) => shortcutKey(x.id)), ...settings.folders.map((f) => folderKey(f.id))], [gridApps, gridShortcuts, settings.folders]);
+  const [openFolder, setOpenFolder] = useState<string | null>(null);
   const layout = useMemo(() => place(keys, settings.positions), [keys, settings.positions]);
   const [dragging, setDragging] = useState(false);
   const [said, setSaid] = useState('');
@@ -104,7 +110,7 @@ export function Desktop({ me }: { me: Me }) {
         onKeyDown={(e) => { if (e.target === e.currentTarget) ctx.bind.onKeyDown(e); }}>
         <ul className="icons" aria-label={t('nav.apps')} ref={grid}
           style={{ gridTemplateColumns: `repeat(${size.cols}, ${CELL_W}px)`, gridTemplateRows: `repeat(${size.rows}, ${CELL_H}px)`, gap: GAP }}>
-          {apps.map((app) => {
+          {gridApps.map((app) => {
             const pos = layout.get(app.id)!;
             return (
               <li key={app.id} style={{ gridColumn: pos.col + 1, gridRow: pos.row + 1 }}>
@@ -112,11 +118,19 @@ export function Desktop({ me }: { me: Me }) {
               </li>
             );
           })}
-          {settings.shortcuts.map((sc) => {
+          {gridShortcuts.map((sc) => {
             const pos = layout.get(shortcutKey(sc.id))!;
             return (
               <li key={sc.id} style={{ gridColumn: pos.col + 1, gridRow: pos.row + 1 }}>
                 <ShortcutDesktopIcon sc={sc} pos={pos} grid={grid} available={available} onMoveTo={(to) => moveIcon(shortcutKey(sc.id), sc.label, to)} onDragging={setDragging} />
+              </li>
+            );
+          })}
+          {settings.folders.map((f) => {
+            const pos = layout.get(folderKey(f.id))!;
+            return (
+              <li key={f.id} style={{ gridColumn: pos.col + 1, gridRow: pos.row + 1 }}>
+                <FolderDesktopIcon folder={f} pos={pos} grid={grid} onOpen={() => setOpenFolder(f.id)} onMoveTo={(to) => moveIcon(folderKey(f.id), f.name, to)} onDragging={setDragging} />
               </li>
             );
           })}
@@ -127,6 +141,10 @@ export function Desktop({ me }: { me: Me }) {
       {snapPreview && <div className="snap-preview" aria-hidden="true" style={{ left: snapGeometry(snapPreview, viewport).x, top: snapGeometry(snapPreview, viewport).y, width: snapGeometry(snapPreview, viewport).w, height: snapGeometry(snapPreview, viewport).h }} />}
       {wins.map((w) => <Window key={w.id} win={w} focused={top?.id === w.id} />)}
       {ctx.menu}
+      {openFolder && settings.folders.some((f) => f.id === openFolder) && (
+        <FolderPanel folder={settings.folders.find((f) => f.id === openFolder)!} apps={apps} available={available} onClose={() => setOpenFolder(null)}
+          opener={{ app: (a) => useWindows.getState().open(a.id), shortcut: (sc) => openShortcut(sc) }} />
+      )}
     </div>
   );
 }
@@ -195,6 +213,7 @@ function DesktopIcon({ app, pos, grid, onMoveTo, onDragging }: { app: AppDef; po
     { label: t('ctx.openPage'), onSelect: () => window.open(app.path, '_blank', 'noopener') },
     ...(badge && READ_KINDS[app.id] ? [{ label: t('ctx.markRead'), onSelect: () => void markAppRead(qc, app.id) }] : []),
     ...moveItems(pos, step, t),
+    ...folderMenu(app.id, t),
     ...(app.id === 'settings' ? [] : [{ label: t('desktop.icon.hide'), onSelect: () => { useDesktopLayout.getState().hide(app.id); toast(t('desktop.hidden', { app: title })); } }]),
   ]);
   return (
@@ -218,14 +237,11 @@ function ShortcutDesktopIcon({ sc, pos, grid, available, onMoveTo, onDragging }:
   const view = useShortcutView(sc, available);
   const drag = useIconDrag(pos, grid, onMoveTo, onDragging);
   const step = (dir: Dir) => { const n = neighbour(pos, dir); if (n) onMoveTo(n); };
-  const go = () => {
-    if (view.missing) return;
-    if (sc.target.type === 'bookmark') { if (view.url) window.open(view.url, '_blank', 'noopener,noreferrer'); return; }
-    open(sc.target.app as AppId, sc.target.path || undefined);
-  };
+  const go = () => { if (!view.missing) openShortcut(sc, view.url); };
   const ctx = useContextMenu(() => [
     { label: t('desktop.shortcut.open', { label: sc.label }), onSelect: go, disabled: view.missing },
     ...moveItems(pos, step, t),
+    ...folderMenu(shortcutKey(sc.id), t),
     { label: t('desktop.shortcut.rename'), onSelect: () => { const name = window.prompt(t('desktop.shortcut.renamePrompt'), sc.label); if (name) useDesktopLayout.getState().renameShortcut(sc.id, name); }, separator: true },
     { label: t('desktop.shortcut.remove'), onSelect: () => { useDesktopLayout.getState().removeShortcut(sc.id); toast(t('desktop.shortcut.removed')); } },
   ]);
@@ -239,6 +255,37 @@ function ShortcutDesktopIcon({ sc, pos, grid, available, onMoveTo, onDragging }:
         onKeyDown={(e) => { if (drag.escape(e)) return; ctx.bind.onKeyDown?.(e); }}>
         {view.tile}
         <span className="icon-label">{sc.label}</span>
+      </button>
+      {ctx.menu}
+    </>
+  );
+}
+
+// Opens what a shortcut points at: a bookmark in a new tab, a place in its app's window.
+function openShortcut(sc: DesktopShortcut, url?: string) {
+  if (sc.target.type === 'bookmark') {
+    if (url) { window.open(url, '_blank', 'noopener,noreferrer'); return; }
+    void import('../api').then(({ api }) => api.get<{ url: string }>(`/bookmarks/${(sc.target as { bookmark_id: string }).bookmark_id}`))
+      .then((b) => window.open(b.url, '_blank', 'noopener,noreferrer')).catch(() => undefined);
+    return;
+  }
+  useWindows.getState().open(sc.target.app as AppId, sc.target.path || undefined);
+}
+
+// A folder on the desktop: opens on a click, can be dragged and moved like an icon, renamed or deleted from its menu.
+function FolderDesktopIcon({ folder, pos, grid, onOpen, onMoveTo, onDragging }: { folder: DesktopFolder; pos: Pos; grid: React.RefObject<HTMLUListElement | null>; onOpen: () => void; onMoveTo: (to: Pos) => void; onDragging: (on: boolean) => void }) {
+  const t = useT();
+  const drag = useIconDrag(pos, grid, onMoveTo, onDragging);
+  const step = (dir: Dir) => { const n = neighbour(pos, dir); if (n) onMoveTo(n); };
+  const ctx = useContextMenu(() => [...folderOwnMenu(folder, t, onOpen), ...moveItems(pos, step, t)]);
+  return (
+    <>
+      <button type="button" className={`icon is-folder${drag.offset ? ' is-dragging' : ''}`} data-folder={folder.id} aria-haspopup="dialog"
+        aria-label={t('desktop.folder.label', { name: folder.name, count: folder.items.length })} {...ctx.bind} {...drag.bind}
+        onClick={() => { if (drag.consumeClick()) return; onOpen(); }}
+        onKeyDown={(e) => { if (drag.escape(e)) return; ctx.bind.onKeyDown?.(e); }}>
+        <FolderTile count={folder.items.length} />
+        <span className="icon-label">{folder.name}</span>
       </button>
       {ctx.menu}
     </>

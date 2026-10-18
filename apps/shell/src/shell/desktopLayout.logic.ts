@@ -88,6 +88,14 @@ export function placePath(path: string): string {
   const p = (path.split(/[?#]/)[0] ?? '').replace(/^\/+|\/+$/g, '');
   return p.length <= 300 && /^[A-Za-z0-9._~:@%+/-]*$/.test(p) && !p.includes('//') && !p.includes('..') ? p : '';
 }
+export const folderKey = (id: string) => `fd:${id}`;
+// The item keys inside folders: they are not on the desktop grid or the phone grid themselves.
+export const foldered = (s: Pick<DesktopClient, 'folders'>): Set<string> => new Set(s.folders.flatMap((f) => f.items));
+// Puts an item in a folder (taking it out of any other), or takes it out of all of them when `folderId` is null.
+export function placeInFolder(folders: DesktopClient['folders'], key: string, folderId: string | null): DesktopClient['folders'] {
+  return folders.map((f) => ({ ...f, items: f.id === folderId ? [...f.items.filter((k) => k !== key), key] : f.items.filter((k) => k !== key) }));
+}
+export const newFolderId = (): string => `f_${Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')}`;
 export const newShortcutId = (): string => `s_${Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')}`;
 
 // Home panel widgets. Untouched accounts follow the default list (so a widget added later reaches them); once someone changes

@@ -1,15 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { appPage } from './pages';
 import { useRecent } from './recent';
-import { Link } from 'react-router-dom';
-import type { DesktopShortcut, Me } from '@app/shared';
+import { Link, useNavigate } from 'react-router-dom';
+import type { DesktopFolder, DesktopShortcut, Me } from '@app/shared';
+import { FolderPanel, FolderTile } from './Folders';
 import { useSite, useT } from '../hooks';
 import { appById, appName, useVisibleApps, type AppDef } from './apps';
 import { HomePanel } from './HomePanel';
 import { AppBadge, useAppLabel } from '../components/AppBadge';
 import { AppIcon, AppTile } from './icons';
 import { shownApps, useDesktopLayout } from './desktopLayout';
-import { shortcutKey } from './desktopLayout.logic';
+import { folderKey, foldered, shortcutKey } from './desktopLayout.logic';
 import { useShortcutView } from './ShortcutIcon';
 import type { AppId } from './windows';
 
@@ -22,10 +23,14 @@ export function Launcher({ me }: { me: Me }) {
   const visible = useVisibleApps(me, site);
   const available = new Set<string>(visible.map((a) => a.id));
   // Apps and shortcuts in one list, in the order this person chose for the phone.
+  const inFolders = foldered(settings);
   const items = shownApps([
-    ...visible.map((app) => ({ id: app.id as string, app, sc: null as DesktopShortcut | null })),
-    ...settings.shortcuts.map((sc) => ({ id: shortcutKey(sc.id), app: null as AppDef | null, sc })),
+    ...visible.filter((app) => !inFolders.has(app.id)).map((app) => ({ id: app.id as string, app, sc: null as DesktopShortcut | null, folder: null as DesktopFolder | null })),
+    ...settings.shortcuts.filter((sc) => !inFolders.has(shortcutKey(sc.id))).map((sc) => ({ id: shortcutKey(sc.id), app: null as AppDef | null, sc, folder: null as DesktopFolder | null })),
+    ...settings.folders.map((f) => ({ id: folderKey(f.id), app: null as AppDef | null, sc: null as DesktopShortcut | null, folder: f })),
   ], settings, true);
+  const [openFolder, setOpenFolder] = useState<string | null>(null);
+  const navigate = useNavigate();
   return (
     <div className="launcher">
       <HomePanel me={me} />
@@ -34,10 +39,22 @@ export function Launcher({ me }: { me: Me }) {
         <h2 id="launcher-apps">{t('nav.apps')}</h2>
         <ul>
           {items.map((it) => (
-            <li key={it.id}>{it.app ? <LauncherIcon app={it.app} /> : <LauncherShortcut sc={it.sc!} available={available} />}</li>
+            <li key={it.id}>{it.app ? <LauncherIcon app={it.app} /> : it.folder ? (
+              <button type="button" className="icon is-folder" aria-haspopup="dialog" onClick={() => setOpenFolder(it.folder!.id)}
+                aria-label={t('desktop.folder.label', { name: it.folder.name, count: it.folder.items.length })}>
+                <FolderTile count={it.folder.items.length} /><span className="icon-label">{it.folder.name}</span>
+              </button>
+            ) : <LauncherShortcut sc={it.sc!} available={available} />}</li>
           ))}
         </ul>
       </nav>
+      {openFolder && settings.folders.some((f) => f.id === openFolder) && (
+        <FolderPanel folder={settings.folders.find((f) => f.id === openFolder)!} apps={visible} available={available} onClose={() => setOpenFolder(null)}
+          opener={{
+            app: (a) => navigate(a.path),
+            shortcut: (sc) => { if (sc.target.type === 'place') navigate(`${appById(sc.target.app as AppId)?.path ?? '/'}${sc.target.path ? `/${sc.target.path}` : ''}`); },
+          }} />
+      )}
     </div>
   );
 }

@@ -212,3 +212,37 @@ test('the home panel can be rearranged: move, hide, add back, and it is kept', a
   await page.getByRole('button', { name: 'Add The wall' }).click();
   await expect(page.locator('[data-widget="wall"]')).toHaveCount(1);
 });
+
+test('folders: put an app in a new folder, open it, take it out again', async ({ page, isMobile }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  if (isMobile) {
+    // The phone shows folders made on the account (here through the settings route) and opens them as a sheet.
+    const put = await page.request.put('/api/v1/me/client-settings/desktop', { headers: h, data: { settings: { folders: [{ id: 'f_phone1', name: 'Reading', items: ['wiki', 'bookmarks'] }] } } });
+    expect(put.ok()).toBe(true);
+    await page.goto('/');
+    const apps = page.getByRole('navigation', { name: 'Apps' });
+    await expect(apps.getByRole('link', { name: /Wiki/ })).toHaveCount(0);
+    await apps.getByRole('button', { name: 'Folder Reading, 2 items' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Reading' });
+    await sheet.getByRole('button', { name: 'Wiki', exact: true }).click();
+    await expect(page).toHaveURL(/\/wiki/);
+    return;
+  }
+  await page.goto('/');
+  page.once('dialog', (d) => void d.accept('Reading'));
+  await page.locator('[data-app-icon="wiki"]').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Put in a new folder' }).click();
+  const folder = page.getByRole('button', { name: 'Folder Reading, 1 items' });
+  await expect(folder).toBeVisible();
+  await expect(page.locator('[data-app-icon="wiki"]')).toHaveCount(0);
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await folder.click();
+  const panel = page.getByRole('dialog', { name: 'Reading' });
+  await scan(page, 'an open folder');
+  await panel.getByRole('button', { name: 'Take Wiki out of the folder' }).click();
+  await expect(panel.getByText('Nothing in here yet.', { exact: false })).toBeVisible();
+  await panel.getByRole('button', { name: 'Close' }).click();
+  await expect(page.locator('[data-app-icon="wiki"]')).toBeVisible();
+});

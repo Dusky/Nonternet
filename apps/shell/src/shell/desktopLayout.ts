@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { en } from '@app/strings';
-import { DESKTOP_MAX_SHORTCUTS, desktopClientSchema, type DesktopClient, type WidgetChoice } from '@app/shared';
+import { DESKTOP_MAX_FOLDERS, DESKTOP_MAX_SHORTCUTS, desktopClientSchema, type DesktopClient, type WidgetChoice } from '@app/shared';
 import { api } from '../api';
 import { toast } from '../components/feedback';
+import { folderKey, newFolderId, placeInFolder } from './desktopLayout.logic';
 import { NEVER_HIDDEN, newShortcutId, resolveWidgets, phoneOrder, sameTarget, shiftPhone, shortcutKey, type ShortcutTarget } from './desktopLayout.logic';
 
 // The desktop layout as the account keeps it (docs/10): where icons sit, what is hidden, the phone order. Loaded once after
@@ -20,6 +21,11 @@ interface State {
   addShortcut: (label: string, target: ShortcutTarget) => { id: string; added: boolean } | 'full' | null;
   removeShortcut: (id: string) => void;
   renameShortcut: (id: string, label: string) => void;
+  // Folders (docs/10): a new one can start with an item in it; deleting one puts its items back on the desktop.
+  newFolder: (name: string, firstItem?: string) => string | 'full' | null;
+  renameFolder: (id: string, name: string) => void;
+  deleteFolder: (id: string) => void;
+  moveToFolder: (key: string, folderId: string | null) => void;
   // The home panel's widgets. The first change turns the default list into the person's own.
   editingHome: boolean;
   setEditingHome: (on: boolean) => void;
@@ -74,13 +80,42 @@ export const useDesktopLayout = create<State>((set, get) => {
       if (!get().loaded) return;
       const s = get().settings;
       const { [shortcutKey(id)]: _gone, ...positions } = s.positions;
-      apply({ ...s, shortcuts: s.shortcuts.filter((x) => x.id !== id), positions, phone_order: s.phone_order.filter((k) => k !== shortcutKey(id)) });
+      apply({ ...s, shortcuts: s.shortcuts.filter((x) => x.id !== id), positions, phone_order: s.phone_order.filter((k) => k !== shortcutKey(id)), folders: placeInFolder(s.folders, shortcutKey(id), null) });
     },
     renameShortcut: (id, label) => {
       const l = label.trim().slice(0, 60);
       if (!get().loaded || !l) return;
       const s = get().settings;
       apply({ ...s, shortcuts: s.shortcuts.map((x) => (x.id === id ? { ...x, label: l } : x)) });
+    },
+    newFolder: (name, firstItem) => {
+      const n = name.trim().slice(0, 40);
+      if (!get().loaded || !n) return null;
+      const s = get().settings;
+      if (s.folders.length >= DESKTOP_MAX_FOLDERS) return 'full';
+      const id = newFolderId();
+      const folders = [...s.folders, { id, name: n, items: [] as string[] }];
+      apply({ ...s, folders: firstItem ? placeInFolder(folders, firstItem, id) : folders });
+      return id;
+    },
+    renameFolder: (id, name) => {
+      const n = name.trim().slice(0, 40);
+      if (!get().loaded || !n) return;
+      const s = get().settings;
+      apply({ ...s, folders: s.folders.map((f) => (f.id === id ? { ...f, name: n } : f)) });
+    },
+    deleteFolder: (id) => {
+      if (!get().loaded) return;
+      const s = get().settings;
+      const { [folderKey(id)]: _gone, ...positions } = s.positions;
+      apply({ ...s, folders: s.folders.filter((f) => f.id !== id), positions, phone_order: s.phone_order.filter((k) => k !== folderKey(id)) });
+    },
+    moveToFolder: (key, folderId) => {
+      if (!get().loaded) return;
+      const s = get().settings;
+      // An item going into a folder gives up its own cell on the grid.
+      const { [key]: _cell, ...positions } = s.positions;
+      apply({ ...s, folders: placeInFolder(s.folders, key, folderId), positions: folderId ? positions : s.positions });
     },
     editingHome: false,
     setEditingHome: (editingHome) => set({ editingHome }),
@@ -89,7 +124,7 @@ export const useDesktopLayout = create<State>((set, get) => {
       const s = get().settings;
       apply({ ...s, widgets_set: true, widgets: fn(resolveWidgets(s, legacy)) });
     },
-    reset: () => { const before = get().settings; if (get().loaded) apply({ ...empty(), shortcuts: before.shortcuts }); return before; },
+    reset: () => { const before = get().settings; if (get().loaded) apply({ ...empty(), shortcuts: before.shortcuts, folders: before.folders }); return before; },
     restore: (s) => { if (get().loaded) apply(s); },
   };
 });

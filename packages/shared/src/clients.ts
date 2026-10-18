@@ -86,6 +86,14 @@ export const desktopShortcutSchema = z.object({
 });
 export type DesktopShortcut = z.infer<typeof desktopShortcutSchema>;
 export const DESKTOP_MAX_SHORTCUTS = 60;
+// A folder holds apps and shortcuts (by their item keys) and sits on the desktop as 'fd:<id>' (docs/10, 2026-10-18).
+export const desktopFolderSchema = z.object({
+  id: z.string().regex(/^f_[a-z0-9]{6,20}$/),
+  name: z.string().trim().min(1).max(40),
+  items: z.array(itemKey).max(60).default([]),
+});
+export type DesktopFolder = z.infer<typeof desktopFolderSchema>;
+export const DESKTOP_MAX_FOLDERS = 20;
 // The home panel is made of widgets (docs/10). The list is the person's choice of which, in what order, and how wide.
 export const WIDGET_IDS = ['stats', 'start', 'wall', 'tower', 'memos', 'bookmarks', 'new', 'online', 'links'] as const;
 export type WidgetId = (typeof WIDGET_IDS)[number];
@@ -102,6 +110,8 @@ export const desktopClientSchema = z.object({
   widgets: z.array(widgetSchema).max(WIDGET_IDS.length).default([])
     .refine((w) => new Set(w.map((x) => x.id)).size === w.length, 'Each widget can only be there once.'),
   shortcuts: z.array(desktopShortcutSchema).max(DESKTOP_MAX_SHORTCUTS).default([]),  // icons that open a bookmark or a place; item key 'sc:<id>'
+  folders: z.array(desktopFolderSchema).max(DESKTOP_MAX_FOLDERS).default([])          // item key 'fd:<id>'; an item is in one folder at most
+    .refine((f) => { const all = f.flatMap((x) => x.items); return new Set(all).size === all.length; }, 'An item can be in one folder only.'),
 }).prefault({});
 export type DesktopClient = z.infer<typeof desktopClientSchema>;
 

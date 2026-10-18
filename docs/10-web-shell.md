@@ -146,6 +146,10 @@ plain, a "what's new" home, and the full landing page. No new themes.
   address is saved as a private bookmark (the usual `POST /bookmarks`) with a shortcut, and Undo takes both back. Guests
   are asked to sign up. The shortcut lands in the cell it was dropped on (off the icon grid, the first free one). The keyboard ways stay (a bookmark's "Add to the desktop",
   the palette's "Save this link").
+- **Folders** (2026-10-18): an icon's menu offers "Put in a new folder" and "Move to folder: …". A folder sits on the desktop
+  like an icon (drag it, move it, rename it, delete it; deleting puts what was in it back), and on the phone home screen; it
+  opens as a small dialog where each item opens on a click or can be taken out. Stored in the desktop settings document
+  (`folders`, up to 20, each item in one folder at most), so it follows the account and is in the export with the layout.
 - **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
   person by handle; letters in order match, so "stng" finds Settings). Alt+` brings the next window
   forward, minimized ones included. In a focused title bar, Alt+Left and Alt+Right snap the window to

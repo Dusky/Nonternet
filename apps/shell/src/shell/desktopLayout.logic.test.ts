@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addWidget, defaultWidgets, hiddenWidgets, hideWidget, moveWidget, resolveWidgets, sizeWidget, gridSize, moveTo, neighbour, newShortcutId, phoneOrder, place, placePath, sameTarget, shiftPhone, shortcutKey } from './desktopLayout.logic';
+import { addWidget, defaultWidgets, hiddenWidgets, hideWidget, moveWidget, resolveWidgets, sizeWidget, gridSize, moveTo, neighbour, newShortcutId, phoneOrder, place, placePath, sameTarget, shiftPhone, shortcutKey, foldered, placeInFolder } from './desktopLayout.logic';
+import { desktopClientSchema } from '@app/shared';
 
 const keys = ['a', 'b', 'c', 'd', 'e'];
 
@@ -113,5 +114,19 @@ describe('home panel widgets', () => {
     expect(hiddenWidgets(without)).toEqual(['tower']);
     expect(addWidget(without, 'tower').at(-1)).toEqual({ id: 'tower', size: 'normal' });
     expect(addWidget(d, 'tower')).toBe(d);
+  });
+});
+
+describe('folders', () => {
+  const folders = [{ id: 'f_aaaaaa', name: 'A', items: ['boards'] }, { id: 'f_bbbbbb', name: 'B', items: [] as string[] }];
+  it('moves an item from one folder to another, or out of all of them', () => {
+    const moved = placeInFolder(folders, 'boards', 'f_bbbbbb');
+    expect(moved.map((f) => f.items)).toEqual([[], ['boards']]);
+    expect(placeInFolder(moved, 'boards', null).flatMap((f) => f.items)).toEqual([]);
+    expect([...foldered({ folders })]).toEqual(['boards']);
+  });
+  it('the saved document refuses an item in two folders', () => {
+    expect(desktopClientSchema.safeParse({ folders: [{ id: 'f_aaaaaa', name: 'A', items: ['mail'] }, { id: 'f_bbbbbb', name: 'B', items: ['mail'] }] }).success).toBe(false);
+    expect(desktopClientSchema.safeParse({ folders }).success).toBe(true);
   });
 });
