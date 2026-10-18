@@ -11,9 +11,9 @@ async function withBoard(page: Page) {
   await setRole(u.handle, 'trusted');
   await signIn(page, u.handle, PASSWORD);
   const slug = `pg${Date.now() % 1000000}`;
-  const made = await (await page.request.post('/api/v1/boards', { data: { slug, name: 'Paged board', visibility: 'public' }, headers: h })).json();
+  const made = await (await page.request.post('/api/v1/boards', { data: { slug, name: `Paged ${slug}`, visibility: 'public' }, headers: h })).json();
   const thread = await (await page.request.post(`/api/v1/boards/${slug}/posts`, { data: { subject: 'Remember this thread', body: 'Somewhere to come back to.' }, headers: h })).json();
-  return { u, slug, page: made.page as number, thread: thread.id as string };
+  return { u, slug, name: `Paged ${slug}`, page: made.page as number, thread: thread.id as string };
 }
 
 // Typing a number outside a text field opens the palette with it.
@@ -35,8 +35,8 @@ test('a page number typed anywhere goes straight there: an app, then a board', a
 
   await page.goto('/');
   palette = await goToPage(page, b.page);
-  await palette.getByRole('option', { name: `Page ${b.page}: Paged board` }).click();
-  await expect(page.getByRole('heading', { name: /Paged board/ }).first()).toBeVisible();
+  await palette.getByRole('option', { name: `Page ${b.page}: ${b.name}` }).click();
+  await expect(page.getByRole('heading', { name: b.name }).first()).toBeVisible();
 
   await page.goto('/');
   palette = await goToPage(page, 777);
@@ -46,11 +46,11 @@ test('a page number typed anywhere goes straight there: an app, then a board', a
 test('boards and the apps menu show their page numbers', async ({ page, isMobile }) => {
   const b = await withBoard(page);
   await page.goto('/boards');
-  await expect(page.locator('.board-link', { hasText: 'Paged board' }).locator('xpath=following-sibling::*[1]')).toHaveText(String(b.page));
+  await expect(page.locator('.board-link', { hasText: b.name }).locator('xpath=following-sibling::*[1]')).toHaveText(String(b.page));
   if (isMobile) return;
   await page.goto('/');
-  await page.getByRole('button', { name: 'Apps' }).click();
-  await expect(page.getByRole('menuitem', { name: 'Boards, page 200' })).toBeVisible();
+  await page.getByRole('button', { name: 'Apps', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: /^Boards ?, page 200$/ })).toBeVisible();
 });
 
 test('a place you opened shows under Recent until you clear it', async ({ page, isMobile }) => {
