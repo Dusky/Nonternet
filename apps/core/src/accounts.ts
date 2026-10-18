@@ -83,7 +83,8 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin
   }
   checkEmailDomain(deps, input.email);
   // The terminal has its own per-address limit (bbs/service.ts) and no browser to solve a check in.
-  const net = origin === 'web' ? networkHash(deps, ctx.ip) : null;
+  // Invite sign-ups are not counted or kept: an invite is already a gate an admin handed out.
+  const net = origin === 'web' && mode !== 'invite' ? networkHash(deps, ctx.ip) : null;
 
   if (input.terminal_password !== undefined && input.terminal_password === input.password) {
     throw new ApiError(400, 'same_password', 'Use a different terminal password from the one you log in to the website with.');

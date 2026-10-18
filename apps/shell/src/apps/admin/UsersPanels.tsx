@@ -98,6 +98,8 @@ function SignupNetworks() {
       <h3 id="signup-networks">{t('admin.signups.title')}</h3>
       <p className="hint">{t('admin.signups.hint', { days: q.data.days })}</p>
       {q.data.networks.length === 0 ? <p>{t('admin.signups.none')}</p> : (
+        <details>
+        <summary>{t('admin.signups.show', { count: q.data.networks.length })}</summary>
         <table className="table">
           <thead><tr><th scope="col">{t('admin.signups.network')}</th><th scope="col">{t('admin.signups.count')}</th><th scope="col">{t('admin.signups.people')}</th></tr></thead>
           <tbody>
@@ -110,6 +112,7 @@ function SignupNetworks() {
             ))}
           </tbody>
         </table>
+        </details>
       )}
     </section>
   );

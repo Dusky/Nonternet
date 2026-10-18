@@ -87,7 +87,9 @@ test('someone applies to join, confirms their email, and gets in when an admin a
     await card.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByText('Nobody is waiting.')).toBeVisible();
     await page.goto('/admin/users');
-    await expect(page.getByRole('region', { name: 'Sign-ups by network' }).getByRole('link', { name: handle })).toBeVisible();
+    const networks = page.getByRole('region', { name: 'Sign-ups by network' });
+    await networks.getByText(/^Show \d+ networks?$/).click();
+    await expect(networks.getByRole('link', { name: handle })).toBeVisible();
 
     await visitor.reload();
     await expect(visitor.getByText('Your application is waiting', { exact: false })).toHaveCount(0);
