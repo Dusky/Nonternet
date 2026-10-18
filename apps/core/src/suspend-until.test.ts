@@ -44,7 +44,7 @@ describe.skipIf(!dbAvailable)('suspensions that end and admin notes', () => {
     expect((await login(u.handle)).body.error.message).toBe('This account is suspended. Contact the admins to appeal.');
     await db.query(`UPDATE users SET suspended_until = now() + interval '1 day' WHERE id = $1`, [u.id]);
     await boss.client.post(`/api/v1/admin/users/${u.id}/unsuspend`, { reason: 'Sorted' });
-    expect((await db.query(`SELECT suspended_until FROM users WHERE id = $1`, [u.id])).rows[0].suspended_until).toBeNull();
+    expect((await db.query(`SELECT suspended_until FROM users WHERE id = $1`, [u.id])).rows[0]!.suspended_until).toBeNull();
   });
 
   it('refuses other lengths', async () => {

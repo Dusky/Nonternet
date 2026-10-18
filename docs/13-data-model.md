@@ -20,6 +20,7 @@ users (
   role_rev int not null default 0,
   status text not null default 'active',-- active|suspended|deleted
   suspended_until timestamptz,      -- a suspension that ends by itself (null = until an admin lifts it)
+  signup_net text,                  -- keyed hash of the /24 or /48 a web sign-up came from (docs/15); cleared on deletion
   quota_bytes bigint,               -- null = role default
   theme text,                       -- webring|after-dark|terminal|platinum|aqua, null = site default
   theme_variant text,               -- Terminal screen colour (amber, green, …), null otherwise
@@ -146,6 +147,7 @@ user_blocks (user_id, blocked_id, created_at)
 vouches (id vo_, candidate_id, voucher_id, note, created_at, withdrawn_at, outcome confirmed|declined, decided_at, decided_by)
 sponsor_flags (id sf_, vouch_id unique, voucher_id, candidate_id, reason demoted|suspended, created_at)
 admin_notes (id an_, user_id fk, author_id fk null, body 1–2000, created_at) -- admins only; not exported; deleted with the account
+signup_proofs (signature pk, expires_at) -- proof-of-work answers already used; kept ten minutes
 file_areas (id fa_, slug, name, description, visibility public|members, upload_role user|trusted|admin, archived_at)
 files (id f_, area_id, uploader_id?, name, title, description, size_bytes, sha256, downloads, hidden_at, deleted_at)
                                    -- the bytes are FILES_DIR/{id}

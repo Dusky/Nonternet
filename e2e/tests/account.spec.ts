@@ -60,13 +60,20 @@ test('someone applies to join, confirms their email, and gets in when an admin a
     const handle = uniq('appl');
     await visitor.goto('/signup');
     await visitor.getByLabel('Handle').fill(handle);
-    await visitor.getByLabel('Email').fill(`${handle}@example.test`);
+    // A throwaway address is refused at the email field (sign-up protections, docs/15).
+    await visitor.getByLabel('Email').fill(`${handle}@mailinator.com`);
     await visitor.getByLabel('Password', { exact: true }).fill(admin.password);
     await visitor.getByLabel('Why do you want to join?').fill('I keep a list of old shareware and want to share it.');
     const age = visitor.getByRole('checkbox');
     if (await age.count()) await age.check();
     expect(await axe(visitor)).toEqual([]);
     await visitor.getByRole('button', { name: 'Sign up' }).click();
+    await expect(visitor.getByText('That looks like a throwaway email address.', { exact: false })).toBeVisible();
+    // The browser check is solved in the background and sent with the form.
+    await visitor.getByLabel('Email').fill(`${handle}@example.test`);
+    const sent = visitor.waitForRequest((r) => r.url().endsWith('/api/v1/auth/signup') && r.method() === 'POST');
+    await visitor.getByRole('button', { name: 'Sign up' }).click();
+    expect((await sent).postDataJSON().proof).toMatch(/^[A-Za-z0-9+/=]{40,}$/);
     await expect(visitor.getByText('the admins will read your application', { exact: false })).toBeVisible();
     await visitor.goto(await linkFor(`${handle}@example.test`, 'verify-email'));
     await expect(visitor.getByText('Your email is confirmed.', { exact: false })).toBeVisible();
@@ -79,6 +86,8 @@ test('someone applies to join, confirms their email, and gets in when an admin a
     expect(await axe(page)).toEqual([]);
     await card.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByText('Nobody is waiting.')).toBeVisible();
+    await page.goto('/admin/users');
+    await expect(page.getByRole('region', { name: 'Sign-ups by network' }).getByRole('link', { name: handle })).toBeVisible();
 
     await visitor.reload();
     await expect(visitor.getByText('Your application is waiting', { exact: false })).toHaveCount(0);

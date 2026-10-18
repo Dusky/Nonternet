@@ -45,6 +45,16 @@ export const siteConfigSchema = z
         require_email: z.boolean().default(true),
         // People confirm at signup that they are at least this old. 0 turns the question off (docs/02, decided 2026-09-30).
         minimum_age: z.number().int().min(0).max(120).default(16),
+        // Sign-up protections for open and application sign-up; invite codes are already a gate (docs/15, 17 2026-10-18).
+        // A small proof-of-work check the browser solves (ALTCHA, no third party).
+        proof_of_work: z.boolean().default(true),
+        // New accounts a day from one network (/24 for IPv4, /48 for IPv6). 0 turns the limit off.
+        per_network_per_day: z.number().int().min(0).max(1000).default(5),
+        // Refuse addresses at known throwaway email services (a public-domain list, refreshed by sitectl).
+        block_disposable_email: z.boolean().default(true),
+        // Email domains always let in, and always refused, separated by spaces or commas. A domain covers its subdomains.
+        email_allow: z.string().max(4000).default(''),
+        email_deny: z.string().max(4000).default(''),
       })
       .prefault({}),
     limits: z

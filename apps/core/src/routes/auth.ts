@@ -3,6 +3,7 @@ import { forgotPasswordSchema, loginInputSchema, passkeyLoginSchema, resetPasswo
 import { z } from 'zod';
 import * as accounts from '../accounts';
 import * as passkeys from '../passkeys';
+import { signupChallenge } from '../signup-guard';
 import { COOKIE, ctxOf, requireUser, setSessionCookie } from '../http';
 import type { AppDeps } from '../deps';
 
@@ -10,6 +11,12 @@ const verifySchema = z.object({ token: z.string().min(10).max(200) });
 const perIp = (max: number, timeWindow: string) => ({ rateLimit: { max, timeWindow } });
 
 export function authRoutes(app: FastifyInstance, deps: AppDeps): void {
+  // The proof-of-work check for sign-up (docs/15); null when this site doesn't ask for one.
+  app.get('/api/v1/auth/signup-challenge', { config: perIp(30, '1 minute') }, async (_req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return { challenge: await signupChallenge(deps) };
+  });
+
   app.post('/api/v1/auth/signup', { config: perIp(5, '1 hour') }, async (req, reply) => {
     const input = signupInputSchema.parse(req.body);
     const user = await accounts.signup(deps, input, ctxOf(deps, req));

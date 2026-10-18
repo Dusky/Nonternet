@@ -5,6 +5,7 @@ import { Alert, Centered } from '../components/ui';
 import { CheckField, Field, fieldMessages, Form, useZodForm } from '../components/Form';
 import { api } from '../api';
 import { useSite, useT } from '../hooks';
+import { useSignupProof } from './signupProof';
 
 type Values = { handle: string; email: string; password: string; display_name: string; invite: string; age: boolean; application: string };
 
@@ -16,6 +17,7 @@ export function SignupPage() {
   const inviteOnly = site.signup_mode === 'invite';
   const byApplication = site.signup_mode === 'application';
   const asksAge = site.minimum_age > 0;
+  const proof = useSignupProof(!inviteOnly);
 
   // What is sent: only the fields this site asks for.
   const body = (v: Values) => ({
@@ -38,8 +40,15 @@ export function SignupPage() {
       return Object.keys(found).length ? found : undefined;
     },
     // Point at the field the server is unhappy about, when there is one.
-    serverFields: { handle_unavailable: 'handle', email_taken: 'email', age_required: 'age', application_required: 'application', invite_invalid: 'invite', invite_required: 'invite' },
-    submit: (v) => api.post('/auth/signup', body(v)),
+    serverFields: { handle_unavailable: 'handle', email_taken: 'email', email_disposable: 'email', email_domain_refused: 'email', age_required: 'age', application_required: 'application', invite_invalid: 'invite', invite_required: 'invite' },
+    submit: async (v) => {
+      const answer = await proof.take().catch(() => null);
+      try {
+        return await api.post('/auth/signup', { ...body(v), ...(answer ? { proof: answer } : {}) });
+      } finally {
+        if (answer) proof.retry(); // used, or the sign-up failed: either way the next try gets a fresh one
+      }
+    },
     onDone: () => setDone(true),
   });
 
@@ -59,6 +68,8 @@ export function SignupPage() {
         <Field f={f} name="display_name" label={t('field.displayName')} maxLength={60} />
         {byApplication && <Field f={f} name="application" label={t('auth.signup.application')} hint={t('auth.signup.applicationHint')} multiline maxLength={APPLICATION_MAX} />}
         {asksAge && <CheckField f={f} name="age" label={t('auth.signup.age', { age: site.minimum_age })} />}
+        {proof.state === 'failed' && <Alert kind="error" retry={proof.retry}>{t('auth.signup.proofFailed')}</Alert>}
+        <p className="visually-hidden" role="status">{proof.state === 'working' ? t('auth.signup.proofWorking') : proof.state === 'ready' ? t('auth.signup.proofReady') : ''}</p>
       </Form>
       <p className="links"><Link to="/login">{t('auth.signup.haveAccount')}</Link></p>
     </Centered>

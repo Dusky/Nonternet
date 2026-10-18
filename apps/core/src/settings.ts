@@ -22,10 +22,16 @@ export interface SettingDef {
 
 const int = (min: number, max: number) => z.number().int().min(min).max(max);
 const MB = 1048576;
+const domainList = z.string().max(4000).regex(/^[a-z0-9.\-\s,]*$/i, 'Use domain names separated by spaces or commas, like example.org.');
 
 export const SETTINGS: SettingDef[] = [
   { key: 'signup.mode', schema: z.enum(['open', 'invite', 'application']), risky: true, get: (c) => c.signup.mode, set: (c, v) => { c.signup.mode = v as 'open' | 'invite' | 'application'; } },
   { key: 'signup.minimum_age', schema: int(0, 120), risky: true, get: (c) => c.signup.minimum_age, set: (c, v) => { c.signup.minimum_age = v as number; } },
+  { key: 'signup.proof_of_work', schema: z.boolean(), risky: false, get: (c) => c.signup.proof_of_work, set: (c, v) => { c.signup.proof_of_work = v as boolean; } },
+  { key: 'signup.per_network_per_day', schema: int(0, 1000), risky: false, get: (c) => c.signup.per_network_per_day, set: (c, v) => { c.signup.per_network_per_day = v as number; } },
+  { key: 'signup.block_disposable_email', schema: z.boolean(), risky: false, get: (c) => c.signup.block_disposable_email, set: (c, v) => { c.signup.block_disposable_email = v as boolean; } },
+  { key: 'signup.email_allow', schema: domainList, risky: false, get: (c) => c.signup.email_allow, set: (c, v) => { c.signup.email_allow = v as string; } },
+  { key: 'signup.email_deny', schema: domainList, risky: false, get: (c) => c.signup.email_deny, set: (c, v) => { c.signup.email_deny = v as string; } },
   { key: 'limits.trusted_board_quota', schema: int(0, 100), risky: false, get: (c) => c.limits.trusted_board_quota, set: (c, v) => { c.limits.trusted_board_quota = v as number; },
     impact: async (deps, next) => ({ affected: Number((await deps.db.query<{ n: string }>(`SELECT count(*) AS n FROM (SELECT owner_id FROM boards WHERE archived_at IS NULL AND ring_id IS NULL GROUP BY owner_id HAVING count(*) > $1) x`, [next])).rows[0]!.n), note: 'people who already own more boards than that keep them but cannot make new ones' }) },
   { key: 'limits.trusted_ring_quota', schema: int(0, 100), risky: false, get: (c) => c.limits.trusted_ring_quota, set: (c, v) => { c.limits.trusted_ring_quota = v as number; } },

@@ -199,6 +199,23 @@ export async function addNote(deps: AppDeps, admin: SessionUser, targetId: strin
   return (await listNotes(deps, targetId)).find((n) => n.id === id)!;
 }
 
+// ---------------------------------------------------------------- sign-ups by network
+
+// The last week's sign-ups, grouped by the network they came from (docs/11). The network is only a keyed hash, shown as a
+// short label, so admins can see that several accounts share one without learning anyone's address.
+export async function signupsByNetwork(deps: AppDeps, days = 7) {
+  const r = await deps.db.query<{ net: string; id: string; handle: string; status: string; created_at: Date }>(
+    `SELECT signup_net AS net, id, handle, status, created_at FROM users
+      WHERE signup_net IS NOT NULL AND created_at > now() - make_interval(days => $1) ORDER BY created_at DESC LIMIT 1000`, [days]);
+  const groups = new Map<string, { network: string; people: { id: string; handle: string; status: string; created_at: string }[] }>();
+  for (const u of r.rows) {
+    const g = groups.get(u.net) ?? { network: u.net.slice(0, 8), people: [] };
+    g.people.push({ id: u.id, handle: u.handle, status: u.status, created_at: u.created_at.toISOString() });
+    groups.set(u.net, g);
+  }
+  return { days, networks: [...groups.values()].sort((a, b) => b.people.length - a.people.length) };
+}
+
 // ---------------------------------------------------------------- ops
 
 export interface OpRow { id: string; scope: OpScope; scope_id: string; granted_by: string; created_at: string }

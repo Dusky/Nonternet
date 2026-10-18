@@ -89,6 +89,7 @@ has an admin, no new setup link is made.
 | nightly | encrypted backup into `deploy/backups` (database, MUD world, chat history, homepages, file areas, config) | `./sitectl backup` |
 | weekly | Ergo (and Gemini, when it uses the site's certificate) pick up renewed certificates | `./sitectl tls-reload` (`irc-reload` still works) |
 | monthly | prove the newest backup restores; the result shows in the console's Backups page | `./sitectl restore-test` |
+| monthly | fetch the newest list of throwaway email services refused at sign-up (core rereads it; no restart) | `./sitectl disposable-refresh` |
 | after each backup | copy `deploy/backups` off the server (rsync, object storage); it is encrypted | `./sitectl backup-copy` (set up by the installer), or your own tool |
 
 Example crontab (as the user that runs Docker):
@@ -96,6 +97,7 @@ Example crontab (as the user that runs Docker):
 15 3 * * *  cd /srv/site/deploy && ./sitectl backup >> backups/backup.log 2>&1
 30 4 * * 1  cd /srv/site/deploy && ./sitectl tls-reload
 45 4 1 * *  cd /srv/site/deploy && ./sitectl restore-test >> backups/restore.log 2>&1
+50 4 1 * *  cd /srv/site/deploy && ./sitectl disposable-refresh
 ```
 
 ## Upgrading

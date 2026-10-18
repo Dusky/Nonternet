@@ -42,6 +42,7 @@ DB-backed versioned settings (`11`) override runtime keys; `site.*` only via con
 | `DB_RUNTIME_ROLE`, `DB_RUNTIME_PASSWORD` | the role core runs as: made if missing, granted everything except changing the audit log |
 | `IRC_HISTORY_DATABASE_URL` | Ergo's chat history database, read for exports and dumped by backups (Q9) |
 | `BBS_SECRET` | shared with the BBS (32+ characters); turns it on |
+| `DISPOSABLE_DOMAINS_FILE` | a newer list of throwaway email services than the one built in (`./sitectl disposable-refresh` writes `deploy/lists/disposable-domains.txt`); reread when it changes |
 | `APPS_DIR` | installable app packages, one folder per app with its `manifest.json` (docs/10); default `./data/apps`, `/app/apps` in the image. Core reads it at start to update the catalog; the homes server serves from it |
 
 ## Hosting costs & quotas
@@ -122,6 +123,16 @@ Pinned versions of Ergo and the MUD engine; integration suite must pass before b
   guarantee doesn't rest on a trigger alone (set up with the production compose file, later).
 - Two-factor is optional; a site can require it for admin accounts (`security.require_admin_2fa`, recommended for a public site).
 - Custom domains: TXT verification before on-demand TLS; allowlist endpoint for Caddy.
+- Sign-up protections (built 2026-10-18; admin settings `signup.*`). For open and application sign-up only; an invite
+  is already a gate. (1) A proof-of-work check: core issues an ALTCHA challenge (`altcha-lib`, MIT; SHA-256 with a
+  four-hex-digit prefix, about 65,000 tries, a second or two in a browser), signed with a key derived from
+  `APP_SECRET_KEY`, valid ten minutes; the shell solves it while the form is filled in and sends it with the sign-up.
+  Each answer works once (`signup_proofs`). No third party and no widget: the shell uses the same library and its own
+  status line, so the CSP needs no worker or style changes. (2) A daily limit per network, `/24` for IPv4 and `/48`
+  for IPv6 (default 5): only a keyed hash of the network is stored (`users.signup_net`), cleared when the account is
+  deleted; admins see the last week's sign-ups grouped by it. (3) Email domain rules: the public-domain (CC0)
+  disposable-email-domains list, built in and refreshed by `sitectl`, plus admin allow and deny lists; also applied to
+  email changes. Terminal sign-up has its own per-address limit and no browser, so it skips (1) and (2); (3) applies.
 
 ### Launch review (2026-09-30)
 - **Private by default:** core refuses a request with no session on every route not listed in

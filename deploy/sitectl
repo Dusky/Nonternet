@@ -11,6 +11,7 @@
 #   ./sitectl install-agent   set the agent up as a system service, so the console's Updates page works
 #   ./sitectl tls-reload      make Ergo and Gemini reload their TLS certificates (weekly, from cron; irc-reload still works)
 #   ./sitectl gemini-fingerprint   the Gemini certificate's fingerprint, for people to check against their client
+#   ./sitectl disposable-refresh   fetch the newest list of throwaway email services (used at sign-up; monthly is plenty)
 #   ./sitectl create-admin <handle> <email>     the first admin (asks for a password)
 #   ./sitectl logs [service]  ./sitectl ps
 set -euo pipefail
@@ -269,5 +270,12 @@ case "${1:-help}" in
   create-admin) [ $# -eq 3 ] || { say "Usage: ./sitectl create-admin <handle> <email>"; exit 2; }; "${COMPOSE[@]}" exec core node cli.cjs create-admin --handle "$2" --email "$3" ;;
   logs) shift; "${COMPOSE[@]}" logs --tail 200 -f "$@" ;;
   ps) "${COMPOSE[@]}" ps ;;
-  *) sed -n '2,15p' "$SELF" | sed 's/^# \{0,1\}//' ;;
+  disposable-refresh)
+    # The public-domain (CC0) disposable-email-domains list. Core rereads it when it changes; no restart needed.
+    mkdir -p lists
+    curl -fsSL https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf -o lists/disposable-domains.txt.new
+    n=$(grep -c . lists/disposable-domains.txt.new || true)
+    if [ "${n:-0}" -lt 1000 ]; then rm -f lists/disposable-domains.txt.new; bad "The list looked wrong ($n lines); kept the old one."; exit 1; fi
+    mv lists/disposable-domains.txt.new lists/disposable-domains.txt && ok "Throwaway email list updated: $n domains." ;;
+  *) sed -n '2,16p' "$SELF" | sed 's/^# \{0,1\}//' ;;
 esac

@@ -136,7 +136,7 @@ describe.skipIf(!dbAvailable)('self-service', () => {
 
   describe('signing up by application', () => {
     let apps: Awaited<ReturnType<typeof makeApp>>;
-    beforeAll(async () => { apps = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: application }` }); });
+    beforeAll(async () => { apps = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: application, proof_of_work: false, per_network_per_day: 0 }` }); });
     const apply = async (handle: string) => {
       const r = await client(apps.app).post('/api/v1/auth/signup', { handle, email: `${handle}@example.test`, password: TEST_PASSWORD, age_confirmed: true, application: 'I make tracker music and want somewhere quiet to post it.' });
       expect(r.status).toBe(201);

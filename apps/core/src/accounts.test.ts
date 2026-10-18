@@ -125,7 +125,7 @@ describe.skipIf(!dbAvailable)('accounts', () => {
       const audited = await db.query(`SELECT after FROM audit_log WHERE action = 'user.created' AND after->>'handle' = $1`, [body.handle]);
       expect(audited.rows[0]!.after.age_confirmed_min).toBe(16);
 
-      const off = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: open, minimum_age: 0 }` });
+      const off = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: open, minimum_age: 0, proof_of_work: false, per_network_per_day: 0 }` });
       const { invite: _i, age_confirmed: _a, ...bare } = await valid();
       expect((await client(off.app).post('/api/v1/auth/signup', bare)).status).toBe(201);
       const none = await db.query(`SELECT age_confirmed_at FROM users WHERE handle = $1`, [bare.handle]);
@@ -133,14 +133,14 @@ describe.skipIf(!dbAvailable)('accounts', () => {
     });
 
     it('allows open signup with no invite when the site is open', async () => {
-      const open = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: open }` });
+      const open = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: open, proof_of_work: false, per_network_per_day: 0 }` });
       const { invite: _omit, ...body } = await valid();
       const r = await client(open.app).post('/api/v1/auth/signup', body);
       expect(r.status).toBe(201);
     });
 
     it('asks why the person wants to join when the site takes applications', async () => {
-      const apps = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: application }` });
+      const apps = await makeApp(db, { yaml: `site: { name: Test Site, short_name: testsite, domain: example.test, homes_domain: example-homes.test }\nsignup: { mode: application, proof_of_work: false, per_network_per_day: 0 }` });
       const r = await client(apps.app).post('/api/v1/auth/signup', await valid());
       expect(r.body.error.code).toBe('application_required');
       expect((await client(apps.app).post('/api/v1/auth/signup', await valid({ application: 'I run a small synth forum and want a home for it.' }))).status).toBe(201);

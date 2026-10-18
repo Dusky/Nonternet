@@ -37,6 +37,8 @@ export const signupInputSchema = z.object({
   terminal_password: z.string().min(10).max(128).optional(),
   // Sign-up by application (docs/02): why the person wants to join, read by the admins.
   application: z.string().trim().min(APPLICATION_MIN, `say a little more: at least ${APPLICATION_MIN} characters`).max(APPLICATION_MAX).optional(),
+  // The solved proof-of-work check, when the site asks for one (docs/15): base64 JSON from the browser.
+  proof: z.string().max(8000).optional(),
 });
 export type SignupInput = z.infer<typeof signupInputSchema>;
 

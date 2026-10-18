@@ -80,7 +80,38 @@ export function Users() {
         </table>
       )}
       {query.hasNextPage && <button className="btn" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>{t('admin.users.more')}</button>}
+      <SignupNetworks />
     </>
+  );
+}
+
+interface NetworkGroup { network: string; people: { id: string; handle: string; status: string; created_at: string }[] }
+
+// The last week's sign-ups grouped by the network they came from (docs/11). Networks are shown as a short code made
+// from a keyed hash: enough to see that accounts share one, never the address itself.
+function SignupNetworks() {
+  const t = useT();
+  const q = useQuery({ queryKey: ['admin', 'signups'], queryFn: () => api.get<{ days: number; networks: NetworkGroup[] }>('/admin/signups') });
+  if (!q.data) return null;
+  return (
+    <section aria-labelledby="signup-networks">
+      <h3 id="signup-networks">{t('admin.signups.title')}</h3>
+      <p className="hint">{t('admin.signups.hint', { days: q.data.days })}</p>
+      {q.data.networks.length === 0 ? <p>{t('admin.signups.none')}</p> : (
+        <table className="table">
+          <thead><tr><th scope="col">{t('admin.signups.network')}</th><th scope="col">{t('admin.signups.count')}</th><th scope="col">{t('admin.signups.people')}</th></tr></thead>
+          <tbody>
+            {q.data.networks.map((g) => (
+              <tr key={g.network}>
+                <th scope="row" data-label={t('admin.signups.network')}><code>{g.network}</code></th>
+                <td data-label={t('admin.signups.count')}>{g.people.length}</td>
+                <td data-label={t('admin.signups.people')}>{g.people.map((u, i) => <span key={u.id}>{i > 0 && ', '}<AppLink to={`users/${u.id}`}>{u.handle}</AppLink>{u.status !== 'active' && ` (${t(`status.${u.status as 'active'}`)})`}</span>)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 

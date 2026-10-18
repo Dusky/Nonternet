@@ -394,6 +394,12 @@ one process, this moves to the job queue.
   graphile-worker job, keeping the rule that only push uses the queue) and admin notes. **For the owner to confirm:** admin
   notes are not in the person's own export, because they are about the person rather than theirs; they are deleted with the
   account. If people should be able to see notes about them (a data request, for example), that is a change to make.
+  Sign-up protections built too (docs/15): they apply to open and application sign-up, not invite sign-up (an invite is
+  already a gate an admin handed out); the ALTCHA widget was not needed: the shell solves the challenge with the same
+  library behind its own status line, so no worker, style or CSP change; terminal sign-up keeps its own per-address limit
+  and skips the browser check and the network limit (it only sends a hashed address), while the email rules apply to
+  every door and to email changes. VERIFIED 2026-10-18: `altcha-lib` 2.6.0 is MIT and has no Node-only imports in its
+  browser path; the disposable-email-domains list is CC0 1.0.
 - **Outside app authors** (DECIDED, closes Q18, to build): trusted people submit an app package; it is private to them until
   an admin reviews and offers it; each new version is reviewed again; apps can be reported and withdrawn.
 - **MUD telnet over TLS** (DECIDED, to build): off by default, an admin switches it on.

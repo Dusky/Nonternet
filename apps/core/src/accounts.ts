@@ -3,6 +3,7 @@ import { noteActive } from './activity';
 import { noteWebSeen } from './presence';
 import { makeT } from '@app/strings';
 import { audit } from './audit';
+import { checkEmailDomain, checkNetwork, checkProof, networkHash } from './signup-guard';
 import { randomInt } from 'node:crypto';
 import { decryptSecret, encryptSecret, newId, newInviteCode, newRecoveryCode, randomToken, sha256 } from './crypto';
 import { isUniqueViolation, type Queryable } from './db';
@@ -80,6 +81,9 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin
   if (isReservedHandle(input.handle, deps.config.site.short_name)) {
     throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
   }
+  checkEmailDomain(deps, input.email);
+  // The terminal has its own per-address limit (bbs/service.ts) and no browser to solve a check in.
+  const net = origin === 'web' ? networkHash(deps, ctx.ip) : null;
 
   if (input.terminal_password !== undefined && input.terminal_password === input.password) {
     throw new ApiError(400, 'same_password', 'Use a different terminal password from the one you log in to the website with.');
@@ -91,6 +95,10 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin
   let token: Verification;
   try {
     token = await deps.db.tx(async (q) => {
+      if (origin === 'web') {
+        await checkProof(deps, q, input.proof);
+        await checkNetwork(deps, q, net);
+      }
       if (mode === 'invite') {
         const inv = await q.query<{ used_by: string | null; ok: boolean }>(
           `SELECT used_by, expires_at > now() AS ok FROM invites WHERE code = $1 FOR UPDATE`, [input.invite!.toUpperCase()]);
@@ -103,9 +111,9 @@ export async function signup(deps: AppDeps, input: SignupInput, ctx: Ctx, origin
         throw new ApiError(409, 'handle_unavailable', 'That handle is not available. Choose another.');
       }
       await q.query(
-        `INSERT INTO users (id, handle, display_name, email, password_hash, age_confirmed_at, age_confirmed_min, terminal_password_hash, terminal_password_set_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8::text IS NULL THEN NULL ELSE now() END)`,
-        [id, input.handle, input.display_name ?? null, input.email, passwordHash, minAge > 0 ? new Date(deps.now()) : null, minAge > 0 ? minAge : null, terminalHash]);
+        `INSERT INTO users (id, handle, display_name, email, password_hash, age_confirmed_at, age_confirmed_min, terminal_password_hash, terminal_password_set_at, signup_net)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8::text IS NULL THEN NULL ELSE now() END, $9)`,
+        [id, input.handle, input.display_name ?? null, input.email, passwordHash, minAge > 0 ? new Date(deps.now()) : null, minAge > 0 ? minAge : null, terminalHash, net]);
       await ensureKeypair(q, deps.secretKey, id); // the person's signing key, made at signup (docs/02)
       if (mode === 'application') await q.query(`INSERT INTO applications (user_id, text) VALUES ($1, $2)`, [id, input.application]);
       if (mode === 'invite') {
@@ -498,6 +506,7 @@ export async function requestEmailChange(deps: AppDeps, user: SessionUser, input
   await checkPassword(deps, user.userId, input.password);
   const email = input.email.trim();
   if (email === user.email) throw new ApiError(409, 'no_change', 'That is already your email address.');
+  checkEmailDomain(deps, email);
   if ((await deps.db.query(`SELECT 1 FROM users WHERE lower(email) = lower($1) AND id <> $2`, [email, user.userId])).rowCount > 0) {
     throw new ApiError(409, 'email_taken', 'That email address is already used by another account.');
   }

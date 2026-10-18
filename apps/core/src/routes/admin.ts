@@ -123,6 +123,8 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
     return reply.code(204).send();
   });
 
+  app.get('/api/v1/admin/signups', async (req) => { requireAdmin(req); return admin.signupsByNetwork(deps); });
+
   // Private notes about a person, for admins only (docs/11).
   app.get('/api/v1/admin/users/:id/notes', async (req) => {
     requireAdmin(req);

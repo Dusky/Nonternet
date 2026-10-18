@@ -37,9 +37,11 @@ services:
       MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM in deploy/.env}
       HOMES_PUBLIC_PORT: ""
       OPS_DIR: /ops  # updates and restarts from the console, carried out by `./sitectl agent` on the host (docs/19)
+      DISPOSABLE_DOMAINS_FILE: /lists/disposable-domains.txt  # newer throwaway-email list from `./sitectl disposable-refresh`
     volumes:
       - ./backups:/backups
       - ./ops:/ops
+      - ./lists:/lists:ro
 
   homes:
     <<: *prod

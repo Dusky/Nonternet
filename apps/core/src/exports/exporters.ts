@@ -375,6 +375,7 @@ export const EXEMPT: Record<string, string> = {
   legal_pages: 'site documents written by admins',
   site_defaults: 'site-wide defaults an admin set (the default desktop layout), not anyone\'s own content',
   admin_notes: 'notes admins keep about a person: about them, not theirs, so not in their export; deleted with the account (docs/17, 2026-10-18)',
+  signup_proofs: 'used proof-of-work answers, kept ten minutes so each works once; not tied to a person',
   imports: 'a record of archives the person uploaded to bring back; the content itself is in their export',
   guestbook_tickets: 'one-use sign-in passes, security state rather than content',
   bulletins: 'site notices written by admins, not a person\'s own content',
