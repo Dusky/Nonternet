@@ -390,6 +390,10 @@ one process, this moves to the job queue.
 - **Suspensions that end by themselves, sign-up abuse tools, admin notes** (DECIDED, to build): suspend for a day, a week, a
   month or until lifted; a proof-of-work check at sign-up (no third party); sign-up limits per network; email-domain
   rules (a disposable-domain list plus admin allow and deny lists); private admin notes on a person.
+  Built so far: suspensions with an end date (a simple five-minute loop in core lifts them, audited as the system, not a
+  graphile-worker job, keeping the rule that only push uses the queue) and admin notes. **For the owner to confirm:** admin
+  notes are not in the person's own export, because they are about the person rather than theirs; they are deleted with the
+  account. If people should be able to see notes about them (a data request, for example), that is a change to make.
 - **Outside app authors** (DECIDED, closes Q18, to build): trusted people submit an app package; it is private to them until
   an admin reviews and offers it; each new version is reviewed again; apps can be reported and withdrawn.
 - **MUD telnet over TLS** (DECIDED, to build): off by default, an admin switches it on.

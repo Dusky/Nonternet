@@ -213,14 +213,20 @@ export async function login(deps: AppDeps, input: LoginInput, ctx: Ctx): Promise
   const bad = new ApiError(401, 'invalid_credentials', 'That handle, email or password is not right.');
   const found = await deps.db.query<{
     id: string; handle: string; display_name: string | null; bio: string | null; theme: ThemeName | null; theme_variant: TerminalScheme | null; email: string; email_verified_at: string | null; password_hash: string;
-    role: SessionUser['role']; role_rev: number; status: string; totp_secret_enc: string | null; totp_enabled_at: string | null;
+    role: SessionUser['role']; role_rev: number; status: string; suspended_until: Date | null; totp_secret_enc: string | null; totp_enabled_at: string | null;
   }>(`SELECT * FROM users WHERE lower(handle) = lower($1) OR lower(email) = lower($1) LIMIT 1`, [input.identifier]);
   const u = found.rows[0];
 
   if (!u) { await burnPasswordCheck(input.password); throw bad; }
   if (!(await verifyPassword(u.password_hash, input.password))) throw bad;
   if (u.status === 'deleted') throw bad;
-  if (u.status === 'suspended') throw new ApiError(403, 'suspended', 'This account is suspended. Contact the admins to appeal.');
+  if (u.status === 'suspended') {
+    // The end date is given in UTC so it reads the same in every client, the BBS included.
+    const until = u.suspended_until;
+    throw new ApiError(403, 'suspended', until
+      ? `This account is suspended until ${until.toISOString().slice(0, 16).replace('T', ' ')} UTC. Contact the admins to appeal.`
+      : 'This account is suspended. Contact the admins to appeal.');
+  }
 
   await requireSecondFactor(deps, u, input, ctx);
   return openSession(deps, u, ctx);

@@ -21,8 +21,8 @@ OIDC under `/oidc/*`.
 ## Users (public + admin)
 `GET /users/:handle` (public profile) · admin: `GET /admin/users?…`, `GET /admin/users/:id`
 (dossier), all built: `GET /admin/users?q=&role=&status=&before=&limit=`, `GET /admin/users/:id` (basic dossier), `GET /admin/invites`, `POST /admin/invites`, `POST /admin/users/:id/role`, `/suspend`, `/unsuspend`,
-`GET|POST /admin/users/:id/ops`, `DELETE /admin/users/:id/ops/:opId`. `POST /admin/users/:id/rename` (built). Still to build: `/logout-all`,
-`/quota`, `/notes`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
+`GET|POST /admin/users/:id/ops`, `DELETE /admin/users/:id/ops/:opId`. `POST /admin/users/:id/rename` (built). `/suspend` takes an optional `days` (1, 7 or 30); without it the suspension lasts until
+lifted. `GET|POST /admin/users/:id/notes` (built; `{body}` up to 2000 characters, admins only). Still to build: `/logout-all`, `/quota`. Role, suspend and op calls need a `reason` (3–500 characters) and are audited.
 
 ## Boards
 Settings (built): `GET /admin/settings`, `PUT /admin/settings/:key {value, reason, confirm}` (a risky one answers `{pending, current, next, impact}` until `confirm` is true; `value: null` returns to the file's value), `GET /admin/settings/:key/history`, `POST /admin/settings/:key/rollback {version, reason}`. Announcements: public `GET /announcements`; admin `GET|POST /admin/announcements`, `DELETE /admin/announcements/:id`.

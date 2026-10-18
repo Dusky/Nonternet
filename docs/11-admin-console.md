@@ -62,8 +62,10 @@ TLS certificate expiries.
 - **User dossier**: profile, role/ops history, ring memberships, boards owned, homepage stats,
   recent posts across boards, IRC/MUD activity summary, reports by/against, moderation
   history, sessions and devices, login history (IP hashed or shown per privacy setting),
-  exports requested, admin notes (private, append-only).
-- Actions: promote/demote, appoint/remove ops, suspend/unsuspend, rename, force logout,
+  exports requested, admin notes (private, append-only; built: admins add and read them on the user page, the person
+  never sees them, they are not in the person's export, and they go when the account is deleted).
+- Actions: promote/demote, appoint/remove ops, suspend (for 1, 7 or 30 days, or until lifted; built: a check every five
+  minutes lifts ones that have run out, and the login message says when it ends)/unsuspend, rename, force logout,
   reset terminal password, adjust quota, delete.
 - **Vouches** tab (M7, `03`): people trusted users vouched for, ready ones first, with each
   voucher's note and any sponsor flags, and the eligibility hints (age, posts, recent moderation).

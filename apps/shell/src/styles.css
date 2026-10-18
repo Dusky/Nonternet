@@ -741,6 +741,9 @@ details.panel[open] > summary { margin-bottom: var(--space-3); }
 .replay-state dt { font-weight: 700; }
 .replay-state dd { margin: 0; word-break: break-all; }
 .timeline li.is-current { font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); padding-left: var(--space-3); }
+.admin-notes { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: grid; gap: var(--space-2); }
+.admin-notes li { border-left: 3px solid var(--border); padding-left: var(--space-3); }
+.admin-notes p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .chart { margin: 0 0 var(--space-4); }
 .chart svg { width: 100%; height: 160px; }
 .chart-axis { stroke: currentColor; opacity: .4; }

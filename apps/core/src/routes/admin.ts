@@ -111,7 +111,8 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post('/api/v1/admin/users/:id/suspend', async (req, reply) => {
     const who = requireAdmin(req);
     const { id } = userIdParam.parse(req.params);
-    await admin.suspend(deps, who, id, reasonBody.parse(req.body).reason, ctxOf(deps, req));
+    const b = reasonBody.extend({ days: z.union([z.literal(1), z.literal(7), z.literal(30)]).optional() }).parse(req.body);
+    await admin.suspend(deps, who, id, b.reason, ctxOf(deps, req), b.days);
     return reply.code(204).send();
   });
 
@@ -120,6 +121,20 @@ export function adminRoutes(app: FastifyInstance, deps: AppDeps): void {
     const { id } = userIdParam.parse(req.params);
     await admin.unsuspend(deps, who, id, reasonBody.parse(req.body).reason, ctxOf(deps, req));
     return reply.code(204).send();
+  });
+
+  // Private notes about a person, for admins only (docs/11).
+  app.get('/api/v1/admin/users/:id/notes', async (req) => {
+    requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    return { notes: await admin.listNotes(deps, id) };
+  });
+
+  app.post('/api/v1/admin/users/:id/notes', async (req, reply) => {
+    const who = requireAdmin(req);
+    const { id } = userIdParam.parse(req.params);
+    const b = z.object({ body: z.string().max(2000) }).parse(req.body);
+    return reply.code(201).send(await admin.addNote(deps, who, id, b.body, ctxOf(deps, req)));
   });
 
   app.get('/api/v1/admin/users/:id/ops', async (req) => {

@@ -83,7 +83,8 @@ settings.changed, export.requested, custom_domain.*, user.passkey_added, user.pa
 withdrawing an installable app, docs/10). A person adding or removing an app, and what the app keeps for them,
 are their own private business and are not audited. Wiki (docs/20): wiki.enabled, wiki.disabled, wiki.page_protected,
 wiki.page_unprotected, wiki.page_hidden, wiki.page_restored, wiki.page_deleted, wiki.revision_hidden, wiki.revision_shown,
-wiki.starter_added (an admin added the starter help pages).
+wiki.starter_added (an admin added the starter help pages). user.unsuspended is also written by the system, with actor
+`system`, when a suspension with an end date runs out; user.note_added when an admin keeps a note about someone (docs/11).
 Ordinary wiki edits are public history and are not audited. Reports take the target kind `wiki_page`, which goes to admins.
 Memos (docs/22): `memo.hidden` and `memo.restored`, always with a reason. Admins can hide any shared memo or reply; a ring's ops
 can hide the ones in their ring. Reports take the target kind `memo` (ring memos are scoped to the ring's board, so its ops see them;

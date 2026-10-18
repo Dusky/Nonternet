@@ -1,3 +1,4 @@
+import { liftExpiredSuspensions } from './admin';
 import { buildApp } from './app';
 import { syncCatalog } from './apps';
 import { depsFromEnv } from './env';
@@ -56,6 +57,8 @@ async function start() {
 
   // The daily digest for people who asked for one: checked hourly, at most one email each per day.
   const digests = setInterval(() => sendDigests(deps).catch((e) => app.log.warn(`digests: ${e}`)), 3_600_000);
+  // Suspensions with an end date are lifted when it passes (docs/11).
+  const suspensions = setInterval(() => liftExpiredSuspensions(deps).catch((e) => app.log.warn(`suspensions: ${e}`)), 300_000);
   const exportWorker = startExportWorker(deps, (m) => app.log.warn(m));
   // Background jobs (graphile-worker, in Postgres): push notifications, each tried again with backoff if a push
   // service is down. Only started when push is on; other background work keeps its own simple loops (docs/17).
@@ -95,7 +98,7 @@ async function start() {
     closing = true;
     app.log.info(`${signal} received, shutting down`);
     if (prune) clearInterval(prune);
-    clearInterval(digests);
+    clearInterval(digests); clearInterval(suspensions);
     await app.close();
     metrics.stop();
     stopEvents.abort();

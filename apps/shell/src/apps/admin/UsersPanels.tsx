@@ -12,7 +12,7 @@ import { useDebounced } from './useDebounced';
 interface UserRow { id: string; handle: string; display_name: string | null; email: string; role: Role; status: string; created_at: string; last_seen_at: string | null }
 interface OpRow { id: string; scope: string; scope_id: string }
 interface Dossier {
-  user: UserRow & { role_rev: number; bio: string | null; email_verified: boolean; totp_enabled: boolean };
+  user: UserRow & { role_rev: number; bio: string | null; email_verified: boolean; totp_enabled: boolean; suspended_until: string | null };
   ops: OpRow[]; invite: { code: string; created_by: string | null } | null; active_sessions: number; history: HistoryRow[];
   vouching: { vouched_by: { voucher: string; note: string; at: string; state: string }[]; sponsor_flags: { candidate: string; reason: string; at: string }[] };
 }
@@ -112,13 +112,14 @@ export function UserPage({ myId, id }: { myId: string; id: string }) {
         <li>{invite ? t('admin.user.invitedBy', { name: invite.created_by ?? '?', code: invite.code }) : t('admin.user.noInvite')}</li>
       </ul>
       {own && <Alert kind="info">{t('admin.user.ownAccount')}</Alert>}
-      {user.status === 'suspended' && <Alert kind="info">{t('admin.user.suspendedNote')}</Alert>}
+      {user.status === 'suspended' && <Alert kind="info">{user.suspended_until ? t('admin.user.suspendedUntil', { when: new Date(user.suspended_until).toLocaleString() }) : t('admin.user.suspendedNote')}</Alert>}
 
       <RoleForm userId={id} current={user.role} disabled={own} onDone={refresh} />
       <RenameForm userId={id} current={user.handle} onDone={refresh} />
       <DeleteForm userId={id} handle={user.handle} disabled={own} onDone={refresh} />
       <SuspendForm userId={id} suspended={user.status === 'suspended'} disabled={own} onDone={refresh} />
       <OpsSection userId={id} ops={ops} onDone={refresh} />
+      <NotesSection userId={id} />
 
       {(vouching.vouched_by.length > 0 || vouching.sponsor_flags.length > 0) && (
         <section aria-labelledby="vouching">
@@ -211,22 +212,69 @@ function DeleteForm({ userId, handle, disabled, onDone }: { userId: string; hand
   );
 }
 
+const SUSPEND_DAYS = [1, 7, 30] as const;
+
 function SuspendForm({ userId, suspended, disabled, onDone }: { userId: string; suspended: boolean; disabled: boolean; onDone: () => void }) {
   const t = useT();
   const [reason, setReason] = useState('');
+  const [days, setDays] = useState<string>('7');
   const [error, setError] = useState<string | null>(null);
   const act = useMutation({
-    mutationFn: () => api.post(`/admin/users/${userId}/${suspended ? 'unsuspend' : 'suspend'}`, { reason }),
+    mutationFn: () => api.post(`/admin/users/${userId}/${suspended ? 'unsuspend' : 'suspend'}`, suspended || days === 'lift' ? { reason } : { reason, days: Number(days) }),
     onSuccess: () => { setReason(''); onDone(); },
     onError: (e) => setError(errorText(e)),
   });
   return (
     <form onSubmit={(e) => { e.preventDefault(); setError(null); act.mutate(); }} className="panel">
       <h3>{suspended ? t('admin.user.unsuspend') : t('admin.user.suspend')}</h3>
+      {!suspended && (
+        <div className="field">
+          <label htmlFor={`sdays-${userId}`}>{t('admin.user.suspendFor')}</label>
+          <select id={`sdays-${userId}`} value={days} disabled={disabled} onChange={(e) => setDays(e.target.value)}>
+            {SUSPEND_DAYS.map((d) => <option key={d} value={String(d)}>{t('admin.user.suspendDays', { count: d })}</option>)}
+            <option value="lift">{t('admin.user.suspendUntilLifted')}</option>
+          </select>
+        </div>
+      )}
       <TextField label={t('field.reason')} value={reason} onChange={setReason} hint={t('admin.user.reasonHint')} disabled={disabled} />
       {error && <Alert kind="error">{error}</Alert>}
       <button className={`btn ${suspended ? '' : 'btn-danger'}`} type="submit" disabled={disabled || act.isPending || !reasonOk(reason)}>{suspended ? t('admin.user.unsuspend') : t('admin.user.suspend')}</button>
     </form>
+  );
+}
+
+interface AdminNote { id: string; body: string; author: string | null; created_at: string }
+
+// Notes admins keep about a person; the person never sees them (docs/11).
+function NotesSection({ userId }: { userId: string }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const notes = useQuery({ queryKey: ['admin', 'user', userId, 'notes'], queryFn: () => api.get<{ notes: AdminNote[] }>(`/admin/users/${userId}/notes`) });
+  const [body, setBody] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const add = useMutation({
+    mutationFn: () => api.post<AdminNote>(`/admin/users/${userId}/notes`, { body }),
+    onSuccess: () => { setBody(''); void qc.invalidateQueries({ queryKey: ['admin', 'user', userId] }); },
+    onError: (e) => setError(errorText(e)),
+  });
+  return (
+    <section className="panel" aria-labelledby={`notes-${userId}`}>
+      <h3 id={`notes-${userId}`}>{t('admin.user.notes')}</h3>
+      <p className="hint">{t('admin.user.notesHint')}</p>
+      {notes.data && (notes.data.notes.length === 0 ? <p>{t('admin.user.notesNone')}</p> : (
+        <ul className="admin-notes">
+          {notes.data.notes.map((n) => <li key={n.id}><p>{n.body}</p><span className="meta">{n.author ?? '?'} · {formatWhen(n.created_at)}</span></li>)}
+        </ul>
+      ))}
+      <form onSubmit={(e) => { e.preventDefault(); setError(null); add.mutate(); }}>
+        <div className="field">
+          <label htmlFor={`note-${userId}`}>{t('admin.user.noteAdd')}</label>
+          <textarea id={`note-${userId}`} rows={3} maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} />
+        </div>
+        {error && <Alert kind="error">{error}</Alert>}
+        <button className="btn" type="submit" disabled={add.isPending || !body.trim()}>{t('admin.user.noteSave')}</button>
+      </form>
+    </section>
   );
 }
 

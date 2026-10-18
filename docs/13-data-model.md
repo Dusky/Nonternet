@@ -19,6 +19,7 @@ users (
   role text not null default 'guest',   -- guest|user|trusted|admin
   role_rev int not null default 0,
   status text not null default 'active',-- active|suspended|deleted
+  suspended_until timestamptz,      -- a suspension that ends by itself (null = until an admin lifts it)
   quota_bytes bigint,               -- null = role default
   theme text,                       -- webring|after-dark|terminal|platinum|aqua, null = site default
   theme_variant text,               -- Terminal screen colour (amber, green, …), null otherwise
@@ -144,6 +145,7 @@ mail_messages (id mm_, thread_id, author_id?, kind message|joined|left, body, cr
 user_blocks (user_id, blocked_id, created_at)
 vouches (id vo_, candidate_id, voucher_id, note, created_at, withdrawn_at, outcome confirmed|declined, decided_at, decided_by)
 sponsor_flags (id sf_, vouch_id unique, voucher_id, candidate_id, reason demoted|suspended, created_at)
+admin_notes (id an_, user_id fk, author_id fk null, body 1–2000, created_at) -- admins only; not exported; deleted with the account
 file_areas (id fa_, slug, name, description, visibility public|members, upload_role user|trusted|admin, archived_at)
 files (id f_, area_id, uploader_id?, name, title, description, size_bytes, sha256, downloads, hidden_at, deleted_at)
                                    -- the bytes are FILES_DIR/{id}

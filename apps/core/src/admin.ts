@@ -135,16 +135,18 @@ export async function decideApplication(deps: AppDeps, admin: SessionUser, targe
 
 // ---------------------------------------------------------------- suspension
 
-export async function suspend(deps: AppDeps, admin: SessionUser, targetId: string, reason: string, ctx: Ctx): Promise<void> {
+// `days`: the suspension lifts by itself after that many days (docs/17, 2026-10-18); without it, it lasts until an admin lifts it.
+export async function suspend(deps: AppDeps, admin: SessionUser, targetId: string, reason: string, ctx: Ctx, days?: number): Promise<void> {
   if (targetId === admin.userId) throw new ApiError(409, 'cannot_suspend_self', 'You cannot suspend yourself.');
+  const until = days ? new Date(Date.now() + days * 86_400_000) : null;
   await deps.db.tx(async (q) => {
     const t = await lockTarget(q, targetId);
     if (t.status !== 'active') throw new ApiError(409, 'no_change', `${t.handle} is already suspended.`);
-    await q.query(`UPDATE users SET status = 'suspended', updated_at = now() WHERE id = $1`, [targetId]);
+    await q.query(`UPDATE users SET status = 'suspended', suspended_until = $2, updated_at = now() WHERE id = $1`, [targetId, until]);
     await revokeAllSessions(q, targetId, 'suspended');
     await flagSponsors(q, targetId, 'suspended');
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.suspended', targetType: 'user', targetId,
-      before: { status: 'active' }, after: { status: 'suspended', reason }, origin: 'web', ipHash: ctx.ipHash });
+      before: { status: 'active' }, after: { status: 'suspended', reason, until: until?.toISOString() ?? null }, origin: 'web', ipHash: ctx.ipHash });
     await emit(q, 'user.suspended', { user_id: targetId });
   });
 }
@@ -153,11 +155,48 @@ export async function unsuspend(deps: AppDeps, admin: SessionUser, targetId: str
   await deps.db.tx(async (q) => {
     const t = await lockTarget(q, targetId);
     if (t.status !== 'suspended') throw new ApiError(409, 'no_change', `${t.handle} is not suspended.`);
-    await q.query(`UPDATE users SET status = 'active', updated_at = now() WHERE id = $1`, [targetId]);
+    await q.query(`UPDATE users SET status = 'active', suspended_until = NULL, updated_at = now() WHERE id = $1`, [targetId]);
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.unsuspended', targetType: 'user', targetId,
       before: { status: 'suspended' }, after: { status: 'active', reason }, origin: 'web', ipHash: ctx.ipHash });
     await emit(q, 'user.unsuspended', { user_id: targetId });
   });
+}
+
+// Suspensions whose time is up are lifted, by the system, audited like an admin's (checked every few minutes from main.ts).
+export async function liftExpiredSuspensions(deps: AppDeps): Promise<number> {
+  const due = await deps.db.query<{ id: string }>(`SELECT id FROM users WHERE status = 'suspended' AND suspended_until IS NOT NULL AND suspended_until <= now()`);
+  for (const { id } of due.rows) {
+    await deps.db.tx(async (q) => {
+      const r = await q.query(`UPDATE users SET status = 'active', suspended_until = NULL, updated_at = now() WHERE id = $1 AND status = 'suspended' AND suspended_until <= now()`, [id]);
+      if (!r.rowCount) return;
+      await audit(q, { actorKind: 'system', action: 'user.unsuspended', targetType: 'user', targetId: id,
+        before: { status: 'suspended' }, after: { status: 'active', reason: 'the suspension ended' }, origin: 'system' });
+      await emit(q, 'user.unsuspended', { user_id: id });
+    });
+  }
+  return due.rows.length;
+}
+
+// ---------------------------------------------------------------- admin notes
+
+// Private notes admins keep about a person (docs/11). Only admins see them; the person does not, and they are not in the
+// person's export (they are about the person, not theirs; docs/17 2026-10-18). Deleted with the account.
+export interface AdminNote { id: string; body: string; author: string | null; created_at: string }
+export async function listNotes(deps: AppDeps, targetId: string): Promise<AdminNote[]> {
+  const r = await deps.db.query<{ id: string; body: string; author: string | null; created_at: Date }>(
+    `SELECT n.id, n.body, u.handle AS author, n.created_at FROM admin_notes n LEFT JOIN users u ON u.id = n.author_id WHERE n.user_id = $1 ORDER BY n.created_at DESC LIMIT 200`, [targetId]);
+  return r.rows.map((n) => ({ id: n.id, body: n.body, author: n.author, created_at: n.created_at.toISOString() }));
+}
+export async function addNote(deps: AppDeps, admin: SessionUser, targetId: string, body: string, ctx: Ctx): Promise<AdminNote> {
+  const text = body.trim();
+  if (!text || text.length > 2000) throw new ApiError(400, 'invalid', 'A note is 1 to 2000 characters.');
+  const id = newId('an');
+  await deps.db.tx(async (q) => {
+    await lockTarget(q, targetId);
+    await q.query(`INSERT INTO admin_notes (id, user_id, author_id, body) VALUES ($1, $2, $3, $4)`, [id, targetId, admin.userId, text]);
+    await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.note_added', targetType: 'user', targetId, after: { note_id: id }, origin: 'web', ipHash: ctx.ipHash });
+  });
+  return (await listNotes(deps, targetId)).find((n) => n.id === id)!;
 }
 
 // ---------------------------------------------------------------- ops
@@ -347,9 +386,9 @@ export async function listUsers(deps: AppDeps, f: UserFilter) {
 // The basic dossier (docs/11): who they are, how they got in, what they can do, and what happened to them.
 export async function getDossier(deps: AppDeps, id: string) {
   const u = await deps.db.query<{
-    id: string; handle: string; display_name: string | null; bio: string | null; email: string; role: Role; role_rev: number; status: string;
+    id: string; handle: string; display_name: string | null; bio: string | null; email: string; role: Role; role_rev: number; status: string; suspended_until: Date | null;
     email_verified_at: Date | null; totp_enabled_at: Date | null; theme: string | null; created_at: Date; last_seen_at: Date | null;
-  }>(`SELECT id, handle, display_name, bio, email, role, role_rev, status, email_verified_at, totp_enabled_at, theme, created_at, last_seen_at FROM users WHERE id = $1`, [id]);
+  }>(`SELECT id, handle, display_name, bio, email, role, role_rev, status, suspended_until, email_verified_at, totp_enabled_at, theme, created_at, last_seen_at FROM users WHERE id = $1`, [id]);
   const user = u.rows[0];
   if (!user) throw notFound();
   const [ops, invite, sessions, recovery, history, vouching] = await Promise.all([
@@ -364,7 +403,7 @@ export async function getDossier(deps: AppDeps, id: string) {
   return {
     user: {
       id: user.id, handle: user.handle, display_name: user.display_name, bio: user.bio, email: user.email, role: user.role, role_rev: user.role_rev,
-      status: user.status, email_verified: !!user.email_verified_at, totp_enabled: !!user.totp_enabled_at, theme: user.theme,
+      status: user.status, suspended_until: iso(user.suspended_until), email_verified: !!user.email_verified_at, totp_enabled: !!user.totp_enabled_at, theme: user.theme,
       created_at: iso(user.created_at), last_seen_at: iso(user.last_seen_at),
     },
     ops: ops.ops,

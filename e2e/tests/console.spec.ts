@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
-import { makeAdmin, makeUser, signIn, totp } from '../support/helpers';
+import { loginViaUi, makeAdmin, makeUser, signIn, totp } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 async function scan(page: Page, what: string) {
@@ -172,4 +172,26 @@ test('on a phone the current page is in view in the admin and Settings rows of s
   await expect.poll(async () => { try { await inView('Admin', 'Legal'); return true; } catch { return false; } }).toBe(true);
   await page.goto('/settings/blocked');
   await expect.poll(async () => { try { await inView('Settings', 'Blocked'); return true; } catch { return false; } }).toBe(true);
+});
+
+test('an admin suspends someone for a week, the person is told when it ends, and a private note is kept', async ({ page, browser }) => {
+  const admin = await makeAdmin(page, { withTotp: false });
+  await signIn(page, admin.handle, admin.password);
+  const u = await makeUser(page);
+  await page.goto(`/admin/users/${u.id}`);
+  await page.getByLabel('How long').selectOption({ label: 'For 7 days' });
+  const suspendForm = page.locator('form', { has: page.getByRole('heading', { name: 'Suspend', exact: true }) });
+  await suspendForm.getByLabel('Reason').fill('Cooling off');
+  await suspendForm.getByRole('button', { name: 'Suspend' }).click();
+  await expect(page.getByText(/suspended and cannot log in until/)).toBeVisible();
+
+  await page.getByLabel('Add a note').fill('Second warning about spam.');
+  await page.getByRole('button', { name: 'Save note' }).click();
+  await expect(page.locator('.admin-notes')).toContainText('Second warning about spam.');
+  await scan(page, 'a user page with a timed suspension and a note');
+
+  const other = await browser.newPage({ baseURL: BASE_URL });
+  await loginViaUi(other, u.handle, u.password);
+  await expect(other.getByText(/suspended until \d{4}-\d\d-\d\d \d\d:\d\d UTC/)).toBeVisible();
+  await other.close();
 });
