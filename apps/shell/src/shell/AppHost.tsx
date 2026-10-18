@@ -92,7 +92,8 @@ function appToast(text: string, o: { undo?: boolean; error?: boolean }, undoLabe
   });
 }
 
-export default function AppHost({ appId }: { appId: string }) {
+// `widget` runs the app's small home-panel page instead of the app itself (docs/10): same sandbox, same bridge, no window title.
+export default function AppHost({ appId, widget = false }: { appId: string; widget?: boolean }) {
   const t = useT();
   const me = useMe().data;
   const app = useInstalled((s) => s.apps.find((a) => a.id === appId));
@@ -111,7 +112,7 @@ export default function AppHost({ appId }: { appId: string }) {
     const key = appKey(app.id);
     const methods = bridgeFor(app, {
       me: () => (meRef.current ? { id: meRef.current.id, handle: meRef.current.handle, display_name: meRef.current.display_name ?? null } : null),
-      setTitle: (title) => setSubtitle(key, title),
+      setTitle: (title) => { if (!widget) setSubtitle(key, title); },
       setHeight,
       toast: (text, o) => appToast(text, o, t('common.undo')),
       refused: t('apps.refused'),
@@ -127,15 +128,17 @@ export default function AppHost({ appId }: { appId: string }) {
     const pushTheme = () => { void conn.promise.then((r) => { const th = themeNow(); return r.setTheme(th.vars, th.scheme); }).catch(() => undefined); };
     conn.promise.then(() => { if (alive) { setReady(true); pushTheme(); } }, () => { if (alive) setFailed(true); });
     window.addEventListener('ui:theme', pushTheme);
-    return () => { alive = false; window.removeEventListener('ui:theme', pushTheme); conn.destroy(); setSubtitle(key, null); };
+    return () => { alive = false; window.removeEventListener('ui:theme', pushTheme); conn.destroy(); if (!widget) setSubtitle(key, null); };
   }, [app?.id, app?.version, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!app) {
     return <Alert kind="info">{t('apps.notAdded')} <OpenAppLink app="addapps" to="" className="link">{t('app.addapps')}</OpenAppLink></Alert>;
   }
-  const src = `${app.url}#host=${encodeURIComponent(window.location.origin)}`;
+  const page = widget ? app.widget_url : app.url;
+  if (!page) return null;
+  const src = `${page}#host=${encodeURIComponent(window.location.origin)}`;
   return (
-    <div className="app-fill app-host" style={height ? { ['--app-h' as string]: `${height}px` } : undefined}>
+    <div className={widget ? 'app-host app-widget' : 'app-fill app-host'} style={height ? { ['--app-h' as string]: `${height}px` } : undefined}>
       {!ready && !failed && <p className="hint" role="status">{t('apps.starting', { app: app.name })}</p>}
       {failed && (
         <Alert kind="error">
@@ -144,7 +147,7 @@ export default function AppHost({ appId }: { appId: string }) {
         </Alert>
       )}
       <iframe
-        ref={frame} key={`${app.id}@${app.version}#${attempt}`} src={src} title={app.name} className={`app-sandbox${ready ? '' : ' is-starting'}`}
+        ref={frame} key={`${app.id}@${app.version}#${attempt}`} src={src} title={widget ? `${app.name} (widget)` : app.name} className={`app-sandbox${ready ? '' : ' is-starting'}`}
         sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" allow=""
       />
     </div>

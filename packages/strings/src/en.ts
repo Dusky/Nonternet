@@ -219,6 +219,7 @@ export const en = {
   'settings.desktop.defaultClear': 'Go back to the built-in layout',
   'settings.desktop.defaultSet': 'Saved as the site\'s default layout.',
   'settings.desktop.defaultCleared': 'The built-in layout is the default again.',
+  'home.widget.fromApps': 'From apps you added',
   'notes.label': 'Notes on the desktop',
   'notes.gone': 'This memo is gone.',
   'notes.remove': 'Remove the note',

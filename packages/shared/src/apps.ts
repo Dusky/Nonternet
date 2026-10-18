@@ -20,6 +20,8 @@ export const appManifestSchema = z.object({
   icon: z.string().regex(/^[MmLlHhVvCcSsQqTtAaZz0-9 .,-]{1,4000}$/, 'the icon is one SVG path'),
   sticker: z.number().int().min(1).max(5).default(1), // which of the theme's five tile colours
   entry: z.string().regex(/^[a-z0-9_./-]+\.html$/).default('index.html'),
+  // An optional small page for the home panel (docs/10), run in the same sandbox and bridge as the app.
+  widget: z.string().regex(/^[a-z0-9_./-]+\.html$/).optional(),
   permissions: z.array(z.enum(APP_PERMISSIONS)).max(APP_PERMISSIONS.length).default([]),
 });
 export type AppManifest = z.infer<typeof appManifestSchema>;
@@ -35,6 +37,7 @@ export interface CatalogApp {
   permissions: AppPermission[];  // what the app asks for
   granted: AppPermission[];      // what this person allowed it (only for apps they added; empty otherwise)
   url: string;           // where the app's page is, on the homes origin
+  widget_url: string | null; // its home-panel widget, if it has one
   installed: boolean;
   offered: boolean;      // false only in the admin view, for apps an admin has withdrawn
   has_data?: boolean;    // the person has something kept for this app, installed or not

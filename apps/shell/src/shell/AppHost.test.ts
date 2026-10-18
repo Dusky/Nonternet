@@ -6,7 +6,7 @@ import { bridgeFor } from './AppHost';
 // The bridge (docs/15) is the only way an added app reaches anything: it does only what the manifest asked for,
 // checks what it is given, and keeps the app inside its own data.
 const app = (permissions: CatalogApp['permissions'], granted: CatalogApp['granted'] = permissions): CatalogApp => ({
-  id: 'todo', name: 'Todo', version: '1.0.0', description: 'x', icon: 'M0 0h1v1z', sticker: 1, permissions, granted, url: 'https://h/apps/todo@1.0.0/index.html', installed: true, offered: true,
+  id: 'todo', name: 'Todo', version: '1.0.0', description: 'x', icon: 'M0 0h1v1z', sticker: 1, permissions, granted, url: 'https://h/apps/todo@1.0.0/index.html', installed: true, offered: true, widget_url: null,
 });
 const deps = () => ({
   me: () => ({ id: 'u_1', handle: 'alice', display_name: 'Alice' }),

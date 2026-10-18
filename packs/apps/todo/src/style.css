@@ -42,3 +42,7 @@ button:disabled { opacity: .5; cursor: default; }
 @media (max-width: 420px) {
   .list li button { padding: 0 var(--space-2, 8px); }
 }
+
+/* The home-panel widget: no page chrome, sized to its content. */
+html:has(body.widget), body.widget { height: auto; }
+body.widget main { padding: 0.25rem 0; }

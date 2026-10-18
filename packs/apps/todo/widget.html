@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Todo</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body class="widget">
+    <main id="app" aria-busy="true">
+      <ul id="list" class="list" aria-label="Open tasks"></ul>
+      <p id="empty" class="empty" hidden>Nothing to do.</p>
+      <p id="more" class="empty" hidden></p>
+      <p id="problem" class="problem" role="alert" hidden></p>
+    </main>
+    <script type="module" src="./src/widget.ts"></script>
+  </body>
+</html>

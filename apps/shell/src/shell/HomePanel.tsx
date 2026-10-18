@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { BoardSummary, BookmarkView, MemoView, Me, WidgetChoice, WidgetId } from '@app/shared';
@@ -13,6 +13,10 @@ import { RichText } from '../components/RichText';
 import { TowerBoard } from './TowerBoard';
 import { useWindows, type AppId } from './windows';
 import { useDesktopLayout } from './desktopLayout';
+import { useInstalled } from './installed';
+
+// The app host loads only when someone has an app widget on their home panel.
+const AppHost = lazy(() => import('./AppHost'));
 import { addWidget, hiddenWidgets, hideWidget, moveWidget, resolveWidgets, sizeWidget } from './desktopLayout.logic';
 
 export interface OnlinePerson { id: string; handle: string; display_name: string | null; status_line: string | null; away: boolean; web: boolean; chat: boolean; bbs: { node: number; where: string; via: string } | null }
@@ -68,6 +72,7 @@ export function HomePanel({ me }: { me: Me }) {
 
   const settings = useDesktopLayout((st) => st.settings);
   const loaded = useDesktopLayout((st) => st.loaded);
+  const installed = useInstalled((st) => st.apps);
   const editing = useDesktopLayout((st) => st.editingHome) && loaded;
   const legacyHidden = hideStart;
   const list = resolveWidgets(settings, legacyHidden);
@@ -154,6 +159,7 @@ export function HomePanel({ me }: { me: Me }) {
     ),
   };
   const missing = hiddenWidgets(list).filter((id) => id !== 'tower' || (confirmed && site.services.mud));
+  const appWidgetsToAdd = installed.filter((a) => a.widget_url && !settings.app_widgets.includes(a.id));
 
   return (
     <section className="home" aria-labelledby="home-title">
@@ -183,8 +189,26 @@ export function HomePanel({ me }: { me: Me }) {
         );
       })}
 
+      {settings.app_widgets.map((id) => {
+        const app = installed.find((a) => a.id === id && a.widget_url);
+        if (!app) return null;
+        return (
+          <div key={`app:${id}`} className={`widget${editing ? ' is-editing' : ''}`} data-widget={`app:${id}`}>
+            <div className="widget-bar" role="group" aria-label={app.name}>
+              <strong>{app.name}</strong>
+              {editing && <button type="button" className="btn btn-quiet btn-small" aria-label={t('home.widget.hide', { name: app.name })}
+                onClick={() => useDesktopLayout.getState().update((st) => ({ ...st, app_widgets: st.app_widgets.filter((x) => x !== id) }))}>{t('home.widget.hideShort')}</button>}
+            </div>
+            <Suspense fallback={null}><AppHost appId={id} widget /></Suspense>
+          </div>
+        );
+      })}
+
       {editing ? (
         <div className="widget-add">
+          {appWidgetsToAdd.length > 0 && <h3>{t('home.widget.fromApps')}</h3>}
+          {appWidgetsToAdd.length > 0 && <ul className="actions">{appWidgetsToAdd.map((a) => <li key={a.id}><button type="button" className="btn btn-small"
+            onClick={() => useDesktopLayout.getState().update((st) => ({ ...st, app_widgets: [...st.app_widgets, a.id].slice(0, 6) }))}>{t('home.widget.add', { name: a.name })}</button></li>)}</ul>}
           {missing.length > 0 && <h3>{t('home.widget.addTitle')}</h3>}
           {missing.length > 0 && <ul className="actions">{missing.map((id) => <li key={id}><button type="button" className="btn btn-small" onClick={() => change((l) => addWidget(l, id))}>{t('home.widget.add', { name: t(`home.widget.${id}`) })}</button></li>)}</ul>}
           <div className="actions"><button type="button" className="btn btn-primary" onClick={() => useDesktopLayout.getState().setEditingHome(false)}>{t('home.widget.done')}</button></div>

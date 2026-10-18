@@ -5,5 +5,7 @@ import { defineConfig } from 'vite';
 // so it runs under the app policy (no inline script).
 export default defineConfig({
   base: './',
-  build: { outDir: '../../build/todo', emptyOutDir: true, modulePreload: false, assetsInlineLimit: 0, target: 'es2022' },
+  build: { outDir: '../../build/todo', emptyOutDir: true, modulePreload: false, assetsInlineLimit: 0, target: 'es2022',
+    // The app and its home-panel widget (docs/10).
+    rollupOptions: { input: { index: 'index.html', widget: 'widget.html' } } },
 });

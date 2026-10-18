@@ -117,6 +117,8 @@ export const desktopClientSchema = z.object({
   shortcuts: z.array(desktopShortcutSchema).max(DESKTOP_MAX_SHORTCUTS).default([]),  // icons that open a bookmark or a place; item key 'sc:<id>'
   folders: z.array(desktopFolderSchema).max(DESKTOP_MAX_FOLDERS).default([])          // item key 'fd:<id>'; an item is in one folder at most
     .refine((f) => { const all = f.flatMap((x) => x.items); return new Set(all).size === all.length; }, 'An item can be in one folder only.'),
+  app_widgets: z.array(z.string().regex(/^[a-z][a-z0-9-]{1,30}$/)).max(6).default([])  // added apps whose widget shows on the home panel
+    .refine((a) => new Set(a).size === a.length, 'Each app widget can only be there once.'),
   notes: z.array(desktopNoteSchema).max(DESKTOP_MAX_NOTES).default([])                // memos shown as sticky notes beside the home panel
     .refine((n) => new Set(n.map((x) => x.memo_id)).size === n.length, 'A memo can be pinned once.'),
 }).prefault({});

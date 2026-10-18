@@ -57,6 +57,7 @@ const view = (deps: AppDeps, r: Row, installed: boolean, hasData?: boolean): Cat
   id: r.app_id, name: r.manifest.name, version: r.version, description: r.manifest.description, icon: r.manifest.icon,
   sticker: r.manifest.sticker, permissions: r.manifest.permissions, granted: installed ? allowed(r.manifest, r.granted) : [],
   url: deps.appsUrl(`${r.app_id}@${r.version}/${r.manifest.entry}`), installed, offered: r.offered,
+  widget_url: r.manifest.widget ? deps.appsUrl(`${r.app_id}@${r.version}/${r.manifest.widget}`) : null,
   ...(hasData === undefined ? {} : { has_data: hasData }),
 });
 

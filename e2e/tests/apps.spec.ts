@@ -34,7 +34,7 @@ test('add Todo, keep a list in it, remove it and add it back with the list still
   // The frame is sandboxed with no same-origin access.
   const frame = page.locator('iframe[title="Todo"]');
   await expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-forms');
-  expect(await frame.getAttribute('src')).toMatch(/^http:\/\/e2e-homes\.test:\d+\/apps\/todo@1\.0\.0\/index\.html#host=/);
+  expect(await frame.getAttribute('src')).toMatch(/^http:\/\/e2e-homes\.test:\d+\/apps\/todo@\d+\.\d+\.\d+\/index\.html#host=/);
 
   const box = todo(page).getByLabel('New task');
   await box.fill('Buy milk');
@@ -177,4 +177,22 @@ test('on a page the frame fits the app, and an app that does not start can be tr
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(todo(page).getByPlaceholder(/Add a task/)).toBeVisible();
   await expect(page.getByText('Todo did not start.')).toHaveCount(0);
+});
+
+test('an added app can put a widget on the home panel: Todo shows its open tasks and ticks them off', async ({ page }) => {
+  const u = await makeUser(page);
+  await signIn(page, u.handle, PASSWORD);
+  const origin = { origin: new URL(page.url()).origin };
+  await page.request.put('/api/v1/me/apps/todo', { data: {}, headers: origin });
+  await page.request.put('/api/v1/me/apps/todo/data/items/t1', { data: { data: { text: 'Water the plants', done: false, created_at: '2026-10-18T10:00:00Z' } }, headers: origin });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Change the home panel' }).click();
+  await page.getByRole('button', { name: 'Add Todo' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  const widget = page.frameLocator('iframe[title="Todo (widget)"]');
+  await expect(widget.getByText('Water the plants')).toBeVisible();
+  await scan(page, 'the home panel with an app widget');
+  await widget.getByRole('checkbox', { name: 'Water the plants' }).click(); // ticked tasks leave the widget at once
+  await expect(widget.getByText('Nothing to do.')).toBeVisible();
+  await expect.poll(async () => (await (await page.request.get('/api/v1/me/apps/todo/data/items')).json()).docs[0].data.done).toBe(true);
 });

@@ -389,6 +389,7 @@ button.badge.tag:hover { background: var(--accent-soft); }
 .note-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .note .link { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .note, .note:nth-child(even) { transform: none; } }
+.app-widget .app-sandbox { height: clamp(4rem, var(--app-h, 8rem), 24rem); max-width: none; width: 100%; border: 0; display: block; }
 .launcher-recent { margin: 0 0 var(--space-4); }
 .launcher-recent h2 { font-size: var(--step--1); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--space-2); }
 .launcher-recent ul { list-style: none; margin: 0 0 var(--space-1); padding: 0; display: grid; gap: var(--space-1); }
