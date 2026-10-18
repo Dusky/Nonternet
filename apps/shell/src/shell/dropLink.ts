@@ -32,7 +32,8 @@ export function placeForUrl(url: string, origin: string): { app: AppId; path: st
 
 const short = (url: string) => { try { const u = new URL(url); return (u.hostname + u.pathname).replace(/\/$/, '').slice(0, 60); } catch { return url.slice(0, 60); } };
 
-export async function dropLink(link: { url: string; title: string }, me: Me, origin = window.location.origin): Promise<void> {
+// Returns the new shortcut's id, so the desktop can put it where it was dropped.
+export async function dropLink(link: { url: string; title: string }, me: Me, origin = window.location.origin): Promise<string | null> {
   await useDesktopLayout.getState().load();
   const add = (label: string, target: ShortcutTarget) => useDesktopLayout.getState().addShortcut(label, target);
   const place = placeForUrl(link.url, origin);
@@ -42,21 +43,23 @@ export async function dropLink(link: { url: string; title: string }, me: Me, ori
     if (r === 'full') toast(en['desktop.shortcut.full'], 'error');
     else if (r && !r.added) toast(en['desktop.shortcut.already']);
     else if (r) toast(en['desktop.shortcut.added'], 'ok', { undo: () => useDesktopLayout.getState().removeShortcut(r.id) });
-    return;
+    return r && r !== 'full' && r.added ? r.id : null;
   }
-  if (me.role === 'guest') { toast(en['desktop.drop.guest'], 'error'); return; }
+  if (me.role === 'guest') { toast(en['desktop.drop.guest'], 'error'); return null; }
   try {
     const saved = await api.post<{ bookmark: BookmarkView; existing: boolean }>('/bookmarks', { url: link.url, ...(link.title ? { title: link.title.slice(0, 200) } : {}) });
     const r = add(saved.bookmark.title || short(link.url), { type: 'bookmark', bookmark_id: saved.bookmark.id });
-    if (r === 'full') { toast(en['desktop.shortcut.full'], 'error'); return; }
-    if (!r) return;
+    if (r === 'full') { toast(en['desktop.shortcut.full'], 'error'); return null; }
+    if (!r) return null;
     toast(saved.existing ? en['desktop.drop.existing'] : en['desktop.drop.saved'], 'ok', {
       undo: () => {
         if (r.added) useDesktopLayout.getState().removeShortcut(r.id);
         if (!saved.existing) void api.del(`/bookmarks/${saved.bookmark.id}`).catch(() => undefined);
       },
     });
+    return r.added ? r.id : null;
   } catch (err) {
     toast(errorText(err), 'error');
+    return null;
   }
 }

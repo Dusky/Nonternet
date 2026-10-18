@@ -144,7 +144,7 @@ plain, a "what's new" home, and the full landing page. No new themes.
   on the phone launcher and the palette before you type. "Clear recent" empties it. It replaced the palette's own list.
 - **Dropping a link on the desktop** (2026-10-18): a link to this site becomes a shortcut to that place; any other web
   address is saved as a private bookmark (the usual `POST /bookmarks`) with a shortcut, and Undo takes both back. Guests
-  are asked to sign up. The shortcut takes the first free cell. The keyboard ways stay (a bookmark's "Add to the desktop",
+  are asked to sign up. The shortcut lands in the cell it was dropped on (off the icon grid, the first free one). The keyboard ways stay (a bookmark's "Add to the desktop",
   the palette's "Save this link").
 - **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
   person by handle; letters in order match, so "stng" finds Settings). Alt+` brings the next window

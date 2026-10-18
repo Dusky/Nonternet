@@ -17,7 +17,7 @@ import { toast } from '../components/feedback';
 import { shownApps, useDesktopLayout } from './desktopLayout';
 import { DIRS, gridSize, moveTo, neighbour, place, shortcutKey, type Dir, type Pos } from './desktopLayout.logic';
 import { useShortcutView } from './ShortcutIcon';
-import type { DesktopShortcut } from '@app/shared';
+import { DESKTOP_MAX_COL, DESKTOP_MAX_ROW, type DesktopShortcut } from '@app/shared';
 import { dropLink, linkFromDrop } from './dropLink';
 
 // A drag that carries a link (the address is only readable on drop).
@@ -87,7 +87,19 @@ export function Desktop({ me }: { me: Me }) {
       <div className={`desktop-layout${dropping ? ' is-drop' : ''}`} tabIndex={-1} data-drop-hint={t('desktop.drop.hint')}
         onDragOver={(e) => { if (canTakeLink(e.dataTransfer)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDropping(true); } }}
         onDragLeave={(e) => { if (e.target === e.currentTarget) setDropping(false); }}
-        onDrop={(e) => { setDropping(false); const link = linkFromDrop(e.dataTransfer); if (link) { e.preventDefault(); void dropLink(link, me); } }}
+        onDrop={(e) => {
+          setDropping(false);
+          const link = linkFromDrop(e.dataTransfer);
+          if (!link) return;
+          e.preventDefault();
+          // The cell under the pointer, if it is on the icon grid; the new shortcut goes there.
+          const box = grid.current?.getBoundingClientRect();
+          const cell = box ? { col: Math.floor((e.clientX - box.left) / (CELL_W + GAP)), row: Math.floor((e.clientY - box.top) / (CELL_H + GAP)) } : null;
+          void dropLink(link, me).then((id) => {
+            if (!id || !cell || cell.col < 0 || cell.row < 0 || cell.col > DESKTOP_MAX_COL || cell.row > DESKTOP_MAX_ROW) return;
+            useDesktopLayout.getState().update((st) => ({ ...st, positions: { ...st.positions, [shortcutKey(id)]: cell } }));
+          });
+        }}
         onContextMenu={(e) => { if (e.target === e.currentTarget) ctx.bind.onContextMenu(e); }}
         onKeyDown={(e) => { if (e.target === e.currentTarget) ctx.bind.onKeyDown(e); }}>
         <ul className="icons" aria-label={t('nav.apps')} ref={grid}

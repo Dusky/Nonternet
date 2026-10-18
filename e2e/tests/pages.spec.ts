@@ -77,14 +77,17 @@ test('a place you opened shows under Recent until you clear it', async ({ page, 
 test.describe('dropping a link on the desktop', () => {
   test.skip(({ isMobile }) => isMobile, 'the desktop is for big screens');
 
-  const drop = (page: Page, url: string, title: string) => page.evaluate(([u, t]) => {
+  // Drops on the icon grid's cell (col, row), counted from 0, or at its top-left corner.
+  const drop = (page: Page, url: string, title: string, cell = { col: 0, row: 0 }) => page.evaluate(([u, t, c]) => {
     const dt = new DataTransfer();
-    dt.setData('text/uri-list', u!);
+    dt.setData('text/uri-list', u as string);
     dt.setData('text/x-moz-url', `${u}\n${t}`);
     const el = document.querySelector('.desktop-layout')!;
-    el.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
-    el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
-  }, [url, title]);
+    const box = document.querySelector('.icons')!.getBoundingClientRect();
+    const at = { clientX: box.left + (c as { col: number }).col * 104 + 40, clientY: box.top + (c as { row: number }).row * 112 + 40 };
+    el.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true, ...at }));
+    el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true, ...at }));
+  }, [url, title, cell] as const);
 
   test('an outside link is saved as a bookmark with a shortcut, and Undo takes both back', async ({ page }) => {
     await withBoard(page);
@@ -103,9 +106,11 @@ test.describe('dropping a link on the desktop', () => {
     const b = await withBoard(page);
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Open Boards' })).toBeVisible();
-    await drop(page, `${BASE_URL}/boards/${b.slug}/t/${b.thread}`, 'Remember this thread');
+    await drop(page, `${BASE_URL}/boards/${b.slug}/t/${b.thread}`, 'Remember this thread', { col: 1, row: 4 });
     const sc = page.locator('[data-shortcut]');
     await expect(sc).toHaveAccessibleName('Open Remember this thread (shortcut)');
+    // It lands in the cell it was dropped on (CSS grid lines count from 1).
+    await expect.poll(() => page.locator('li:has([data-shortcut])').evaluate((el) => `${(el as HTMLElement).style.gridColumnStart}/${(el as HTMLElement).style.gridRowStart}`)).toBe('2/5');
     await sc.click();
     await expect(page.locator('.window.is-focused')).toContainText('Somewhere to come back to.');
     expect((await (await page.request.get('/api/v1/bookmarks')).json()).bookmarks).toHaveLength(0);
