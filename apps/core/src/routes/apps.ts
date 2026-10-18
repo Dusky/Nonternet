@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { APP_DOC_MAX_BYTES, appCollectionSchema, appDocIdSchema, appGrantSchema, appIdSchema } from '@app/shared';
+import { APP_DOC_MAX_BYTES, APP_PACKAGE_MAX_BYTES, REPORT_CATEGORIES, appCollectionSchema, appDocIdSchema, appGrantSchema, appIdSchema, appVersionSchema } from '@app/shared';
 import * as apps from '../apps';
+import * as authored from '../apps-authored';
 import type { AppDeps } from '../deps';
 import { ctxOf, requireAdmin, requireUser } from '../http';
 
@@ -37,6 +38,30 @@ export function appsRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.delete('/api/v1/me/apps/:id/data/:collection/:doc', writes, async (req, reply) => {
     const p = docParam.parse(req.params);
     await apps.deleteDoc(deps, requireUser(req), p.id, p.collection, p.doc);
+    return reply.code(204).send();
+  });
+
+  // Apps made by trusted people (docs/10, 15): send a zip, see where each version stands, take an app back.
+  app.get('/api/v1/me/apps-authored', async (req) => ({ apps: await authored.listAuthored(deps, requireUser(req)) }));
+  app.register(async (scope) => {
+    scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: APP_PACKAGE_MAX_BYTES + 1 }, (_req, body, done) => done(null, body));
+    scope.post('/api/v1/me/apps-authored', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (req, reply) =>
+      reply.code(201).send({ app: await authored.submitApp(deps, requireUser(req), Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0), ctxOf(deps, req)) }));
+  });
+  app.delete('/api/v1/me/apps-authored/:id', async (req, reply) => {
+    await authored.withdrawAuthored(deps, requireUser(req), appParam.parse(req.params).id, ctxOf(deps, req));
+    return reply.code(204).send();
+  });
+  app.post('/api/v1/apps/:id/report', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req, reply) => {
+    const b = z.object({ category: z.enum(REPORT_CATEGORIES), note: z.string().trim().max(500).default('') }).parse(req.body);
+    return reply.code(201).send(await authored.reportApp(deps, requireUser(req), appParam.parse(req.params).id, b.category, b.note, ctxOf(deps, req)));
+  });
+  app.get('/api/v1/admin/app-reviews', async (req) => { requireAdmin(req); return { reviews: await authored.reviewQueue(deps) }; });
+  app.post('/api/v1/admin/app-reviews/:id/:version', async (req, reply) => {
+    const v = requireAdmin(req);
+    const p = appParam.extend({ version: appVersionSchema }).parse(req.params);
+    const b = z.object({ decision: z.enum(['approve', 'decline']), reason: z.string().trim().max(1000).default('') }).parse(req.body);
+    await authored.reviewVersion(deps, v, p.id, p.version, b.decision, b.reason, ctxOf(deps, req));
     return reply.code(204).send();
   });
 

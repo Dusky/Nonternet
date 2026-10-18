@@ -70,7 +70,8 @@ function Report({ r }: { r: ReportView }) {
     : r.target.type === 'file' ? t('boards.reports.aboutFile', { name: r.target.handle ?? t('mail.deletedPerson') })
     : r.target.type === 'wiki_page' ? t('boards.reports.aboutWiki', { name: r.wiki?.title ?? '' })
     : r.target.type === 'bookmark' ? t('boards.reports.aboutBookmark', { name: r.target.handle ?? t('mail.deletedPerson') })
-    : r.target.type === 'memo' ? t('boards.reports.aboutMemo', { name: r.target.handle ?? t('mail.deletedPerson') }) : null;
+    : r.target.type === 'memo' ? t('boards.reports.aboutMemo', { name: r.target.handle ?? t('mail.deletedPerson') })
+    : r.target.type === 'app' ? t('boards.reports.aboutApp', { name: r.target.handle ?? t('mail.deletedPerson') }) : null;
   const label = (k: NonNullable<typeof tool>) => k === 'dismiss' ? t('boards.reports.dismiss') : k === 'hide-page' ? t('boards.reports.hidePage') : k === 'hide-entry' ? t('boards.reports.hideEntry') : k === 'hide-file' ? t('boards.reports.hideFile') : k === 'hide-memo' ? t('memos.hide') : k === 'restore-memo' ? t('memos.restore') : k === 'hide-bookmark' ? t('bookmarks.hide') : k === 'restore-bookmark' ? t('bookmarks.restore') : t(`boards.mod.${k}`);
   return (
     <li>
@@ -104,6 +105,7 @@ function Report({ r }: { r: ReportView }) {
         {r.wiki && <OpenAppLink app="wiki" to={`${r.wiki.ref === 'site' ? '' : `r/${r.wiki.ref.slice(5)}/`}p/${r.wiki.slug}`}>{t('boards.reports.openPage')}</OpenAppLink>}
         {open && r.target.type === 'file' && <button type="button" className="link" onClick={() => setTool('hide-file')}>{t('boards.reports.hideFile')}</button>}
         {r.bookmark && <a href={r.bookmark.url} target="_blank" rel="noopener noreferrer nofollow">{t('boards.reports.openLink')}</a>}
+        {r.target.type === 'app' && <OpenAppLink app="admin" to="apps">{t('boards.reports.openApps')}</OpenAppLink>}
         {r.memo && <OpenAppLink app="memos" to={`m/${r.memo.root}`}>{t('boards.reports.openMemo')}</OpenAppLink>}
         {r.memo && !r.memo.hidden && <button type="button" className="link" onClick={() => setTool('hide-memo')}>{t('memos.hide')}</button>}
         {r.memo?.hidden && <button type="button" className="link" onClick={() => setTool('restore-memo')}>{t('memos.restore')}</button>}

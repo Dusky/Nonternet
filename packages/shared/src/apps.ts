@@ -41,6 +41,19 @@ export interface CatalogApp {
   installed: boolean;
   offered: boolean;      // false only in the admin view, for apps an admin has withdrawn
   has_data?: boolean;    // the person has something kept for this app, installed or not
+  author: string | null; // the handle of the trusted person who made it; null for the site's own apps
+  testing?: boolean;     // the author's own app, opened at a version still waiting for review
+}
+
+// Apps made by trusted people (docs/10, 15): a zip with manifest.json and the built files, reviewed by an admin.
+export const APP_PACKAGE_MAX_BYTES = 5 * 1024 * 1024;   // the zip, and what it unpacks to
+export const APP_PACKAGE_MAX_FILES = 200;
+export type AppVersionStatus = 'pending' | 'approved' | 'declined' | 'replaced' | 'withdrawn';
+export interface AppVersionView { version: string; status: AppVersionStatus; submitted_at: string; reviewed_at: string | null; reason: string | null; bytes: number }
+export interface AuthoredApp { id: string; name: string; description: string; icon: string; sticker: number; offered: boolean; live_version: string | null; people: number; versions: AppVersionView[] }
+export interface AppReviewItem {
+  id: string; version: string; name: string; description: string; icon: string; sticker: number; permissions: AppPermission[];
+  author: string | null; submitted_at: string; live_version: string | null; files: { path: string; size: number }[]; bytes: number; url: string; widget_url: string | null;
 }
 
 // What an app may keep for a person (docs/12: it is in their export).

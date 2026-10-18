@@ -146,7 +146,7 @@ export async function suspend(deps: AppDeps, admin: SessionUser, targetId: strin
     await revokeAllSessions(q, targetId, 'suspended');
     await flagSponsors(q, targetId, 'suspended');
     await audit(q, { actorId: admin.userId, actorKind: 'user', action: 'user.suspended', targetType: 'user', targetId,
-      before: { status: 'active' }, after: { status: 'suspended', reason, until: until?.toISOString() ?? null }, origin: 'web', ipHash: ctx.ipHash });
+      before: { status: 'active' }, after: { status: 'suspended', reason, ...(until ? { until: until.toISOString() } : {}) }, origin: 'web', ipHash: ctx.ipHash });
     await emit(q, 'user.suspended', { user_id: targetId });
   });
 }

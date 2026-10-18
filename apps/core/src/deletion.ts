@@ -1,4 +1,5 @@
 import { eraseImagesOf } from './images';
+import { withdrawAllBy } from './apps-authored';
 import { removeImportFiles } from './imports';
 import { forgetEditor } from './wiki';
 import { promises as fs } from 'node:fs';
@@ -96,6 +97,7 @@ export async function deleteAccount(deps: AppDeps, userId: string, opts: { posts
     await q.query(`DELETE FROM email_changes WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM applications WHERE user_id = $1`, [userId]);
     await q.query(`DELETE FROM admin_notes WHERE user_id = $1`, [userId]);
+    await withdrawAllBy(q, userId); // apps they made leave everyone's desktop; what people kept with them stays theirs
     exportIds = (await q.query<{ id: string }>(`DELETE FROM exports WHERE user_id = $1 RETURNING id`, [userId])).rows.map((x) => x.id);
     importIds = (await q.query<{ id: string }>(`DELETE FROM imports WHERE user_id = $1 RETURNING id`, [userId])).rows.map((x) => x.id);
     await q.query(`DELETE FROM recovery_codes WHERE user_id = $1`, [userId]);

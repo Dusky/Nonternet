@@ -1,7 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { makeAdmin, makeUser, PASSWORD, signIn, totp } from '../support/helpers';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { makeAdmin, makeUser, PASSWORD, setRole, signIn, totp } from '../support/helpers';
+import { storedZip } from '../support/zip';
 
 // Installable apps (docs/10, docs/15): add Todo from "Add apps", use it, find it again after a reload, remove it
 // (its list stays), add it back, and an admin can withdraw it. Todo runs in a sandboxed frame on the homes origin
@@ -195,4 +199,82 @@ test('an added app can put a widget on the home panel: Todo shows its open tasks
   await widget.getByRole('checkbox', { name: 'Water the plants' }).click(); // ticked tasks leave the widget at once
   await expect(widget.getByText('Nothing to do.')).toBeVisible();
   await expect.poll(async () => (await (await page.request.get('/api/v1/me/apps/todo/data/items')).json()).docs[0].data.done).toBe(true);
+});
+
+// An app made from Todo's built files under another id, as a trusted person would send it (docs/10).
+function choresZip(version: string): Buffer {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), '../../packs/build/todo');
+  const files: Record<string, Buffer> = {};
+  const walk = (rel: string) => {
+    for (const e of readdirSync(join(dir, rel), { withFileTypes: true })) {
+      const p = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(p); else files[p] = readFileSync(join(dir, p));
+    }
+  };
+  walk('');
+  const m = JSON.parse(files['manifest.json']!.toString());
+  files['manifest.json'] = Buffer.from(JSON.stringify({ ...m, id: `chores${RUN}`, name: `Chores ${RUN}`, version, description: 'Chores for the house.' }));
+  return storedZip(files);
+}
+const RUN = Date.now().toString(36).slice(-5);
+
+test('a trusted person sends an app, tries it alone, an admin reviews and offers it, and others see who made it', async ({ page, browser, isMobile }) => {
+  test.skip(isMobile, 'one browser is enough: the flow is the same on a phone');
+  const maker = await makeUser(page);
+  await setRole(maker.handle, 'trusted');
+  await signIn(page, maker.handle, PASSWORD);
+  await page.goto('/settings/apps-made');
+  await page.getByLabel('Send an app (a .zip)').setInputFiles({ name: 'chores.zip', mimeType: 'application/zip', buffer: choresZip('1.0.0') });
+  const card = page.locator('.made-apps li.panel', { hasText: `Chores ${RUN}` });
+  await expect(card).toContainText('waiting for review');
+  await expect(card).toContainText('Not offered yet.');
+  await scan(page, 'Settings: apps you made');
+  await card.getByRole('button', { name: `Try Chores ${RUN}` }).click();
+  const app = page.frameLocator(`iframe[title="Chores ${RUN}"]`);
+  await app.getByLabel('New task').fill('Water the plants');
+  await app.getByLabel('New task').press('Enter');
+  await expect(app.getByText('Water the plants')).toBeVisible();
+
+  // Nobody else has it yet.
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  const other = await makeUser(p);
+  await signIn(p, other.handle, PASSWORD);
+  await p.goto('/add-apps');
+  await expect(p.getByRole('button', { name: 'Add Todo' })).toBeVisible();
+  await expect(p.getByRole('heading', { name: `Chores ${RUN}` })).toHaveCount(0);
+
+  // An admin looks at it, tries it in the sandbox and offers it.
+  const actx = await browser.newContext();
+  const ap = await actx.newPage();
+  const admin = await makeAdmin(ap, { withTotp: false });
+  await signIn(ap, admin.handle, PASSWORD);
+  await ap.goto('/admin/apps');
+  const review = ap.locator('.app-review', { hasText: `Chores ${RUN}` });
+  await expect(review).toContainText(`Made by ${maker.handle}.`);
+  await expect(review).toContainText('First version');
+  await review.getByRole('button', { name: `Try Chores ${RUN} here` }).click();
+  await expect(ap.frameLocator(`iframe[title="Chores ${RUN}"]`).getByLabel('New task')).toBeVisible();
+  await scan(ap, 'the review queue');
+  await review.getByRole('button', { name: `Approve and offer Chores ${RUN}` }).click();
+  await expect(ap.getByText(`Chores ${RUN} is offered now.`)).toBeVisible();
+
+  await p.goto('/add-apps');
+  const listed = p.locator('.app-card', { hasText: `Chores ${RUN}` });
+  await expect(listed).toContainText(`Made by ${maker.handle}.`);
+  await listed.getByRole('button', { name: `Report Chores ${RUN}` }).click();
+  await listed.getByRole('button', { name: 'Send report' }).click();
+  await expect(listed.getByText('Thanks. The admins will look at it.')).toBeVisible();
+
+  // The author takes it back; it leaves Add apps for everyone.
+  await page.goto('/settings/apps-made');
+  await expect(card).toContainText('Offered to everyone at version 1.0.0.');
+  await card.getByRole('button', { name: `Take back Chores ${RUN}` }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Take it back' }).click();
+  await expect(page.getByText(`Chores ${RUN} was taken back.`)).toBeVisible();
+  await p.goto('/add-apps');
+  await expect(p.getByRole('button', { name: 'Add Todo' })).toBeVisible();
+  await expect(p.getByRole('heading', { name: `Chores ${RUN}` })).toHaveCount(0);
+  await ctx.close();
+  await actx.close();
 });

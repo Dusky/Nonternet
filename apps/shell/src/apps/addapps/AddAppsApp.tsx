@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AppPermission, CatalogApp } from '@app/shared';
+import { REPORT_CATEGORIES, type AppPermission, type CatalogApp } from '@app/shared';
 import type { StringKey } from '@app/strings';
 import { api } from '../../api';
 import { toast } from '../../components/feedback';
-import { Alert, EmptyState, Loading } from '../../components/ui';
+import { Alert, EmptyState, Loading, TextField } from '../../components/ui';
 import { errorText, useT } from '../../hooks';
 import { appKey, useInstalled } from '../../shell/installed';
 import { OpenAppLink } from '../../shell/OpenAppLink';
@@ -27,6 +27,7 @@ export default function AddAppsApp() {
   const patch = (id: string, change: Partial<CatalogApp>) => qc.setQueryData<{ apps: CatalogApp[] }>(['apps', 'catalog'], (d) => d && { apps: d.apps.map((a) => (a.id === id ? { ...a, ...change } : a)) });
   // Adding asks first what the app may do (decided 2026-10-16); it can be changed later in Settings.
   const [asking, setAsking] = useState<{ id: string; granted: AppPermission[] } | null>(null);
+  const [reporting, setReporting] = useState<string | null>(null);
   const add = useMutation({
     mutationFn: (a: CatalogApp & { chosen?: AppPermission[] }) => api.put(`/me/apps/${a.id}`, { granted: a.chosen ?? a.granted }),
     onMutate: (a) => { setAsking(null); patch(a.id, { installed: true }); },
@@ -68,6 +69,7 @@ export default function AddAppsApp() {
             <div className="app-card-body">
               <h2>{a.name}</h2>
               <p>{a.description}</p>
+              {a.author && <p className="row-meta">{t('apps.madeBy', { handle: a.author })}</p>}
               <p className="row-meta">{a.permissions.length > 0 && <strong>{t('apps.canLead')} </strong>}{permissionsText(a.permissions, t)}</p>
             </div>
             <div className="app-card-actions">
@@ -79,10 +81,14 @@ export default function AddAppsApp() {
               ) : (
                 asking?.id !== a.id && <button type="button" className="btn btn-primary" onClick={() => (a.permissions.length ? setAsking({ id: a.id, granted: [...a.permissions] }) : add.mutate({ ...a, chosen: [] }))} aria-label={t('apps.addLabel', { app: a.name })}>{t('apps.add')}</button>
               )}
+              {a.author && reporting !== a.id && (
+                <button type="button" className="btn btn-quiet" onClick={() => setReporting(a.id)} aria-label={t('apps.reportLabel', { app: a.name })}>{t('apps.report')}</button>
+              )}
               {!a.installed && a.has_data && (
                 <button type="button" className="btn btn-quiet btn-danger" onClick={() => deleteData(a)} aria-label={t('apps.deleteDataLabel', { app: a.name })}>{t('apps.deleteData')}</button>
               )}
             </div>
+            {reporting === a.id && <ReportApp app={a} onDone={() => setReporting(null)} />}
             {asking?.id === a.id && (
               <fieldset className="app-consent">
                 <legend>{t('apps.consent.title', { app: a.name })}</legend>
@@ -118,5 +124,30 @@ function AppTileFor({ app }: { app: CatalogApp }) {
     <span className="app-tile" data-sticker={app.sticker} aria-hidden="true">
       <svg viewBox="0 0 24 24" width={26} height={26} focusable="false"><path d={app.icon} fill="currentColor" /></svg>
     </span>
+  );
+}
+
+// Reporting an app made by someone on the site goes to the admins, who can withdraw it (docs/10).
+function ReportApp({ app, onDone }: { app: CatalogApp; onDone: () => void }) {
+  const t = useT();
+  const [category, setCategory] = useState<(typeof REPORT_CATEGORIES)[number]>('spam');
+  const [note, setNote] = useState('');
+  const send = useMutation({ mutationFn: () => api.post(`/apps/${app.id}/report`, { category, note }) });
+  if (send.isSuccess) return <p className="muted" role="status">{t('apps.reported')}</p>;
+  return (
+    <form className="panel" aria-label={t('apps.reportLabel', { app: app.name })} onSubmit={(e) => { e.preventDefault(); send.mutate(); }}>
+      <div className="field">
+        <label htmlFor={`acat-${app.id}`}>{t('boards.report.category')}</label>
+        <select id={`acat-${app.id}`} value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
+          {REPORT_CATEGORIES.map((c) => <option key={c} value={c}>{t(`boards.report.cat.${c}`)}</option>)}
+        </select>
+      </div>
+      <TextField label={t('boards.report.note')} value={note} onChange={setNote} maxLength={500} multiline />
+      {send.isError && <Alert kind="error">{errorText(send.error)}</Alert>}
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={send.isPending}>{t('boards.report.send')}</button>
+        <button type="button" className="btn btn-quiet" onClick={onDone}>{t('common.cancel')}</button>
+      </div>
+    </form>
   );
 }

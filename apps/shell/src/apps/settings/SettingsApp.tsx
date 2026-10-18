@@ -4,6 +4,7 @@ import { useMe, useSite, useT } from '../../hooks';
 import { matchRoute, useAppNav } from '../../nav';
 import { YourData } from './YourData';
 import { AppPermissions } from './AppPermissions';
+import { AppsYouMade } from './AppsYouMade';
 import { Blocks } from './Blocks';
 import { OfflineMail, SshKeys, TerminalPassword } from './Terminal';
 import { BoardSettings, ChatAccountSettings, ChatSettings, NotificationChoices, PersonalProfile, TerminalDisplay } from './PersonalSettings';
@@ -15,7 +16,7 @@ import { DevicePush } from './Push';
 import { EmailAddress, Handle } from './AccountTab';
 import { Appearance, DeviceAlerts } from './AppearanceTab';
 
-const ROUTES = ['profile', 'account', 'password', 'two-factor', 'passkeys', 'sessions', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards'] as const;
+const ROUTES = ['profile', 'account', 'password', 'two-factor', 'passkeys', 'sessions', 'terminal', 'data', 'blocked', 'appearance', 'notifications', 'chat', 'boards', 'apps-made'] as const;
 
 export default function SettingsApp() {
   const t = useT();
@@ -41,6 +42,7 @@ export default function SettingsApp() {
       { to: 'terminal', label: t('settings.tab.terminal') },
       ...(me.role !== 'guest' ? [{ to: 'blocked', label: t('settings.tab.blocked') }] : []),
       { to: 'data', label: t('settings.tab.data') },
+      ...(me.role === 'trusted' || me.role === 'admin' ? [{ to: 'apps-made', label: t('settings.tab.appsMade') }] : []),
     ] }]}>
       <p className="hint settings-scope-note">{t('settings.scopeNote')}</p>
       {route?.pattern === 'profile' && <><Profile me={me} />{me.role !== 'guest' && <PersonalProfile me={me} />}{site.services.mud && <FeaturedCharacter />}</>}
@@ -56,6 +58,7 @@ export default function SettingsApp() {
       {route?.pattern === 'notifications' && <>{me.role !== 'guest' && <NotificationChoices />}<DeviceAlerts /><DevicePush /></>}
       {route?.pattern === 'chat' && <><ChatSettings /><ChatAccountSettings /></>}
       {route?.pattern === 'boards' && <BoardSettings />}
+      {route?.pattern === 'apps-made' && <AppsYouMade />}
     </SideNav>
   );
 }

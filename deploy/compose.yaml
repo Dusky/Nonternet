@@ -211,6 +211,8 @@ services:
       SITE_CONFIG: /config/site.yaml
       HOMES_PORT: "3100"
       HOMES_DIR: /data/homes
+      # Apps made by trusted people are kept with the file-area uploads (docs/10); the homes server serves them.
+      FILES_DIR: /data/files
       DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@postgres:5432/app
       APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/.env (openssl rand -base64 32)}
       NODE_ENV: development
@@ -220,6 +222,7 @@ services:
     volumes:
       - ${SITE_CONFIG_FILE:-./site.example.yaml}:/config/site.yaml:ro
       - homes-data:/data/homes:ro
+      - files-data:/data/files:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3100/healthz || exit 1"]
       interval: 10s

@@ -74,7 +74,7 @@
 | Q14 | ~~Enigma rename handling~~ Withdrawn: no Enigma | — |
 | Q15 | ~~Password reset, TOTP recovery codes and TOTP replay protection~~ Resolved 2026-09-29: built in M1 | — |
 | Q16 | OIDC `prompt=login` and `max_age` are not enforced (the site session is the login). Do any services need forced re-authentication, and does that need a re-enter-password step on the site? | M5 |
-| Q18 | (Per-install consent DECIDED 2026-10-16: asked when adding, changeable in Settings.) Outside authors for installable apps: who may publish, how apps are reviewed, signed, reported and taken down, and how a sandboxed frame is kept from carrying data out by navigating itself (docs/15). The format is ready for it; nothing is decided | before anyone but the site publishes an app |
+| Q18 | CLOSED 2026-10-18 (see that day's entry): trusted people send apps, an admin reviews each version, people report, admins and authors withdraw. Packages are not signed (uploaded and stored by the site). Self-navigation stays a known limit handled by review (docs/15) | — |
 | Q17 | Should boards or homepages federate over ActivityPub (e.g. Fedify), so people on Mastodon can follow them? Raised 2026-10-04 | not scheduled |
 
 ## Implementation notes
@@ -400,8 +400,13 @@ one process, this moves to the job queue.
   and skips the browser check and the network limit (it only sends a hashed address), while the email rules apply to
   every door and to email changes. VERIFIED 2026-10-18: `altcha-lib` 2.6.0 is MIT and has no Node-only imports in its
   browser path; the disposable-email-domains list is CC0 1.0.
-- **Outside app authors** (DECIDED, closes Q18, to build): trusted people submit an app package; it is private to them until
-  an admin reviews and offers it; each new version is reviewed again; apps can be reported and withdrawn.
+- **Outside app authors** (DECIDED, closes Q18, built): trusted people submit an app package; it is private to them until
+  an admin reviews and offers it; each new version is reviewed again; apps can be reported and withdrawn. As built
+  (docs/10, 15): no package signing (packages only arrive through a signed-in upload and the site stores them; the
+  versioned address means the reviewed files are the served files); packages live in the files folder so backups cover
+  them; the author can take an app back; deletion withdraws a person's apps; a frame navigating itself stays a known
+  limit that review covers (OPEN until browsers offer a control). Also built from this list: suspensions with an end
+  date, admin notes and the sign-up protections (above).
 - **MUD telnet over TLS** (DECIDED, to build): off by default, an admin switches it on.
 - **Desktop** (DECIDED, to build): folders, sticky notes from memos, an admin-set default layout, widgets from added apps,
   and a dropped link landing where it is dropped.

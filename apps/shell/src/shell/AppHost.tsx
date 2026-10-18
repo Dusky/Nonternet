@@ -93,10 +93,13 @@ function appToast(text: string, o: { undo?: boolean; error?: boolean }, undoLabe
 }
 
 // `widget` runs the app's small home-panel page instead of the app itself (docs/10): same sandbox, same bridge, no window title.
-export default function AppHost({ appId, widget = false }: { appId: string; widget?: boolean }) {
+// `preview` runs an app nobody has added, for an admin reviewing it: the same sandbox, and nothing allowed, so it keeps nothing.
+export default function AppHost({ appId, widget = false, preview }: { appId: string; widget?: boolean; preview?: CatalogApp }) {
   const t = useT();
   const me = useMe().data;
-  const app = useInstalled((s) => s.apps.find((a) => a.id === appId));
+  const installed = useInstalled((s) => s.apps.find((a) => a.id === appId));
+  const app = preview ? { ...preview, granted: [] } : installed;
+  const titled = !widget && !preview;
   const setSubtitle = useWindows((s) => s.setSubtitle);
   const frame = useRef<HTMLIFrameElement>(null);
   const [failed, setFailed] = useState(false);
@@ -112,7 +115,7 @@ export default function AppHost({ appId, widget = false }: { appId: string; widg
     const key = appKey(app.id);
     const methods = bridgeFor(app, {
       me: () => (meRef.current ? { id: meRef.current.id, handle: meRef.current.handle, display_name: meRef.current.display_name ?? null } : null),
-      setTitle: (title) => { if (!widget) setSubtitle(key, title); },
+      setTitle: (title) => { if (titled) setSubtitle(key, title); },
       setHeight,
       toast: (text, o) => appToast(text, o, t('common.undo')),
       refused: t('apps.refused'),
@@ -128,7 +131,7 @@ export default function AppHost({ appId, widget = false }: { appId: string; widg
     const pushTheme = () => { void conn.promise.then((r) => { const th = themeNow(); return r.setTheme(th.vars, th.scheme); }).catch(() => undefined); };
     conn.promise.then(() => { if (alive) { setReady(true); pushTheme(); } }, () => { if (alive) setFailed(true); });
     window.addEventListener('ui:theme', pushTheme);
-    return () => { alive = false; window.removeEventListener('ui:theme', pushTheme); conn.destroy(); if (!widget) setSubtitle(key, null); };
+    return () => { alive = false; window.removeEventListener('ui:theme', pushTheme); conn.destroy(); if (titled) setSubtitle(key, null); };
   }, [app?.id, app?.version, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!app) {

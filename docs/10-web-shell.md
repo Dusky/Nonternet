@@ -350,7 +350,7 @@ the site config and browser storage all accept the old names).
 
 ## As built (installable apps, 2026-10-04)
 People add apps to their own desktop. Admins choose which the site offers; each person adds the ones they want.
-The format is built for outside authors later (Q18), but only the site's own packages exist for now.
+Trusted people can send their own apps too (below, built 2026-10-18); an admin reviews each version before it is offered.
 - **A package** is a folder: `manifest.json` (`id`, `name`, `version`, `description`, one SVG path as the `icon`,
   a `sticker` slot for the tile colour, `entry`, `permissions`) and static files. First-party packages live in
   `packs/apps/{id}` and build into `packs/build/{id}`; core syncs the catalog from `APPS_DIR` at start. A new
@@ -378,6 +378,27 @@ The format is built for outside authors later (Q18), but only the site's own pac
 - **Todo** is the first package: add, tick, edit, delete with Undo, clear done, an "N left" count in the window title.
   Each task is a document in its `items` collection. About 11 KB of script, no framework.
 - Not in the BBS yet (two front doors, docs/04): a terminal view of app data is a later option.
+
+
+### Apps people made (built 2026-10-18; closes Q18)
+- **Sending.** Trusted people and admins get **Settings → Apps you made**. They send a zip of the built app (the same
+  format as the site's own packages: `manifest.json` plus static files; one folder at the top of the zip is fine). Core
+  checks it: at most 5 MB and 200 files, only kinds of file the homes server serves, no hidden or `..` paths, a valid
+  manifest whose entry page (and widget) is in the zip, an id nobody else uses, and a version newer than any sent before.
+  Audited `app.submitted`.
+- **Trying it alone.** Until an admin approves it, the app is the author's only: they can add it, open it and keep data
+  in it like any app. A new version waits too; the author tries it while everyone else keeps the approved one. A newer
+  version sent before review replaces the waiting one.
+- **Review.** Admins see **Admin → Apps → Waiting for review**: name, author, what it asks to do in plain words, the
+  file list, whether it replaces a live version, and **Try it here** (the same sandbox, nothing allowed, so it keeps
+  nothing). **Approve and offer** makes it the live version and offers it (`app.approved`); **Decline** needs a reason the
+  author sees (`app.declined`) and removes that version's files.
+- **Afterwards.** Add apps shows "Made by {handle}." and a **Report** button (report kind `app`, to admins). Withdrawing
+  it on the Apps page, by an admin or by its author (**Take it back**), takes it off everyone's desktop and closes its
+  open reports; what people kept stays theirs and stays in their export. Account deletion withdraws the person's apps.
+- **Ownership.** The author's export has `apps-authored/`: each kept version's files and `versions.json` (status and
+  any reason). Packages are stored in the files folder (`{FILES_DIR}/apps/{id}/{version}/`), so they are backed up with
+  file-area uploads; the homes server serves the live version and a waiting one, nothing else.
 
 ## As built (React 19, 2026-10-04)
 - React 19.3 with the React Compiler, so components re-render only what changed without hand-written `useMemo`/`useCallback`.

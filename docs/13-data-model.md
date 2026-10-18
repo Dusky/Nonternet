@@ -159,6 +159,8 @@ client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+cl
 
 ## Installable apps (0037, docs/10)
 - `app_catalog(app_id, version, manifest, offered, present)`: the packages in `APPS_DIR`, synced at start. Not anyone's content.
+- `app_catalog.source` (`site` | `submitted`) and `author_id`: apps made by trusted people (docs/10), whose `version`/`manifest` is the approved one (or, before any approval, the newest sent, not offered).
+- `app_versions(app_id, version, manifest, files, bytes, status pending|approved|declined|replaced|withdrawn, submitted_at, reviewed_by, reviewed_at, reason)`: every version a trusted person sent. In the author's export.
 - `app_installs(user_id, app_id, installed_at)`: who added what.
 - `app_data(user_id, app_id, collection, doc_id, data jsonb, bytes)`: everything any app keeps for a person, keyed by stable user id; exported, imported and erased with the account.
 

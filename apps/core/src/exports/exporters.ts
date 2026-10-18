@@ -7,6 +7,7 @@ import { formatMbox } from './mbox';
 import { CLIENT_NAMES } from '@app/shared';
 import { getClientSettings } from '../client-settings';
 import { exportAppData } from '../apps';
+import { exportAuthored } from '../apps-authored';
 import { mudExport } from '../mud/sync';
 import { exportBookmarks } from '../bookmarks';
 import { exportMemos } from '../memos';
@@ -365,7 +366,14 @@ const memosExporter: Exporter = {
   },
 };
 
-export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, pushDevices, wikiExporter, bookmarksExporter, memosExporter];
+// Apps the person made (docs/10): every version still kept, with its files, and where each stands in review.
+const appsAuthored: Exporter = {
+  id: 'apps-authored',
+  tables: ['app_versions'],
+  async run({ deps, user, add }) { await exportAuthored(deps, user.id, add); },
+};
+
+export const EXPORTERS: Exporter[] = [profile, posts, homepage, guestbook, rings, boards, keys, irc, mud, mail, vouching, fileAreas, clients, appsData, appsAuthored, pushDevices, wikiExporter, bookmarksExporter, memosExporter];
 
 // Tables that hold no one's own content, each with the reason. Anything not here and not in an
 // exporter fails the test in exports/exporters.test.ts.

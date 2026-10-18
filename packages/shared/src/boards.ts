@@ -197,7 +197,7 @@ export interface ReportView {
   escalated: boolean; other_open: number;
   reporter: { handle: string };
   board: { slug: string; name: string };
-  target: { type: 'post' | 'homepage' | 'guestbook' | 'mail_message' | 'file' | 'wiki_page' | 'bookmark' | 'memo'; id: string; handle: string | null };
+  target: { type: 'post' | 'homepage' | 'guestbook' | 'mail_message' | 'file' | 'wiki_page' | 'bookmark' | 'memo' | 'app'; id: string; handle: string | null };
   // For a memo: the memo its thread belongs to, and whether it is already hidden.
   memo?: { root: string; hidden: boolean } | null;
   // For a bookmark: what it links to, and whether it is already hidden.

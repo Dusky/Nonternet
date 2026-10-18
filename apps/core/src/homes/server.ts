@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs';
+import { submittedDir } from '../apps-authored';
 import { posix } from 'node:path';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import send from 'send';
@@ -115,14 +116,23 @@ export async function buildHomesApp(deps: AppDeps) {
   const APP_CSP = `sandbox allow-scripts allow-forms; default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors ${siteOrigin}`;
   async function serveApp(req: FastifyRequest, reply: FastifyReply, id: string, version: string, rest: string): Promise<FastifyReply> {
     const notFound = () => page(reply, 404, en['homes.notFound'], '');
-    if (!deps.appsDir) return notFound();
-    const row = await deps.db.query<{ version: string }>(`SELECT version FROM app_catalog WHERE app_id = $1 AND offered AND present`, [id]);
-    if (row.rows[0]?.version !== version) return notFound();
+    const row = (await deps.db.query<{ version: string; offered: boolean; present: boolean; source: string }>(`SELECT version, offered, present, source FROM app_catalog WHERE app_id = $1`, [id])).rows[0];
+    if (!row?.present) return notFound();
+    let root: string;
+    if (row.source === 'submitted') {
+      // An app made by a trusted person (docs/10): its live version while offered, and a version waiting for review (so its
+      // author can try it and an admin can look at it). The same sandbox either way.
+      const v = (await deps.db.query<{ status: string }>(`SELECT status FROM app_versions WHERE app_id = $1 AND version = $2`, [id, version])).rows[0];
+      if (!v || !(v.status === 'pending' || (v.status === 'approved' && row.offered))) return notFound();
+      root = submittedDir(deps, id, version).replace(/\\/g, '/');
+    } else {
+      if (!deps.appsDir || !row.offered || row.version !== version) return notFound();
+      root = posix.join(deps.appsDir.replace(/\\/g, '/'), id);
+    }
     const segs = rest.split('/').filter(Boolean);
     if (segs.length === 0 || segs.some((x) => x.startsWith('.') || x === '..')) return notFound();
     const rel = segs.join('/');
     const mime = MIME[extOf(rel)];
-    const root = posix.join(deps.appsDir.replace(/\\/g, '/'), id);
     try { const st = await fs.lstat(posix.join(root, rel)); if (!st.isFile() || st.isSymbolicLink()) return notFound(); } catch { return notFound(); }
     if (!mime) return notFound();
     reply.hijack();

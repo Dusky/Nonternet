@@ -173,7 +173,8 @@ the widget guestbook `POST` also takes `ticket`. Ring ops/admins: `PUT|DELETE /r
 ## Installable apps (2026-10-04, docs/10)
 All need a session. The data routes are what the shell's bridge calls on an app's behalf; an app never calls the API itself (it has no network).
 - `GET /api/v1/apps`: apps the site offers, with `installed` and `has_data` for the caller, and each app's `url` on the homes origin.
-- `GET /api/v1/me/apps`: the caller's added apps (still offered).
+- `GET /api/v1/me/apps`: the caller's added apps (still offered; an author's own app waiting for review comes with `testing: true` at the waiting version).
+- Apps made by trusted people (docs/10): `GET /api/v1/me/apps-authored`; `POST /api/v1/me/apps-authored` (the zip as the raw body, 10 an hour; trusted and admins); `DELETE /api/v1/me/apps-authored/{id}` (take it back); `POST /api/v1/apps/{id}/report` (`{ category, note }`); admins: `GET /api/v1/admin/app-reviews`, `POST /api/v1/admin/app-reviews/{id}/{version}` (`{ decision: approve|decline, reason }`, a reason required to decline). Catalog entries carry `author` (a handle, or null for the site's own).
 - `PUT /api/v1/me/apps/{id}` (`{ granted? }`): add, with the permissions the person allowed (all it asks for if left out). `PUT /api/v1/me/apps/{id}/permissions` (`{ granted }`): change them later. `DELETE /api/v1/me/apps/{id}`: remove, keeping data. `DELETE /api/v1/me/apps/{id}/data`: delete what it kept.
 - `GET /api/v1/me/apps/{id}/data/{collection}`, `PUT|DELETE /api/v1/me/apps/{id}/data/{collection}/{doc}` (`{ data }`). Refused unless the app is offered, added, asked for `storage`, and the person allowed it. 64 KB per document, 5 MB per app per person (`413 too_large`), 120 writes a minute.
 - Admin: `GET /api/v1/admin/apps` (with `people` and `present`), `PUT /api/v1/admin/apps/{id}` `{ offered }` (audited).

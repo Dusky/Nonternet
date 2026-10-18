@@ -7,6 +7,7 @@ import type { SessionUser } from './accounts';
 import { audit } from './audit';
 import type { Queryable } from './db';
 import type { AppDeps } from './deps';
+import { closeReports } from './apps-authored';
 import { ApiError } from './errors';
 
 // Apps people add to their own desktop (docs/10, docs/15). The packages live in a folder (APPS_DIR), one
@@ -41,14 +42,18 @@ export async function syncCatalog(deps: AppDeps, log: (m: string) => void = () =
       await q.query(
         `INSERT INTO app_catalog (app_id, version, manifest) VALUES ($1, $2, $3)
          ON CONFLICT (app_id) DO UPDATE SET version = EXCLUDED.version, manifest = EXCLUDED.manifest, present = true, updated_at = now()
-         WHERE app_catalog.version IS DISTINCT FROM EXCLUDED.version OR app_catalog.manifest IS DISTINCT FROM EXCLUDED.manifest OR NOT app_catalog.present`,
+         WHERE app_catalog.source = 'site' AND (app_catalog.version IS DISTINCT FROM EXCLUDED.version OR app_catalog.manifest IS DISTINCT FROM EXCLUDED.manifest OR NOT app_catalog.present)`,
         [m.id, m.version, JSON.stringify(m)]);
     }
-    await q.query(`UPDATE app_catalog SET present = false, updated_at = now() WHERE present AND NOT (app_id = ANY($1))`, [found.map((m) => m.id)]);
+    // Apps made by trusted people are not in the folder; they come and go through review (apps-authored.ts).
+    await q.query(`UPDATE app_catalog SET present = false, updated_at = now() WHERE present AND source = 'site' AND NOT (app_id = ANY($1))`, [found.map((m) => m.id)]);
   });
 }
 
-interface Row { app_id: string; version: string; manifest: AppManifest; offered: boolean; present: boolean; granted?: string[] | null }
+interface Row { app_id: string; version: string; manifest: AppManifest; offered: boolean; present: boolean; granted?: string[] | null; author?: string | null; testing?: boolean }
+
+// The columns a catalog view needs, and the author's handle for apps made by trusted people.
+const COLS = `c.app_id, c.version, c.manifest, c.offered, c.present, (SELECT handle FROM users au WHERE au.id = c.author_id) AS author`;
 
 // Only what the app still asks for: a permission dropped by a new version is gone, a new one waits for the person.
 const allowed = (manifest: AppManifest, granted: readonly string[] | null | undefined): AppPermission[] => manifest.permissions.filter((p) => granted?.includes(p));
@@ -58,13 +63,14 @@ const view = (deps: AppDeps, r: Row, installed: boolean, hasData?: boolean): Cat
   sticker: r.manifest.sticker, permissions: r.manifest.permissions, granted: installed ? allowed(r.manifest, r.granted) : [],
   url: deps.appsUrl(`${r.app_id}@${r.version}/${r.manifest.entry}`), installed, offered: r.offered,
   widget_url: r.manifest.widget ? deps.appsUrl(`${r.app_id}@${r.version}/${r.manifest.widget}`) : null,
+  author: r.author ?? null, ...(r.testing ? { testing: true } : {}),
   ...(hasData === undefined ? {} : { has_data: hasData }),
 });
 
 // What the site offers this person, with what they have added and what they have data for.
 export async function listCatalog(deps: AppDeps, v: SessionUser): Promise<CatalogApp[]> {
   const r = await deps.db.query<Row & { installed: boolean; has_data: boolean }>(
-    `SELECT c.app_id, c.version, c.manifest, c.offered, c.present,
+    `SELECT ${COLS},
             EXISTS (SELECT 1 FROM app_installs i WHERE i.user_id = $1 AND i.app_id = c.app_id) AS installed,
             (SELECT i.granted FROM app_installs i WHERE i.user_id = $1 AND i.app_id = c.app_id) AS granted,
             EXISTS (SELECT 1 FROM app_data d WHERE d.user_id = $1 AND d.app_id = c.app_id) AS has_data
@@ -72,17 +78,26 @@ export async function listCatalog(deps: AppDeps, v: SessionUser): Promise<Catalo
   return r.rows.map((x) => view(deps, x, x.installed, x.has_data));
 }
 
-// The apps this person has added that are still offered: what the shell puts on their desktop.
+// The apps this person has added that are still offered: what the shell puts on their desktop. An author also gets
+// their own app while it waits for review, at the version waiting, so they can try it before anyone else sees it.
 export async function listInstalled(deps: AppDeps, v: SessionUser): Promise<CatalogApp[]> {
-  const r = await deps.db.query<Row>(
-    `SELECT c.app_id, c.version, c.manifest, c.offered, c.present, i.granted FROM app_installs i JOIN app_catalog c ON c.app_id = i.app_id
-     WHERE i.user_id = $1 AND c.offered AND c.present ORDER BY i.installed_at`, [v.userId]);
-  return r.rows.map((x) => view(deps, x, true));
+  const r = await deps.db.query<Row & { test_version: string | null; test_manifest: AppManifest | null }>(
+    `SELECT ${COLS}, i.granted, t.version AS test_version, t.manifest AS test_manifest
+     FROM app_installs i JOIN app_catalog c ON c.app_id = i.app_id
+       LEFT JOIN LATERAL (SELECT version, manifest FROM app_versions x WHERE x.app_id = c.app_id AND x.status = 'pending' AND c.author_id = $1
+                          ORDER BY x.submitted_at DESC LIMIT 1) t ON true
+     WHERE i.user_id = $1 AND c.present AND (c.offered OR t.version IS NOT NULL) ORDER BY i.installed_at`, [v.userId]);
+  return r.rows.map((x) => view(deps, x.test_version ? { ...x, version: x.test_version, manifest: x.test_manifest!, testing: true } : x, true));
 }
 
-async function offered(q: Queryable, appId: string): Promise<Row> {
-  const r = await q.query<Row>(`SELECT app_id, version, manifest, offered, present FROM app_catalog WHERE app_id = $1`, [appId]);
+// An app a person may use: offered to everyone, or their own app while a version of it waits for review.
+async function offered(q: Queryable, appId: string, v?: SessionUser): Promise<Row> {
+  const r = await q.query<Row & { mine: boolean; test_manifest: AppManifest | null }>(
+    `SELECT ${COLS}, c.author_id = $2 AS mine,
+            (SELECT manifest FROM app_versions x WHERE x.app_id = c.app_id AND x.status = 'pending' ORDER BY x.submitted_at DESC LIMIT 1) AS test_manifest
+     FROM app_catalog c WHERE c.app_id = $1`, [appId, v?.userId ?? null]);
   const row = r.rows[0];
+  if (row?.present && row.mine && row.test_manifest) return { ...row, version: row.test_manifest.version, manifest: row.test_manifest, testing: true };
   if (!row || !row.offered || !row.present) throw new ApiError(404, 'not_found', 'That app is not offered here.');
   return row;
 }
@@ -90,7 +105,7 @@ async function offered(q: Queryable, appId: string): Promise<Row> {
 // Adding an app with what the person allowed it to do (out of what it asks for). Without a list, everything it asks for:
 // an older client, or bringing back an export made before permissions were asked.
 export async function installApp(deps: AppDeps, v: SessionUser, appId: string, granted?: AppPermission[]): Promise<CatalogApp> {
-  const row = await offered(deps.db, appId);
+  const row = await offered(deps.db, appId, v);
   const g = allowed(row.manifest, granted ?? row.manifest.permissions);
   await deps.db.query(`INSERT INTO app_installs (user_id, app_id, granted) VALUES ($1, $2, $3) ON CONFLICT (user_id, app_id) DO UPDATE SET granted = EXCLUDED.granted`, [v.userId, appId, g]);
   return view(deps, { ...row, granted: g }, true);
@@ -98,7 +113,7 @@ export async function installApp(deps: AppDeps, v: SessionUser, appId: string, g
 
 // Settings: change what an app already added may do.
 export async function setGrants(deps: AppDeps, v: SessionUser, appId: string, granted: AppPermission[]): Promise<CatalogApp> {
-  const row = await offered(deps.db, appId);
+  const row = await offered(deps.db, appId, v);
   const g = allowed(row.manifest, granted);
   const r = await deps.db.query(`UPDATE app_installs SET granted = $3 WHERE user_id = $1 AND app_id = $2`, [v.userId, appId, g]);
   if (!r.rowCount) throw new ApiError(403, 'not_installed', 'Add this app first.');
@@ -118,7 +133,7 @@ export async function deleteAppData(deps: AppDeps, v: SessionUser, appId: string
 // The bridge's storage calls. An app reads and writes only its own data, only while the person has it added,
 // only while the site offers it, and only if its manifest asked for storage.
 async function usable(q: Queryable, v: SessionUser, appId: string, need: AppPermission): Promise<void> {
-  const row = await offered(q, appId);
+  const row = await offered(q, appId, v);
   const r = await q.query<{ granted: string[] }>(`SELECT granted FROM app_installs WHERE user_id = $1 AND app_id = $2`, [v.userId, appId]);
   if (!r.rows[0]) throw new ApiError(403, 'not_installed', 'Add this app first.');
   if (!row.manifest.permissions.includes(need)) throw new ApiError(403, 'not_permitted', 'This app did not ask to keep anything.');
@@ -166,13 +181,15 @@ export async function deleteDoc(deps: AppDeps, v: SessionUser, appId: string, co
 
 // ---------------------------------------------------------------- admin console
 
-export interface AdminApp extends CatalogApp { present: boolean; people: number }
+export interface AdminApp extends CatalogApp { present: boolean; people: number; source: 'site' | 'submitted' }
 
 export async function adminListApps(deps: AppDeps): Promise<AdminApp[]> {
-  const r = await deps.db.query<Row & { people: string }>(
-    `SELECT c.app_id, c.version, c.manifest, c.offered, c.present, (SELECT count(*) FROM app_installs i WHERE i.app_id = c.app_id) AS people
-     FROM app_catalog c ORDER BY c.manifest->>'name'`);
-  return r.rows.map((x) => ({ ...view(deps, x, false), present: x.present, people: Number(x.people) }));
+  // A submitted app shows here once a version of it has been approved; before that it is in the review queue.
+  const r = await deps.db.query<Row & { people: string; source: 'site' | 'submitted' }>(
+    `SELECT ${COLS}, c.source, (SELECT count(*) FROM app_installs i WHERE i.app_id = c.app_id) AS people
+     FROM app_catalog c WHERE c.source = 'site' OR EXISTS (SELECT 1 FROM app_versions x WHERE x.app_id = c.app_id AND x.status = 'approved')
+     ORDER BY c.manifest->>'name'`);
+  return r.rows.map((x) => ({ ...view(deps, x, false), present: x.present, people: Number(x.people), source: x.source }));
 }
 
 // Offering or withdrawing an app is a site decision, so it is audited (docs/03). Withdrawing hides the app from
@@ -183,6 +200,7 @@ export async function setOffered(deps: AppDeps, v: SessionUser, appId: string, o
     if (!r.rows[0]) throw new ApiError(404, 'not_found', 'There is no app with that id.');
     if (r.rows[0].offered === offer) return;
     await q.query(`UPDATE app_catalog SET offered = $2, updated_at = now() WHERE app_id = $1`, [appId, offer]);
+    if (!offer) await closeReports(q, appId, v.userId, 'app withdrawn');
     await audit(q, { actorId: v.userId, actorKind: 'user', action: offer ? 'app.offered' : 'app.withdrawn', targetType: 'app', targetId: appId, origin: 'console', ipHash });
   });
 }
