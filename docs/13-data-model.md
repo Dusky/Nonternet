@@ -182,3 +182,5 @@ client_settings (user_id, client chat|mud, data jsonb, updated_at; PK user_id+cl
 - `audit_log` is append-only: triggers refuse UPDATE, DELETE and TRUNCATE (see `15` for the
   matching database grants). `admin_notes` will follow the same rule when it exists.
 - Every content table is registered with an exporter (`12`).
+
+- `site_defaults (key pk, data jsonb, updated_by fk users null, updated_at)`: site-wide defaults admins set from the web; first key `desktop` (0059).

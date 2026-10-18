@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import type { DesktopClient } from '@app/shared';
+import { api } from '../../api';
 import { useToast } from '../../components/feedback';
-import { useSite, useT, useMe } from '../../hooks';
+import { errorText, useSite, useT, useMe } from '../../hooks';
 import { appName, useVisibleApps } from '../../shell/apps';
 import { shownApps, useDesktopLayout } from '../../shell/desktopLayout';
 import { phoneOrder, shortcutKey } from '../../shell/desktopLayout.logic';
@@ -52,6 +55,34 @@ export function DesktopLayoutSection() {
         <button type="button" className="btn" disabled={!loaded || (Object.keys(settings.positions).length === 0 && settings.hidden.length === 0 && settings.phone_order.length === 0 && !settings.widgets_set)}
           onClick={() => { const before = useDesktopLayout.getState().reset(); toast(t('desktop.resetDone'), 'ok', { undo: () => useDesktopLayout.getState().restore(before) }); }}>{t('desktop.ctx.reset')}</button>
       </div>
+      {me?.role === 'admin' && <SiteDefault />}
     </Section>
+  );
+}
+
+// Admins: make this layout what people get until they arrange their own (docs/10). Their shortcuts, folders and notes stay theirs.
+function SiteDefault() {
+  const t = useT();
+  const toast = useToast();
+  const has = useDesktopLayout((s) => s.siteDefault !== null);
+  const set = useMutation({
+    mutationFn: () => api.put<{ settings: DesktopClient }>('/admin/desktop-default', { settings: useDesktopLayout.getState().settings }),
+    onSuccess: (r) => { useDesktopLayout.setState({ siteDefault: r.settings }); toast(t('settings.desktop.defaultSet')); },
+    onError: (e) => toast(errorText(e), 'error'),
+  });
+  const clear = useMutation({
+    mutationFn: () => api.del('/admin/desktop-default'),
+    onSuccess: () => { useDesktopLayout.setState({ siteDefault: null }); toast(t('settings.desktop.defaultCleared')); },
+    onError: (e) => toast(errorText(e), 'error'),
+  });
+  return (
+    <div className="site-default">
+      <h3>{t('settings.desktop.defaultTitle')}</h3>
+      <p className="hint">{has ? t('settings.desktop.defaultOn') : t('settings.desktop.defaultOff')}</p>
+      <div className="actions">
+        <button type="button" className="btn" disabled={set.isPending} onClick={() => set.mutate()}>{t('settings.desktop.defaultSave')}</button>
+        {has && <button type="button" className="btn btn-quiet" disabled={clear.isPending} onClick={() => clear.mutate()}>{t('settings.desktop.defaultClear')}</button>}
+      </div>
+    </div>
   );
 }

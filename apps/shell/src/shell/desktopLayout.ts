@@ -12,6 +12,8 @@ import { NEVER_HIDDEN, newShortcutId, resolveWidgets, phoneOrder, sameTarget, sh
 interface State {
   settings: DesktopClient;
   loaded: boolean;
+  // The layout an admin set as the site's default (docs/10), or null: what "Reset" goes back to.
+  siteDefault: DesktopClient | null;
   load: () => Promise<void>;
   update: (fn: (s: DesktopClient) => DesktopClient) => void;
   hide: (id: string) => void;
@@ -63,8 +65,16 @@ export const useDesktopLayout = create<State>((set, get) => {
   return {
     settings: empty(),
     loaded: false,
-    load: () => (loading ??= api.get<{ settings: unknown }>('/me/client-settings/desktop')
-      .then((r) => { const p = desktopClientSchema.safeParse(r.settings); set({ settings: p.success ? p.data : empty(), loaded: true }); })
+    siteDefault: null,
+    load: () => (loading ??= Promise.all([
+      api.get<{ settings: unknown }>('/me/client-settings/desktop'),
+      api.get<{ settings: unknown }>('/site/desktop-default').catch(() => ({ settings: null })),
+    ])
+      .then(([r, d]) => {
+        const p = desktopClientSchema.safeParse(r.settings);
+        const def = d.settings ? desktopClientSchema.safeParse(d.settings) : null;
+        set({ settings: p.success ? p.data : empty(), siteDefault: def?.success ? def.data : null, loaded: true });
+      })
       .catch(() => { set({ loaded: true }); })),
     update: (fn) => { if (get().loaded) apply(fn(get().settings)); },
     hide: (id) => { if (NEVER_HIDDEN.includes(id) || !get().loaded) return; const s = get().settings; if (!s.hidden.includes(id)) apply({ ...s, hidden: [...s.hidden, id] }); },
@@ -138,7 +148,7 @@ export const useDesktopLayout = create<State>((set, get) => {
       const s = get().settings;
       apply({ ...s, widgets_set: true, widgets: fn(resolveWidgets(s, legacy)) });
     },
-    reset: () => { const before = get().settings; if (get().loaded) apply({ ...empty(), shortcuts: before.shortcuts, folders: before.folders, notes: before.notes }); return before; },
+    reset: () => { const before = get().settings; if (get().loaded) apply({ ...(get().siteDefault ?? empty()), shortcuts: before.shortcuts, folders: before.folders, notes: before.notes }); return before; },
     restore: (s) => { if (get().loaded) apply(s); },
   };
 });

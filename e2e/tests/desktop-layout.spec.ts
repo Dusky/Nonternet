@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../support/fixtures';
 import type { Locator, Page } from '@playwright/test';
-import { makeUser, PASSWORD, signIn } from '../support/helpers';
+import { makeAdmin, makeUser, PASSWORD, signIn } from '../support/helpers';
 import { BASE_URL } from '../support/stack';
 
 const h = { origin: BASE_URL };
@@ -268,4 +268,26 @@ test('a memo pinned to the desktop shows as a note that can be edited and unpinn
   await note.getByRole('button', { name: /Take this note off the desktop/ }).click();
   await expect(note).toHaveCount(0);
   expect((await page.request.get(`/api/v1/memos/${memo.id}`)).ok()).toBe(true); // the memo stays
+});
+
+test('an admin saves their layout as the site default, and a new person starts with it', async ({ page, isMobile, browser }) => {
+  test.skip(isMobile, 'set from the big-screen settings; the phone check is the same document');
+  const admin = await makeAdmin(page, { withTotp: false });
+  await signIn(page, admin.handle, admin.password);
+  await page.goto('/settings/appearance');
+  await page.getByLabel('Files', { exact: true }).uncheck();
+  await page.waitForTimeout(1200);
+  await page.getByRole('button', { name: 'Make my layout the default' }).click();
+  await expect(page.getByText('Saved as the site\'s default layout.')).toBeVisible();
+  // A new person, in a clean browser.
+  const other = await browser.newContext({ baseURL: BASE_URL });
+  const p2 = await other.newPage();
+  const u = await makeUser(p2);
+  await signIn(p2, u.handle, PASSWORD);
+  await expect(p2.getByRole('button', { name: 'Open Boards' })).toBeVisible();
+  await expect(p2.locator('[data-app-icon="files"]')).toHaveCount(0);
+  await other.close();
+  // Back to the built-in layout for the other tests.
+  await page.getByRole('button', { name: 'Go back to the built-in layout' }).click();
+  await expect(page.getByText('The built-in layout is the default again.')).toBeVisible();
 });

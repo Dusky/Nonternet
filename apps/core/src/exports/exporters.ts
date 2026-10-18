@@ -373,6 +373,7 @@ export const EXEMPT: Record<string, string> = {
   home_previews: 'a draft held for ten minutes so the Studio can preview unsaved text; the saved file is what is published and exported',
   app_catalog: 'the packages this site offers, chosen by admins; what an app keeps for a person is in app_data',
   legal_pages: 'site documents written by admins',
+  site_defaults: 'site-wide defaults an admin set (the default desktop layout), not anyone\'s own content',
   imports: 'a record of archives the person uploaded to bring back; the content itself is in their export',
   guestbook_tickets: 'one-use sign-in passes, security state rather than content',
   bulletins: 'site notices written by admins, not a person\'s own content',

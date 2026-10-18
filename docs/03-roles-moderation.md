@@ -100,3 +100,5 @@ Bookmarks (docs/21):
 ## As built (M9-D): avatars
 Avatars are re-encoded on upload (no metadata, 256×256 WebP). An admin can take one down with a reason; the person keeps their
 account and the removal is audited as `user.avatar_removed`. Anyone can report a person through the existing user report path.
+
+- 2026-10-18: `site.desktop_default_set`, `site.desktop_default_cleared` (an admin sets or clears the site's default desktop layout).

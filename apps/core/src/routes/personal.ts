@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AVATAR_MAX_BYTES, WALLPAPER_MAX_BYTES, wallpaperFromUrlSchema, wallpaperUpdateSchema, CLIENT_NAMES, CLIENT_SETTINGS_MAX_BYTES, notificationPrefSchema, type ClientName } from '@app/shared';
-import { getClientSettings, putClientSettings } from '../client-settings';
+import { desktopDefault, getClientSettings, putClientSettings, setDesktopDefault } from '../client-settings';
 import { ctxOf, requireAdmin, requireUser } from '../http';
 import * as personal from '../personal';
 import * as wallpaper from '../wallpaper';
@@ -26,6 +26,10 @@ export function personalRoutes(app: FastifyInstance, deps: AppDeps): void {
     const v = requireUser(req);
     return { settings: await putClientSettings(deps, v, clientName.parse(req.params).client, (req.body as { settings?: unknown } | undefined)?.settings) };
   });
+  // The site's default desktop layout (docs/10): admins set it from their own, or clear it.
+  app.get('/api/v1/site/desktop-default', async (req) => { requireUser(req); return { settings: await desktopDefault(deps.db) }; });
+  app.put('/api/v1/admin/desktop-default', async (req) => ({ settings: await setDesktopDefault(deps, requireUser(req), (req.body as { settings?: unknown } | undefined)?.settings ?? {}, ctxOf(deps, req)) }));
+  app.delete('/api/v1/admin/desktop-default', async (req, reply) => { await setDesktopDefault(deps, requireUser(req), null, ctxOf(deps, req)); return reply.code(204).send(); });
   app.put('/api/v1/me/notification-prefs', async (req, reply) => {
     const b = notificationPrefSchema.parse(req.body);
     await personal.setPref(deps, requireUser(req), b.kind, b.enabled);

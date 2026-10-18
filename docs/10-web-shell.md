@@ -154,6 +154,10 @@ plain, a "what's new" home, and the full landing page. No new themes.
   8. A note can be edited in place (it saves the memo), recoloured, or unpinned with Undo; the memo itself stays. The desktop
   settings keep only which memo and what colour (`notes`), so the text is owned, searched and exported as the memo it is. A
   deleted memo leaves a "This memo is gone" note to remove.
+- **The site's default layout** (2026-10-18): in Settings → Appearance an admin can "Make my layout the default": hidden apps,
+  icon places, the phone order and the home panel's widgets (never their own shortcuts, folders or notes). People who have not
+  saved a layout of their own get it, and "Reset" goes back to it. Kept in `site_defaults` (migration 0059), audited
+  `site.desktop_default_set` and `site.desktop_default_cleared`; `GET /site/desktop-default`, `PUT|DELETE /admin/desktop-default`.
 - **Keyboard**: Ctrl+K (Cmd+K) opens a search-and-jump palette (apps, boards, settings pages, a
   person by handle; letters in order match, so "stng" finds Settings). Alt+` brings the next window
   forward, minimized ones included. In a focused title bar, Alt+Left and Alt+Right snap the window to

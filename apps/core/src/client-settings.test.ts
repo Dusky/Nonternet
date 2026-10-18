@@ -84,4 +84,25 @@ describe.skipIf(!dbAvailable)('chat and MUD client settings on the account', () 
     expect((await c.post('/api/v1/me/delete', { password: TEST_PASSWORD, confirm_handle: (await c.get('/api/v1/me')).body.user.handle, posts: 'keep' })).status).toBeLessThan(300);
     expect((await db.query(`SELECT count(*)::int AS n FROM client_settings WHERE user_id = $1`, [id])).rows[0]!.n).toBe(0);
   });
+
+  it('gives people who never arranged their desktop the default an admin set, without anyone\'s own shortcuts', async () => {
+    const admin = await makeUser(ctx, { role: 'admin' });
+    const ac = await loginAs(ctx, admin.handle);
+    const layout = { hidden: ['files'], positions: { boards: { col: 1, row: 2 }, 'sc:s_abcdef': { col: 0, row: 0 } }, shortcuts: [{ id: 's_abcdef', label: 'Mine', target: { type: 'place', app: 'boards', path: '' } }] };
+    const someone = await loginAs(ctx, (await makeUser(ctx)).handle);
+    expect((await someone.put('/api/v1/admin/desktop-default', { settings: layout })).status).toBe(403);
+    const set = await ac.put('/api/v1/admin/desktop-default', { settings: layout });
+    expect(set.status).toBe(200);
+    expect(set.body.settings).toMatchObject({ hidden: ['files'], positions: { boards: { col: 1, row: 2 } }, shortcuts: [] });
+    expect(set.body.settings.positions['sc:s_abcdef']).toBeUndefined();
+    const fresh = await loginAs(ctx, (await makeUser(ctx)).handle);
+    expect((await fresh.get('/api/v1/me/client-settings/desktop')).body.settings).toMatchObject({ hidden: ['files'], positions: { boards: { col: 1, row: 2 } } });
+    // Someone who saved their own layout keeps it.
+    await someone.put('/api/v1/me/client-settings/desktop', { settings: { hidden: [] } });
+    expect((await someone.get('/api/v1/me/client-settings/desktop')).body.settings.hidden).toEqual([]);
+    const actions = (await db.query(`SELECT action FROM audit_log WHERE action LIKE 'site.desktop_default%' ORDER BY id`)).rows.map((r) => r.action);
+    expect(actions).toEqual(['site.desktop_default_set']);
+    expect((await ac.delete('/api/v1/admin/desktop-default')).status).toBe(204);
+    expect((await fresh.get('/api/v1/me/client-settings/desktop')).body.settings.hidden).toEqual([]);
+  });
 });
