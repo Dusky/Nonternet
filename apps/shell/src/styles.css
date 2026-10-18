@@ -946,6 +946,26 @@ ul.wall li .link { font-size: var(--step--1); }
 :root[data-chrome="aqua"] .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 
 /* Terminal: a heading sits in the top line of its box, like the BBS screens; no shadows. */
+/* Teletext: one blocky face at a larger size (VT323 runs small), no bold, and the phone tab bar as the coloured keys. */
+:root[data-chrome="teletext"] { --step--2: .95rem; --step--1: 1.05rem; --step-0: 1.25rem; --step-1: 1.4rem; }
+:root[data-chrome="teletext"] body { font-size: 1.25rem; line-height: 1.3; }
+:root[data-chrome="teletext"] :is(h1, h2, h3, h4, strong, b, th, .btn, .window-title h2) { font-weight: 400; }
+:root[data-chrome="teletext"] .home-greeting h2 { color: var(--accent); }
+:root[data-chrome="teletext"] .btn:active:not(:disabled) { transform: none; background: var(--fill); color: var(--fill-text); }
+:root[data-chrome="teletext"] .tabs a[aria-current=page] { transform: none; }
+:root[data-chrome="teletext"] .tabbar a:nth-child(5n+1) { --key: #ff3b3b; }
+:root[data-chrome="teletext"] .tabbar a:nth-child(5n+2) { --key: #00ff00; }
+:root[data-chrome="teletext"] .tabbar a:nth-child(5n+3) { --key: #ffff00; }
+:root[data-chrome="teletext"] .tabbar a:nth-child(5n+4) { --key: #00ffff; }
+:root[data-chrome="teletext"] .tabbar a:nth-child(5n+5) { --key: #ff00ff; }
+:root[data-chrome="teletext"] .tabbar a { color: var(--key); font-size: 1rem; }
+:root[data-chrome="teletext"] .tabbar a[aria-current=page] { color: #000000; background: var(--key); box-shadow: none; }
+/* Pocket LCD: a dithered screen behind everything, pill-shaped main buttons like a handheld's A and B. */
+:root[data-chrome="lcd"]:not([data-wallpaper]), :root[data-chrome="lcd"][data-wallpaper="dots"] {
+  --wp-image: repeating-conic-gradient(var(--desktop-dot) 0 25%, transparent 0 50%); --wp-size: 6px 6px;
+}
+:root[data-chrome="lcd"] .btn-primary { border-radius: 999px; }
+:root[data-chrome="lcd"] :is(h1, h2, h3) { font-weight: 600; }
 :root[data-chrome="terminal"] .panel > .panel-head:first-child { margin-top: calc(-1 * var(--space-4) - .7em); }
 :root[data-chrome="terminal"] .panel > .panel-head:first-child > :is(h2, h3) { background: var(--surface); padding: 0 1ch; margin-left: -1ch; font-size: var(--step-1); }
 :root[data-chrome="terminal"] .btn:active:not(:disabled) { transform: none; background: var(--fill); color: var(--fill-text); }

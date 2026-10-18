@@ -20,7 +20,7 @@
 | D15 | Admin console is a first-class, deliberately deep feature | DECIDED |
 | D16 | Built with Claude Code from these docs | DECIDED |
 | D17 | The BBS is built in-house (not Enigma½), is a client of core's API, and is the **last** milestone (M8). Boards and posts are native to core and work on the web from v1 | DECIDED |
-| D18 | Five themes from the design board: Webring (default), After dark, Terminal (eight screen colours), Platinum, Aqua. Modern and Amber retired and mapped to Webring and Terminal. Effects off by default. Board: https://claude.ai/artifact/7m11ykm4aaUKYrS3akbFGA, proposal: https://claude.ai/code/artifact/e76bc564-641f-4c36-b021-9f8c9a2ad99e (2026-10-02) | DECIDED |
+| D18 | Five themes from the design board: Webring (default), After dark, Terminal (eight screen colours), Platinum, Aqua; Teletext and Pocket LCD added 2026-10-18. Modern and Amber retired and mapped to Webring and Terminal. Effects off by default. Board: https://claude.ai/artifact/7m11ykm4aaUKYrS3akbFGA, proposal: https://claude.ai/code/artifact/e76bc564-641f-4c36-b021-9f8c9a2ad99e (2026-10-02) | DECIDED |
 | D19 | Admin two-factor is a site setting, `security.require_admin_2fa`, **off by default** (owners, 2026-10-02). When on, an admin without 2FA gets a limited session until they set it up | DECIDED |
 | D20 | MUD client automation is **rules only, never code**: aliases, triggers with a fixed set of actions, timers, keys, buttons, variables (owners, 2026-10-02) | DECIDED |
 | D21 | Chat and MUD client settings are **kept on the account** (`client_settings`), exported, imported and erased with it; device-only display choices stay on the device (owners, 2026-10-02) | DECIDED |
@@ -365,5 +365,8 @@ one process, this moves to the job queue.
   Flat/Threaded switch, the amber greeting and coloured stat-tile shadows in the zine themes, and the wall as a quiet card
   with a pink edge in After dark (it stays a pink sticker in light Webring). Phones keep 44 px reaction targets, larger
   than the board's chips, on purpose.
-- Two new directions are on the board for the owner to judge, not built: Teletext (page numbers per app, coloured keys)
-  and Pocket LCD (four greens, pixel type). Picking one would make a sixth theme; until then nothing changes.
+- Two new directions went on the board: Teletext (page numbers per app, coloured keys) and Pocket LCD (four greens,
+  pixel type). The owner liked both, and both are built as themes six and seven (DECIDED, extends D18). Teletext is a dark
+  look with no light version; Pocket LCD has a dark (backlit) version. Both pass the same contrast tests as the others.
+  Not built from the board: Teletext's page numbers per app and "type a page number" (they would need a real page index;
+  a later idea, not an open question). No migration: the theme list lives in code, and saved choices stay valid.

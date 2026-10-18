@@ -49,7 +49,7 @@ test('After dark and Terminal are always dark, and say so', async ({ page }) => 
   expect(await bodyBackground(page)).toBeLessThan(80);
 });
 
-for (const theme of ['webring', 'platinum', 'aqua']) {
+for (const theme of ['webring', 'platinum', 'aqua', 'lcd']) {
   test(`${theme} in dark has readable text and visible controls on the main screens`, async ({ page }) => {
     const me = await makeUser(page);
     await signIn(page, me.handle, PASSWORD);

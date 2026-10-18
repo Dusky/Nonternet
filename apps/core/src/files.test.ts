@@ -145,7 +145,7 @@ describe.skipIf(!dbAvailable)('file areas', () => {
     expect(after).toMatchObject({ name: 'After', description: 'New words', visibility: 'members', upload_role: 'user' });
     expect((await client(ctx.app).get('/api/v1/files/areas/edit-me')).status).toBe(404); // users only now: guests no longer see it
     const a = await db.query(`SELECT before, after FROM audit_log WHERE action = 'file_area.updated' ORDER BY id DESC LIMIT 1`);
-    expect(a.rows[0].before).toMatchObject({ name: 'Before', visibility: 'public' });
+    expect(a.rows[0]!.before).toMatchObject({ name: 'Before', visibility: 'public' });
     // More files than one page: the first page says where the next starts, and the pages add up.
     const area = (await db.query<{ id: string }>(`SELECT id FROM file_areas WHERE slug = 'edit-me'`)).rows[0]!.id;
     await db.query(`INSERT INTO files (id, area_id, name, title, description, size_bytes, sha256, uploader_id, created_at)

@@ -35,14 +35,16 @@ arrows); Boards designed mobile-first.
 ## Themes (DECIDED 2026-10-02, see `17` D18 and "As built (restyle)" below)
 Five themes: **Webring** (the handmade web on cream paper; the default), **After dark** (the same zine
 in amber, magenta second), **Terminal** (the BBS everywhere, with eight screen colours), **Platinum**
-(late-90s grey desktop) and **Aqua** (turn-of-the-century gloss). Themes are token sets in
+(late-90s grey desktop), **Aqua** (turn-of-the-century gloss), and since 2026-10-18 **Teletext** (the TV news pages:
+blocky type, the broadcast colours on black, the phone tab bar as coloured keys) and **Pocket LCD** (a handheld screen in
+four greens with pixel type; its dark version is the backlight). Themes are token sets in
 `packages/ui-themes`. Effects (scanlines, glow, CRT corners) are separate switches, off by default and
 off whenever the device asks for reduced motion or more contrast. Admin sets the default.
 
 **Light and dark (2026-10-11).** Settings → Appearance → "Light or dark": Light, Dark, or Follow my device (the default). It is
-kept on the device, like density and effects, and follows the device live. Webring, Platinum and Aqua each have a dark version of
+kept on the device, like density and effects, and follows the device live. Webring, Platinum, Aqua and Pocket LCD each have a dark version of
 their own colours and shadows (`dark` next to `tokens` in `packages/ui-themes`); shape, type and layout are the same in both.
-After dark and Terminal are dark looks already, so the choice does not apply to them and the page says so. `<html>` carries
+After dark, Terminal and Teletext are dark looks already, so the choice does not apply to them and the page says so. `<html>` carries
 `data-mode="light|dark"`; the stylesheet and the code editor in the Studio follow it. Every dark text and edge pair is
 tested against the same contrast rules as the light ones (4.5:1 for text, 3:1 for edges).
 
@@ -267,9 +269,11 @@ the site config and browser storage all accept the old names).
 - **Components** take their shape from tokens only: outlined buttons that drop into their shadow when
   pressed, one outside focus ring, boxed tabs with the current one filled and lifted, outlined cards and
   panels, alerts with a full border in their colour, toasts with the pop shadow, app icons as stickers.
-- **Chrome**: a few rules key on `data-chrome` (`zine`, `terminal`, `platinum`, `aqua`, set from the
+- **Chrome**: a few rules key on `data-chrome` (`zine`, `terminal`, `platinum`, `aqua`, `teletext`, `lcd`, set from the
   theme, never the theme's name): Platinum's centred title on stripes and bevelled buttons, Aqua's round
-  lights on the left and dock of open windows, Terminal's headings set into the box line.
+  lights on the left and dock of open windows, Terminal's headings set into the box line. Teletext sets
+  everything in VT323 at a larger size with no bold and colours the phone tab bar red, green, yellow, cyan and magenta;
+  Pocket LCD dithers the desktop and makes primary buttons pills.
 - **Modifiers** (this device only): effects; spacing (roomy or compact, every theme); Terminal's box
   style (single, double, heavy, none; double brings the pixel heading font).
 - **The Terminal window** uses your Terminal screen colour in every theme (an xterm theme built from

@@ -53,14 +53,14 @@ describe('themes', () => {
   });
 
   it('gives each light theme a dark version, and leaves the dark looks as they are', () => {
-    for (const name of ['webring', 'platinum', 'aqua'] as const) {
+    for (const name of ['webring', 'platinum', 'aqua', 'lcd'] as const) {
       expect(contrast(themes[name].dark!.bg as string, themes[name].dark!.text as string), `${name} dark text`).toBeGreaterThan(contrast(themes[name].tokens.bg, themes[name].tokens.text) - 6);
       expect(tokensFor(name, null, 'dark').bg).not.toBe(tokensFor(name, null, 'light').bg);
       // Shape does not change between modes.
       expect(tokensFor(name, null, 'dark').radius).toBe(tokensFor(name, null, 'light').radius);
       expect(tokensFor(name, null, 'dark').fontBody).toBe(tokensFor(name, null, 'light').fontBody);
     }
-    for (const name of ['after-dark', 'terminal'] as const) expect(hasModes(name), name).toBe(false);
+    for (const name of ['after-dark', 'terminal', 'teletext'] as const) expect(hasModes(name), name).toBe(false);
     const css = themeCss();
     for (const name of ['webring', 'platinum', 'aqua']) expect(css).toContain(`:root[data-theme="${name}"][data-mode="dark"]{color-scheme:dark;`);
     expect(css).not.toContain(':root[data-theme="after-dark"][data-mode');

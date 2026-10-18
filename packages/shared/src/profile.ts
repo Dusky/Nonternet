@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Themes are token sets in packages/ui-themes (docs/10). The names live here so the API can
 // validate a choice without depending on the UI package.
-export const THEMES = ['webring', 'after-dark', 'terminal', 'platinum', 'aqua'] as const;
+export const THEMES = ['webring', 'after-dark', 'terminal', 'platinum', 'aqua', 'teletext', 'lcd'] as const;
 export type ThemeName = (typeof THEMES)[number];
 export const DEFAULT_THEME_NAME: ThemeName = 'webring';
 // Names used before the 2026-10 restyle. A saved or configured old name still works and means its successor.

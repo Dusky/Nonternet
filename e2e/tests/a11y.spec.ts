@@ -8,7 +8,7 @@ import { BASE_URL } from '../support/stack';
 // catches what a machine can: contrast, missing labels, bad ARIA. It does not replace using the
 // site with a screen reader and a keyboard.
 // Every theme, plus two Terminal screen colours (the darkest green and the one light scheme).
-const THEMES = ['webring', 'after-dark', 'terminal', 'platinum', 'aqua', 'terminal:green', 'terminal:paper'] as const;
+const THEMES = ['webring', 'after-dark', 'terminal', 'platinum', 'aqua', 'teletext', 'lcd', 'terminal:green', 'terminal:paper'] as const;
 
 async function scan(page: Page, what: string) {
   await settled(page);

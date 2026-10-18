@@ -22,7 +22,7 @@ export type Tokens = Record<
 >;
 
 // Which family of window chrome a theme draws (a few rules in the stylesheet key on it).
-export type Chrome = 'zine' | 'terminal' | 'platinum' | 'aqua';
+export type Chrome = 'zine' | 'terminal' | 'platinum' | 'aqua' | 'teletext' | 'lcd';
 
 export interface Theme {
   name: ThemeName;
@@ -203,6 +203,44 @@ const aquaDark: Partial<Tokens> = {
   shadowWindow: '0 18px 40px rgba(0,0,0,.6)', shadowPop: '0 12px 30px rgba(0,0,0,.5)',
 };
 
+// Teletext: a Ceefax page. Black ground, the seven broadcast colours, blocky type, no shadows (docs/17, 2026-10-18).
+const teletext: Tokens = {
+  bg: '#000000', surface: '#000000', surface2: '#0a0a3a', text: '#ffffff', muted: '#00ffff', border: '#0000ff',
+  accent: '#ffff00', accentText: '#000000', accentSoft: '#0000ff', danger: '#ff3b3b', ok: '#00ff00', warn: '#ffff00',
+  focus: '#ff00ff', lineStrong: '#ffffff', fill: '#ffff00', fillText: '#000000', pop: '#ff00ff', popText: '#000000',
+  sticker1: '#00ffff', sticker2: '#ffff00', sticker3: '#00ff00', sticker4: '#ff00ff', sticker5: '#ff3b3b', stickerText: '#000000',
+  titleBg: '#0000ff', titleText: '#ffffff', titleActiveBg: '#00ffff', titleActiveText: '#000000', titleImage: 'none',
+  taskbarBg: '#000000', taskbarText: '#ffffff', desktopBg: '#000000', desktopDot: '#00007a', winBtnRadius: '0',
+  fontBody: vt323, fontMono: vt323, fontDisplay: vt323, fontLabel: vt323, fontNumber: vt323,
+  radius: '0', radiusSm: '0', radiusLg: '0', lineWidth: '3px', controlLine: '2px',
+  shadow: 'none', shadowSm: 'none', shadowHard: 'none', shadowCard: 'none', shadowWindow: '0 0 0 3px #0000ff', shadowPop: '0 0 0 3px #ff00ff',
+  glow: 'none', tilt: '0deg',
+};
+
+// Pocket LCD: a handheld screen in four greens, pixel type, chunky borders and hard shadows. Dark mode is the backlight.
+const lcd: Tokens = {
+  bg: '#8bac0f', surface: '#9bbc0f', surface2: '#adc94a', text: '#0f380f', muted: '#183f18', border: '#306230',
+  accent: '#0f380f', accentText: '#9bbc0f', accentSoft: '#c3d77e', danger: '#5a1208', ok: '#0f380f', warn: '#3b3800',
+  focus: '#0f380f', lineStrong: '#0f380f', fill: '#0f380f', fillText: '#9bbc0f', pop: '#306230', popText: '#e2efb2',
+  sticker1: '#c3d77e', sticker2: '#adc94a', sticker3: '#9bbc0f', sticker4: '#d4e3a0', sticker5: '#b8d060', stickerText: '#0f380f',
+  titleBg: '#adc94a', titleText: '#0f380f', titleActiveBg: '#0f380f', titleActiveText: '#9bbc0f', titleImage: 'none',
+  taskbarBg: '#0f380f', taskbarText: '#9bbc0f', desktopBg: '#8bac0f', desktopDot: '#9bbc0f', winBtnRadius: '0',
+  fontBody: pixelify, fontMono: plexMono, fontDisplay: pixelify, fontLabel: pixelify, fontNumber: pixelify,
+  radius: '0', radiusSm: '0', radiusLg: '0', lineWidth: '4px', controlLine: '3px',
+  shadow: offset(6, '#306230'), shadowSm: offset(3, '#306230'), shadowHard: offset(3, '#0f380f'), shadowCard: offset(5, '#306230'),
+  shadowWindow: offset(8, '#306230'), shadowPop: offset(5, '#0f380f'), glow: 'none', tilt: '0deg',
+};
+const lcdDark: Partial<Tokens> = {
+  bg: '#0f380f', surface: '#133f13', surface2: '#1c4a1c', text: '#c3e05a', muted: '#9bbc0f', border: '#306230',
+  accent: '#d4ef6a', accentText: '#0f380f', accentSoft: '#24521f', danger: '#ffb0a0', ok: '#c3e05a', warn: '#f0e070',
+  focus: '#e8ff8a', lineStrong: '#9bbc0f', fill: '#9bbc0f', fillText: '#0f380f', pop: '#8bac0f', popText: '#0f380f',
+  sticker1: '#9bbc0f', sticker2: '#8bac0f', sticker3: '#adc94a', sticker4: '#c3d77e', sticker5: '#b8d060', stickerText: '#0f380f',
+  titleBg: '#1c4a1c', titleText: '#9bbc0f', titleActiveBg: '#9bbc0f', titleActiveText: '#0f380f',
+  taskbarBg: '#0a2a0a', taskbarText: '#9bbc0f', desktopBg: '#0f380f', desktopDot: '#1c4a1c',
+  shadow: offset(6, '#0a2a0a'), shadowSm: offset(3, '#0a2a0a'), shadowHard: offset(3, '#9bbc0f'), shadowCard: offset(5, '#306230'),
+  shadowWindow: offset(8, '#0a2a0a'), shadowPop: offset(5, '#9bbc0f'),
+};
+
 const off = { scanlines: false, glow: false, crt: false };
 const zinePhone = (line: string, pop: string): Partial<Tokens> => ({
   lineWidth: '2px', shadow: offset(4, line), shadowCard: offset(3, line), shadowWindow: offset(4, line), shadowPop: offset(3, pop),
@@ -213,6 +251,8 @@ export const themes: Record<ThemeName, Theme> = {
   terminal: { name: 'terminal', label: 'Terminal', chrome: 'terminal', scheme: 'dark', tokens: terminalTokens('amber'), effects: off },
   platinum: { name: 'platinum', label: 'Platinum', chrome: 'platinum', scheme: 'light', tokens: platinum, dark: platinumDark, effects: off },
   aqua: { name: 'aqua', label: 'Aqua', chrome: 'aqua', scheme: 'light', tokens: aqua, dark: aquaDark, effects: off },
+  teletext: { name: 'teletext', label: 'Teletext', chrome: 'teletext', scheme: 'dark', tokens: teletext, effects: off },
+  lcd: { name: 'lcd', label: 'Pocket LCD', chrome: 'lcd', scheme: 'light', tokens: lcd, dark: lcdDark, phone: { lineWidth: '3px', shadowCard: offset(3, '#306230'), shadowWindow: offset(4, '#306230') }, effects: off },
 };
 
 const kebab = (k: string) => k.replace(/[A-Z0-9]+/g, (c) => `-${c.toLowerCase()}`);
