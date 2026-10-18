@@ -152,7 +152,7 @@ test('on a phone the apps can be hidden and put in another order in Settings, an
   const apps = page.getByRole('navigation', { name: 'Apps' });
   await expect(apps.getByRole('link', { name: 'Boards' })).toBeVisible();
   await expect(apps.getByRole('link', { name: 'Files' })).toHaveCount(0);
-  const names = await apps.getByRole('link').allInnerTexts();
+  const names = (await apps.getByRole('link').allInnerTexts()).map((n) => n.replace(/^\d+\s*/, '').trim()); // page numbers come first
   expect(names.indexOf('Memos')).toBeLessThan(names.indexOf('Bookmarks'));
 });
 
