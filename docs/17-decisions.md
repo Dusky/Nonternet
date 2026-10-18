@@ -391,9 +391,8 @@ one process, this moves to the job queue.
   month or until lifted; a proof-of-work check at sign-up (no third party); sign-up limits per network; email-domain
   rules (a disposable-domain list plus admin allow and deny lists); private admin notes on a person.
   Built so far: suspensions with an end date (a simple five-minute loop in core lifts them, audited as the system, not a
-  graphile-worker job, keeping the rule that only push uses the queue) and admin notes. **For the owner to confirm:** admin
-  notes are not in the person's own export, because they are about the person rather than theirs; they are deleted with the
-  account. If people should be able to see notes about them (a data request, for example), that is a change to make.
+  graphile-worker job, keeping the rule that only push uses the queue) and admin notes. Admin notes are for admins only (owner, 2026-10-18):
+  not shown to the person and not in their export; deleted with the account.
   Sign-up protections built too (docs/15): they apply to open and application sign-up, not invite sign-up (an invite is
   already a gate an admin handed out); the ALTCHA widget was not needed: the shell solves the challenge with the same
   library behind its own status line, so no worker, style or CSP change; terminal sign-up keeps its own per-address limit
@@ -427,4 +426,10 @@ one process, this moves to the job queue.
   letters are found.
 - **Wide characters in the BBS** (`string-width` 8.3.0, MIT, with `Intl.Segmenter` for whole characters): all
   measuring in `screens/util.ts` and art clipping use terminal columns. `slice-ansi` was not needed.
+
+## 2026-10-18 (evening): owner answers
+- **Admin notes:** for admins only, as built. DECIDED.
+- **Sign-up limit per network:** 5 new accounts a day is the default. DECIDED.
+- **Reliable email** (mail through the graphile-worker queue, with retries): later. The 2026-10-05 rule stays (only push
+  uses the queue) until then. OPEN, deferred.
 
